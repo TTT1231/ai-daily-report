@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="720" viewBox="0 0 1280 720">
+  <rect width="1280" height="720" fill="#f5f7fb"/>
+  <rect x="52" y="42" width="1176" height="636" rx="14" fill="#ffffff" stroke="#dbe1ea" stroke-width="2"/>
+  <circle cx="89" cy="78" r="8" fill="#ff6b6b"/>
+  <circle cx="117" cy="78" r="8" fill="#ffd166"/>
+  <circle cx="145" cy="78" r="8" fill="#65d69a"/>
+  <rect x="188" y="64" width="640" height="28" rx="14" fill="#edf1f7"/>
+  <text x="90" y="165" fill="#20283a" font-family="Arial, sans-serif" font-size="34" font-weight="700">Model evaluation dashboard</text>
+  <text x="90" y="208" fill="#69758b" font-family="Arial, sans-serif" font-size="20">Candidate model appeared briefly in an internal test environment</text>
+  <rect x="90" y="252" width="1100" height="86" rx="10" fill="#eef5ff" stroke="#8db8f0" stroke-width="2"/>
+  <text x="120" y="290" fill="#2565a9" font-family="Consolas, monospace" font-size="20">model_id</text>
+  <text x="120" y="320" fill="#17233b" font-family="Consolas, monospace" font-size="25" font-weight="700">gpt-5.6-candidate</text>
+  <rect x="90" y="378" width="520" height="24" rx="12" fill="#dbe1ea"/>
+  <rect x="90" y="424" width="1040" height="18" rx="9" fill="#e5e9ef"/>
+  <rect x="90" y="460" width="970" height="18" rx="9" fill="#e5e9ef"/>
+  <rect x="90" y="496" width="1080" height="18" rx="9" fill="#e5e9ef"/>
+  <rect x="90" y="532" width="750" height="18" rx="9" fill="#e5e9ef"/>
+  <rect x="90" y="590" width="190" height="42" rx="8" fill="#1b65d8"/>
+  <text x="132" y="618" fill="#ffffff" font-family="Arial, sans-serif" font-size="17" font-weight="700">RUN EVALUATION</text>
+</svg>
+

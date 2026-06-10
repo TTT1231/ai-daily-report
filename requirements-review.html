@@ -551,9 +551,11 @@
         <div class="video-frame" aria-label="日报视频结构示意图">
           <div class="video-inner">
             <nav class="nav-row" aria-label="Header1 粗粒度栏目导航">
+              <span class="nav-item" style="--duration-weight: 7">Intro</span>
               <span class="nav-item active" style="--duration-weight: 24">要闻 · 24s</span>
               <span class="nav-item" style="--duration-weight: 45">开发生态 · 45s</span>
               <span class="nav-item" style="--duration-weight: 18">行业动态 · 18s</span>
+              <span class="nav-item" style="--duration-weight: 5">Outro</span>
             </nav>
 
             <div class="story-head">据称 OpenAI GPT-5.6 候选版本短暂现身测试平台后移除</div>
@@ -600,11 +602,13 @@
             </div>
 
             <nav class="nav-row" aria-label="Header3 细粒度新闻导航">
+              <span class="nav-item" style="--duration-weight: 7">Intro</span>
               <span class="nav-item active" style="--duration-weight: 24">GPT-5.6</span>
               <span class="nav-item" style="--duration-weight: 12">Mythos</span>
               <span class="nav-item" style="--duration-weight: 18">Trae Work</span>
               <span class="nav-item" style="--duration-weight: 15">AI 开放平台</span>
               <span class="nav-item" style="--duration-weight: 18">DeepSeek</span>
+              <span class="nav-item" style="--duration-weight: 5">Outro</span>
             </nav>
           </div>
         </div>
@@ -620,16 +624,19 @@
       </p>
       <div class="panel structure">
         <div class="layer-list">
-          <div class="layer"><strong>Header1 · 粗粒度栏目</strong>要闻 / 开发生态 / 行业动态，始终完整显示</div>
+          <div class="layer"><strong>Header1 · 粗粒度栏目</strong>Intro / 要闻 / 开发生态 / 行业动态 / Outro，始终完整显示</div>
           <div class="layer"><strong>Head · 新闻完整标题</strong>当前正在讲解的单条新闻标题</div>
           <div class="layer highlight"><strong>Header2 / Tabs · 内容基础层</strong>默认采用 3 列 × 最多 2 行的大卡片矩阵，当前重点可高亮</div>
           <div class="layer highlight"><strong>真实图片 · 视觉主角</strong>在 Tabs 容器内居中，几乎吃满容器，底层 Tabs 仅在边缘隐约可见</div>
           <div class="layer"><strong>字幕 · 底部宽幅浮层</strong>大号白字横跨内容区底部，使用深色渐变与文字阴影保证可读性</div>
-          <div class="layer"><strong>Header3 · 细粒度新闻</strong>GPT-5.6 / Mythos / Trae Work / …，始终完整显示</div>
+          <div class="layer"><strong>Header3 · 细粒度新闻</strong>Intro / GPT-5.6 / Mythos / Trae Work / … / Outro，始终完整显示</div>
         </div>
         <div>
           <h3>父子关系示例</h3>
-          <pre>要闻
+          <pre>Intro
+└── Intro
+
+要闻
 └── GPT-5.6
 
 开发生态
@@ -638,7 +645,10 @@
 └── AI 开放平台
 
 行业动态
-└── DeepSeek</pre>
+└── DeepSeek
+
+Outro
+└── Outro</pre>
         </div>
       </div>
     </section>
@@ -711,16 +721,20 @@
         <pre>{
   "date": "2026-06-10",
           "topNavigation": [
+    "Intro",
     "要闻",
     "开发生态",
-    "行业动态"
+    "行业动态",
+    "Outro"
   ],
   "bottomNavigation": [
+    "Intro",
     "GPT-5.6",
     "Mythos",
     "Trae Work",
     "AI 开放平台",
-    "DeepSeek"
+    "DeepSeek",
+    "Outro"
   ],
   "stories": [
     {
@@ -827,8 +841,9 @@
             <li>图片覆盖期间，底层 Tabs 保留 18% 可见度。</li>
             <li>字幕始终按整句显示，不做逐词高亮。</li>
             <li>字幕横跨 Tabs 内容容器底部，使用大号白字、文字阴影和深色渐变底，允许轻微遮挡图片底边。</li>
-            <li>日报不加入固定 Intro、学习复盘或明日行动结语。</li>
-            <li>视频直接从第一条新闻开始，并在最后一条新闻结束。</li>
+            <li>日报包含固定结构的 Intro 和 Outro，但不加入学习复盘或明日行动内容。</li>
+            <li>Intro 用于日期、栏目和今日要点预告；Outro 用于简短结束语。</li>
+            <li>Intro 与 Outro 同样由字幕/TTS 决定时长，并参与 Header 宽度配额。</li>
             <li>Header1、Head 与 Header3 不被真实图片覆盖，始终保持上下文可见。</li>
           </ul>
         </div>
