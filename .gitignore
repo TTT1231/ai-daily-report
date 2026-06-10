@@ -7,3 +7,5 @@ dist
 out
 skills-lock.json
 .claude/skills
+.agents/skills
+bun.lock
