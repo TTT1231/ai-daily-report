@@ -186,7 +186,7 @@
 
     .video-inner {
       display: grid;
-      grid-template-rows: 7% 12% 1fr 9% 7%;
+      grid-template-rows: 7% 12% 1fr 7%;
       height: 100%;
       padding: 1.4% 2%;
       gap: 1%;
@@ -235,14 +235,16 @@
       display: grid;
       place-items: center;
       min-height: 0;
+      overflow: hidden;
     }
 
     .tabs-grid {
-      display: flex;
-      flex-wrap: wrap;
-      align-content: center;
-      justify-content: center;
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      grid-auto-rows: minmax(0, 1fr);
+      place-content: center;
       width: 94%;
+      height: 90%;
       gap: 3%;
       transition: opacity 200ms ease, filter 200ms ease;
     }
@@ -253,42 +255,64 @@
     }
 
     .summary-tab {
-      flex: 0 1 29%;
-      min-height: 38%;
-      padding: 2.2%;
+      min-width: 0;
+      min-height: 0;
+      padding: 6% 7%;
       color: #d6dcf4;
-      border: 1px solid #252d50;
-      background: rgba(23, 29, 55, 0.92);
-      border-radius: 6px;
+      border: 1px solid rgba(73, 87, 132, 0.3);
+      background:
+        linear-gradient(145deg, rgba(24, 31, 60, 0.94), rgba(19, 24, 48, 0.98)),
+        repeating-linear-gradient(45deg, transparent 0 8px, rgba(255, 255, 255, 0.025) 8px 9px);
+      border-radius: 4px;
       box-shadow: 0 8px 20px rgba(0, 0, 0, 0.14);
+      overflow: hidden;
     }
 
     .summary-tab.active {
       color: white;
       border-color: #2888dc;
-      background: linear-gradient(145deg, rgba(16, 113, 190, 0.82), rgba(21, 64, 134, 0.9));
+      background:
+        linear-gradient(145deg, rgba(22, 110, 185, 0.94), rgba(26, 68, 139, 0.96)),
+        repeating-linear-gradient(45deg, transparent 0 8px, rgba(255, 255, 255, 0.04) 8px 9px);
       box-shadow: 0 0 24px rgba(56, 159, 255, 0.24);
     }
 
     .tab-title {
       margin-bottom: 4%;
       color: inherit;
-      font-size: clamp(7px, 1vw, 14px);
+      font-size: clamp(8px, 1.25vw, 17px);
       font-weight: 750;
+      line-height: 1.25;
     }
 
     .tab-summary {
       color: #b8c0dd;
-      font-size: clamp(5px, 0.75vw, 10px);
-      line-height: 1.42;
+      font-size: clamp(6px, 0.92vw, 12px);
+      line-height: 1.48;
     }
 
     .summary-tab.active .tab-summary { color: #e4f2ff; }
 
+    .tab-summary code {
+      padding: 0.08em 0.34em;
+      color: #d9efff;
+      border: 1px solid rgba(112, 178, 255, 0.25);
+      background: rgba(5, 13, 30, 0.58);
+      border-radius: 0.34em;
+      font-family: "Cascadia Code", "Fira Code", Consolas, monospace;
+    }
+
+    .tab-summary strong {
+      color: #ffffff;
+      font-weight: 800;
+    }
+
     .source-overlay {
       position: absolute;
-      width: 78%;
-      height: 82%;
+      width: auto;
+      max-width: 96%;
+      height: 92%;
+      aspect-ratio: 16 / 9;
       display: none;
       place-items: center;
       padding: 3%;
@@ -328,11 +352,22 @@
     .fake-source-line.blue { width: 42%; background: #6fa3e8; }
 
     .subtitle {
+      position: absolute;
+      z-index: 3;
+      right: 0;
+      bottom: 0;
+      left: 0;
       display: grid;
       place-items: center;
+      min-height: 16%;
+      padding: 2.5% 3% 0.7%;
       color: #f0f3ff;
+      background: linear-gradient(to bottom, transparent, rgba(2, 4, 12, 0.82) 64%);
+      text-shadow: 0 2px 8px rgba(0, 0, 0, 0.95);
       text-align: center;
-      font-size: clamp(6px, 0.9vw, 12px);
+      font-size: clamp(7px, 1.25vw, 16px);
+      font-weight: 500;
+      line-height: 1.35;
     }
 
     .structure {
@@ -464,14 +499,13 @@
         grid-template-columns: 1fr;
       }
       .video-frame { border-radius: 8px; }
-      .summary-tab { flex-basis: 46%; }
+      .tabs-grid { gap: 2%; }
     }
 
     @media (max-width: 520px) {
       .shell { width: min(100% - 20px, 1180px); padding-top: 28px; }
       .section { padding-top: 50px; }
       .panel { padding: 12px; }
-      .summary-tab { flex-basis: 47%; }
       .tab-summary { display: none; }
     }
 
@@ -528,7 +562,7 @@
               <div class="tabs-grid" id="tabs-grid">
                 <article class="summary-tab active" data-tab="capability">
                   <div class="tab-title">核心能力</div>
-                  <div class="tab-summary">强化代码与推理能力，候选模型已进入内部测试阶段。</div>
+                  <div class="tab-summary">强化 <strong>代码与推理能力</strong>，候选模型已进入 <code>内部测试</code> 阶段。</div>
                 </article>
                 <article class="summary-tab" data-tab="performance">
                   <div class="tab-title">性能提升</div>
@@ -537,6 +571,18 @@
                 <article class="summary-tab" data-tab="impact">
                   <div class="tab-title">开发者影响</div>
                   <div class="tab-summary">未来可能通过 API 开放，并影响现有开发工作流。</div>
+                </article>
+                <article class="summary-tab">
+                  <div class="tab-title">底层能力</div>
+                  <div class="tab-summary">模型基础能力与工具调用链路得到持续增强。</div>
+                </article>
+                <article class="summary-tab">
+                  <div class="tab-title">训练方法</div>
+                  <div class="tab-summary">引入新的评测与训练机制，提升复杂任务稳定性。</div>
+                </article>
+                <article class="summary-tab">
+                  <div class="tab-title">生态计划</div>
+                  <div class="tab-summary">围绕 API、开发工具与合作生态逐步开放。</div>
                 </article>
               </div>
 
@@ -549,9 +595,9 @@
                   <div class="fake-source-line short"></div>
                 </div>
               </div>
-            </div>
 
-            <div class="subtitle" id="subtitle">GPT-5.6 将进一步强化代码与推理能力。</div>
+              <div class="subtitle" id="subtitle">GPT-5.6 将进一步强化代码与推理能力。</div>
+            </div>
 
             <nav class="nav-row" aria-label="Header3 细粒度新闻导航">
               <span class="nav-item active" style="--duration-weight: 24">GPT-5.6</span>
@@ -576,9 +622,9 @@
         <div class="layer-list">
           <div class="layer"><strong>Header1 · 粗粒度栏目</strong>要闻 / 开发生态 / 行业动态，始终完整显示</div>
           <div class="layer"><strong>Head · 新闻完整标题</strong>当前正在讲解的单条新闻标题</div>
-          <div class="layer highlight"><strong>Header2 / Tabs · 内容基础层</strong>多个摘要卡片同时排列，当前重点可高亮</div>
-          <div class="layer highlight"><strong>真实图片 · 内容覆盖层</strong>按场景淡入并覆盖在 Tabs 上方</div>
-          <div class="layer"><strong>字幕</strong>当前旁白对应的整句字幕</div>
+          <div class="layer highlight"><strong>Header2 / Tabs · 内容基础层</strong>默认采用 3 列 × 最多 2 行的大卡片矩阵，当前重点可高亮</div>
+          <div class="layer highlight"><strong>真实图片 · 视觉主角</strong>在 Tabs 容器内居中，几乎吃满容器，底层 Tabs 仅在边缘隐约可见</div>
+          <div class="layer"><strong>字幕 · 底部宽幅浮层</strong>大号白字横跨内容区底部，使用深色渐变与文字阴影保证可读性</div>
           <div class="layer"><strong>Header3 · 细粒度新闻</strong>GPT-5.6 / Mythos / Trae Work / …，始终完整显示</div>
         </div>
         <div>
@@ -614,7 +660,7 @@
         <article class="rule-card">
           <span class="rule-no">3</span>
           <h3>真实图片覆盖 Tabs</h3>
-          <p>图片出现时不替换页面结构，而是覆盖在 Tabs 上方；底层 Tabs 压暗但继续存在。</p>
+          <p>图片在 Tabs 内容容器内部上下左右居中，高度占容器 92%、最大宽度 96%；容器边界保证图片不会碰到 Header3。</p>
         </article>
         <article class="rule-card">
           <span class="rule-no">4</span>
@@ -635,6 +681,21 @@
           <span class="rule-no">7</span>
           <h3>网页与视频共用模型</h3>
           <p>JSON 稳定后，HTML 可视化编辑器与 Remotion 视频渲染器共享同一数据模型和组件规则。</p>
+        </article>
+        <article class="rule-card">
+          <span class="rule-no">8</span>
+          <h3>Tab 支持受限 Markdown</h3>
+          <p>Tab 内容仅解析行内代码和粗体，用于标注术语与重点；不支持会破坏卡片布局的任意 Markdown。</p>
+        </article>
+        <article class="rule-card">
+          <span class="rule-no">9</span>
+          <h3>字幕采用宽幅渐变浮层</h3>
+          <p>字幕固定横跨 Tabs 容器底部，使用大号白字、文字阴影和由透明到深色的渐变背景；允许遮挡图片最下方少量区域。</p>
+        </article>
+        <article class="rule-card">
+          <span class="rule-no">10</span>
+          <h3>Tabs 使用紧凑大卡片矩阵</h3>
+          <p>最多 6 张时采用固定 3 列 × 2 行布局，卡片等宽等高、窄且一致的间距、内部左对齐，并尽量铺满内容容器。</p>
         </article>
       </div>
     </section>
@@ -671,7 +732,7 @@
         {
           "id": "capability",
           "title": "核心能力",
-          "summary": "强化代码与推理能力"
+          "summary": "强化 **代码与推理能力**，候选模型进入 `内部测试`"
         },
         {
           "id": "performance",
@@ -725,6 +786,10 @@
             <strong>为什么不生成任意 HTML？</strong>
             <p>优先用稳定组件渲染 JSON，才能保证每日内容变化后仍然不会溢出或破坏画面。</p>
           </article>
+          <article class="decision">
+            <strong>Markdown 支持到什么程度？</strong>
+            <p>只支持 <code>`行内代码`</code> 与 <strong>**粗体**</strong>。渲染前解析为受控 React 节点，不直接注入任意 HTML。</p>
+          </article>
           <article class="decision pending">
             <strong>后续扩展点</strong>
             <p>Overlay 可继续增加裁剪区域、图片缩放、标注框和局部放大，但不影响基础 JSON 模型。</p>
@@ -746,21 +811,25 @@
             <li>Header1 是粗粒度栏目导航，Header3 是细粒度新闻导航，二者始终完整显示。</li>
             <li>Header1 与 Header3 的项目宽度按实际播放时长比例自动分配。</li>
             <li>Head 位于 Header1 与 Tabs 之间，显示当前新闻完整标题。</li>
-            <li>Tabs 使用居中 Flex/Grid 排列，每页最多显示 6 张，并允许当前重点高亮。</li>
+            <li>Tabs 使用居中 Grid 排列，每页最多显示 6 张，并允许当前重点高亮。</li>
+            <li>最多 6 张 Tabs 默认采用固定 3 列 × 2 行矩阵，卡片等宽等高并以窄间距铺满内容容器。</li>
+            <li>Tab 内容支持受限 Markdown：行内代码背景框与粗体。</li>
             <li>Active Tab 根据 Scene 变化，不是整条新闻固定状态。</li>
             <li>真实图片覆盖在 Tabs 上方，Tabs 在背景中压暗保留。</li>
+            <li>真实图片相对 Tabs 内容容器居中，高度占该容器的 92%，最大宽度为 96%，不会越过容器碰到 Header3。</li>
             <li>内容、时间线、图片和字幕最终由一份 JSON 驱动。</li>
           </ul>
         </div>
         <div class="panel">
           <h3>视觉与播放基线</h3>
           <ul class="checklist confirmed">
-            <li>真实图片覆盖中部内容舞台的 78% 宽、82% 高。</li>
+            <li>真实图片高度占 Tabs 内容容器的 92%，宽度按图片比例自适应，最大不超过容器的 96%。</li>
             <li>图片覆盖期间，底层 Tabs 保留 18% 可见度。</li>
             <li>字幕始终按整句显示，不做逐词高亮。</li>
+            <li>字幕横跨 Tabs 内容容器底部，使用大号白字、文字阴影和深色渐变底，允许轻微遮挡图片底边。</li>
             <li>日报不加入固定 Intro、学习复盘或明日行动结语。</li>
             <li>视频直接从第一条新闻开始，并在最后一条新闻结束。</li>
-            <li>Header 与字幕不被真实图片覆盖，始终保持上下文可见。</li>
+            <li>Header1、Head 与 Header3 不被真实图片覆盖，始终保持上下文可见。</li>
           </ul>
         </div>
       </div>
