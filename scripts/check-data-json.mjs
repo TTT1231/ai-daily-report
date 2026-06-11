@@ -57,40 +57,82 @@ try {
 if (report.$schema !== "./data-schema.json") {
   fail("$schema", 'must equal "./data-schema.json"');
 }
-if (report.schemaVersion !== 1) fail("schemaVersion", "must equal 1");
+if (report.theme !== undefined && !["light", "dark"].includes(report.theme)) {
+  fail("theme", 'must equal "light" or "dark"');
+}
 if (!isText(report.date)) fail("date", "is required");
-if (!isText(report.label)) fail("label", "is required");
 if (!Array.isArray(report.stories) || report.stories.length === 0) {
   fail("stories", "must contain at least one story");
+}
+if (renderMode && !report.intro) fail("intro", "is required before rendering");
+if (renderMode && !report.outro) fail("outro", "is required before rendering");
+if (!renderMode && (report.intro !== undefined || report.outro !== undefined)) {
+  fail("intro/outro", "are generated automatically and must not be added to data.json");
 }
 
 let expectedStartMs = 0;
 let timelineIsContinuous = true;
 const storyIds = new Set();
 const sceneIds = new Set();
+let activeIntroCount = 0;
 
-for (const [storyIndex, story] of (report.stories ?? []).entries()) {
-  const storyPath = `stories[${storyIndex}]`;
+const timelineStories = renderMode
+  ? [
+      ...(report.intro ? [{story: report.intro, path: "intro"}] : []),
+      ...(report.stories ?? []).map((story, index) => ({
+        story,
+        path: `stories[${index}]`,
+      })),
+      ...(report.outro ? [{story: report.outro, path: "outro"}] : []),
+    ]
+  : (report.stories ?? []).map((story, index) => ({
+      story,
+      path: `stories[${index}]`,
+    }));
+
+for (const {story, path: storyPath} of timelineStories) {
   if (!isText(story.id)) fail(`${storyPath}.id`, "is required");
   if (storyIds.has(story.id)) fail(`${storyPath}.id`, `duplicate id "${story.id}"`);
   storyIds.add(story.id);
+  if (!renderMode && ["intro", "outro"].includes(story.id)) {
+    fail(`${storyPath}.id`, `"${story.id}" is reserved and generated automatically`);
+  }
+  if (story.activeIntro !== undefined) {
+    if (story.activeIntro !== true) fail(`${storyPath}.activeIntro`, "must equal true when present");
+    activeIntroCount++;
+  }
 
-  for (const field of ["topTitle", "bottomTitle", "contentTitle"]) {
+  for (const field of ["topTitle", "bottomTitle"]) {
     if (!isText(story[field])) fail(`${storyPath}.${field}`, "is required");
   }
 
-  if (!Array.isArray(story.tabs) || story.tabs.length === 0 || story.tabs.length > 6) {
-    fail(`${storyPath}.tabs`, "must contain between 1 and 6 tabs");
-  }
+  if (story.id === "outro") {
+    if (story.contentTitle !== undefined) fail(`${storyPath}.contentTitle`, "must be omitted");
+    if (story.tabs !== undefined) fail(`${storyPath}.tabs`, "must be omitted");
+    if (story.activeTab !== undefined) fail(`${storyPath}.activeTab`, "must be omitted");
+    if (story.activeIntro !== undefined) fail(`${storyPath}.activeIntro`, "must be omitted");
+  } else {
+    if (!isText(story.contentTitle)) fail(`${storyPath}.contentTitle`, "is required");
+    const tooManyTabs = story.id !== "intro" && story.tabs?.length > 6;
+    if (!Array.isArray(story.tabs) || story.tabs.length === 0 || tooManyTabs) {
+      fail(
+        `${storyPath}.tabs`,
+        story.id === "intro" ? "must contain at least one tab" : "must contain between 1 and 6 tabs",
+      );
+    }
 
-  const tabIds = new Set();
-  for (const [tabIndex, tab] of (story.tabs ?? []).entries()) {
-    const tabPath = `${storyPath}.tabs[${tabIndex}]`;
-    if (!isText(tab.id)) fail(`${tabPath}.id`, "is required");
-    if (tabIds.has(tab.id)) fail(`${tabPath}.id`, `duplicate id "${tab.id}"`);
-    tabIds.add(tab.id);
-    if (!isText(tab.title)) fail(`${tabPath}.title`, "is required");
-    if (!isText(tab.summary)) fail(`${tabPath}.summary`, "is required");
+    const tabIds = new Set();
+    for (const [tabIndex, tab] of (story.tabs ?? []).entries()) {
+      const tabPath = `${storyPath}.tabs[${tabIndex}]`;
+      if (!isText(tab.id)) fail(`${tabPath}.id`, "is required");
+      if (tabIds.has(tab.id)) fail(`${tabPath}.id`, `duplicate id "${tab.id}"`);
+      tabIds.add(tab.id);
+      if (!isText(tab.title)) fail(`${tabPath}.title`, "is required");
+      if (!isText(tab.summary)) fail(`${tabPath}.summary`, "is required");
+    }
+    if (story.activeTab !== undefined && !tabIds.has(story.activeTab)) {
+      fail(`${storyPath}.activeTab`, `unknown tab id "${story.activeTab}"`);
+    }
   }
 
   if (!Array.isArray(story.scenes) || story.scenes.length === 0) {
@@ -102,9 +144,6 @@ for (const [storyIndex, story] of (report.stories ?? []).entries()) {
     if (!isText(scene.id)) fail(`${scenePath}.id`, "is required for TTS output mapping");
     if (sceneIds.has(scene.id)) fail(`${scenePath}.id`, `duplicate global scene id "${scene.id}"`);
     sceneIds.add(scene.id);
-    if (!tabIds.has(scene.activeTab)) {
-      fail(`${scenePath}.activeTab`, `unknown tab id "${scene.activeTab}"`);
-    }
     if (!isText(scene.subtitle)) fail(`${scenePath}.subtitle`, "is required for human review and TTS");
 
     if (!scene.timing) {
@@ -157,6 +196,10 @@ for (const [storyIndex, story] of (report.stories ?? []).entries()) {
   }
 }
 
+if (activeIntroCount > 1) {
+  fail("stories", "only one story may set activeIntro to true");
+}
+
 if (errors.length > 0) {
   console.error(`data-scheme/${dataFile} validation failed with ${errors.length} error(s):`);
   errors.forEach((error) => console.error(`- ${error}`));
@@ -165,6 +208,6 @@ if (errors.length > 0) {
 
 console.log(
   renderMode
-    ? `data-scheme/data-generate.json is render-ready: ${report.stories.length} stories, ${expectedStartMs}ms total.`
+    ? `data-scheme/data-generate.json is render-ready: generated intro + ${report.stories.length} stories + fixed outro, ${expectedStartMs}ms total.`
     : `data-scheme/data.json raw content is valid: ${report.stories.length} stories.`,
 );

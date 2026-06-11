@@ -22,6 +22,59 @@ const speed = readNumberEnv("MINIMAX_TTS_SPEED", 1, 0.5, 2);
 const vol = readNumberEnv("MINIMAX_TTS_VOLUME", 1, Number.EPSILON, 10);
 const pitch = readNumberEnv("MINIMAX_TTS_PITCH", 0, -12, 12);
 const tailPaddingMs = readIntegerEnv("TTS_TAIL_PADDING_MS", 250, 0);
+const getGreeting = (hour) => {
+  if (hour >= 5 && hour < 12) return "早上好";
+  if (hour >= 12 && hour < 14) return "中午好";
+  if (hour >= 14 && hour < 18) return "下午好";
+  return "晚上好";
+};
+
+const buildIntro = (report) => {
+  const groups = new Map();
+  let activeTitle;
+
+  for (const story of report.stories) {
+    const titles = groups.get(story.topTitle) ?? [];
+    titles.push(story.contentTitle);
+    groups.set(story.topTitle, titles);
+    if (story.activeIntro === true) activeTitle = story.topTitle;
+  }
+
+  const tabs = Array.from(groups, ([title, contentTitles], index) => ({
+    id: `intro-group-${index + 1}`,
+    title,
+    summary: contentTitles.join("\n"),
+  }));
+
+  return {
+    id: "intro",
+    topTitle: "Intro",
+    bottomTitle: "Intro",
+    contentTitle: `${report.date} 资讯概览`,
+    tabs,
+    ...(activeTitle
+      ? {activeTab: tabs.find((tab) => tab.title === activeTitle)?.id}
+      : {}),
+    scenes: [
+      {
+        id: "intro-greeting",
+        subtitle: report.introContent ?? `大家${getGreeting(new Date().getHours())}，欢迎收看今天的 AI 日报。`,
+      },
+    ],
+  };
+};
+
+const buildOutro = (report) => ({
+  id: "outro",
+  topTitle: "结语",
+  bottomTitle: "再见",
+  scenes: [
+    {
+      id: "outro-ending",
+      subtitle: report.outroContent ?? "今天的资讯播送完了，再见！",
+    },
+  ],
+});
 
 function readNumberEnv(name, fallback, min, max) {
   const raw = process.env[name];
@@ -144,20 +197,39 @@ if (!dryRun && !apiKey) {
 }
 
 const report = JSON.parse(await readFile(rawDataPath, "utf8"));
+
+// 如果用户未提供 theme，根据当前小时自动推断
+if (!report.theme) {
+  const hour = new Date().getHours();
+  report.theme = (hour >= 6 && hour < 18) ? "light" : "dark";
+}
+
+if (report.stories.some((story) => story.id === "intro" || story.id === "outro")) {
+  throw new Error('Raw stories must not use the reserved ids "intro" or "outro".');
+}
+if (report.stories.filter((story) => story.activeIntro === true).length > 1) {
+  throw new Error("Only one story may set activeIntro to true.");
+}
 const previousReport = existsSync(generatedDataPath)
   ? JSON.parse(await readFile(generatedDataPath, "utf8"))
   : null;
 const cachedScenes = new Map(
-  (previousReport?.stories ?? []).flatMap((story) =>
-    story.scenes.map((scene) => [scene.id, scene]),
-  ),
+  [
+    ...(previousReport?.intro ? [previousReport.intro] : []),
+    ...(previousReport?.stories ?? []),
+    ...(previousReport?.outro ? [previousReport.outro] : []),
+  ].flatMap((story) => story.scenes.map((scene) => [scene.id, scene])),
 );
-const scenes = report.stories.flatMap((story) => story.scenes);
+report.intro = buildIntro(report);
+report.outro = buildOutro(report);
+const scenes = [report.intro, ...report.stories, report.outro].flatMap(
+  (story) => story.scenes,
+);
 const sceneIds = new Set();
 
 for (const scene of scenes) {
-  if (!/^[a-z0-9][a-z0-9-]*$/.test(scene.id ?? "")) {
-    throw new Error(`Scene id "${scene.id}" must contain only lowercase letters, numbers, and hyphens.`);
+  if (!/^[a-z0-9][a-z0-9-.]*$/.test(scene.id ?? "")) {
+    throw new Error(`Scene id "${scene.id}" must contain only lowercase letters, numbers, hyphens, and dots.`);
   }
   if (sceneIds.has(scene.id)) {
     throw new Error(`Scene id "${scene.id}" is duplicated. Scene ids must be globally unique.`);

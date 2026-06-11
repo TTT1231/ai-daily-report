@@ -8,6 +8,9 @@
 
 不要手动修改 `data-generate.json`；重新运行 TTS 时会根据 `data.json` 生成它。
 
+在 `data.json` 根级设置 `"theme": "light"` 或 `"theme": "dark"` 控制视频主题。
+早间发布推荐使用暖白、清晰的 `light`，晚间发布推荐使用沉浸感更强的 `dark`。
+
 ## 推荐工作流
 
 1. 编辑并人工审查 `data-scheme/data.json` 的标题、Tabs、字幕和图片引用。

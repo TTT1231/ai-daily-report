@@ -29,6 +29,7 @@
     "tts": "node --env-file-if-exists=.env scripts/generate-tts.mjs",
     "tts:dry-run": "node --env-file-if-exists=.env scripts/generate-tts.mjs --dry-run",
     "tts:force": "node --env-file-if-exists=.env scripts/generate-tts.mjs --force",
+    "comment": "node scripts/generate-comment.mjs",
     "prepare-report": "bun run check-data-json && bun run tts && bun run check-data-json:render",
     "predev": "bun run check-data-json:render",
     "dev": "remotion studio",

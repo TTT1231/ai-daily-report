@@ -9,7 +9,6 @@ const dailyTabSchema = z.object({
 
 const dailySceneSchema = z.object({
   id: z.string().min(1),
-  activeTab: z.string().min(1),
   subtitle: z.string().min(1),
   audioSrc: z.string().min(1).optional(),
   tts: z
@@ -32,7 +31,6 @@ const dailySceneSchema = z.object({
   overlay: z
     .object({
       src: z.string().min(1),
-      caption: z.string().min(1),
     })
     .optional(),
 });
@@ -43,32 +41,62 @@ const dailyStorySchema = z
     topTitle: z.string().min(1),
     bottomTitle: z.string().min(1),
     contentTitle: z.string().min(1),
+    activeTab: z.string().min(1).optional(),
+    activeIntro: z.literal(true).optional(),
     tabs: z.array(dailyTabSchema).min(1).max(6),
     scenes: z.array(dailySceneSchema).min(1),
   })
   .superRefine((story, context) => {
     const tabIds = new Set(story.tabs.map((tab) => tab.id));
-    story.scenes.forEach((scene, sceneIndex) => {
-      if (!tabIds.has(scene.activeTab)) {
-        context.addIssue({
-          code: "custom",
-          path: ["scenes", sceneIndex, "activeTab"],
-          message: `activeTab "${scene.activeTab}" does not exist in story tabs`,
-        });
-      }
-    });
+    if (story.activeTab !== undefined && !tabIds.has(story.activeTab)) {
+      context.addIssue({
+        code: "custom",
+        path: ["activeTab"],
+        message: `activeTab "${story.activeTab}" does not exist in story tabs`,
+      });
+    }
   });
 
-const dailyReportSchema = z.object({
-  schemaVersion: z.literal(1),
-  date: z.string().min(1),
-  label: z.string().min(1),
-  stories: z.array(dailyStorySchema).min(1),
+const dailyOutroSchema = z.object({
+  id: z.literal("outro"),
+  topTitle: z.string().min(1),
+  bottomTitle: z.string().min(1),
+  scenes: z.array(dailySceneSchema).length(1),
 });
+
+const dailyIntroSchema = z.object({
+  id: z.literal("intro"),
+  topTitle: z.string().min(1),
+  bottomTitle: z.string().min(1),
+  contentTitle: z.string().min(1),
+  activeTab: z.string().min(1).optional(),
+  tabs: z.array(dailyTabSchema).min(1),
+  scenes: z.array(dailySceneSchema).length(1),
+});
+
+const dailyReportSchema = z
+  .object({
+    theme: z.enum(["light", "dark"]).default("light"),
+    date: z.string().min(1),
+    intro: dailyIntroSchema,
+    stories: z.array(dailyStorySchema).min(1),
+    outro: dailyOutroSchema,
+  })
+  .superRefine((report, context) => {
+    if (report.stories.filter((story) => story.activeIntro === true).length > 1) {
+      context.addIssue({
+        code: "custom",
+        path: ["stories"],
+        message: "Only one story may set activeIntro to true",
+      });
+    }
+  });
 
 export type DailyTab = z.infer<typeof dailyTabSchema>;
 export type DailyScene = z.infer<typeof dailySceneSchema>;
 export type DailyStory = z.infer<typeof dailyStorySchema>;
+export type DailyIntro = z.infer<typeof dailyIntroSchema>;
+export type DailyOutro = z.infer<typeof dailyOutroSchema>;
 export type DailyReport = z.infer<typeof dailyReportSchema>;
 
 export const dailyReport: DailyReport = dailyReportSchema.parse(reportJson);
