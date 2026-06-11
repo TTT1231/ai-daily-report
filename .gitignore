@@ -17,9 +17,9 @@ lerna-debug.log*
 
 node_modules
 
-.claude/skills
+.claude/skills/remotion-best-practices
 .claude/*.local.md
-.agents/skills
+.agents/skills/remotion-best-practices
 bun.lock
 build
 .env*

@@ -6,7 +6,7 @@ const packageDir = resolve(root, "data-scheme");
 const renderMode = process.argv.includes("--render");
 const dataFile = renderMode ? "data-generate.json" : "data.json";
 const dataPath = resolve(packageDir, dataFile);
-const schemaPath = resolve(packageDir, "data-schema.json");
+const schemaPath = resolve(root, "data-schema.json");
 const errors = [];
 
 const fail = (path, message) => errors.push(`${path}: ${message}`);
@@ -54,8 +54,8 @@ try {
   process.exit(1);
 }
 
-if (report.$schema !== "./data-schema.json") {
-  fail("$schema", 'must equal "./data-schema.json"');
+if (report.$schema !== "../data-schema.json") {
+  fail("$schema", 'must equal "../data-schema.json"');
 }
 if (report.theme !== undefined && !["light", "dark"].includes(report.theme)) {
   fail("theme", 'must equal "light" or "dark"');

@@ -315,6 +315,25 @@ const InlineMarkup: React.FC<{ text: string; theme: Theme; active: boolean }> = 
   );
 };
 
+const TabIcon: React.FC<{
+  src: string;
+  active: boolean;
+  size?: number;
+}> = ({src, active, size = 62}) => (
+  <Img
+    src={staticFile(src)}
+    style={{
+      width: size,
+      height: size,
+      flexShrink: 0,
+      transform: active ? "scale(1.08)" : "none",
+      filter: active
+        ? "saturate(1.2) brightness(1.12) drop-shadow(0 0 10px rgba(111,213,255,.28))"
+        : "saturate(1.1) brightness(1.06) drop-shadow(0 2px 4px rgba(0,0,0,.28))",
+    }}
+  />
+);
+
 const Navigation: React.FC<{
   items: { label: string; duration: number; active: boolean }[];
   theme: Theme;
@@ -453,16 +472,17 @@ const Tabs: React.FC<{
                 lineHeight: 1.18,
                 fontWeight: 820,
                 marginBottom: 14,
+                display: "flex",
+                alignItems: "center",
+                gap: 12,
               }}
             >
-              <span
-                style={{
-                  color: palette.blue,
-                  marginRight: 12,
-                }}
-              >
-                {String(index + 1).padStart(2, "0")}
-              </span>
+              {tab.icon && (
+                <TabIcon
+                  src={tab.icon}
+                  active={active}
+                />
+              )}
               {tab.title}
             </div>
             <div
@@ -574,8 +594,18 @@ const IntroOverview: React.FC<{
                   lineHeight: 1.15,
                   fontWeight: 850,
                   marginBottom: 18,
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 14,
                 }}
               >
+                {tab.icon && (
+                  <TabIcon
+                    src={tab.icon}
+                    active={tab.id === intro.activeTab}
+                    size={58}
+                  />
+                )}
                 {tab.title}
               </div>
               <div
