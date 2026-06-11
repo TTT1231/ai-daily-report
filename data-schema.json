@@ -1,0 +1,277 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "./data-schema.json",
+  "title": "AI Daily Report Data Package",
+  "description": "AI 日报 raw 内容与 TTS 派生渲染数据共用格式。data.json 由人维护，data-generate.json 由 TTS 生成。",
+  "type": "object",
+  "required": ["date", "stories"],
+  "additionalProperties": false,
+  "properties": {
+    "$schema": {
+      "type": "string",
+      "description": "供编辑器识别并提供 JSON 智能提示。"
+    },
+    "theme": {
+      "enum": ["light", "dark"],
+      "description": "视频视觉主题。早间发布推荐 light，晚间发布推荐 dark。"
+    },
+    "date": {
+      "type": "string",
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+      "description": "日报日期，格式为 YYYY-MM-DD。"
+    },
+    "stories": {
+      "type": "array",
+      "minItems": 1,
+      "description": "按播放顺序排列的内容段。具体栏目名称和数量由每期日报自行决定。",
+      "items": {"$ref": "#/$defs/story"}
+    },
+    "intro": {
+      "$ref": "#/$defs/intro",
+      "description": "仅出现在 data-generate.json，由 TTS 流程根据 stories 自动生成的资讯概览。"
+    },
+    "outro": {
+      "$ref": "#/$defs/outro",
+      "description": "仅出现在 data-generate.json，由 TTS 流程自动追加的固定结语。"
+    },
+    "introContent": {
+      "type": "string",
+      "minLength": 1,
+      "description": "可选。自定义 intro 旁白字幕，未提供时使用默认问候语。"
+    },
+    "outroContent": {
+      "type": "string",
+      "minLength": 1,
+      "description": "可选。自定义 outro 旁白字幕，未提供时使用默认结语。"
+    }
+  },
+  "$defs": {
+    "identifier": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^[a-z0-9][a-z0-9-.]*$"
+    },
+    "story": {
+      "type": "object",
+      "required": ["id", "topTitle", "bottomTitle", "contentTitle", "tabs", "scenes"],
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/identifier",
+          "description": "Story 唯一 ID。"
+        },
+        "topTitle": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Header1 粗粒度栏目标题。允许每期日报使用任意非空文字。"
+        },
+        "bottomTitle": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Header3 细粒度内容标题。允许每期日报使用任意非空文字。"
+        },
+        "contentTitle": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Header1 下方、Tabs 上方展示的当前 Story 完整标题。"
+        },
+        "activeTab": {
+          "$ref": "#/$defs/identifier",
+          "description": "可选。当前 Story 整组 Tabs 中唯一高亮的 Tab ID；必须存在于当前 Story.tabs 中。省略时不高亮任何 Tab。"
+        },
+        "activeIntro": {
+          "const": true,
+          "description": "可选。将该 Story 所属 topTitle 对应的 Intro 概览卡片设为高亮；整期 stories 中最多只能有一个。"
+        },
+        "tabs": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 6,
+          "description": "中部信息卡片，最多六张。",
+          "items": {"$ref": "#/$defs/tab"}
+        },
+        "scenes": {
+          "type": "array",
+          "minItems": 1,
+          "description": "Story 内按播放顺序排列的画面和旁白片段。",
+          "items": {"$ref": "#/$defs/scene"}
+        }
+      }
+    },
+    "intro": {
+      "type": "object",
+      "required": ["id", "topTitle", "bottomTitle", "contentTitle", "tabs", "scenes"],
+      "additionalProperties": false,
+      "properties": {
+        "id": {"const": "intro"},
+        "topTitle": {"type": "string", "minLength": 1},
+        "bottomTitle": {"type": "string", "minLength": 1},
+        "contentTitle": {"type": "string", "minLength": 1},
+        "activeTab": {
+          "$ref": "#/$defs/identifier",
+          "description": "由生成脚本写入，用于高亮 Intro 中唯一的栏目卡片。"
+        },
+        "tabs": {
+          "type": "array",
+          "minItems": 1,
+          "items": {"$ref": "#/$defs/tab"}
+        },
+        "scenes": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 1,
+          "items": {"$ref": "#/$defs/scene"}
+        }
+      }
+    },
+    "outro": {
+      "type": "object",
+      "required": ["id", "topTitle", "bottomTitle", "scenes"],
+      "additionalProperties": false,
+      "properties": {
+        "id": {"const": "outro"},
+        "topTitle": {"type": "string", "minLength": 1},
+        "bottomTitle": {"type": "string", "minLength": 1},
+        "scenes": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 1,
+          "items": {"$ref": "#/$defs/scene"}
+        }
+      }
+    },
+    "tab": {
+      "type": "object",
+      "required": ["id", "title", "summary"],
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/identifier",
+          "description": "Tab 唯一 ID，供 Story.activeTab 引用。"
+        },
+        "title": {
+          "type": "string",
+          "minLength": 1,
+          "description": "卡片标题。"
+        },
+        "summary": {
+          "type": "string",
+          "minLength": 1,
+          "description": "卡片正文，仅支持受限 Markdown：**粗体** 与 `行内代码`。"
+        },
+        "icon": {
+          "$ref": "#/$defs/iconPath",
+          "description": "可选。Tab 卡片标题图标，替代 emoji 前缀。未提供时由 icon-skill 自动生成。"
+        }
+      }
+    },
+    "scene": {
+      "type": "object",
+      "required": ["id", "subtitle"],
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/identifier",
+          "description": "Scene 唯一 ID，同时作为 TTS 音频文件映射依据。"
+        },
+        "subtitle": {
+          "type": "string",
+          "minLength": 1,
+          "description": "由人审查的整句字幕，也是 TTS 的输入文案。"
+        },
+        "overlay": {
+          "$ref": "#/$defs/overlay",
+          "description": "可选的真实图片覆盖层。"
+        },
+        "audioSrc": {
+          "$ref": "#/$defs/audioPath",
+          "description": "仅出现在 data-generate.json，由 TTS 写入的旁白音频路径。"
+        },
+        "timing": {
+          "$ref": "#/$defs/timing",
+          "description": "仅出现在 data-generate.json，由真实音频时长生成；最终渲染前必须存在。"
+        },
+        "tts": {
+          "$ref": "#/$defs/ttsMetadata",
+          "description": "仅出现在 data-generate.json，用于记录生成参数与增量缓存信息。"
+        }
+      }
+    },
+    "overlay": {
+      "type": "object",
+      "required": ["src"],
+      "additionalProperties": false,
+      "properties": {
+        "src": {
+          "$ref": "#/$defs/imagePath",
+          "description": "相对于 data-scheme/ 的图片路径。"
+        }
+      }
+    },
+    "timing": {
+      "type": "object",
+      "required": ["startMs", "durationMs"],
+      "additionalProperties": false,
+      "properties": {
+        "startMs": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Scene 在整段视频中的开始时间，单位毫秒，由 TTS 流程回写。"
+        },
+        "durationMs": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Scene 的真实播放时长，单位毫秒，由 TTS 音频时长决定。"
+        }
+      }
+    },
+    "ttsMetadata": {
+      "type": "object",
+      "required": [
+        "provider",
+        "hash",
+        "model",
+        "voiceId",
+        "speed",
+        "vol",
+        "pitch",
+        "audioLengthMs",
+        "tailPaddingMs"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "provider": {
+          "const": "minimax",
+          "description": "生成音频所使用的 TTS 服务。"
+        },
+        "hash": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$",
+          "description": "字幕和 TTS 参数的 SHA-256，用于跳过未变化的音频。"
+        },
+        "model": {"type": "string", "minLength": 1},
+        "voiceId": {"type": "string", "minLength": 1},
+        "speed": {"type": "number", "minimum": 0.5, "maximum": 2},
+        "vol": {"type": "number", "exclusiveMinimum": 0, "maximum": 10},
+        "pitch": {"type": "number", "minimum": -12, "maximum": 12},
+        "audioLengthMs": {"type": "integer", "minimum": 1},
+        "tailPaddingMs": {"type": "integer", "minimum": 0}
+      }
+    },
+    "imagePath": {
+      "type": "string",
+      "pattern": "^images/.+\\.(svg|png|jpe?g|webp)$",
+      "description": "当前日报数据包中 images/ 目录下的图片路径。"
+    },
+    "audioPath": {
+      "type": "string",
+      "pattern": "^audio/.+\\.(mp3|wav|m4a|aac|ogg)$",
+      "description": "当前日报数据包中 audio/ 目录下的 TTS 音频路径。"
+    },
+    "iconPath": {
+      "type": "string",
+      "pattern": "^icons/.+\\.(svg|png)$",
+      "description": "当前日报数据包中 icons/ 目录下的图标路径。"
+    }
+  }
+}
