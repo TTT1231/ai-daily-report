@@ -18,6 +18,11 @@ lerna-debug.log*
 node_modules
 
 .claude/skills
+.claude/*.local.md
 .agents/skills
 bun.lock
 build
+.env*
+
+# TTS generated voice assets for the current daily-report package.
+data-scheme

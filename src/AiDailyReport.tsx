@@ -9,99 +9,159 @@ import {
   useCurrentFrame,
   useVideoConfig,
 } from "remotion";
-import {dailyReport, type DailyScene, type DailyStory} from "./daily-report-data";
+import {
+  dailyReport,
+  type DailyScene,
+  type DailyStory,
+} from "./daily-report-data";
 import clickSound from "./sound/click-sound.mp3";
 
+// ── Palette & constants ──────────────────────────────────────────────────
+
 const palette = {
-  bg: "#070916",
-  panel: "#11172e",
-  panelAlt: "#171f3c",
-  line: "#2c3761",
   text: "#f5f7ff",
   muted: "#929dc1",
   blue: "#68a4ff",
-  cyan: "#53d8dc",
 };
 
-const STORY_PAUSE_FRAMES = 9;
+const STORY_PAUSE_FRAMES = 2;
+const STORY_TRANSITION_FRAMES = 18;
 const IMAGE_TRANSITION_FRAMES = 16;
 
 const msToFrames = (milliseconds: number, fps: number) =>
   Math.round((milliseconds / 1000) * fps);
 
-export const getReportDurationInFrames = (fps: number) =>
-  dailyReport.stories.reduce(
-    (total, story) =>
-      total +
-      story.scenes.reduce(
-        (storyTotal, scene) => storyTotal + msToFrames(scene.durationMs, fps),
-        0,
-      ),
-    0,
-  );
+// ── Unified timeline (single source of truth for all frame positions) ───
+//
+// Every consumer (duration, audio placement, visual state, click sounds)
+// derives from this one walk, so rounding is consistent throughout.
 
-const getStoryDurationMs = (story: DailyStory) =>
-  story.scenes.reduce((total, scene) => total + scene.durationMs, 0);
+interface TimelineScene {
+  story: DailyStory;
+  scene: DailyScene;
+  storyIndex: number;
+  sceneIndex: number;
+  startFrame: number;
+  durationFrames: number;
+}
 
-const getStoryStartFrames = (fps: number) => {
+interface Timeline {
+  scenes: TimelineScene[];
+  storyStarts: number[];
+  totalFrames: number;
+}
+
+const buildTimeline = (fps: number): Timeline => {
+  const scenes: TimelineScene[] = [];
+  const storyStarts: number[] = [];
   let cursor = 0;
-  return dailyReport.stories.map((story) => {
-    const start = cursor;
-    cursor += msToFrames(getStoryDurationMs(story), fps);
-    return start;
-  });
-};
 
-const getTimelineState = (frame: number, fps: number) => {
-  let cursor = 0;
+  for (let si = 0; si < dailyReport.stories.length; si++) {
+    const story = dailyReport.stories[si];
+    storyStarts.push(cursor);
 
-  for (let storyIndex = 0; storyIndex < dailyReport.stories.length; storyIndex++) {
-    const story = dailyReport.stories[storyIndex];
-    for (let sceneIndex = 0; sceneIndex < story.scenes.length; sceneIndex++) {
-      const scene = story.scenes[sceneIndex];
-      const duration = msToFrames(scene.durationMs, fps);
-      if (frame < cursor + duration) {
-        return {
-          story,
-          scene,
-          storyIndex,
-          sceneIndex,
-          sceneFrame: frame - cursor,
-          sceneDuration: duration,
-          storyFrame:
-            frame -
-            dailyReport.stories
-              .slice(0, storyIndex)
-              .reduce((total, item) => total + msToFrames(getStoryDurationMs(item), fps), 0),
-        };
-      }
+    for (let sci = 0; sci < story.scenes.length; sci++) {
+      const scene = story.scenes[sci];
+      const duration = msToFrames(scene.timing.durationMs, fps);
+      scenes.push({
+        story,
+        scene,
+        storyIndex: si,
+        sceneIndex: sci,
+        startFrame: cursor,
+        durationFrames: duration,
+      });
       cursor += duration;
+    }
+
+    if (si < dailyReport.stories.length - 1) {
+      cursor += STORY_TRANSITION_FRAMES;
     }
   }
 
-  const storyIndex = dailyReport.stories.length - 1;
-  const story = dailyReport.stories[storyIndex];
-  const sceneIndex = story.scenes.length - 1;
-  const scene = story.scenes[sceneIndex];
+  return { scenes, storyStarts, totalFrames: cursor };
+};
+
+export const getReportDurationInFrames = (fps: number) =>
+  buildTimeline(fps).totalFrames;
+
+// ── Timeline state lookup ───────────────────────────────────────────────
+
+const getTimelineState = (frame: number, timeline: Timeline) => {
+  const { scenes, storyStarts } = timeline;
+
+  for (let i = 0; i < scenes.length; i++) {
+    const ts = scenes[i];
+    const endFrame = ts.startFrame + ts.durationFrames;
+
+    if (frame < endFrame) {
+      return {
+        story: ts.story,
+        scene: ts.scene,
+        storyIndex: ts.storyIndex,
+        sceneIndex: ts.sceneIndex,
+        sceneFrame: frame - ts.startFrame,
+        sceneDuration: ts.durationFrames,
+        storyFrame: frame - storyStarts[ts.storyIndex],
+      };
+    }
+
+    // After this scene ends — check if we're in a story-transition gap
+    const next = scenes[i + 1];
+    if (
+      next &&
+      ts.storyIndex !== next.storyIndex &&
+      frame < next.startFrame
+    ) {
+      return {
+        story: ts.story,
+        scene: ts.scene,
+        storyIndex: ts.storyIndex,
+        sceneIndex: ts.sceneIndex,
+        sceneFrame: ts.durationFrames - 1,
+        sceneDuration: ts.durationFrames,
+        storyFrame: endFrame - storyStarts[ts.storyIndex] - 1,
+      };
+    }
+  }
+
+  // Fallback: last frame of the last scene
+  const last = scenes[scenes.length - 1];
+  const lastEnd = last.startFrame + last.durationFrames;
   return {
-    story,
-    scene,
-    storyIndex,
-    sceneIndex,
-    sceneFrame: msToFrames(scene.durationMs, fps) - 1,
-    sceneDuration: msToFrames(scene.durationMs, fps),
-    storyFrame: msToFrames(getStoryDurationMs(story), fps) - 1,
+    story: last.story,
+    scene: last.scene,
+    storyIndex: last.storyIndex,
+    sceneIndex: last.sceneIndex,
+    sceneFrame: last.durationFrames - 1,
+    sceneDuration: last.durationFrames,
+    storyFrame: lastEnd - storyStarts[last.storyIndex] - 1,
   };
 };
 
-const InlineMarkup: React.FC<{text: string}> = ({text}) => {
+// ── Helpers ──────────────────────────────────────────────────────────────
+
+const getStoryDurationMs = (story: DailyStory) =>
+  story.scenes.reduce((total, scene) => total + scene.timing.durationMs, 0);
+
+// Type guard: narrows TimelineScene to one whose scene has a non-null audioSrc
+type VoiceoverEntry = TimelineScene & {
+  scene: DailyScene & { audioSrc: string };
+};
+
+const hasAudio = (ts: TimelineScene): ts is VoiceoverEntry =>
+  Boolean(ts.scene.audioSrc);
+
+// ── Sub-components ───────────────────────────────────────────────────────
+
+const InlineMarkup: React.FC<{ text: string }> = ({ text }) => {
   const parts = text.split(/(\*\*.*?\*\*|`.*?`)/g).filter(Boolean);
   return (
     <>
       {parts.map((part, index) => {
         if (part.startsWith("**") && part.endsWith("**")) {
           return (
-            <strong key={index} style={{color: "#fff", fontWeight: 850}}>
+            <strong key={index} style={{ color: "#fff", fontWeight: 850 }}>
               {part.slice(2, -2)}
             </strong>
           );
@@ -133,9 +193,11 @@ const InlineMarkup: React.FC<{text: string}> = ({text}) => {
 };
 
 const Navigation: React.FC<{
-  items: {label: string; duration: number; active: boolean}[];
-}> = ({items}) => (
-  <div style={{display: "flex", gap: 12, height: "100%", alignItems: "stretch"}}>
+  items: { label: string; duration: number; active: boolean }[];
+}> = ({ items }) => (
+  <div
+    style={{ display: "flex", gap: 12, height: "100%", alignItems: "stretch" }}
+  >
     {items.map((item) => (
       <div
         key={item.label}
@@ -168,7 +230,7 @@ const Navigation: React.FC<{
 const Tabs: React.FC<{
   story: DailyStory;
   scene: DailyScene;
-}> = ({story, scene}) => {
+}> = ({ story, scene }) => {
   const isCompact = story.tabs.length <= 4;
   const columns = isCompact ? 2 : 3;
   const gap = 22;
@@ -206,8 +268,20 @@ const Tabs: React.FC<{
               overflow: "hidden",
             }}
           >
-            <div style={{fontSize: 30, lineHeight: 1.2, fontWeight: 800, marginBottom: 18}}>
-              <span style={{color: active ? "#fff" : palette.blue, marginRight: 12}}>
+            <div
+              style={{
+                fontSize: 36,
+                lineHeight: 1.18,
+                fontWeight: 820,
+                marginBottom: 14,
+              }}
+            >
+              <span
+                style={{
+                  color: active ? "#fff" : palette.blue,
+                  marginRight: 12,
+                }}
+              >
                 {String(index + 1).padStart(2, "0")}
               </span>
               {tab.title}
@@ -215,9 +289,9 @@ const Tabs: React.FC<{
             <div
               style={{
                 color: active ? "#e8f4ff" : "#b6c0df",
-                fontSize: 23,
-                lineHeight: 1.5,
-                fontWeight: 540,
+                fontSize: 32,
+                lineHeight: 1.48,
+                fontWeight: 570,
               }}
             >
               <InlineMarkup text={tab.summary} />
@@ -233,7 +307,7 @@ const SourceOverlay: React.FC<{
   scene: DailyScene;
   sceneFrame: number;
   sceneDuration: number;
-}> = ({scene, sceneFrame, sceneDuration}) => {
+}> = ({ scene, sceneFrame, sceneDuration }) => {
   if (!scene.overlay) return null;
 
   const reveal = interpolate(sceneFrame, [0, IMAGE_TRANSITION_FRAMES], [0, 1], {
@@ -271,7 +345,14 @@ const SourceOverlay: React.FC<{
         backgroundColor: "#f5f7fb",
       }}
     >
-      <Img src={staticFile(scene.overlay.src)} style={{width: "100%", height: "100%"}} />
+      <Img
+        src={staticFile(scene.overlay.src)}
+        style={{
+          width: "100%",
+          height: "100%",
+          translate: "-1.9px 0px",
+        }}
+      />
       <div
         style={{
           position: "absolute",
@@ -292,42 +373,52 @@ const SourceOverlay: React.FC<{
   );
 };
 
+// ── Main component ───────────────────────────────────────────────────────
+
 export const AiDailyReport: React.FC = () => {
   const frame = useCurrentFrame();
-  const {fps} = useVideoConfig();
-  const state = getTimelineState(frame, fps);
-  const {story, scene, sceneFrame, sceneDuration, storyFrame, storyIndex} = state;
+  const { fps } = useVideoConfig();
+  const timeline = buildTimeline(fps);
+  const state = getTimelineState(frame, timeline);
+  const { story, scene, sceneFrame, sceneDuration, storyFrame, storyIndex } =
+    state;
 
   const storyPause =
     storyIndex === 0
       ? 1
-      : interpolate(storyFrame, [STORY_PAUSE_FRAMES, STORY_PAUSE_FRAMES + 10], [0, 1], {
-          easing: Easing.bezier(0.16, 1, 0.3, 1),
-          extrapolateLeft: "clamp",
-          extrapolateRight: "clamp",
-        });
+      : interpolate(
+          storyFrame,
+          [STORY_PAUSE_FRAMES, STORY_PAUSE_FRAMES + 10],
+          [0, 1],
+          {
+            easing: Easing.bezier(0.16, 1, 0.3, 1),
+            extrapolateLeft: "clamp",
+            extrapolateRight: "clamp",
+          },
+        );
   const sceneEnter = interpolate(sceneFrame, [0, 12], [0, 1], {
     easing: Easing.bezier(0.16, 1, 0.3, 1),
     extrapolateLeft: "clamp",
     extrapolateRight: "clamp",
   });
 
-  const categoryDurations = Array.from(new Set(dailyReport.stories.map((item) => item.topTitle))).map(
-    (label) => ({
-      label,
-      duration: dailyReport.stories
-        .filter((item) => item.topTitle === label)
-        .reduce((total, item) => total + getStoryDurationMs(item), 0),
-      active: story.topTitle === label,
-    }),
-  );
+  const categoryDurations = Array.from(
+    new Set(dailyReport.stories.map((item) => item.topTitle)),
+  ).map((label) => ({
+    label,
+    duration: dailyReport.stories
+      .filter((item) => item.topTitle === label)
+      .reduce((total, item) => total + getStoryDurationMs(item), 0),
+    active: story.topTitle === label,
+  }));
 
   const storyDurations = dailyReport.stories.map((item) => ({
     label: item.bottomTitle,
     duration: getStoryDurationMs(item),
     active: item.id === story.id,
   }));
-  const storyStartFrames = getStoryStartFrames(fps);
+
+  const voiceoverScenes = timeline.scenes.filter(hasAudio);
 
   return (
     <AbsoluteFill
@@ -336,12 +427,24 @@ export const AiDailyReport: React.FC = () => {
         background:
           "radial-gradient(circle at 15% -10%, rgba(56,102,221,.25), transparent 35%), radial-gradient(circle at 95% 12%, rgba(107,64,200,.18), transparent 32%), #070916",
         fontFamily: 'Inter, "Microsoft YaHei", "PingFang SC", sans-serif',
-        padding: "28px 42px 24px",
       }}
     >
-      {storyStartFrames.slice(1).map((startFrame, index) => (
-        <Sequence key={dailyReport.stories[index + 1].id} from={startFrame} durationInFrames={30}>
+      {timeline.storyStarts.slice(1).map((storyStart, index) => (
+        <Sequence
+          key={dailyReport.stories[index + 1].id}
+          from={storyStart - STORY_TRANSITION_FRAMES}
+          durationInFrames={STORY_TRANSITION_FRAMES}
+        >
           <Audio src={clickSound} volume={0.7} />
+        </Sequence>
+      ))}
+      {voiceoverScenes.map((ts) => (
+        <Sequence
+          key={ts.scene.id}
+          from={ts.startFrame}
+          durationInFrames={ts.durationFrames}
+        >
+          <Audio src={staticFile(ts.scene.audioSrc)} />
         </Sequence>
       ))}
       <div
@@ -352,7 +455,13 @@ export const AiDailyReport: React.FC = () => {
           gap: 6,
         }}
       >
-        <div style={{display: "grid", gridTemplateColumns: "1fr", alignItems: "center"}}>
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "1fr",
+            alignItems: "center",
+          }}
+        >
           <Navigation items={categoryDurations} />
         </div>
 
@@ -361,7 +470,7 @@ export const AiDailyReport: React.FC = () => {
             display: "flex",
             alignItems: "flex-end",
             justifyContent: "center",
-            padding: "0 70px 4px",
+            padding: "0 112px 4px",
             textAlign: "center",
             fontSize: 46,
             fontWeight: 820,
@@ -382,6 +491,7 @@ export const AiDailyReport: React.FC = () => {
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
+            margin: "0 42px",
           }}
         >
           <div
@@ -395,7 +505,11 @@ export const AiDailyReport: React.FC = () => {
             }}
           >
             <Tabs story={story} scene={scene} />
-            <SourceOverlay scene={scene} sceneFrame={sceneFrame} sceneDuration={sceneDuration} />
+            <SourceOverlay
+              scene={scene}
+              sceneFrame={sceneFrame}
+              sceneDuration={sceneDuration}
+            />
           </div>
           <div
             style={{
@@ -415,7 +529,8 @@ export const AiDailyReport: React.FC = () => {
               lineHeight: 1.3,
               fontWeight: 650,
               textShadow: "0 3px 12px rgba(0,0,0,.98)",
-              background: "linear-gradient(to bottom, transparent, rgba(2,4,12,.9) 70%)",
+              background:
+                "linear-gradient(to bottom, transparent, rgba(2,4,12,.9) 70%)",
               opacity: sceneEnter * storyPause,
             }}
           >

@@ -24,10 +24,18 @@
     "typescript": "5.9.3"
   },
   "scripts": {
+    "check-data-json": "node scripts/check-data-json.mjs",
+    "check-data-json:render": "node scripts/check-data-json.mjs --render",
+    "tts": "node --env-file-if-exists=.env scripts/generate-tts.mjs",
+    "tts:dry-run": "node --env-file-if-exists=.env scripts/generate-tts.mjs --dry-run",
+    "tts:force": "node --env-file-if-exists=.env scripts/generate-tts.mjs --force",
+    "prepare-report": "bun run check-data-json && bun run tts && bun run check-data-json:render",
+    "predev": "bun run check-data-json:render",
     "dev": "remotion studio",
+    "prebuild": "bun run check-data-json:render",
     "build": "remotion bundle",
     "upgrade": "remotion upgrade",
-    "lint": "eslint src && tsc"
+    "lint": "eslint src scripts && tsc"
   },
   "sideEffects": [
     "*.css"

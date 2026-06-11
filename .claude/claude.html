@@ -1,0 +1,865 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>CLAUDE.md - AI 日报项目文档</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="claude.css" />
+  </head>
+  <body>
+    <!-- Navigation -->
+    <nav class="nav">
+      <div class="nav-brand">
+        <div class="nav-logo">C</div>
+        <div>
+          <div class="nav-title">CLAUDE.md</div>
+          <div class="nav-subtitle">AI Daily Report Project</div>
+        </div>
+      </div>
+      <div class="nav-actions">
+        <button
+          class="nav-btn"
+          onclick="window.scrollTo({ top: 0, behavior: 'smooth' })"
+        >
+          <svg
+            width="16"
+            height="16"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+          >
+            <path d="M12 19V5M5 12l7-7 7 7" />
+          </svg>
+          回到顶部
+        </button>
+      </div>
+    </nav>
+
+    <!-- Hero Section -->
+    <section class="hero">
+      <div class="hero-badge">
+        <svg
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+        >
+          <path
+            d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"
+          />
+          <polyline points="14,2 14,8 20,8" />
+        </svg>
+        项目文档规范
+      </div>
+      <h1>AI 日报 <span class="highlight">Remotion 视频</span> 项目</h1>
+      <p class="hero-desc">
+        使用 Bun 作为包管理器，Remotion Studio 驱动的自动化日报视频生成系统
+      </p>
+      <div class="hero-stats">
+        <div class="stat">
+          <div class="stat-value">5</div>
+          <div class="stat-label">核心章节</div>
+        </div>
+        <div class="stat">
+          <div class="stat-value">7</div>
+          <div class="stat-label">命令脚本</div>
+        </div>
+        <div class="stat">
+          <div class="stat-value">3</div>
+          <div class="stat-label">数据类型</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Table of Contents -->
+    <section class="toc">
+      <div class="toc-header">
+        <svg
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+        >
+          <line x1="8" y1="6" x2="21" y2="6" />
+          <line x1="8" y1="12" x2="21" y2="12" />
+          <line x1="8" y1="18" x2="21" y2="18" />
+          <line x1="3" y1="6" x2="3.01" y2="6" />
+          <line x1="3" y1="12" x2="3.01" y2="12" />
+          <line x1="3" y1="18" x2="3.01" y2="18" />
+        </svg>
+        <h2 class="toc-title">文档目录</h2>
+      </div>
+      <div class="toc-grid">
+        <a href="#directory" class="toc-card">
+          <div class="toc-card-icon">
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+            >
+              <path
+                d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"
+              />
+            </svg>
+          </div>
+          <h3>项目目录</h3>
+          <p>项目文件结构与源码组织</p>
+        </a>
+        <a href="#dataflow" class="toc-card">
+          <div class="toc-card-icon">
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+            >
+              <polyline points="22,12 18,12 15,21 9,3 6,12 2,12" />
+            </svg>
+          </div>
+          <h3>数据流</h3>
+          <p>从人工编辑到视频渲染的完整流程</p>
+        </a>
+        <a href="#responsibility" class="toc-card">
+          <div class="toc-card-icon">
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+            >
+              <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+            </svg>
+          </div>
+          <h3>文件职责</h3>
+          <p>各数据文件的职责划分与维护规则</p>
+        </a>
+        <a href="#commands" class="toc-card">
+          <div class="toc-card-icon">
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+            >
+              <polyline points="4,17 10,11 4,5" />
+              <line x1="12" y1="19" x2="20" y2="19" />
+            </svg>
+          </div>
+          <h3>命令与执行</h3>
+          <p>Bun 命令脚本与执行时机</p>
+        </a>
+        <a href="#timeline" class="toc-card">
+          <div class="toc-card-icon">
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+            >
+              <circle cx="12" cy="12" r="10" />
+              <polyline points="12,6 12,12 16,14" />
+            </svg>
+          </div>
+          <h3>时间线规则</h3>
+          <p>TTS 时间线计算与场景时长管理</p>
+        </a>
+        <a href="#data-raw" class="toc-card">
+          <div class="toc-card-icon">
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+            >
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+              <polyline points="14,2 14,8 20,8" />
+              <line x1="16" y1="13" x2="8" y2="13" />
+              <line x1="16" y1="17" x2="8" y2="17" />
+            </svg>
+          </div>
+          <h3>数据结构预览</h3>
+          <p>data.json 与 data-generate.json 实际数据</p>
+        </a>
+      </div>
+    </section>
+
+    <!-- Main Content -->
+    <main class="content">
+      <!-- Section 1: 项目目录 -->
+      <div id="directory" class="section">
+        <div class="section-header">
+          <div class="section-icon">
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+            >
+              <path
+                d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"
+              />
+            </svg>
+          </div>
+          <div class="section-info">
+            <h2>项目目录</h2>
+            <p>ai-daily-report/ 项目文件结构与源码组织</p>
+          </div>
+        </div>
+        <div class="section-body">
+          <div class="code-block">
+            <pre><span class="comment">ai-daily-report/</span>
+<span class="folder">├── src/</span>                          <span class="comment"># Remotion 视频组件源码</span>
+<span class="folder">│   ├── index.ts</span>                  <span class="comment"># 入口文件，注册 RemotionRoot</span>
+<span class="folder">│   ├── Root.tsx</span>                  <span class="comment"># Composition 定义（1920×1080, 30fps）</span>
+<span class="folder">│   ├── AiDailyReport.tsx</span>         <span class="comment"># 主组件：时间轴驱动的故事渲染器</span>
+<span class="folder">│   ├── daily-report-data.ts</span>      <span class="comment"># Zod schema 定义 + JSON 数据解析与类型导出</span>
+<span class="folder">│   ├── index.css</span>                 <span class="comment"># Tailwind CSS 入口</span>
+<span class="folder">│   └── sound/</span>
+<span class="folder">│       └── click-sound.mp3</span>       <span class="comment"># Story 切换音效</span>
+<span class="folder">├── data-scheme/</span>                  <span class="comment"># 日报数据包（Remotion publicDir 指向此处）</span>
+<span class="folder">│   ├── data.json</span>                 <span class="comment"># Raw 数据：人工维护的标题、Tabs、字幕和图片引用</span>
+<span class="folder">│   ├── data-generate.json</span>        <span class="comment"># Generated 数据：TTS 派生的音频、时间线和缓存元数据</span>
+<span class="folder">│   ├── data-schema.json</span>          <span class="comment"># Raw / Generated 共用 JSON Schema</span>
+<span class="folder">│   ├── images/</span>                   <span class="comment"># Scene overlay 图片素材</span>
+<span class="folder">│   └── audio/</span>                    <span class="comment"># TTS 生成的音频</span>
+<span class="folder">├── scripts/</span>
+<span class="folder">│   ├── check-data-json.mjs</span>       <span class="comment"># 数据校验脚本（Raw 内容 / Generated 渲染就绪）</span>
+<span class="folder">│   └── generate-tts.mjs</span>          <span class="comment"># MiniMax TTS、增量复用与 Generated 数据生成</span>
+<span class="folder">├── remotion.config.ts</span>            <span class="comment"># Remotion 配置（JPEG、publicDir、Tailwind）</span>
+<span class="folder">├── requirements-review.html</span>      <span class="comment"># MVP 需求文档</span>
+<span class="folder">├── ...</span>
+<span class="folder">└── package.json</span></pre>
+          </div>
+        </div>
+      </div>
+
+      <!-- Section 2: 数据流 -->
+      <div id="dataflow" class="section">
+        <div class="section-header">
+          <div class="section-icon">
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+            >
+              <polyline points="22,12 18,12 15,21 9,3 6,12 2,12" />
+            </svg>
+          </div>
+          <div class="section-info">
+            <h2>数据流</h2>
+            <p>从人工编辑到视频渲染的完整流程</p>
+          </div>
+        </div>
+        <div class="section-body">
+          <div class="flow-diagram">
+            <div class="flow-step">
+              <span class="flow-label active">人工编辑</span>
+            </div>
+            <div class="flow-step">
+              <span class="flow-arrow">↓</span>
+            </div>
+            <div class="flow-step">
+              <span class="flow-label">data-scheme/data.json</span>
+              <span class="flow-sublabel">Raw，唯一人工维护源</span>
+            </div>
+            <div class="flow-step">
+              <span class="flow-arrow">├─</span>
+            </div>
+            <div class="flow-step">
+              <span class="flow-label">bun run check-data-json</span>
+              <span class="flow-sublabel"
+                >校验内容字段、Scene/Tab 引用、图片路径；不要求
+                timing/audioSrc/tts</span
+              >
+            </div>
+            <div class="flow-step">
+              <span class="flow-arrow">└─</span>
+            </div>
+            <div class="flow-step">
+              <span class="flow-label">bun run tts</span>
+              <span class="flow-sublabel">MiniMax TTS + 增量复用</span>
+            </div>
+            <div class="flow-step">
+              <span class="flow-arrow">　　├─</span>
+            </div>
+            <div class="flow-step">
+              <span class="flow-label">读取 Raw data.json</span>
+            </div>
+            <div class="flow-step">
+              <span class="flow-arrow">　　├─</span>
+            </div>
+            <div class="flow-step">
+              <span class="flow-label">读取旧 data-generate.json</span>
+              <span class="flow-sublabel">作为增量缓存</span>
+            </div>
+            <div class="flow-step">
+              <span class="flow-arrow">　　├─</span>
+            </div>
+            <div class="flow-step">
+              <span class="flow-label"
+                >根据 subtitle + TTS 参数计算 Scene 哈希</span
+              >
+            </div>
+            <div class="flow-step">
+              <span class="flow-arrow">　　├─</span>
+            </div>
+            <div class="flow-step">
+              <span class="flow-label">哈希与音频文件均未变化</span>
+              <span class="flow-sublabel">复用旧 MP3 和 audioLengthMs</span>
+            </div>
+            <div class="flow-step">
+              <span class="flow-arrow">　　└─</span>
+            </div>
+            <div class="flow-step">
+              <span class="flow-label">字幕或 TTS 参数变化</span>
+              <span class="flow-sublabel"
+                >调用 MiniMax 重新生成对应 Scene MP3</span
+              >
+            </div>
+            <div class="flow-step">
+              <span class="flow-arrow">　　├─</span>
+            </div>
+            <div class="flow-step">
+              <span class="flow-label">按 Scene 播放顺序累计 startMs</span>
+            </div>
+            <div class="flow-step">
+              <span class="flow-arrow">　　└─</span>
+            </div>
+            <div class="flow-step">
+              <span class="flow-label"
+                >durationMs = audioLengthMs + TTS_TAIL_PADDING_MS</span
+              >
+              <span class="flow-sublabel">默认尾部留白 250ms</span>
+            </div>
+            <div class="flow-step">
+              <span class="flow-arrow">↓</span>
+            </div>
+            <div class="flow-step">
+              <span class="flow-label"
+                >原子写入 data-scheme/data-generate.json</span
+              >
+            </div>
+            <div class="flow-step">
+              <span class="flow-arrow">　　├─</span>
+            </div>
+            <div class="flow-step">
+              <span class="flow-label">audioSrc</span>
+            </div>
+            <div class="flow-step">
+              <span class="flow-arrow">　　├─</span>
+            </div>
+            <div class="flow-step">
+              <span class="flow-label">timing.startMs / timing.durationMs</span>
+            </div>
+            <div class="flow-step">
+              <span class="flow-arrow">　　└─</span>
+            </div>
+            <div class="flow-step">
+              <span class="flow-label">tts 缓存元数据</span>
+            </div>
+            <div class="flow-step">
+              <span class="flow-arrow">↓</span>
+            </div>
+            <div class="flow-step">
+              <span class="flow-label">bun run check-data-json:render</span>
+              <span class="flow-sublabel"
+                >校验 Generated 数据、音频文件和连续时间线</span
+              >
+            </div>
+            <div class="flow-step">
+              <span class="flow-arrow">↓</span>
+            </div>
+            <div class="flow-step">
+              <span class="flow-label">src/daily-report-data.ts</span>
+              <span class="flow-sublabel">读取 data-generate.json</span>
+            </div>
+            <div class="flow-step">
+              <span class="flow-arrow">↓</span>
+            </div>
+            <div class="flow-step">
+              <span class="flow-label active"
+                >Remotion Studio / Build / Render</span
+              >
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Section 3: 文件职责 -->
+      <div id="responsibility" class="section">
+        <div class="section-header">
+          <div class="section-icon">
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+            >
+              <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+            </svg>
+          </div>
+          <div class="section-info">
+            <h2>文件职责</h2>
+            <p>各数据文件的职责划分与维护规则</p>
+          </div>
+        </div>
+        <div class="section-body">
+          <div class="rules-list">
+            <div class="rule-item">
+              <div class="rule-indicator do"></div>
+              <div class="rule-content">
+                <div class="rule-text">
+                  只人工修改 data-scheme/data.json、data-scheme/images/
+                  和必要的配置
+                </div>
+              </div>
+            </div>
+            <div class="rule-item">
+              <div class="rule-indicator dont"></div>
+              <div class="rule-content">
+                <div class="rule-text">
+                  不要人工修改 data-scheme/data-generate.json
+                </div>
+                <div class="rule-code">它会在执行 TTS 时被重新生成</div>
+              </div>
+            </div>
+            <div class="rule-item">
+              <div class="rule-indicator dont"></div>
+              <div class="rule-content">
+                <div class="rule-text">
+                  不要在 data.json 中维护 audioSrc、timing 或 tts
+                </div>
+              </div>
+            </div>
+            <div class="rule-item">
+              <div class="rule-indicator do"></div>
+              <div class="rule-content">
+                <div class="rule-text">
+                  data-generate.json 是 Remotion 唯一读取的数据文件
+                </div>
+              </div>
+            </div>
+            <div class="rule-item">
+              <div class="rule-indicator do"></div>
+              <div class="rule-content">
+                <div class="rule-text">
+                  data-schema.json 同时描述 Raw 与 Generated 格式
+                </div>
+                <div class="rule-code">
+                  机器字段在 Schema 中可选，但 check-data-json:render
+                  会在渲染前强制要求这些字段存在
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Section 4: 命令与执行时机 -->
+      <div id="commands" class="section">
+        <div class="section-header">
+          <div class="section-icon">
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+            >
+              <polyline points="4,17 10,11 4,5" />
+              <line x1="12" y1="19" x2="20" y2="19" />
+            </svg>
+          </div>
+          <div class="section-info">
+            <h2>命令与执行时机</h2>
+            <p>Bun 命令脚本与执行时机</p>
+          </div>
+        </div>
+        <div class="section-body">
+          <div class="code-block">
+            <pre><span class="comment"># 编辑 Raw 后，先检查人工内容</span>
+<span class="keyword">bun</span> run check-data-json
+
+<span class="comment"># 预览本次 TTS 会 generate 还是 reuse；不调用 API，不改文件</span>
+<span class="keyword">bun</span> run tts:dry-run
+
+<span class="comment"># 生成或复用音频，并重新生成 data-generate.json</span>
+<span class="keyword">bun</span> run tts
+
+<span class="comment"># 验证 Generated 数据是否可用于渲染</span>
+<span class="keyword">bun</span> run check-data-json:render
+
+<span class="comment"># 连续执行 Raw 校验、TTS 和 Generated 校验</span>
+<span class="keyword">bun</span> run prepare-report
+
+<span class="comment"># 启动 Studio；predev 会自动执行 Generated 渲染校验</span>
+<span class="keyword">bun</span> run dev
+
+<span class="comment"># 构建；prebuild 会自动执行 Generated 渲染校验</span>
+<span class="keyword">bun</span> run build</pre>
+          </div>
+          <div
+            class="rule-item warning"
+          >
+            <div class="rule-indicator warning"></div>
+            <div class="rule-content">
+              <div class="rule-text">
+                执行 bun run tts 后，如果 Remotion Studio 已经在运行，需要重启
+                Studio
+              </div>
+              <div class="rule-code">
+                否则浏览器可能继续请求旧静态资源版本并出现音频 404 Not Found
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Section 5: 时间线规则 -->
+      <div id="timeline" class="section">
+        <div class="section-header">
+          <div class="section-icon">
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+            >
+              <circle cx="12" cy="12" r="10" />
+              <polyline points="12,6 12,12 16,14" />
+            </svg>
+          </div>
+          <div class="section-info">
+            <h2>时间线规则</h2>
+            <p>TTS 时间线计算与场景时长管理</p>
+          </div>
+        </div>
+        <div class="section-body">
+          <div class="timeline-rules">
+            <div class="timeline-rule">
+              <div class="timeline-number">01</div>
+              <div class="timeline-content">
+                <h4>TTS 返回的 audio_length</h4>
+                <p>是 Scene 的实际旁白长度</p>
+              </div>
+            </div>
+            <div class="timeline-rule">
+              <div class="timeline-number">02</div>
+              <div class="timeline-content">
+                <h4>Scene 的 durationMs</h4>
+                <p>
+                  等于 audioLengthMs + TTS_TAIL_PADDING_MS，默认尾部留白为 250ms
+                </p>
+              </div>
+            </div>
+            <div class="timeline-rule">
+              <div class="timeline-number">03</div>
+              <div class="timeline-content">
+                <h4>startMs 按全部 Story/Scene 的播放顺序累计生成</h4>
+                <p>人不参与维护</p>
+              </div>
+            </div>
+            <div class="timeline-rule">
+              <div class="timeline-number">04</div>
+              <div class="timeline-content">
+                <h4>Header1 和 Header3 的宽度</h4>
+                <p>根据 Generated 数据中的实际 Story 时长自动分配</p>
+              </div>
+            </div>
+            <div class="timeline-rule">
+              <div class="timeline-number">05</div>
+              <div class="timeline-content">
+                <h4>Story 之间的点击音效停留</h4>
+                <p>
+                  由 Remotion 组件中的 STORY_TRANSITION_FRAMES 控制，不写入 TTS
+                  时间线，也不写入 Raw 数据
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Section 6: data.json 原始数据 -->
+      <div id="data-raw" class="section">
+        <div class="section-header">
+          <div class="section-icon">
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+            >
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+              <polyline points="14,2 14,8 20,8" />
+              <line x1="16" y1="13" x2="8" y2="13" />
+              <line x1="16" y1="17" x2="8" y2="17" />
+            </svg>
+          </div>
+          <div class="section-info">
+            <h2>Raw 数据：data.json</h2>
+            <p>
+              data-scheme/data.json — 人工维护的原始日报内容
+              <span class="section-header-hint"
+                >（仅编辑此文件，勿编辑 data-generate.json）</span
+              >
+            </p>
+          </div>
+        </div>
+        <div class="section-body">
+          <div class="code-block">
+            <pre><span class="keyword">{</span>
+  "<span class="property">$schema</span>": "<span class="string">./data-schema.json</span>",
+  "<span class="property">schemaVersion</span>": <span class="variable">1</span>,
+  "<span class="property">date</span>": "<span class="string">2026-06-10</span>",
+  "<span class="property">label</span>": "<span class="string">AI DAILY</span>",
+  "<span class="property">stories</span>": <span class="keyword">[</span>
+    <span class="comment">// 共 7 个 Story：intro / gpt-5-6 / mythos / trae-work / open-platform / deepseek / outro</span>
+    <span class="keyword">{</span>
+      "<span class="property">id</span>": "<span class="string">intro</span>",
+      "<span class="property">topTitle</span>": "<span class="string">Intro</span>",
+      "<span class="property">bottomTitle</span>": "<span class="string">Intro</span>",
+      "<span class="property">contentTitle</span>": "<span class="string">2026-06-10 AI 日报概览</span>",
+      "<span class="property">tabs</span>": <span class="keyword">[</span>
+        <span class="keyword">{</span> "<span class="property">id</span>": "<span class="string">headline</span>", "<span class="property">title</span>": "<span class="string">今日要闻</span>", "<span class="property">summary</span>": "<span class="string">关注 **GPT-5.6** 候选版本测试动态。</span>" <span class="keyword">}</span>,
+        <span class="keyword">{</span> "<span class="property">id</span>": "<span class="string">development</span>", "<span class="property">title</span>": "<span class="string">开发生态</span>", "<span class="property">summary</span>": "<span class="string">追踪 \`Mythos\`、\`Trae Work\` 与 AI 开放平台。</span>" <span class="keyword">}</span>,
+        <span class="keyword">{</span> "<span class="property">id</span>": "<span class="string">industry</span>", "<span class="property">title</span>": "<span class="string">行业动态</span>", "<span class="property">summary</span>": "<span class="string">观察 **DeepSeek** 的开放与工程化进展。</span>" <span class="keyword">}</span>
+      <span class="keyword">]</span>,
+      "<span class="property">scenes</span>": <span class="keyword">[</span>
+        <span class="keyword">{</span> "<span class="property">id</span>": "<span class="string">intro-headline</span>", "<span class="property">activeTab</span>": "<span class="string">headline</span>", "<span class="property">subtitle</span>": "<span class="string">欢迎收看今天的 AI 日报，先快速浏览今日重点。</span>" <span class="keyword">}</span>
+      <span class="keyword">]</span>
+    <span class="keyword">}</span>,
+    <span class="comment">// ... 更多 Story 详见 data-scheme/data.json 完整文件</span>
+  <span class="keyword">]</span>
+<span class="keyword">}</span></pre>
+          </div>
+          <div class="timeline-rule data-info-box">
+            <div class="timeline-number data-info-number">i</div>
+            <div class="timeline-content">
+              <h4>维护位置</h4>
+              <p>
+                完整数据请见
+                <code>data-scheme/data.json</code>（位于项目根目录）。
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Section 7: data-generate.json 生成数据 -->
+      <div id="data-generate" class="section">
+        <div class="section-header">
+          <div class="section-icon">
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+            >
+              <path d="M4 17l6-6-6-6" />
+              <path d="M12 19h8" />
+            </svg>
+          </div>
+          <div class="section-info">
+            <h2>Generated 数据：data-generate.json</h2>
+            <p>
+              data-scheme/data-generate.json — TTS 自动生成的音频、时间线和缓存元数据
+              <span class="section-header-hint"
+                >（勿手动编辑，执行 bun run tts 自动生成）</span
+              >
+            </p>
+          </div>
+        </div>
+        <div class="section-body">
+          <div class="code-block">
+            <pre><span class="keyword">{</span>
+  "<span class="property">$schema</span>": "<span class="string">./data-schema.json</span>",
+  "<span class="property">schemaVersion</span>": <span class="variable">1</span>,
+  "<span class="property">date</span>": "<span class="string">2026-06-10</span>",
+  "<span class="property">label</span>": "<span class="string">AI DAILY</span>",
+  "<span class="property">stories</span>": <span class="keyword">[</span>
+    <span class="keyword">{</span>
+      "<span class="property">id</span>": "<span class="string">intro</span>",
+      "<span class="property">topTitle</span>": "<span class="string">Intro</span>",
+      "<span class="property">bottomTitle</span>": "<span class="string">Intro</span>",
+      "<span class="property">contentTitle</span>": "<span class="string">2026-06-10 AI 日报概览</span>",
+      "<span class="property">tabs</span>": <span class="keyword">[</span>
+        <span class="keyword">{</span> "<span class="property">id</span>": "<span class="string">headline</span>", "<span class="property">title</span>": "<span class="string">今日要闻</span>", "<span class="property">summary</span>": "<span class="string">关注 **GPT-5.6** 候选版本测试动态。</span>" <span class="keyword">}</span>,
+        <span class="keyword">{</span> "<span class="property">id</span>": "<span class="string">development</span>", "<span class="property">title</span>": "<span class="string">开发生态</span>", "<span class="property">summary</span>": "<span class="string">追踪 \`Mythos\`、\`Trae Work\` 与 AI 开放平台。</span>" <span class="keyword">}</span>,
+        <span class="keyword">{</span> "<span class="property">id</span>": "<span class="string">industry</span>", "<span class="property">title</span>": "<span class="string">行业动态</span>", "<span class="property">summary</span>": "<span class="string">观察 **DeepSeek** 的开放与工程化进展。</span>" <span class="keyword">}</span>
+      <span class="keyword">]</span>,
+      "<span class="property">scenes</span>": <span class="keyword">[</span>
+        <span class="keyword">{</span>
+          "<span class="property">id</span>": "<span class="string">intro-headline</span>",
+          "<span class="property">activeTab</span>": "<span class="string">headline</span>",
+          "<span class="property">subtitle</span>": "<span class="string">欢迎收看今天的 AI 日报，先快速浏览今日重点。</span>",
+          "<span class="property">timing</span>": <span class="keyword">{</span>
+            "<span class="property">startMs</span>": <span class="variable">0</span>,
+            "<span class="property">durationMs</span>": <span class="variable">4606</span>
+          <span class="keyword">}</span>,
+          "<span class="property">audioSrc</span>": "<span class="string">audio/intro-headline.mp3</span>",
+          "<span class="property">tts</span>": <span class="keyword">{</span>
+            "<span class="property">provider</span>": "<span class="string">minimax</span>",
+            "<span class="property">model</span>": "<span class="string">speech-2.8-hd</span>",
+            "<span class="property">voiceId</span>": "<span class="string">Chinese (Mandarin)_Warm_Girl</span>",
+            "<span class="property">speed</span>": <span class="variable">1</span>,
+            "<span class="property">vol</span>": <span class="variable">1</span>,
+            "<span class="property">pitch</span>": <span class="variable">0</span>,
+            "<span class="property">audioLengthMs</span>": <span class="variable">4356</span>,
+            "<span class="property">tailPaddingMs</span>": <span class="variable">250</span>
+          <span class="keyword">}</span>
+        <span class="keyword">}</span>
+      <span class="keyword">]</span>
+    <span class="keyword">}</span>,
+    <span class="keyword">{</span>
+      "<span class="property">id</span>": "<span class="string">gpt-5-6</span>",
+      "<span class="property">topTitle</span>": "<span class="string">要闻</span>",
+      "<span class="property">bottomTitle</span>": "<span class="string">GPT-5.6</span>",
+      "<span class="property">contentTitle</span>": "<span class="string">据称 OpenAI GPT-5.6 候选版本短暂现身测试平台后移除</span>",
+      "<span class="property">tabs</span>": <span class="keyword">[</span>
+        <span class="keyword">{</span> "<span class="property">id</span>": "<span class="string">capability</span>", "<span class="property">title</span>": "<span class="string">核心能力</span>", "<span class="property">summary</span>": "<span class="string">强化 **代码与推理能力**，候选模型进入 \`内部测试\` 阶段。</span>" <span class="keyword">}</span>,
+        <span class="keyword">{</span> "<span class="property">id</span>": "<span class="string">performance</span>", "<span class="property">title</span>": "<span class="string">性能提升</span>", "<span class="property">summary</span>": "<span class="string">**响应速度** 与复杂任务稳定性可能得到进一步改善。</span>" <span class="keyword">}</span>,
+        <span class="keyword">{</span> "<span class="property">id</span>": "<span class="string">impact</span>", "<span class="property">title</span>": "<span class="string">开发者影响</span>", "<span class="property">summary</span>": "<span class="string">未来可能通过 \`API\` 开放，并影响现有开发工作流。</span>" <span class="keyword">}</span>,
+        <span class="keyword">{</span> "<span class="property">id</span>": "<span class="string">foundation</span>", "<span class="property">title</span>": "<span class="string">底层能力</span>", "<span class="property">summary</span>": "<span class="string">模型基础能力与 \`工具调用\` 链路得到持续增强。</span>" <span class="keyword">}</span>,
+        <span class="keyword">{</span> "<span class="property">id</span>": "<span class="string">training</span>", "<span class="property">title</span>": "<span class="string">训练方法</span>", "<span class="property">summary</span>": "<span class="string">引入新的 **评测与训练机制**，提升复杂任务稳定性。</span>" <span class="keyword">}</span>,
+        <span class="keyword">{</span> "<span class="property">id</span>": "<span class="string">ecosystem</span>", "<span class="property">title</span>": "<span class="string">生态计划</span>", "<span class="property">summary</span>": "<span class="string">围绕 \`API\`、开发工具与 **合作生态** 逐步开放。</span>" <span class="keyword">}</span>
+      <span class="keyword">]</span>,
+      "<span class="property">scenes</span>": <span class="keyword">[</span>
+        <span class="keyword">{</span>
+          "<span class="property">id</span>": "<span class="string">gpt-5-6-capability</span>",
+          "<span class="property">activeTab</span>": "<span class="string">capability</span>",
+          "<span class="property">subtitle</span>": "<span class="string">GPT-5.6 将进一步强化代码与推理能力。</span>",
+          "<span class="property">timing</span>": <span class="keyword">{</span>
+            "<span class="property">startMs</span>": <span class="variable">4606</span>,
+            "<span class="property">durationMs</span>": <span class="variable">4066</span>
+          <span class="keyword">}</span>,
+          "<span class="property">audioSrc</span>": "<span class="string">audio/gpt-5-6-capability.mp3</span>",
+          "<span class="property">tts</span>": <span class="keyword">{</span>
+            "<span class="property">provider</span>": "<span class="string">minimax</span>",
+            "<span class="property">model</span>": "<span class="string">speech-2.8-hd</span>",
+            "<span class="property">voiceId</span>": "<span class="string">Chinese (Mandarin)_Warm_Girl</span>",
+            "<span class="property">speed</span>": <span class="variable">1</span>,
+            "<span class="property">vol</span>": <span class="variable">1</span>,
+            "<span class="property">pitch</span>": <span class="variable">0</span>,
+            "<span class="property">audioLengthMs</span>": <span class="variable">3816</span>,
+            "<span class="property">tailPaddingMs</span>": <span class="variable">250</span>
+          <span class="keyword">}</span>
+        <span class="keyword">}</span>,
+        <span class="keyword">{</span>
+          "<span class="property">id</span>": "<span class="string">gpt-5-6-performance</span>",
+          "<span class="property">activeTab</span>": "<span class="string">performance</span>",
+          "<span class="property">subtitle</span>": "<span class="string">测试平台曾短暂出现 GPT-5.6 候选版本。</span>",
+          "<span class="property">overlay</span>": <span class="keyword">{</span>
+            "<span class="property">src</span>": "<span class="string">images/gpt56-source.svg</span>",
+            "<span class="property">caption</span>": "<span class="string">测试平台原始截图</span>"
+          <span class="keyword">}</span>,
+          "<span class="property">timing</span>": <span class="keyword">{</span>
+            "<span class="property">startMs</span>": <span class="variable">8672</span>,
+            "<span class="property">durationMs</span>": <span class="variable">4317</span>
+          <span class="keyword">}</span>,
+          "<span class="property">audioSrc</span>": "<span class="string">audio/gpt-5-6-performance.mp3</span>",
+          "<span class="property">tts</span>": <span class="keyword">{</span>
+            "<span class="property">provider</span>": "<span class="string">minimax</span>",
+            "<span class="property">model</span>": "<span class="string">speech-2.8-hd</span>",
+            "<span class="property">voiceId</span>": "<span class="string">Chinese (Mandarin)_Warm_Girl</span>",
+            "<span class="property">speed</span>": <span class="variable">1</span>,
+            "<span class="property">vol</span>": <span class="variable">1</span>,
+            "<span class="property">pitch</span>": <span class="variable">0</span>,
+            "<span class="property">audioLengthMs</span>": <span class="variable">4067</span>,
+            "<span class="property">tailPaddingMs</span>": <span class="variable">250</span>
+          <span class="keyword">}</span>
+        <span class="keyword">}</span>,
+        <span class="keyword">{</span>
+          "<span class="property">id</span>": "<span class="string">gpt-5-6-impact</span>",
+          "<span class="property">activeTab</span>": "<span class="string">impact</span>",
+          "<span class="property">subtitle</span>": "<span class="string">该模型未来可能通过 API 向开发者开放。</span>",
+          "<span class="property">timing</span>": <span class="keyword">{</span>
+            "<span class="property">startMs</span>": <span class="variable">12989</span>,
+            "<span class="property">durationMs</span>": <span class="variable">3922</span>
+          <span class="keyword">}</span>,
+          "<span class="property">audioSrc</span>": "<span class="string">audio/gpt-5-6-impact.mp3</span>",
+          "<span class="property">tts</span>": <span class="keyword">{</span>
+            "<span class="property">provider</span>": "<span class="string">minimax</span>",
+            "<span class="property">model</span>": "<span class="string">speech-2.8-hd</span>",
+            "<span class="property">voiceId</span>": "<span class="string">Chinese (Mandarin)_Warm_Girl</span>",
+            "<span class="property">speed</span>": <span class="variable">1</span>,
+            "<span class="property">vol</span>": <span class="variable">1</span>,
+            "<span class="property">pitch</span>": <span class="variable">0</span>,
+            "<span class="property">audioLengthMs</span>": <span class="variable">3672</span>,
+            "<span class="property">tailPaddingMs</span>": <span class="variable">250</span>
+          <span class="keyword">}</span>
+        <span class="keyword">}</span>
+      <span class="keyword">]</span>
+    <span class="keyword">}</span>,
+    <span class="comment">// ... mythos / trae-work / open-platform / deepseek / outro 结构类似，详见完整文件</span>
+  <span class="keyword">]</span>
+<span class="keyword">}</span></pre>
+          </div>
+          <div class="timeline-rule data-info-box">
+            <div class="timeline-number data-info-number">i</div>
+            <div class="timeline-content">
+              <h4>生成位置</h4>
+              <p>
+                完整数据请见
+                <code>data-scheme/data-generate.json</code>（由 <code>bun run tts</code> 自动生成）。
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </main>
+
+    <!-- Footer -->
+    <footer class="footer">
+      <div class="footer-logo">CLAUDE.md</div>
+      <p>AI Daily Report · Remotion Video · Bun Package Manager</p>
+    </footer>
+
+    <script>
+      // Smooth scroll for anchor links
+      document.querySelectorAll('a[href^="#"]').forEach((anchor) => {
+        anchor.addEventListener("click", function (e) {
+          e.preventDefault();
+          const target = document.querySelector(this.getAttribute("href"));
+          if (target) {
+            target.scrollIntoView({
+              behavior: "smooth",
+              block: "start",
+            });
+          }
+        });
+      });
+
+      // Intersection Observer for fade-in animations
+      const observer = new IntersectionObserver((entries) => {
+        (entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            entry.target.style.opacity = "1";
+            entry.target.style.transform = "translateY(0)";
+          }
+        }),
+          {
+            threshold: 0.1,
+            rootMargin: "0px 0px -50px 0px",
+          });
+      });
+
+      document.querySelectorAll(".section").forEach((section) => {
+        observer.observe(section);
+      });
+
+      // Reduced motion support
+      if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+        document.documentElement.style.scrollBehavior = "auto";
+      }
+    </script>
+  </body>
+</html>
