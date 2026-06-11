@@ -21,7 +21,7 @@ const voiceId =
 const speed = readNumberEnv("MINIMAX_TTS_SPEED", 1, 0.5, 2);
 const vol = readNumberEnv("MINIMAX_TTS_VOLUME", 1, Number.EPSILON, 10);
 const pitch = readNumberEnv("MINIMAX_TTS_PITCH", 0, -12, 12);
-const tailPaddingMs = readIntegerEnv("TTS_TAIL_PADDING_MS", 250, 0);
+const tailPaddingMs = readNumberEnv("TTS_TAIL_PADDING_MS", 250, 0);
 const getGreeting = (hour) => {
   if (hour >= 5 && hour < 12) return "早上好";
   if (hour >= 12 && hour < 14) return "中午好";
@@ -76,24 +76,13 @@ const buildOutro = (report) => ({
   ],
 });
 
-function readNumberEnv(name, fallback, min, max) {
+function readNumberEnv(name, fallback, min, max = Infinity) {
   const raw = process.env[name];
   if (raw === undefined) return fallback;
 
   const value = Number(raw);
   if (!Number.isFinite(value) || value < min || value > max) {
     throw new Error(`${name} must be a number between ${min} and ${max}.`);
-  }
-  return value;
-}
-
-function readIntegerEnv(name, fallback, min) {
-  const raw = process.env[name];
-  if (raw === undefined) return fallback;
-
-  const value = Number(raw);
-  if (!Number.isInteger(value) || value < min) {
-    throw new Error(`${name} must be an integer greater than or equal to ${min}.`);
   }
   return value;
 }
@@ -196,7 +185,19 @@ if (!dryRun && !apiKey) {
   process.exit(1);
 }
 
-const report = JSON.parse(await readFile(rawDataPath, "utf8"));
+let report;
+try {
+  report = JSON.parse(await readFile(rawDataPath, "utf8"));
+} catch (error) {
+  if (error.code === "ENOENT") {
+    console.error("data-scheme/data.json does not exist.");
+  } else if (error instanceof SyntaxError) {
+    console.error(`data-scheme/data.json is invalid JSON: ${error.message}`);
+  } else {
+    throw error;
+  }
+  process.exit(1);
+}
 
 // 如果用户未提供 theme，根据当前小时自动推断
 if (!report.theme) {

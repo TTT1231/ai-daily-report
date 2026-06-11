@@ -12,14 +12,12 @@
  */
 
 import { readFileSync, writeFileSync } from "node:fs";
-import { resolve, dirname } from "node:path";
+import { resolve } from "node:path";
 import { execFileSync } from "node:child_process";
-import { fileURLToPath } from "node:url";
 
 // ── 路径 ──────────────────────────────────────────────
-const __dirname = dirname(fileURLToPath(import.meta.url));
-const DATA_PATH = resolve(__dirname, "..", "data-scheme", "data-generate.json");
-const OUTPUT_PATH = resolve(__dirname, "..", "data-scheme", "comments.txt");
+const DATA_PATH = resolve(import.meta.dirname, "..", "data-scheme", "data-generate.json");
+const OUTPUT_PATH = resolve(import.meta.dirname, "..", "data-scheme", "comments.txt");
 
 // ── 参数 ──────────────────────────────────────────────
 const shouldCopy = process.argv.includes("--copy");
@@ -34,29 +32,6 @@ function msToTimestamp(ms) {
   return `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
 }
 
-/** 收集所有场景（按播放顺序：intro.scenes → stories[].scenes → outro.scenes） */
-function collectScenes(data) {
-  const ordered = [];
-
-  if (data.intro?.scenes) {
-    ordered.push(...data.intro.scenes);
-  }
-
-  if (data.stories) {
-    for (const story of data.stories) {
-      if (story.scenes) {
-        ordered.push(...story.scenes);
-      }
-    }
-  }
-
-  if (data.outro?.scenes) {
-    ordered.push(...data.outro.scenes);
-  }
-
-  return ordered;
-}
-
 /** 去除 Markdown 粗体/代码标记，生成纯文本评论 */
 function stripMarkdown(text) {
   return text
@@ -67,12 +42,9 @@ function stripMarkdown(text) {
 
 /** 跨平台剪贴板复制 */
 function copyToClipboard(text) {
-  const isWindows = process.platform === "win32";
-  const isMac = process.platform === "darwin";
-
-  if (isWindows) {
+  if (process.platform === "win32") {
     execFileSync("clip", { input: text });
-  } else if (isMac) {
+  } else if (process.platform === "darwin") {
     execFileSync("pbcopy", { input: text });
   } else {
     execFileSync("xclip", ["-selection", "clipboard"], { input: text });
@@ -86,19 +58,20 @@ function main() {
   const raw = readFileSync(DATA_PATH, "utf-8");
   const data = JSON.parse(raw);
 
-  // 2. 收集所有场景
-  const scenes = collectScenes(data);
+  // 2. 收集所有场景（按播放顺序）
+  const allScenes = [data.intro, ...(data.stories ?? []), data.outro]
+    .filter(Boolean)
+    .flatMap((story) => story.scenes ?? []);
 
-  if (scenes.length === 0) {
+  if (allScenes.length === 0) {
     console.log("⚠️  未找到任何场景数据");
     process.exit(1);
   }
 
-  // 3. 生成评论（跳过 intro 和 outro 的场景）
-  const contentScenes = scenes.filter((scene) => {
-    const id = scene.id || "";
-    return !id.startsWith("intro-") && !id.startsWith("outro-");
-  });
+  // 3. 生成评论（仅 content stories 的场景，排除 intro/outro）
+  const contentScenes = (data.stories ?? []).flatMap(
+    (story) => story.scenes ?? [],
+  );
 
   const comments = contentScenes.map((scene) => {
     const timestamp = msToTimestamp(scene.timing.startMs);
@@ -108,10 +81,8 @@ function main() {
 
   // 4. 组装输出文件
   const dateStr = data.date || "unknown";
-  const totalMs = scenes.reduce(
-    (max, s) => Math.max(max, s.timing.startMs + s.timing.durationMs),
-    0,
-  );
+  const lastScene = allScenes[allScenes.length - 1];
+  const totalMs = lastScene.timing.startMs + lastScene.timing.durationMs;
   const duration = msToTimestamp(totalMs);
 
   const output = [
@@ -124,7 +95,7 @@ function main() {
 
   // 5. 写入文件
   writeFileSync(OUTPUT_PATH, output, "utf-8");
-  console.log(`✅ 已生成 ${scenes.length} 条评论 → data-scheme/comments.txt`);
+  console.log(`✅ 已生成 ${contentScenes.length} 条评论 → data-scheme/comments.txt`);
 
   // 6. 可选：复制到剪贴板
   if (shouldCopy) {

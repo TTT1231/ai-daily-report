@@ -1,4 +1,4 @@
-import {existsSync, readdirSync, readFileSync, statSync} from "node:fs";
+import {existsSync, readdirSync, readFileSync} from "node:fs";
 import {resolve, sep} from "node:path";
 
 const root = resolve(import.meta.dirname, "..");
@@ -53,6 +53,7 @@ for (const {story, path: storyPath} of timelineEntries) {
 // ── Validate icon fields ────────────────────────────────────────────────────
 
 const referencedIcons = new Set();
+const svgCache = new Map();
 
 for (const {tab, jsonPath} of allTabs) {
   if (tab.icon === undefined) {
@@ -80,15 +81,17 @@ for (const {tab, jsonPath} of allTabs) {
     continue;
   }
 
-  // Check file size
-  const fileSize = statSync(absolute).size;
-  if (fileSize > MAX_SVG_BYTES) {
-    warn(jsonPath, `icon file is ${fileSize} bytes (recommended < ${MAX_SVG_BYTES} bytes)`);
-  }
+  // Read and validate SVG (once per unique file)
+  if (svgCache.has(tab.icon)) continue;
 
-  // Validate SVG content
   try {
     const content = readFileSync(absolute, "utf8");
+    svgCache.set(tab.icon, content);
+
+    const byteLength = Buffer.byteLength(content, "utf8");
+    if (byteLength > MAX_SVG_BYTES) {
+      warn(tab.icon, `icon file is ${byteLength} bytes (recommended < ${MAX_SVG_BYTES} bytes)`);
+    }
 
     if (!content.includes('viewBox="0 0 96 96"')) {
       fail(tab.icon, 'SVG must have viewBox="0 0 96 96"');

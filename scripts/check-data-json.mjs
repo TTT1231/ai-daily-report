@@ -39,13 +39,6 @@ if (!existsSync(schemaPath)) {
   process.exit(1);
 }
 
-try {
-  JSON.parse(readFileSync(schemaPath, "utf8"));
-} catch (error) {
-  console.error(`data-scheme/data-schema.json is invalid JSON: ${error.message}`);
-  process.exit(1);
-}
-
 let report;
 try {
   report = JSON.parse(readFileSync(dataPath, "utf8"));
