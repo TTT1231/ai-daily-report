@@ -23,7 +23,7 @@
 Run:
 
 ```bash
-bun run val-schema
+bun run check-icons
 ```
 
 The icon must:

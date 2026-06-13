@@ -400,9 +400,16 @@
 <span class="folder">│   └── audio/</span>                    <span class="comment"># TTS 生成的音频</span>
 <span class="folder">├── scripts/</span>
 <span class="folder">│   ├── check-data-json.mjs</span>       <span class="comment"># 数据校验脚本（Raw 内容 / Generated 渲染就绪）</span>
-<span class="folder">│   ├── generate-tts.mjs</span>          <span class="comment"># MiniMax TTS、增量复用与 Generated 数据生成</span>
+<span class="folder">│   ├── generate-tts.mjs</span>          <span class="comment"># TTS 编排入口：组织构建、合成、校验和提交</span>
 <span class="folder">│   ├── generate-comment.mjs</span>      <span class="comment"># 从时间线数据生成 B 站风格跳转评论</span>
-<span class="folder">│   └── val-schema.mjs</span>            <span class="comment"># Generated 数据的 schema 级别校验</span>
+<span class="folder">│   ├── check-icons.mjs</span>           <span class="comment"># Generated 数据的图标资源校验</span>
+<span class="folder">│   ├── archive.mjs</span>               <span class="comment"># 按完整日期归档当前日报数据包</span>
+<span class="folder">│   └── lib/</span>                      <span class="comment"># 多个入口脚本共享的内部模块，不直接执行</span>
+<span class="folder">│       ├── paths.mjs</span>              <span class="comment"># 集中路径定义与 JSON 读取</span>
+<span class="folder">│       ├── report-validation.mjs</span>  <span class="comment"># JSON Schema 与跨字段业务校验</span>
+<span class="folder">│       ├── report-builder.mjs</span>     <span class="comment"># 构建 Intro / Outro、主题与图标恢复</span>
+<span class="folder">│       ├── minimax-tts.mjs</span>        <span class="comment"># MiniMax TTS API 客户端</span>
+<span class="folder">│       └── generated-output.mjs</span>   <span class="comment"># 音频与 Generated JSON 的事务提交和恢复</span>
 <span class="folder">├── remotion.config.ts</span>            <span class="comment"># Remotion 配置（JPEG、publicDir、Tailwind）</span>
 <span class="folder">├── requirements-review.html</span>      <span class="comment"># MVP 需求文档</span>
 <span class="folder">├── ...</span>
@@ -426,140 +433,157 @@
           </div>
           <div class="section-info">
             <h2>数据流</h2>
-            <p>从人工编辑到视频渲染的完整流程</p>
+            <p>先看日报生成主线，再展开 TTS 内部细节</p>
           </div>
         </div>
         <div class="section-body">
-          <div class="flow-diagram">
-            <div class="flow-step">
-              <span class="flow-label active">人工编辑</span>
+          <div class="pipeline-intro">
+            <div>
+              <span class="pipeline-kicker">先看主线</span>
+              <h3>一份日报怎样变成视频？</h3>
+              <p>
+                你只维护 Raw 数据；脚本负责校验、生成旁白与时间线，Remotion
+                最终只读取 Generated 数据。
+              </p>
             </div>
-            <div class="flow-step">
-              <span class="flow-arrow">↓</span>
+            <div class="pipeline-legend">
+              <span><i class="legend-dot human"></i>人工维护</span>
+              <span><i class="legend-dot system"></i>脚本处理</span>
+              <span><i class="legend-dot output"></i>生成结果</span>
             </div>
-            <div class="flow-step">
-              <span class="flow-label">data-scheme/data.json</span>
-              <span class="flow-sublabel">Raw，唯一人工维护源</span>
+          </div>
+
+          <div class="pipeline-overview" aria-label="日报生成主流程">
+            <article class="pipeline-card human">
+              <span class="pipeline-number">01</span
+              ><span class="pipeline-role">你来维护</span>
+              <h4>准备日报内容</h4>
+              <code>data-scheme/data.json</code>
+              <p>标题、Tabs、字幕与图片引用，是唯一人工维护的数据源。</p>
+            </article>
+            <div class="pipeline-connector"><span>校验</span>→</div>
+            <article class="pipeline-card system">
+              <span class="pipeline-number">02</span
+              ><span class="pipeline-role">脚本把关</span>
+              <h4>检查 Raw 数据</h4>
+              <code>bun run check-data-json</code>
+              <p>检查 Schema、重复 ID、引用关系和素材路径。</p>
+            </article>
+            <div class="pipeline-connector"><span>生成</span>→</div>
+            <article class="pipeline-card system emphasis">
+              <span class="pipeline-number">03</span
+              ><span class="pipeline-role">核心处理</span>
+              <h4>生成旁白与时间线</h4>
+              <code>bun run tts</code>
+              <p>复用或生成音频，计算连续时间线，并安全提交结果。</p>
+            </article>
+            <div class="pipeline-connector"><span>读取</span>→</div>
+            <article class="pipeline-card output">
+              <span class="pipeline-number">04</span
+              ><span class="pipeline-role">最终产物</span>
+              <h4>预览与渲染</h4>
+              <code>data-generate.json + audio/</code>
+              <p>通过渲染校验后，由 Remotion Studio、Build 和 Render 使用。</p>
+            </article>
+          </div>
+
+          <div class="pipeline-detail-heading">
+            <div>
+              <span class="pipeline-kicker">再看细节</span>
+              <h3><code>bun run tts</code> 内部做了什么？</h3>
             </div>
-            <div class="flow-step">
-              <span class="flow-arrow">├─</span>
+            <p>
+              <code>generate-tts.mjs</code> 安排顺序，<code>scripts/lib</code>
+              中的模块各做一件事。
+            </p>
+          </div>
+
+          <div class="tts-workflow">
+            <div class="tts-stages">
+              <article class="tts-stage">
+                <span class="tts-stage-number">1</span>
+                <div>
+                  <strong>读取并校验</strong>
+                  <p>
+                    <code>paths.mjs</code> 读取新旧数据，<code
+                      >report-validation.mjs</code
+                    >
+                    检查数据契约。
+                  </p>
+                </div>
+              </article>
+              <article class="tts-stage">
+                <span class="tts-stage-number">2</span>
+                <div>
+                  <strong>构建 Generated 报表</strong>
+                  <p>
+                    <code>report-builder.mjs</code>
+                    创建主题、Intro、Outro，并恢复已有图标。
+                  </p>
+                </div>
+              </article>
+              <article class="tts-stage">
+                <span class="tts-stage-number">3</span>
+                <div>
+                  <strong>逐个处理 Scene</strong>
+                  <p>
+                    根据字幕和 TTS 参数计算哈希，决定复用旧音频还是调用
+                    MiniMax。
+                  </p>
+                </div>
+              </article>
+              <article class="tts-stage">
+                <span class="tts-stage-number">4</span>
+                <div>
+                  <strong>计算时间线</strong>
+                  <p>
+                    按播放顺序写入 <code>audioSrc</code>、<code>timing</code> 和
+                    <code>tts</code> 元数据。
+                  </p>
+                </div>
+              </article>
+              <article class="tts-stage">
+                <span class="tts-stage-number">5</span>
+                <div>
+                  <strong>事务提交</strong>
+                  <p>
+                    <code>generated-output.mjs</code>
+                    暂存完整结果，确认成功后才替换正式文件。
+                  </p>
+                </div>
+              </article>
             </div>
-            <div class="flow-step">
-              <span class="flow-label">bun run check-data-json</span>
-              <span class="flow-sublabel"
-                >校验内容字段、Scene/Tab 引用、图片路径；不要求
-                timing/audioSrc/tts</span
-              >
-            </div>
-            <div class="flow-step">
-              <span class="flow-arrow">└─</span>
-            </div>
-            <div class="flow-step">
-              <span class="flow-label">bun run tts</span>
-              <span class="flow-sublabel">MiniMax TTS + 增量复用</span>
-            </div>
-            <div class="flow-step">
-              <span class="flow-arrow">　　├─</span>
-            </div>
-            <div class="flow-step">
-              <span class="flow-label">读取 Raw data.json</span>
-            </div>
-            <div class="flow-step">
-              <span class="flow-arrow">　　├─</span>
-            </div>
-            <div class="flow-step">
-              <span class="flow-label">读取旧 data-generate.json</span>
-              <span class="flow-sublabel">作为增量缓存</span>
-            </div>
-            <div class="flow-step">
-              <span class="flow-arrow">　　├─</span>
-            </div>
-            <div class="flow-step">
-              <span class="flow-label"
-                >根据 subtitle + TTS 参数计算 Scene 哈希</span
-              >
-            </div>
-            <div class="flow-step">
-              <span class="flow-arrow">　　├─</span>
-            </div>
-            <div class="flow-step">
-              <span class="flow-label">哈希与音频文件均未变化</span>
-              <span class="flow-sublabel">复用旧 MP3 和 audioLengthMs</span>
-            </div>
-            <div class="flow-step">
-              <span class="flow-arrow">　　└─</span>
-            </div>
-            <div class="flow-step">
-              <span class="flow-label">字幕或 TTS 参数变化</span>
-              <span class="flow-sublabel"
-                >调用 MiniMax 重新生成对应 Scene MP3</span
-              >
-            </div>
-            <div class="flow-step">
-              <span class="flow-arrow">　　├─</span>
-            </div>
-            <div class="flow-step">
-              <span class="flow-label">按 Scene 播放顺序累计 startMs</span>
-            </div>
-            <div class="flow-step">
-              <span class="flow-arrow">　　└─</span>
-            </div>
-            <div class="flow-step">
-              <span class="flow-label"
-                >durationMs = audioLengthMs + TTS_TAIL_PADDING_MS</span
-              >
-              <span class="flow-sublabel">默认尾部留白 250ms</span>
-            </div>
-            <div class="flow-step">
-              <span class="flow-arrow">↓</span>
-            </div>
-            <div class="flow-step">
-              <span class="flow-label"
-                >原子写入 data-scheme/data-generate.json</span
-              >
-            </div>
-            <div class="flow-step">
-              <span class="flow-arrow">　　├─</span>
-            </div>
-            <div class="flow-step">
-              <span class="flow-label">audioSrc</span>
-            </div>
-            <div class="flow-step">
-              <span class="flow-arrow">　　├─</span>
-            </div>
-            <div class="flow-step">
-              <span class="flow-label">timing.startMs / timing.durationMs</span>
-            </div>
-            <div class="flow-step">
-              <span class="flow-arrow">　　└─</span>
-            </div>
-            <div class="flow-step">
-              <span class="flow-label">tts 缓存元数据</span>
-            </div>
-            <div class="flow-step">
-              <span class="flow-arrow">↓</span>
-            </div>
-            <div class="flow-step">
-              <span class="flow-label">bun run check-data-json:render</span>
-              <span class="flow-sublabel"
-                >校验 Generated 数据、音频文件和连续时间线</span
-              >
-            </div>
-            <div class="flow-step">
-              <span class="flow-arrow">↓</span>
-            </div>
-            <div class="flow-step">
-              <span class="flow-label">src/daily-report-data.ts</span>
-              <span class="flow-sublabel">读取 data-generate.json</span>
-            </div>
-            <div class="flow-step">
-              <span class="flow-arrow">↓</span>
-            </div>
-            <div class="flow-step">
-              <span class="flow-label active"
-                >Remotion Studio / Build / Render</span
-              >
-            </div>
+            <aside class="tts-decisions">
+              <div class="decision-card">
+                <span class="decision-title">Scene 音频怎么决定？</span>
+                <div class="decision-question">哈希和旧音频都没变？</div>
+                <div class="decision-path reuse">
+                  <strong>是：复用</strong
+                  ><span>不请求 MiniMax，直接使用旧音频时长</span>
+                </div>
+                <div class="decision-path generate">
+                  <strong>否：重新生成</strong
+                  ><span
+                    ><code>minimax-tts.mjs</code> 返回 MP3 与
+                    audioLengthMs</span
+                  >
+                </div>
+              </div>
+              <div class="decision-card safety">
+                <span class="decision-title">为什么不会写坏旧数据？</span>
+                <div class="decision-path success">
+                  <strong>全部成功</strong
+                  ><span
+                    >一起提交 <code>audio/</code> 和
+                    <code>data-generate.json</code></span
+                  >
+                </div>
+                <div class="decision-path rollback">
+                  <strong>失败或异常中断</strong
+                  ><span>恢复旧音频和旧 Generated 数据，避免新旧混合</span>
+                </div>
+              </div>
+            </aside>
           </div>
         </div>
       </div>

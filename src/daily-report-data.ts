@@ -10,7 +10,7 @@ const dailyTabSchema = z.object({
 
 const dailySceneSchema = z.object({
   id: z.string().min(1),
-  subtitle: z.string().min(1),
+  subtitle: z.string().min(1).max(96),
   audioSrc: z.string().min(1).optional(),
   tts: z
     .object({
@@ -39,9 +39,10 @@ const dailySceneSchema = z.object({
 const dailyStorySchema = z
   .object({
     id: z.string().min(1),
-    topTitle: z.string().min(1),
-    bottomTitle: z.string().min(1),
-    contentTitle: z.string().min(1),
+    topTitle: z.string().min(3).max(5),
+    bottomTitle: z.string().min(3).max(5),
+    contentTitle: z.string().min(1).max(42),
+    introTitle: z.string().min(1).optional(),
     activeTab: z.string().min(1).optional(),
     activeIntro: z.literal(true).optional(),
     tabs: z.array(dailyTabSchema).min(1).max(6),

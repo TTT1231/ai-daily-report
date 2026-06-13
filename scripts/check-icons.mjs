@@ -1,10 +1,8 @@
 import {existsSync, readdirSync, readFileSync} from "node:fs";
 import {resolve, sep} from "node:path";
+import {dataDir, generatedDataPath, readJson} from "./lib/paths.mjs";
 
-const root = resolve(import.meta.dirname, "..");
-const packageDir = resolve(root, "data-scheme");
-const dataPath = resolve(packageDir, "data-generate.json");
-const iconsDir = resolve(packageDir, "icons");
+const iconsDir = resolve(dataDir, "icons");
 const errors = [];
 const warnings = [];
 
@@ -14,16 +12,11 @@ const warn = (path, message) => warnings.push(`${path}: ${message}`);
 const ICON_PATTERN = /^icons\/.+\.svg$/;
 const MAX_SVG_BYTES = 2048;
 
-if (!existsSync(dataPath)) {
-  console.error("data-scheme/data-generate.json does not exist.");
-  process.exit(1);
-}
-
 let report;
 try {
-  report = JSON.parse(readFileSync(dataPath, "utf8"));
+  report = await readJson(generatedDataPath, "data-scheme/data-generate.json");
 } catch (error) {
-  console.error(`data-scheme/data-generate.json is invalid JSON: ${error.message}`);
+  console.error(error.message);
   process.exit(1);
 }
 
@@ -67,8 +60,8 @@ for (const {tab, jsonPath} of allTabs) {
   }
 
   // Check path traversal
-  const absolute = resolve(packageDir, tab.icon);
-  if (!absolute.startsWith(packageDir + sep)) {
+  const absolute = resolve(dataDir, tab.icon);
+  if (!absolute.startsWith(dataDir + sep)) {
     fail(jsonPath, "icon path must stay inside data-scheme/");
     continue;
   }

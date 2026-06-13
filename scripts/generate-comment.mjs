@@ -11,13 +11,15 @@
  *   bun run comment --copy    # 同时复制到剪贴板
  */
 
-import { readFileSync, writeFileSync } from "node:fs";
-import { resolve } from "node:path";
+import { writeFileSync } from "node:fs";
 import { execFileSync } from "node:child_process";
+import { resolve } from "node:path";
+import { collectTimelineScenes } from "./lib/report-builder.mjs";
+import { dataDir, generatedDataPath, readJson } from "./lib/paths.mjs";
+import { validateReport } from "./lib/report-validation.mjs";
 
 // ── 路径 ──────────────────────────────────────────────
-const DATA_PATH = resolve(import.meta.dirname, "..", "data-scheme", "data-generate.json");
-const OUTPUT_PATH = resolve(import.meta.dirname, "..", "data-scheme", "comments.txt");
+const OUTPUT_PATH = resolve(dataDir, "comments.txt");
 
 // ── 参数 ──────────────────────────────────────────────
 const shouldCopy = process.argv.includes("--copy");
@@ -53,15 +55,16 @@ function copyToClipboard(text) {
 
 // ── 主流程 ────────────────────────────────────────────
 
-function main() {
+async function main() {
   // 1. 读取数据
-  const raw = readFileSync(DATA_PATH, "utf-8");
-  const data = JSON.parse(raw);
+  const data = await readJson(generatedDataPath, "data-scheme/data-generate.json");
+  const { errors } = validateReport(data, { renderMode: true });
+  if (errors.length > 0) {
+    throw new Error(`Generated report is invalid:\n- ${errors.join("\n- ")}`);
+  }
 
   // 2. 收集所有场景（按播放顺序）
-  const allScenes = [data.intro, ...(data.stories ?? []), data.outro]
-    .filter(Boolean)
-    .flatMap((story) => story.scenes ?? []);
+  const allScenes = collectTimelineScenes(data);
 
   if (allScenes.length === 0) {
     console.log("⚠️  未找到任何场景数据");
@@ -112,4 +115,7 @@ function main() {
   console.log("──────────────────────────────────────────");
 }
 
-main();
+main().catch((error) => {
+  console.error(error.message);
+  process.exit(1);
+});

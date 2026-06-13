@@ -23,18 +23,30 @@
 # MINIMAX_TTS_SPEED=1
 # MINIMAX_TTS_VOLUME=1
 # MINIMAX_TTS_PITCH=0
+# 默认控制在约 27 RPM，并在 MiniMax RPM 限流时自动等待重试
+# MINIMAX_TTS_REQUEST_INTERVAL_MS=2200
+# MINIMAX_TTS_MAX_RETRIES=5
+# MINIMAX_TTS_RATE_LIMIT_RETRY_MS=60000
 # TTS_TAIL_PADDING_MS=250
 
-# 3. 生成 TTS 音频（需要 MiniMax API Key）
+# 3. 首次生成或手动生成 TTS 音频（需要 MiniMax API Key）
+# 通常可跳过这一步，bun run dev 会自动生成并持续监听 data.json
 bun run tts
 
 # 4. 根据需要生成icon（可选通过skill，tabs的图标）
 # claude: /generate-svg
 # codex: /generate-svg
 
-# 5. 启动
+# 5. 启动自动同步和 Remotion Studio
 bun run dev
 ```
+
+开发模式会监听 `data-scheme/data.json`、`data-schema.json`、`.env` 和图片素材：
+
+- 修改 `data.json`、Schema 或 TTS 环境配置时，自动运行增量 TTS 并更新 `data-generate.json`。
+- 未改变字幕的场景会复用已有音频；只增加或修改 `overlay.src` 不会重新请求旁白。
+- 仅替换图片文件时交由 Remotion Studio 刷新，不运行 TTS。
+- `.gitignore` 只影响 Git，不影响开发监听或 Remotion 的 `publicDir`。
 
 ## 示例数据
 

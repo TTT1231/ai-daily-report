@@ -62,18 +62,26 @@
         },
         "topTitle": {
           "type": "string",
-          "minLength": 1,
-          "description": "Header1 粗粒度栏目标题。允许每期日报使用任意非空文字。"
+          "minLength": 3,
+          "maxLength": 5,
+          "description": "顶部时间线栏目标签，必须为 3 至 5 个字符。"
         },
         "bottomTitle": {
           "type": "string",
-          "minLength": 1,
-          "description": "Header3 细粒度内容标题。允许每期日报使用任意非空文字。"
+          "minLength": 3,
+          "maxLength": 5,
+          "description": "底部 Story 时间线短标签，必须为 3 至 5 个字符，只保留主体与事件。"
         },
         "contentTitle": {
           "type": "string",
           "minLength": 1,
-          "description": "Header1 下方、Tabs 上方展示的当前 Story 完整标题。"
+          "maxLength": 42,
+          "description": "Header1 下方、Tabs 上方展示的当前 Story 完整标题，最多 42 个字符。"
+        },
+        "introTitle": {
+          "type": "string",
+          "minLength": 1,
+          "description": "可选。Intro 资讯概览使用的完整标题，不主动截断；未提供时回退到 contentTitle。"
         },
         "activeTab": {
           "$ref": "#/$defs/identifier",
@@ -85,9 +93,9 @@
         },
         "tabs": {
           "type": "array",
-          "minItems": 1,
+          "minItems": 2,
           "maxItems": 6,
-          "description": "中部信息卡片，最多六张。",
+          "description": "中部信息卡片，最少两张，最多六张。",
           "items": {"$ref": "#/$defs/tab"}
         },
         "scenes": {
@@ -113,7 +121,7 @@
         },
         "tabs": {
           "type": "array",
-          "minItems": 1,
+          "minItems": 2,
           "items": {"$ref": "#/$defs/tab"}
         },
         "scenes": {
@@ -177,7 +185,8 @@
         "subtitle": {
           "type": "string",
           "minLength": 1,
-          "description": "由人审查的整句字幕，也是 TTS 的输入文案。"
+          "maxLength": 96,
+          "description": "建议 28 至 96 字的完整事实口播，也是 TTS 的输入文案；包含主体、事件及范围或结果。"
         },
         "overlay": {
           "$ref": "#/$defs/overlay",

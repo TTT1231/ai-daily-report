@@ -26,5 +26,5 @@ Read all four rule files before generating or revising icons:
 4. Generate or revise `data-scheme/icons/{storyId}-{tabId}.svg`.
 5. Update only the matching `icon` fields in `data-generate.json`.
 6. Remove orphan SVG files no longer referenced by any tab.
-7. Run `bun run val-schema` and `bun run lint` and `bun run comment`.
+7. Run `bun run check-icons` and `bun run lint` and `bun run comment`.
 8. Preview representative icons in the composition when visual quality is part of the request.

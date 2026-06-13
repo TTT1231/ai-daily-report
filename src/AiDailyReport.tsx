@@ -6,9 +6,11 @@ import {
   interpolate,
   Sequence,
   staticFile,
+  useCurrentScale,
   useCurrentFrame,
   useVideoConfig,
 } from "remotion";
+import {useEffect, useRef, useState} from "react";
 import {
   dailyReport,
   type DailyIntro,
@@ -334,11 +336,28 @@ const TabIcon: React.FC<{
   />
 );
 
+const navigationMinimumWidth = (
+  label: string,
+  fontSize: number,
+  horizontalPadding: number,
+) => {
+  const labelWidthUnits = [...label].reduce(
+    (total, character) =>
+      total + ((character.codePointAt(0) ?? 0) <= 0xff ? 0.62 : 1),
+    0,
+  );
+  return Math.ceil(
+    Math.max(64, labelWidthUnits * fontSize + horizontalPadding * 2 + 18),
+  );
+};
+
 const Navigation: React.FC<{
   items: { label: string; duration: number; active: boolean }[];
   theme: Theme;
 }> = ({ items, theme }) => {
   const palette = themes[theme];
+  const fontSize = items.length >= 12 ? 17 : items.length >= 9 ? 19 : items.length >= 7 ? 21 : 24;
+  const horizontalPadding = items.length >= 9 ? 6 : 10;
   return (
   <div
     style={{
@@ -350,35 +369,45 @@ const Navigation: React.FC<{
       borderBottom: `1px solid ${palette.border}`,
     }}
   >
-    {items.map((item, index) => (
-      <div
-        key={item.label}
-        style={{
-          flex: `${item.duration} 1 0`,
-          minWidth: 0,
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          color: item.active ? palette.text : palette.muted,
-          borderLeft:
-            index === 0 ? "none" : `1px solid ${palette.border}`,
-          borderBottom: `4px solid ${item.active ? palette.blue : "transparent"}`,
-          background: item.active
-            ? palette.navActive
-            : palette.navInactive,
-          boxShadow: item.active ? palette.navActiveShadow : "none",
-          fontSize: 24,
-          fontWeight: item.active ? 760 : 560,
-          letterSpacing: ".02em",
-          whiteSpace: "nowrap",
-          overflow: "hidden",
-          textOverflow: "ellipsis",
-          padding: "0 10px",
-        }}
-      >
-        {item.label}
-      </div>
-    ))}
+    {items.map((item, index) => {
+      // Reserve readable label width first, then distribute remaining width by duration.
+      const minimumWidth = navigationMinimumWidth(
+        item.label,
+        fontSize,
+        horizontalPadding,
+      );
+      return (
+        <div
+          key={`${item.label}-${index}`}
+          style={{
+            flexGrow: item.duration,
+            flexShrink: 0,
+            flexBasis: minimumWidth,
+            minWidth: minimumWidth,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            color: item.active ? palette.text : palette.muted,
+            borderLeft:
+              index === 0 ? "none" : `1px solid ${palette.border}`,
+            borderBottom: `4px solid ${item.active ? palette.blue : "transparent"}`,
+            background: item.active
+              ? palette.navActive
+              : palette.navInactive,
+            boxShadow: item.active ? palette.navActiveShadow : "none",
+            fontSize,
+            fontWeight: item.active ? 760 : 560,
+            letterSpacing: ".02em",
+            whiteSpace: "nowrap",
+            overflow: "hidden",
+            textOverflow: "ellipsis",
+            padding: `0 ${horizontalPadding}px`,
+          }}
+        >
+          {item.label}
+        </div>
+      );
+    })}
   </div>
   );
 };
@@ -390,14 +419,23 @@ const Tabs: React.FC<{
 }> = ({ story, scene, theme }) => {
   const palette = themes[theme];
   const tabCount = story.tabs.length;
-  const columns = tabCount === 4 ? 2 : 3;
+  const hasActiveTab = story.activeTab !== undefined;
+  const isTwoCardLayout = tabCount === 2;
+  const columns = isTwoCardLayout || tabCount === 4 ? 2 : 3;
   const rows = Math.ceil(tabCount / columns);
   const isSingleRow = rows === 1;
   const isFiveCardLayout = tabCount === 5;
-  const gap = 22;
-  const containerWidth = tabCount === 4 ? "76%" : "94%";
-  const containerHeight = isSingleRow ? "58%" : "96%";
-
+  const gap = isTwoCardLayout ? 30 : 22;
+  const containerWidth = isTwoCardLayout
+    ? "88%"
+    : tabCount === 4
+      ? "76%"
+      : "94%";
+  const containerHeight = isTwoCardLayout
+    ? "66%"
+    : isSingleRow
+      ? "58%"
+      : "96%";
   const getCardBackground = (active: boolean, rowIndex: number) => {
     const base = active
       ? palette.activeCard
@@ -430,7 +468,11 @@ const Tabs: React.FC<{
         gap,
         opacity: scene.overlay ? 0.24 : 1,
         filter: scene.overlay ? "saturate(.72)" : "none",
-        transform: isSingleRow ? "translateY(-18px)" : "none",
+        transform: isTwoCardLayout
+          ? "translateY(-8px)"
+          : isSingleRow
+            ? "translateY(-18px)"
+            : "none",
       }}
     >
       {story.tabs.map((tab, index) => {
@@ -444,7 +486,11 @@ const Tabs: React.FC<{
             key={tab.id}
             style={{
               minWidth: 0,
-              padding: isSingleRow ? "38px 40px" : "30px 34px",
+              padding: isTwoCardLayout
+                ? "44px 50px"
+                : isSingleRow
+                  ? "38px 40px"
+                  : "30px 34px",
               display: "flex",
               flexDirection: "column",
               alignItems: "stretch",
@@ -462,13 +508,21 @@ const Tabs: React.FC<{
               boxShadow: active
                 ? palette.activeCardShadow
                 : palette.inactiveCardShadow,
-              transform: active ? "translateY(-5px)" : "translateY(0)",
+              transform: isTwoCardLayout
+                ? !hasActiveTab
+                  ? "none"
+                  : active
+                  ? "translateY(-7px) scale(1.018)"
+                  : "translateY(2px) scale(.982)"
+                : active
+                  ? "translateY(-5px)"
+                  : "translateY(0)",
               overflow: "hidden",
             }}
           >
             <div
               style={{
-                fontSize: 36,
+                fontSize: isTwoCardLayout ? 42 : 36,
                 lineHeight: 1.18,
                 fontWeight: 820,
                 marginBottom: 14,
@@ -488,8 +542,8 @@ const Tabs: React.FC<{
             <div
               style={{
                 color: active ? palette.activeSummary : palette.inactiveSummary,
-                fontSize: 31,
-                lineHeight: 1.52,
+                fontSize: isTwoCardLayout ? 35 : 31,
+                lineHeight: isTwoCardLayout ? 1.48 : 1.52,
                 fontWeight: active ? 590 : 520,
                 letterSpacing: ".005em",
               }}
@@ -512,23 +566,20 @@ const IntroOverview: React.FC<{
   const palette = themes[theme];
   const gap = 22;
   const viewportHeight = 700;
-  const cardHeights = intro.tabs.map((tab) => {
-    const lineCount = tab.summary
-      .split("\n")
-      .reduce((total, item) => total + Math.max(1, Math.ceil(item.length / 29)), 0);
-    return Math.max(210, 112 + lineCount * 48);
-  });
-  const rowHeights = Array.from(
-    {length: Math.ceil(cardHeights.length / 2)},
-    (_, rowIndex) =>
-      Math.max(
-        cardHeights[rowIndex * 2] ?? 0,
-        cardHeights[rowIndex * 2 + 1] ?? 0,
-      ),
-  );
-  const contentHeight =
-    rowHeights.reduce((total, height) => total + height, 0) +
-    Math.max(0, rowHeights.length - 1) * gap;
+  const scale = useCurrentScale();
+  const contentRef = useRef<HTMLDivElement>(null);
+  const [contentHeight, setContentHeight] = useState(0);
+  const columns = [
+    intro.tabs.map((_, index) => index).filter((index) => index % 2 === 0),
+    intro.tabs.map((_, index) => index).filter((index) => index % 2 === 1),
+  ];
+
+  useEffect(() => {
+    if (!contentRef.current) return;
+    const measuredHeight = contentRef.current.getBoundingClientRect().height / scale;
+    setContentHeight(measuredHeight);
+  }, [intro.tabs, scale]);
+
   const scrollDistance = Math.max(0, contentHeight - viewportHeight);
   const scrollProgress = interpolate(
     sceneFrame,
@@ -558,21 +609,27 @@ const IntroOverview: React.FC<{
       }}
     >
       <div
+        ref={contentRef}
         style={{
           display: "grid",
           gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
-          gridTemplateRows: rowHeights.map((height) => `${height}px`).join(" "),
           gap,
           transform: `translateY(${-scrollDistance * scrollProgress}px)`,
         }}
       >
-        {intro.tabs.map((tab, index) => {
-          const color = titleColors[index % titleColors.length];
-          return (
+        {columns.map((indexes, columnIndex) => (
+          <div
+            key={`intro-column-${columnIndex}`}
+            style={{display: "flex", flexDirection: "column", gap}}
+          >
+            {indexes.map((index) => {
+              const tab = intro.tabs[index];
+              const color = titleColors[index % titleColors.length];
+              return (
             <div
               key={tab.id}
               style={{
-                height: "100%",
+                minHeight: 150,
                 padding: "26px 32px",
                 borderRadius: 18,
                 border: `1px solid ${palette.border}`,
@@ -584,7 +641,6 @@ const IntroOverview: React.FC<{
                   tab.id === intro.activeTab
                     ? palette.activeCardShadow
                     : palette.inactiveCardShadow,
-                overflow: "hidden",
               }}
             >
               <div
@@ -626,15 +682,17 @@ const IntroOverview: React.FC<{
                 ))}
               </div>
             </div>
-          );
-        })}
+              );
+            })}
+          </div>
+        ))}
       </div>
     </div>
   );
 };
 
 export type TabLayoutPreviewProps = {
-  tabCount: 4 | 5;
+  tabCount: 2 | 4 | 5;
   theme: Theme;
 };
 
@@ -661,7 +719,7 @@ export const TabLayoutPreview: React.FC<TabLayoutPreviewProps> = ({
     topTitle: "布局测试",
     bottomTitle: `${tabCount} Tabs`,
     contentTitle: `${tabCount} Tab 布局测试`,
-    activeTab: tabs[tabCount - 1].id,
+    ...(tabCount > 2 ? {activeTab: tabs[1]?.id} : {}),
     tabs,
     scenes: [],
   };
@@ -859,15 +917,21 @@ export const AiDailyReport: React.FC = () => {
     ...dailyReport.stories,
     dailyReport.outro,
   ];
-  const categoryDurations = Array.from(
-    new Set(timelineStories.map((item) => item.topTitle)),
-  ).map((label) => ({
-    label,
-    duration: timelineStories
-      .filter((item) => item.topTitle === label)
-      .reduce((total, item) => total + getStoryDurationMs(item), 0),
-    active: story.topTitle === label,
-  }));
+  // Merge only adjacent categories so the top timeline always moves forward.
+  const categoryDurations = timelineStories.reduce<
+    {label: string; duration: number; active: boolean}[]
+  >((segments, item, index) => {
+    const duration = getStoryDurationMs(item);
+    const active = index === storyIndex;
+    const previous = segments[segments.length - 1];
+    if (previous?.label === item.topTitle) {
+      previous.duration += duration;
+      previous.active ||= active;
+    } else {
+      segments.push({label: item.topTitle, duration, active});
+    }
+    return segments;
+  }, []);
 
   const storyDurations = timelineStories.map((item) => ({
     label: item.bottomTitle,
@@ -1008,6 +1072,10 @@ export const AiDailyReport: React.FC = () => {
                     fontWeight: 820,
                     lineHeight: 1.08,
                     letterSpacing: "-.025em",
+                    maxWidth: "100%",
+                    whiteSpace: "nowrap",
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
                   }}
                 >
                   {displayStory?.contentTitle}

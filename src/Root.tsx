@@ -22,6 +22,17 @@ export const RemotionRoot: React.FC = () => {
     />
     <Folder name="Layout-Tests">
       <Composition
+        id="TwoTabLayout"
+        component={TabLayoutPreview}
+        durationInFrames={90}
+        fps={fps}
+        width={1920}
+        height={1080}
+        defaultProps={
+          {tabCount: 2, theme: "light"} satisfies TabLayoutPreviewProps
+        }
+      />
+      <Composition
         id="FourTabLayout"
         component={TabLayoutPreview}
         durationInFrames={90}
