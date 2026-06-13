@@ -205,10 +205,16 @@ func TestNormalizeStoryTabsRejectsShortAndUnknownEvidence(t *testing.T) {
 	tabs := []StoryTab{
 		{Title: "太短", Summary: "内容太短", Kind: "fact", EvidenceIndexes: []int{2}},
 		{
-			Title:           "有效内容",
+			Title:           "无效证据",
 			Summary:         "这是一个长度足够且能够用于视频展示的完整信息摘要内容。",
 			Kind:            "unknown",
 			EvidenceIndexes: []int{99},
+		},
+		{
+			Title:           "有效内容",
+			Summary:         "这是另一个长度足够且具有有效来源证据的完整信息摘要内容。",
+			Kind:            "unknown",
+			EvidenceIndexes: []int{2},
 		},
 	}
 
@@ -464,6 +470,16 @@ func TestNavigationTitleRejectsLongDeepSeekSuggestion(t *testing.T) {
 	}
 }
 
+func TestNavigationTitleRejectsVacuousSuggestionAtWriteTime(t *testing.T) {
+	group := NewsGroup{
+		Title:           "OpenAI Codex 额度重置规则大更新",
+		NavigationTitle: "行业动态",
+	}
+	if got := navigationTitle(group); got != "额度重置" {
+		t.Fatalf("navigationTitle() = %q, want 额度重置", got)
+	}
+}
+
 func TestExtractRemoteImageURLsPrefersOriginals(t *testing.T) {
 	description := `<a href="https://cdn.example.com/original/abc/image.jpeg"><img src="https://cdn.example.com/optimized/abc/image_2_690x388.jpeg"></a>
 		<a href="https://cdn.example.com/original/abc/image.jpeg">重复原图</a>`
@@ -659,4 +675,288 @@ func TestSourceStoryIDIsStableForGenericSource(t *testing.T) {
 	if first != second || !strings.HasPrefix(first, "official-openai-") {
 		t.Fatalf("sourceStoryID() = %q / %q", first, second)
 	}
+}
+
+func TestCleanNavigationTitleRejectsOutOfRange(t *testing.T) {
+	tests := []struct {
+		name  string
+		input string
+	}{
+		{"too short", "AI"},
+		{"too long", "OpenAI Codex 额度重置规则大更新"},
+		{"empty", ""},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := cleanNavigationTitle(tc.input); got != "" {
+				t.Fatalf("cleanNavigationTitle(%q) = %q, want empty", tc.input, got)
+			}
+		})
+	}
+}
+
+func TestCleanNavigationTitleRejectsVacuousLabel(t *testing.T) {
+	// 纯栏目名长度合规但无具体事件信息，应被清空，交给下游降级。
+	vacuous := []string{"事件概览", "用户影响", "后续观察", "AI动态", "最新消息"}
+	for _, input := range vacuous {
+		if got := cleanNavigationTitle(input); got != "" {
+			t.Fatalf("cleanNavigationTitle(%q) = %q, want empty", input, got)
+		}
+	}
+}
+
+func TestCleanNavigationTitleKeepsConciseLabel(t *testing.T) {
+	// 有“主体+事件”的具体短标题应保留。
+	for _, input := range []string{"额度重置", "Ona收购", "智谱内测"} {
+		if got := cleanNavigationTitle(input); got != input {
+			t.Fatalf("cleanNavigationTitle(%q) = %q, want %q", input, got, input)
+		}
+	}
+}
+
+func TestNormalizeSceneSubtitleRejectsColumnNamePrefix(t *testing.T) {
+	// 栏目名作为前缀或开头的字幕应被拒收（与 prompts.go subtitle 规则对齐）。
+	for _, input := range []string{
+		"用户影响：免费额度可能更快耗尽，开发者需要注意成本控制。",
+		"后续观察：具体细节仍需等待官方公告确认，建议持续关注。",
+		"事件概览：OpenAI 发布了全新模型，能力大幅提升。",
+		"请看 Tab 中的详细内容了解全部变化。",
+	} {
+		if got := normalizeSceneSubtitle(input); got != "" {
+			t.Fatalf("normalizeSceneSubtitle(%q) = %q, want empty", input, got)
+		}
+	}
+}
+
+func TestNormalizeSceneSubtitleAllowsColumnNameInNaturalSentence(t *testing.T) {
+	input := "这项额度调整对用户影响较小，但企业账户仍需要重新规划调用频率。"
+	if got := normalizeSceneSubtitle(input); got != input {
+		t.Fatalf("normalizeSceneSubtitle(%q) = %q, want unchanged", input, got)
+	}
+}
+
+func TestTabRejectionReason(t *testing.T) {
+	// 空标题。
+	if got := tabRejectionReason(StoryTab{Title: "", Summary: "这是一段足够长的摘要内容用于通过字数校验。"}); got == "" {
+		t.Fatalf("tabRejectionReason() for empty title should not be empty")
+	}
+	// summary 过短。
+	if got := tabRejectionReason(StoryTab{Title: "事件概览", Summary: "太短"}); got == "" {
+		t.Fatalf("tabRejectionReason() for short summary should not be empty")
+	}
+	// 合格返回空串。
+	got := tabRejectionReason(StoryTab{
+		Title:   "事件概览",
+		Summary: "这是一段足够长的摘要内容用于通过字数校验。",
+	})
+	if got != "" {
+		t.Fatalf("tabRejectionReason() for valid tab = %q, want empty", got)
+	}
+}
+
+func TestNormalizeStoryTabsWithReasonsCapturesRejections(t *testing.T) {
+	group := NewsGroup{SourceIndexes: []int{1}}
+	tabs := []StoryTab{
+		{Title: "完整标题", Summary: "这是一段足够长的摘要内容用于通过字数校验。", Subtitle: "GLM-5.2 已开启 Max 用户小范围内测，具体参数仍待公布。", EvidenceIndexes: []int{1}},
+		{Title: "", Summary: "被丢弃因为标题为空"},
+		{Title: "短摘要", Summary: "太短"},
+	}
+	normalized, rejected := normalizeStoryTabsWithReasons(group, tabs)
+	if len(normalized) != 1 {
+		t.Fatalf("normalized count = %d, want 1", len(normalized))
+	}
+	if len(rejected) != 2 {
+		t.Fatalf("rejected count = %d, want 2", len(rejected))
+	}
+	for _, r := range rejected {
+		if r.Reason == "" {
+			t.Fatalf("rejected tab has empty reason: %#v", r)
+		}
+	}
+}
+
+func TestNormalizeStoryTabsWithReasonsRejectsMissingEvidence(t *testing.T) {
+	group := NewsGroup{SourceIndexes: []int{1}}
+	tabs := []StoryTab{{
+		Title:   "完整标题",
+		Summary: "这是一段足够长但没有有效来源证据的摘要内容。",
+	}}
+	normalized, rejected := normalizeStoryTabsWithReasons(group, tabs)
+	if len(normalized) != 0 || len(rejected) != 1 {
+		t.Fatalf("normalizeStoryTabsWithReasons() = %#v / %#v", normalized, rejected)
+	}
+	if !strings.Contains(rejected[0].Reason, "evidence_indexes") {
+		t.Fatalf("rejection reason = %q, want evidence feedback", rejected[0].Reason)
+	}
+}
+
+func TestCollectStoryTabRetriesIncludesMissingAndShortStories(t *testing.T) {
+	groups := []NewsGroup{
+		{Title: "漏返回", SourceIndexes: []int{1}},
+		{
+			Title:         "只有一个",
+			SourceIndexes: []int{2},
+			Tabs: []StoryTab{{
+				Title:           "事件概览",
+				Summary:         "这是一段足够长且有来源证据的完整信息摘要内容。",
+				Subtitle:        "这是一段完整有效的新闻口播字幕，用于测试数量不足时仍会进入批量重试。",
+				EvidenceIndexes: []int{2},
+			}},
+		},
+		{
+			Title:         "已经达标",
+			SourceIndexes: []int{3},
+			Tabs: []StoryTab{
+				{Title: "一", Summary: "这是一段足够长且有来源证据的完整信息摘要内容。", EvidenceIndexes: []int{3}},
+				{Title: "二", Summary: "这是另一段足够长且有来源证据的完整信息摘要内容。", EvidenceIndexes: []int{3}},
+			},
+		},
+	}
+	batch := []storyTabMaterial{{GroupIndex: 1}, {GroupIndex: 2}, {GroupIndex: 3}}
+
+	retryBatch, feedbacks := collectStoryTabRetries(groups, batch)
+	if len(retryBatch) != 2 {
+		t.Fatalf("retry batch count = %d, want 2", len(retryBatch))
+	}
+	if !strings.Contains(strings.Join(feedbacks[1], "；"), "未返回") {
+		t.Fatalf("missing Story feedback = %#v", feedbacks[1])
+	}
+	if !strings.Contains(strings.Join(feedbacks[2], "；"), "当前只有 1 个") {
+		t.Fatalf("short Story feedback = %#v", feedbacks[2])
+	}
+}
+
+func TestBetterStoryTabsPrefersEvidenceCoverageAtSameCount(t *testing.T) {
+	group := NewsGroup{
+		SourceIndexes: []int{1, 2},
+		Highlights:    []NewsHighlight{{Index: 1}, {Index: 2}},
+	}
+	current := []StoryTab{
+		{Title: "一", EvidenceIndexes: []int{1}},
+		{Title: "二", EvidenceIndexes: []int{1}},
+	}
+	candidate := []StoryTab{
+		{Title: "一", EvidenceIndexes: []int{1}},
+		{Title: "二", EvidenceIndexes: []int{2}},
+	}
+	if !betterStoryTabs(group, candidate, current) {
+		t.Fatal("betterStoryTabs() did not prefer broader highlight/evidence coverage")
+	}
+}
+
+func TestBuildStoryTabsPromptIncludesFeedback(t *testing.T) {
+	batch := []storyTabMaterial{
+		{GroupIndex: 1, Body: "Story 1\n主题：测试"},
+		{GroupIndex: 2, Body: "Story 2\n主题：测试二"},
+	}
+	feedbacks := map[int][]string{1: {"summary 仅 5 字，不足 20 字下限"}}
+
+	prompt := buildStoryTabsPrompt(batch, feedbacks)
+	if !strings.Contains(prompt, "需要修正的 Story") {
+		t.Fatalf("prompt missing feedback section:\n%s", prompt)
+	}
+	if !strings.Contains(prompt, "summary 仅 5 字，不足 20 字下限") {
+		t.Fatalf("prompt missing specific feedback reason:\n%s", prompt)
+	}
+	// 未带反馈的 Story 不应出现在修正段。
+	if !strings.Contains(prompt, "Story 1 上轮生成") {
+		t.Fatalf("prompt missing Story 1 correction note:\n%s", prompt)
+	}
+}
+
+func TestBuildStoryTabsPromptOmitsFeedbackSectionWhenEmpty(t *testing.T) {
+	batch := []storyTabMaterial{{GroupIndex: 1, Body: "Story 1\n主题：测试"}}
+	prompt := buildStoryTabsPrompt(batch, nil)
+	if strings.Contains(prompt, "需要修正的 Story") {
+		t.Fatalf("prompt should not contain feedback section when none provided:\n%s", prompt)
+	}
+}
+
+func TestRetryAndKeepBestTabsDoesNotRegress(t *testing.T) {
+	// 重试返回优质 Tabs，应被采纳。验证重试确实发生且结果被写入。
+	var callCount int
+	server := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+		callCount++
+		writer.Header().Set("Content-Type", "application/json")
+		// 重试总是返回 2 个合格 Tab。
+		payload := `[{"group_index":1,"tabs":[` +
+			`{"title":"事件概览","summary":"这是一段足够长的摘要内容用于通过字数校验。","subtitle":"GLM-5.2 已开启 Max 用户小范围内测，具体参数仍待公布。","kind":"fact","evidence_indexes":[1]},` +
+			`{"title":"后续观察","summary":"这是另一段足够长的摘要内容用于通过字数校验。","subtitle":"具体上线范围与定价仍待智谱正式公布后确认。","kind":"watch","evidence_indexes":[1]}` +
+			`]}]`
+		_, _ = writer.Write([]byte(`{"choices":[{"message":{"role":"assistant","content":` + jsonQuote(payload) + `}}]}`))
+	}))
+	defer server.Close()
+
+	ai := AIConfig{APIKey: "test-key", BaseURL: server.URL, Model: "test-model"}
+	// 当前 0 个有效 Tab，触发重试。
+	groups := []NewsGroup{{Title: "测试 Story", SourceIndexes: []int{1}}}
+	groups[0].lastRejected = []rejectedTab{{Tab: StoryTab{Title: "", Summary: "短"}, Reason: "Tab 标题为空"}}
+
+	calls := retryAndKeepBestTabs(ai, groups, []storyTabMaterial{{GroupIndex: 1, Body: "Story 1\n主题：测试"}}, map[int][]string{1: {"Tab 标题为空"}})
+
+	if callCount != 1 || calls != 1 {
+		t.Fatalf("expected exactly 1 retry call (success stops further retries), got server=%d returned=%d", callCount, calls)
+	}
+	if len(groups[0].Tabs) < minStoryTabs {
+		t.Fatalf("after retry, tabs count = %d, want >= %d", len(groups[0].Tabs), minStoryTabs)
+	}
+}
+
+func TestRetryAndKeepBestTabsKeepsCurrentWhenNotImproved(t *testing.T) {
+	// 重试返回更差的 Tabs，应保留当前已有的。
+	var callCount int
+	server := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+		callCount++
+		writer.Header().Set("Content-Type", "application/json")
+		// 重试全部不合格。
+		payload := `[{"group_index":1,"tabs":[{"title":"","summary":"短"}]}]`
+		_, _ = writer.Write([]byte(`{"choices":[{"message":{"role":"assistant","content":` + jsonQuote(payload) + `}}]}`))
+	}))
+	defer server.Close()
+
+	ai := AIConfig{APIKey: "test-key", BaseURL: server.URL, Model: "test-model"}
+	// 当前已有 1 个合格 Tab，重试不应让它变少。
+	groups := []NewsGroup{{
+		Title:         "测试 Story",
+		SourceIndexes: []int{1},
+		Tabs: []StoryTab{{
+			Title:    "已有 Tab",
+			Summary:  "这是一段足够长的摘要内容用于通过字数校验。",
+			Subtitle: "GLM-5.2 已开启 Max 用户小范围内测，具体参数仍待公布。",
+		}},
+	}}
+	groups[0].lastRejected = []rejectedTab{{Tab: StoryTab{Title: "", Summary: "短"}, Reason: "Tab 标题为空"}}
+
+	retryAndKeepBestTabs(ai, groups, []storyTabMaterial{{GroupIndex: 1, Body: "Story 1\n主题：测试"}}, map[int][]string{1: {"Tab 标题为空"}})
+
+	if len(groups[0].Tabs) != 1 || groups[0].Tabs[0].Title != "已有 Tab" {
+		t.Fatalf("retry regressed existing tabs: %#v", groups[0].Tabs)
+	}
+	if callCount != 1 {
+		t.Fatalf("retry calls = %d, want 1 when first retry did not improve quality", callCount)
+	}
+}
+
+func TestCollectStoryTabQualityStats(t *testing.T) {
+	groups := []NewsGroup{
+		{
+			Tabs: []StoryTab{
+				{subtitleFallback: true},
+				{},
+			},
+			lastRejected: []rejectedTab{{Reason: "evidence_indexes 未包含该 Story 的有效来源序号"}},
+		},
+		{Tabs: []StoryTab{{}}},
+	}
+	stats := collectStoryTabQualityStats(groups)
+	if stats.acceptedTabs != 3 || stats.subtitleFallbacks != 1 ||
+		stats.evidenceRejections != 1 || stats.fallbackStories != 1 {
+		t.Fatalf("collectStoryTabQualityStats() = %#v", stats)
+	}
+}
+
+// jsonQuote 把字符串编码为合法的 JSON 字符串字面量（含外层引号）。
+func jsonQuote(s string) string {
+	b, _ := json.Marshal(s)
+	return string(b)
 }

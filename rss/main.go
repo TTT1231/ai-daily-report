@@ -44,13 +44,13 @@ func main() {
 		return
 	}
 	items := filterUnseenItems(fetchedItems, state)
-	if err := saveRSSState(config.StatePath, snapshotRSSState(fetchedItems)); err != nil {
-		fmt.Printf("失败：无法保存本次 RSS 快照：%v\n", err)
-		return
-	}
-	fmt.Printf("   完成：新增 %d 条，重复 %d 条；本次完整快照已保存\n\n",
+	fmt.Printf("   完成：新增 %d 条，重复 %d 条\n\n",
 		len(items), len(fetchedItems)-len(items))
 	if len(items) == 0 {
+		if err := saveRSSState(config.StatePath, snapshotRSSState(fetchedItems)); err != nil {
+			fmt.Printf("失败：无法保存本次 RSS 快照：%v\n", err)
+			return
+		}
 		fmt.Println("提示：没有相对上一次抓取的新内容，无需生成 data.json。")
 		return
 	}
@@ -62,6 +62,10 @@ func main() {
 		scored = applyKeywordWeights(nil, items)
 	}
 	if len(scored) == 0 {
+		if err := saveRSSState(config.StatePath, snapshotRSSState(fetchedItems)); err != nil {
+			fmt.Printf("失败：无法保存本次 RSS 快照：%v\n", err)
+			return
+		}
 		fmt.Println("提示：新内容中没有符合兴趣规则的新闻，本次结束。")
 		return
 	}
@@ -91,6 +95,11 @@ func main() {
 		return
 	}
 	fmt.Printf("   完成：写入 %s\n", reportPath)
+	if err := saveRSSState(config.StatePath, snapshotRSSState(fetchedItems)); err != nil {
+		fmt.Printf("失败：data.json 已生成，但无法保存本次 RSS 快照：%v\n", err)
+		return
+	}
+	fmt.Printf("   完成：本次完整 RSS 快照已保存至 %s\n", config.StatePath)
 	fmt.Printf("\n全部完成：抓取 %d 条，新增 %d 条，生成 %d 个新闻主题。\n",
 		len(fetchedItems), len(items), len(groups))
 }

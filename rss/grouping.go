@@ -119,6 +119,9 @@ func normalizeGroups(groups []NewsGroup, scored []ScoredItem, items []Item) []Ne
 		}
 		group.SourceIndexes = validSources
 		group.Highlights = validHighlights
+		// 在聚类阶段就清洗 navigation_title：长度越界或内容空洞的清空，
+		// 由下游 navigationTitle() 走品牌/事件推断降级，避免把无效短标题带到最后。
+		group.NavigationTitle = cleanNavigationTitle(group.NavigationTitle)
 		normalized = append(normalized, group)
 	}
 
@@ -264,6 +267,36 @@ func fallbackGroupIdentity(title string) (string, string) {
 		return "qwen-*", "Qwen 通义千问模型与产品动态"
 	}
 	return normalizeTitle(title), title
+}
+
+// cleanNavigationTitle 清洗模型给出的底部时间线短标题：
+// 长度越界或内容空洞（纯栏目名、无信息短语）时清空，交由下游 navigationTitle() 降级推断。
+func cleanNavigationTitle(title string) string {
+	title = strings.TrimSpace(title)
+	if validNavigationTitle(title) == "" {
+		return ""
+	}
+	if isVacuousNavigationTitle(title) {
+		return ""
+	}
+	return title
+}
+
+// isVacuousNavigationTitle 判断短标题是否内容空洞：只是栏目名或通用占位词，缺少“主体+事件”。
+func isVacuousNavigationTitle(title string) bool {
+	lower := strings.ToLower(title)
+	// 纯栏目名（与视频分区/Tab 角色同名的标签），没有具体事件信息。
+	vacuous := []string{
+		"事件概览", "具体变化", "用户影响", "后续观察", "后续进展",
+		"事件综述", "要点总结", "内容详情", "详细内容", "最新消息", "最新动态",
+		"行业动态", "AI动态", "AI新闻", "新闻速递", "新闻动态",
+	}
+	for _, term := range vacuous {
+		if lower == strings.ToLower(term) {
+			return true
+		}
+	}
+	return false
 }
 
 // normalizeTitle 去除标题中的标点与空白并转小写，得到用于去重与聚类身份比较的规范化字符串。

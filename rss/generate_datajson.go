@@ -244,7 +244,7 @@ func storyCategory(group NewsGroup) string {
 
 // navigationTitle 生成底部时间线用的 3-5 字短标题：优先校验模型给出的，否则按品牌/事件关键词推断，再退到截断标题。
 func navigationTitle(group NewsGroup) string {
-	if title := validNavigationTitle(group.NavigationTitle); title != "" {
+	if title := cleanNavigationTitle(group.NavigationTitle); title != "" {
 		return title
 	}
 
@@ -283,9 +283,10 @@ func navigationTitle(group NewsGroup) string {
 	}
 
 	title := truncateRunes(strings.TrimSpace(group.Title), maxBottomTitleRunes)
-	if valid := validNavigationTitle(title); valid != "" {
+	if valid := cleanNavigationTitle(title); valid != "" {
 		return valid
 	}
+	// bottomTitle 是必填字段；确实无法从 Story 推断时才使用通用最终兜底。
 	return "AI动态"
 }
 

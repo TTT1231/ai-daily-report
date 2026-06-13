@@ -62,8 +62,8 @@
       </div>
       <h1>AI 日报 <span class="highlight">Remotion 视频</span> 项目</h1>
       <p class="hero-desc">
-        不需要先理解全部代码。准备日报内容，生成旁白，然后在 Remotion Studio
-        里预览视频。
+        不需要先理解全部代码。支持手写维护或 Agent 一键自动化两种方式，
+        准备好日报内容、生成旁白，即可在 Remotion Studio 里预览视频。
       </p>
       <div class="hero-actions">
         <a class="hero-action primary" href="#quickstart">
@@ -75,14 +75,27 @@
           >
             <path d="M5 12h14M13 6l6 6-6 6" />
           </svg>
-          开始第一次运行
+          选择生成方式
+        </a>
+        <a class="hero-action" href="#automation">
+          <svg
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+          >
+            <rect x="3" y="11" width="18" height="10" rx="2" />
+            <circle cx="12" cy="5" r="2" />
+            <path d="M12 7v4M8 16h.01M16 16h.01" />
+          </svg>
+          Agent 一键自动化
         </a>
         <a class="hero-action" href="#responsibility">先看哪些文件能改</a>
       </div>
       <div class="hero-stats">
         <div class="stat">
-          <div class="stat-value">4</div>
-          <div class="stat-label">首次运行步骤</div>
+          <div class="stat-value">2</div>
+          <div class="stat-label">日报生成方式</div>
         </div>
         <div class="stat">
           <div class="stat-value">1</div>
@@ -100,10 +113,10 @@
       <div class="onboarding-heading">
         <div>
           <span class="kicker">第一次使用看这里</span>
-          <h2>照着 4 步，先让视频跑起来</h2>
+          <h2>选择你的日报生成方式</h2>
           <p>
-            所有命令都在项目根目录 <code>ai-daily-report/</code> 中运行。
-            第一次不必修改源码，只需要准备数据和 MiniMax API Key。
+            所有命令都在项目根目录 <code>ai-daily-report/</code> 中运行。两种方式都能产出完整视频：<strong>手写维护</strong>由你编辑
+            <code>data.json</code>；<strong>Agent 自动化</strong>用 <code>bun run all</code> 一键抓取、配音、生成图标。
           </p>
         </div>
         <div class="success-card">
@@ -121,6 +134,65 @@
           </div>
         </div>
       </div>
+
+      <div class="mode-switcher" aria-label="两种生成方式">
+        <a class="mode-card" href="#manual">
+          <div class="mode-icon">
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+            >
+              <path d="M12 20h9" />
+              <path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z" />
+            </svg>
+          </div>
+          <div class="mode-info">
+            <strong>✍ 手写维护</strong>
+            <span>手动编辑 data.json，4 步跑通视频</span>
+          </div>
+          <span class="mode-arrow">→</span>
+        </a>
+        <a class="mode-card featured" href="#automation">
+          <div class="mode-icon">
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+            >
+              <rect x="3" y="11" width="18" height="10" rx="2" />
+              <circle cx="12" cy="5" r="2" />
+              <path d="M12 7v4M8 16h.01M16 16h.01" />
+            </svg>
+          </div>
+          <div class="mode-info">
+            <strong>🤖 Agent 自动化</strong>
+            <span>bun run all 一键完成抓取→配音→图标</span>
+          </div>
+          <span class="mode-arrow">→</span>
+        </a>
+      </div>
+
+      <div id="manual" class="mode-block">
+        <div class="mode-title manual">
+          <div class="mode-title-icon">
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+            >
+              <path d="M12 20h9" />
+              <path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z" />
+            </svg>
+          </div>
+          <div class="mode-title-text">
+            <strong>方式一：手写维护</strong>
+            <span>你手动编辑 data-scheme/data.json，图片放进 images/</span>
+          </div>
+        </div>
 
       <div class="prep-grid" aria-label="开始前准备">
         <article class="prep-card">
@@ -266,6 +338,161 @@
         <span><code>.env</code> 是否有 <code>MINIMAX_API_KEY</code></span>
         <span>命令是否在项目根目录运行</span>
       </div>
+      </div>
+
+      <div id="automation" class="mode-block">
+        <div class="mode-title automation">
+          <div class="mode-title-icon">
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+            >
+              <rect x="3" y="11" width="18" height="10" rx="2" />
+              <circle cx="12" cy="5" r="2" />
+              <path d="M12 7v4M8 16h.01M16 16h.01" />
+            </svg>
+          </div>
+          <div class="mode-title-text">
+            <strong>方式二：Agent 自动化</strong>
+            <span
+              >准备环境与 Key，<code>bun run all</code> 自动抓取、配音、生成图标</span
+            >
+          </div>
+        </div>
+
+        <div class="prep-grid" aria-label="开始前准备">
+          <article class="prep-card">
+            <div class="prep-icon">
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+              >
+                <path d="M4 17l6-6-6-6" />
+                <path d="M12 19h8" />
+              </svg>
+            </div>
+            <div>
+              <strong>安装 Bun + Go</strong
+              ><span
+                >TTS 脚本用 Bun，<code>rss/</code> 采集器用 Go，<code>bun --version</code> 与
+                <code>go version</code> 都要正常。</span
+              >
+            </div>
+          </article>
+          <article class="prep-card">
+            <div class="prep-icon">
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+              >
+                <path
+                  d="M12 15v2m-6 4h12a2 2 0 0 0 2-2v-8a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2Zm2-12V7a4 4 0 0 1 8 0v2"
+                />
+              </svg>
+            </div>
+            <div>
+              <strong>配置 MiniMax Key</strong
+              ><span
+                >用于生成 TTS 旁白，写入根目录 <code>.env</code> 的
+                <code>MINIMAX_API_KEY</code>。</span
+              >
+            </div>
+          </article>
+          <article class="prep-card">
+            <div class="prep-icon">
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+              >
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                <path d="M14 2v6h6" />
+              </svg>
+            </div>
+            <div>
+              <strong>配置 AI Key + Claude CLI</strong
+              ><span
+                ><code>.env</code> 的 <code>AI_API_KEY</code> 喂给 rss 分析模型；generate-svg 步骤会执行 <code>claude --dangerously-skip-permissions -p "/generate-svg"</code> 生成 Tabs 图标，需先装好 Claude CLI。</span
+              >
+            </div>
+          </article>
+        </div>
+
+        <div class="help-strip">
+          <strong>📡 抓取来源：</strong>
+          <span><code>rss</code> 从 <strong>Linux.do「前沿快讯」</strong> RSS 2.0 源（<code>linux.do/c/news/34.rss</code>）抓取 <strong>最近 24 小时</strong> 内容</span>
+          <span>经 AI 评分筛选与聚类，最多保留约 15 个 Story（视频主题）</span>
+          <span>每次运行会基于上次抓取快照 <code>rss/rss-state.json</code> <strong>自动去重</strong>，重叠条目不重复处理</span>
+        </div>
+
+        <div class="help-strip">
+          <strong>👁️ 图片识别（按需）：</strong>
+          <span>当某个 Story 评分 ≥9、正文较短且含远程图片时，<code>rss</code> 会调用 <code>claude --dangerously-skip-permissions -p</code> 识别图片内容，补充事实后再进入下一步解析</span>
+          <span>⚠ 因此 <strong>Claude CLI 的模型必须支持多模态</strong>，并<strong>配置图像分析 MCP</strong>，否则图片识别步骤会失败（可接受，会降级为纯文本继续，但拿不到图片里的信息）</span>
+        </div>
+
+        <div class="steps">
+          <article class="step-card agent">
+            <div class="step-number">01</div>
+            <div class="step-copy">
+              <span class="step-label">一条命令全自动</span>
+              <h3>抓取 + 配音 + 图标</h3>
+              <p>
+                依次自动执行 <code>prerss</code>（归档）→
+                <code>rss</code>（抓取并生成 data.json，按需调用 Claude 视觉识别图片）→
+                <code>tts</code>（音频与时间线）→
+                <code>generate-svg</code>（Claude CLI 生成 Tabs 图标）。
+              </p>
+              <div class="copy-command">
+                <code>bun run all</code
+                ><button
+                  type="button"
+                  data-copy="bun run all"
+                  aria-label="复制 bun run all"
+                >
+                  复制
+                </button>
+              </div>
+            </div>
+          </article>
+            </div>
+          </article>
+          <article class="step-card agent">
+            <div class="step-number">02</div>
+            <div class="step-copy">
+              <span class="step-label">看到画面就成功</span>
+              <h3>预览或渲染视频</h3>
+              <p>
+                <code>dev</code> 拉起 Remotion Studio 预览；<code>build</code>
+                打包渲染。dev 会自动监听 data.json 并增量更新 TTS。
+              </p>
+              <div class="copy-command">
+                <code>bun run dev</code
+                ><button
+                  type="button"
+                  data-copy="bun run dev"
+                  aria-label="复制预览命令"
+                >
+                  复制
+                </button>
+              </div>
+            </div>
+          </article>
+        </div>
+
+        <div class="help-strip">
+          <strong>⚠ 仅图片需手动：</strong>
+          <span><code>bun run all</code> 不会插图，请在 <code>data-scheme/data.json</code> 给每个 Scene 填 <code>overlayImg: "images/xxx"</code>，图片放进 <code>data-scheme/images/</code></span>
+          <span>仅替换图片不会重新请求旁白</span>
+        </div>
+      </div>
     </section>
 
     <!-- Table of Contents -->
@@ -298,8 +525,24 @@
               <path d="M5 12h14M13 6l6 6-6 6" />
             </svg>
           </div>
-          <h3>小白快速开始</h3>
-          <p>首次运行步骤、成功标志与常见卡点</p>
+          <h3>两种生成方式</h3>
+          <p>手写维护 4 步 与 Agent 自动化一键流程</p>
+        </a>
+        <a href="#automation" class="toc-card featured">
+          <div class="toc-card-icon">
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+            >
+              <rect x="3" y="11" width="18" height="10" rx="2" />
+              <circle cx="12" cy="5" r="2" />
+              <path d="M12 7v4M8 16h.01M16 16h.01" />
+            </svg>
+          </div>
+          <h3>Agent 自动化</h3>
+          <p>bun run all：抓取 → 配音 → 图标 一键完成</p>
         </a>
         <a href="#directory" class="toc-card">
           <div class="toc-card-icon">
@@ -469,7 +712,7 @@
               <h4>准备日报内容</h4>
               <code>data-scheme/data.json</code>
               <p>
-                可由 <code>bun run rss</code> 自动抓取，或手动编辑标题、Tabs、字幕与图片引用。
+                可由 <code>bun run all</code> 一键抓取（rss）并配音（tts）、生成图标；也可手动编辑标题、Tabs、字幕与图片引用。
               </p>
             </article>
             <div class="pipeline-connector"><span>校验</span>→</div>

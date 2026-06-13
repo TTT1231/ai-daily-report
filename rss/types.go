@@ -83,6 +83,7 @@ type NewsGroup struct {
 	SourceIndexes   []int           `json:"source_indexes"`             // 归入本 Story 的全部候选序号（含重复来源）。
 	Highlights      []NewsHighlight `json:"highlights"`                 // 互不重复的关键要点。
 	Tabs            []StoryTab      `json:"tabs,omitempty"`             // 后续编排出的视频 Tabs。
+	lastRejected    []rejectedTab   `json:"-"`                          // 运行时缓存：最近一次 Tab 归一化被丢弃的项，供带反馈重试使用。
 }
 
 // NewsHighlight 是 Story 内的一个不重复要点，指向最能代表它的来源序号。
@@ -93,11 +94,12 @@ type NewsHighlight struct {
 
 // StoryTab 是 Story 下的一个视频 Tab，包含标题、画面摘要与口播字幕。
 type StoryTab struct {
-	Title           string `json:"title"`            // Tab 标题。
-	Summary         string `json:"summary"`          // 画面中展示的完整摘要（受限 Markdown）。
-	Subtitle        string `json:"subtitle"`         // 底部弹幕与 TTS 口播字幕。
-	Kind            string `json:"kind"`             // 类型：fact（事实）、impact（影响）或 watch（待观察）。
-	EvidenceIndexes []int  `json:"evidence_indexes"` // 支撑该 Tab 的来源序号。
+	Title            string `json:"title"`            // Tab 标题。
+	Summary          string `json:"summary"`          // 画面中展示的完整摘要（受限 Markdown）。
+	Subtitle         string `json:"subtitle"`         // 底部弹幕与 TTS 口播字幕。
+	Kind             string `json:"kind"`             // 类型：fact（事实）、impact（影响）或 watch（待观察）。
+	EvidenceIndexes  []int  `json:"evidence_indexes"` // 支撑该 Tab 的来源序号。
+	subtitleFallback bool   `json:"-"`                // 运行时质量标记：模型字幕无效，已从 summary/title 降级生成。
 }
 
 // StoryTabsResult 是模型针对某个 Story 返回的 Tabs 集合，GroupIndex 对应 Story 序号。
