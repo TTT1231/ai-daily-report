@@ -24,92 +24,98 @@ import clickSound from "./sound/click-sound.mp3";
 
 const themes = {
   dark: {
-    text: "#f3f6ff",
-    muted: "#8f9abb",
-    blue: "#70adff",
-    strong: "#ffffff",
+    text: "#e5e2dc",
+    muted: "#9d9c98",
+    blue: "#bd745c",
+    strong: "#f2eee7",
+    contentTitle: "#d49376",
     canvas:
-      "radial-gradient(circle at 12% -18%, rgba(41,111,226,.34), transparent 36%), radial-gradient(circle at 92% 0%, rgba(117,72,214,.20), transparent 34%), linear-gradient(180deg, #0a1023 0%, #060814 72%)",
+      "radial-gradient(circle at 12% -18%, rgba(91,115,135,.17), transparent 40%), radial-gradient(circle at 92% 0%, rgba(151,89,69,.10), transparent 38%), linear-gradient(180deg, #171c21 0%, #11161b 78%)",
     ambient:
-      "linear-gradient(rgba(120,155,220,.035) 1px, transparent 1px), linear-gradient(90deg, rgba(120,155,220,.035) 1px, transparent 1px)",
-    nav: "rgba(8,13,31,.86)",
-    navInactive: "rgba(13,20,43,.46)",
+      "linear-gradient(180deg, rgba(255,247,238,.022), transparent 42%)",
+    nav: "rgba(24,29,34,.90)",
+    navInactive: "rgba(38,44,49,.54)",
     navActive:
-      "linear-gradient(to top, rgba(51,118,237,.38), rgba(30,56,112,.28))",
-    border: "rgba(113,140,198,.27)",
+      "linear-gradient(to top, rgba(91,58,49,.68), rgba(52,45,43,.72))",
+    border: "rgba(183,179,170,.18)",
     navActiveShadow:
-      "inset 0 0 0 1px rgba(112,173,255,.78), inset 0 0 28px rgba(65,135,255,.18), 0 0 22px rgba(38,103,225,.12)",
+      "inset 0 0 0 1px rgba(189,116,92,.42), inset 0 0 20px rgba(189,116,92,.07)",
     activeCard:
-      "linear-gradient(145deg, rgba(21,104,190,.98), rgba(23,61,130,.98))",
+      "linear-gradient(145deg, rgba(48,46,45,.99), rgba(39,39,39,.99))",
     inactiveCard:
-      "linear-gradient(145deg, rgba(22,30,58,.96), rgba(12,17,38,.98))",
-    activeCardBorder: "#58a5ff",
-    inactiveCardBorder: "rgba(101,125,181,.34)",
+      "linear-gradient(145deg, rgba(37,42,46,.99), rgba(30,35,39,.99))",
+    activeCardBorder: "#aa6a55",
+    inactiveCardBorder: "rgba(179,184,184,.20)",
     activeCardShadow:
-      "0 18px 48px rgba(0,0,0,.30), 0 0 0 1px rgba(112,173,255,.16), 0 0 34px rgba(40,115,240,.14)",
-    inactiveCardShadow: "0 12px 30px rgba(0,0,0,.16)",
-    inactiveCardText: "#e2e9ff",
-    activeSummary: "#ffffff",
-    inactiveSummary: "#d3ddfa",
-    pattern: "rgba(116,157,224,.18)",
-    emphasisText: "#ffe08a",
-    emphasisBackground: "rgba(255,180,42,.26)",
-    emphasisBorder: "#ffbf47",
+      "inset 0 3px 0 rgba(202,132,108,.20), 0 18px 38px rgba(0,0,0,.20), 0 0 0 1px rgba(189,116,92,.05)",
+    inactiveCardShadow:
+      "inset 0 1px 0 rgba(255,255,255,.025), 0 10px 24px rgba(0,0,0,.12)",
+    inactiveCardText: "#d9dce0",
+    activeSummary: "#e6ddd6",
+    inactiveSummary: "#bfc6cc",
+    emphasisText: "#efc27f",
+    emphasisBackground: "rgba(202,137,67,.15)",
+    emphasisBorder: "rgba(226,164,91,.58)",
     emphasisShadow:
-      "inset 0 0 0 1px rgba(255,238,184,.18), 0 0 12px rgba(255,183,50,.16)",
-    codeText: "#d9f6ff",
-    codeBackground: "rgba(21,151,218,.34)",
-    codeBorder: "#63d7ff",
+      "inset 0 0 0 1px rgba(255,238,184,.06)",
+    codeText: "#c8dce0",
+    codeBackground: "rgba(81,127,137,.18)",
+    codeBorder: "rgba(130,178,187,.48)",
     codeShadow:
-      "inset 0 0 0 1px rgba(228,249,255,.18), 0 0 12px rgba(57,191,245,.18)",
-    subtitleTextShadow:
-      "0 2px 2px rgba(0,0,0,.98), 0 4px 12px rgba(0,0,0,.98)",
-    overlayShadow: "0 30px 80px rgba(0,0,0,.64)",
+      "inset 0 0 0 1px rgba(228,249,255,.06)",
+    subtitleText: "#e9e5df",
+    subtitleBackground: "rgba(34,39,43,.82)",
+    subtitleBorder: "rgba(186,181,172,.16)",
+    subtitleShadow: "0 8px 22px rgba(0,0,0,.14)",
+    overlayShadow: "0 30px 80px rgba(0,0,0,.54)",
   },
   light: {
-    text: "#12233d",
-    muted: "#5d6d83",
-    blue: "#1769d2",
-    strong: "#0a1a32",
+    text: "#2d3d4c",
+    muted: "#68727c",
+    blue: "#b8614b",
+    strong: "#3e2d28",
+    contentTitle: "#b85f49",
     canvas:
-      "radial-gradient(circle at 10% -16%, rgba(71,142,236,.20), transparent 38%), radial-gradient(circle at 94% 2%, rgba(140,114,213,.12), transparent 36%), linear-gradient(180deg, #f7f9fc 0%, #edf2f8 100%)",
+      "radial-gradient(circle at 10% -16%, rgba(90,135,182,.09), transparent 40%), radial-gradient(circle at 94% 2%, rgba(196,112,84,.08), transparent 38%), linear-gradient(180deg, #fbfaf7 0%, #f1f3f2 100%)",
     ambient:
-      "linear-gradient(rgba(35,92,161,.035) 1px, transparent 1px), linear-gradient(90deg, rgba(35,92,161,.035) 1px, transparent 1px)",
-    nav: "rgba(250,252,255,.90)",
-    navInactive: "rgba(232,239,248,.60)",
+      "linear-gradient(180deg, rgba(255,255,255,.42), transparent 42%)",
+    nav: "rgba(252,251,248,.92)",
+    navInactive: "rgba(241,241,237,.68)",
     navActive:
-      "linear-gradient(to top, rgba(202,225,255,.96), rgba(239,246,255,.92))",
-    border: "rgba(62,95,139,.20)",
+      "linear-gradient(to top, rgba(242,222,214,.96), rgba(253,248,244,.94))",
+    border: "rgba(91,103,113,.19)",
     navActiveShadow:
-      "inset 0 0 0 1px rgba(23,105,210,.50), inset 0 0 24px rgba(47,124,219,.10), 0 4px 14px rgba(39,83,136,.08)",
+      "inset 0 0 0 1px rgba(184,95,73,.34), inset 0 0 20px rgba(184,95,73,.06)",
     activeCard:
-      "linear-gradient(145deg, rgba(224,239,255,.99), rgba(198,224,255,.99))",
+      "linear-gradient(145deg, rgba(255,251,247,.99), rgba(248,237,231,.99))",
     inactiveCard:
-      "linear-gradient(145deg, rgba(255,255,255,.98), rgba(242,246,251,.99))",
-    activeCardBorder: "#2779db",
-    inactiveCardBorder: "rgba(78,105,143,.28)",
+      "linear-gradient(145deg, rgba(255,255,253,.99), rgba(248,248,245,.99))",
+    activeCardBorder: "#c77963",
+    inactiveCardBorder: "rgba(92,104,113,.22)",
     activeCardShadow:
-      "0 18px 42px rgba(47,91,143,.18), 0 0 0 1px rgba(39,121,219,.10)",
-    inactiveCardShadow: "0 12px 30px rgba(47,73,108,.09)",
-    inactiveCardText: "#243955",
-    activeSummary: "#183a62",
-    inactiveSummary: "#465d79",
-    pattern: "rgba(39,105,187,.20)",
+      "inset 0 3px 0 rgba(199,121,99,.18), 0 16px 34px rgba(109,78,67,.12), 0 0 0 1px rgba(184,95,73,.05)",
+    inactiveCardShadow:
+      "inset 0 1px 0 rgba(255,255,255,.88), 0 9px 22px rgba(65,72,78,.07)",
+    inactiveCardText: "#344653",
+    activeSummary: "#59443d",
+    inactiveSummary: "#52626d",
     emphasisText: "#a83f00",
-    emphasisBackground: "rgba(255,177,66,.18)",
-    emphasisBorder: "rgba(200,91,14,.62)",
+    emphasisBackground: "rgba(255,177,66,.13)",
+    emphasisBorder: "rgba(200,91,14,.48)",
     emphasisShadow: "none",
     codeText: "#0759a6",
-    codeBackground: "rgba(32,126,222,.13)",
-    codeBorder: "rgba(22,102,190,.48)",
-    codeShadow: "inset 0 0 0 1px rgba(255,255,255,.54)",
-    subtitleTextShadow:
-      "0 2px 2px rgba(0,0,0,.96), 0 4px 12px rgba(0,0,0,.88)",
+    codeBackground: "rgba(32,126,222,.09)",
+    codeBorder: "rgba(22,102,190,.34)",
+    codeShadow: "inset 0 0 0 1px rgba(255,255,255,.48)",
+    subtitleText: "#263b4c",
+    subtitleBackground: "rgba(255,254,251,.82)",
+    subtitleBorder: "rgba(91,103,113,.16)",
+    subtitleShadow: "0 8px 20px rgba(65,72,78,.07)",
     overlayShadow: "0 30px 72px rgba(40,62,91,.28)",
   },
 };
 
-type Theme = keyof typeof themes;
+export type Theme = keyof typeof themes;
 
 const STORY_PAUSE_FRAMES = 2;
 const STORY_TRANSITION_FRAMES = 18;
@@ -118,9 +124,97 @@ const IMAGE_FOCUS_SCALE = 1.08;
 const IMAGE_FOCUS_ZOOM_END = 0.42;
 const IMAGE_FOCUS_RETURN_START = 0.72;
 const IMAGE_FOCUS_RETURN_END = 0.9;
+const SUBTITLE_MAX_VISUAL_UNITS = 46;
 
 const msToFrames = (milliseconds: number, fps: number) =>
   Math.round((milliseconds / 1000) * fps);
+
+// Keep voiceover continuous while presenting long captions as timed single lines.
+const subtitleVisualUnits = (text: string) =>
+  [...text].reduce((total, character) => {
+    if (/\s/.test(character)) return total + 0.32;
+    if ((character.codePointAt(0) ?? 0) <= 0xff) return total + 0.56;
+    return total + 1;
+  }, 0);
+
+const hardSplitSubtitleSegment = (segment: string) => {
+  const chunks: string[] = [];
+  let chunk = "";
+  let units = 0;
+
+  for (const character of segment) {
+    const characterUnits = subtitleVisualUnits(character);
+    if (chunk && units + characterUnits > SUBTITLE_MAX_VISUAL_UNITS) {
+      chunks.push(chunk.trim());
+      chunk = "";
+      units = 0;
+    }
+    chunk += character;
+    units += characterUnits;
+  }
+
+  if (chunk.trim()) chunks.push(chunk.trim());
+  return chunks;
+};
+
+const splitSubtitleCues = (subtitle: string) => {
+  const normalized = subtitle.trim().replace(/\s+/g, " ");
+  if (subtitleVisualUnits(normalized) <= SUBTITLE_MAX_VISUAL_UNITS) {
+    return [normalized];
+  }
+
+  const segments =
+    normalized.match(/[^，。！？；：,.!?;:]+[，。！？；：,.!?;:]?/g) ?? [
+      normalized,
+    ];
+  const cues: string[] = [];
+  let cue = "";
+
+  for (const segment of segments.flatMap(hardSplitSubtitleSegment)) {
+    if (
+      cue &&
+      subtitleVisualUnits(cue + segment) > SUBTITLE_MAX_VISUAL_UNITS
+    ) {
+      cues.push(cue.trim());
+      cue = "";
+    }
+    cue += segment;
+  }
+
+  if (cue.trim()) cues.push(cue.trim());
+  return cues;
+};
+
+const getSubtitleCue = (
+  scene: DailyScene,
+  sceneFrame: number,
+  sceneDuration: number,
+) => {
+  const cues = splitSubtitleCues(scene.subtitle);
+  if (cues.length === 1) return cues[0];
+
+  const audioDurationFrames = scene.tts
+    ? sceneDuration *
+      (scene.tts.audioLengthMs /
+        (scene.tts.audioLengthMs + scene.tts.tailPaddingMs))
+    : sceneDuration;
+  const totalUnits = cues.reduce(
+    (total, cue) => total + subtitleVisualUnits(cue),
+    0,
+  );
+  const currentUnits =
+    (Math.min(sceneFrame, Math.max(0, audioDurationFrames - 1)) /
+      Math.max(1, audioDurationFrames)) *
+    totalUnits;
+  let cursor = 0;
+
+  for (const cue of cues) {
+    cursor += subtitleVisualUnits(cue);
+    if (currentUnits < cursor) return cue;
+  }
+
+  return cues[cues.length - 1];
+};
 
 // ── Unified timeline (single source of truth for all frame positions) ───
 //
@@ -272,7 +366,7 @@ const InlineMarkup: React.FC<{ text: string; theme: Theme; active: boolean }> = 
                 padding: "0 5px 1px",
                 color: palette.emphasisText,
                 background: palette.emphasisBackground,
-                borderBottom: `3px solid ${palette.emphasisBorder}`,
+                borderBottom: `2px solid ${palette.emphasisBorder}`,
                 borderRadius: 4,
                 fontWeight: 900,
                 letterSpacing: ".015em",
@@ -292,11 +386,11 @@ const InlineMarkup: React.FC<{ text: string; theme: Theme; active: boolean }> = 
               key={index}
               style={{
                 display: "inline-block",
-                padding: "1px 9px 2px",
+                padding: "1px 7px 2px",
                 margin: "0 2px",
                 color: palette.codeText,
                 background: palette.codeBackground,
-                border: `2px solid ${palette.codeBorder}`,
+                border: `1px solid ${palette.codeBorder}`,
                 borderRadius: 7,
                 boxShadow: palette.codeShadow,
                 fontFamily: '"Cascadia Code", Consolas, monospace',
@@ -320,8 +414,9 @@ const InlineMarkup: React.FC<{ text: string; theme: Theme; active: boolean }> = 
 const TabIcon: React.FC<{
   src: string;
   active: boolean;
+  theme: Theme;
   size?: number;
-}> = ({src, active, size = 62}) => (
+}> = ({src, active, theme, size = 62}) => (
   <Img
     src={staticFile(src)}
     style={{
@@ -329,9 +424,14 @@ const TabIcon: React.FC<{
       height: size,
       flexShrink: 0,
       transform: active ? "scale(1.08)" : "none",
-      filter: active
-        ? "saturate(1.2) brightness(1.12) drop-shadow(0 0 10px rgba(111,213,255,.28))"
-        : "saturate(1.1) brightness(1.06) drop-shadow(0 2px 4px rgba(0,0,0,.28))",
+      filter:
+        theme === "dark"
+          ? active
+            ? "saturate(.92) brightness(1.03) drop-shadow(0 3px 8px rgba(0,0,0,.26))"
+            : "saturate(.82) brightness(.98) drop-shadow(0 2px 4px rgba(0,0,0,.24))"
+          : active
+            ? "saturate(1.2) brightness(1.12) drop-shadow(0 0 10px rgba(111,213,255,.28))"
+            : "saturate(1.1) brightness(1.06) drop-shadow(0 2px 4px rgba(0,0,0,.28))",
     }}
   />
 );
@@ -433,7 +533,7 @@ const Tabs: React.FC<{
       ? "76%"
       : "94%";
   const containerHeight = isTwoCardLayout
-    ? "66%"
+    ? "58%"
     : isSingleRow
       ? "58%"
       : "94%";
@@ -465,25 +565,6 @@ const Tabs: React.FC<{
       : isDenseLayout
         ? 1.38
         : 1.42;
-  const getCardBackground = (active: boolean, rowIndex: number) => {
-    const base = active
-      ? palette.activeCard
-      : palette.inactiveCard;
-
-    if (rowIndex === 0) {
-      return [
-        `linear-gradient(${palette.pattern} 1px, transparent 1px)`,
-        `linear-gradient(90deg, ${palette.pattern} 1px, transparent 1px)`,
-        base,
-      ].join(",");
-    }
-
-    return [
-      `repeating-radial-gradient(ellipse at 0 50%, transparent 0 13px, ${palette.pattern} 14px 16px, transparent 17px 30px)`,
-      base,
-    ].join(",");
-  };
-
   return (
     <div
       style={{
@@ -506,7 +587,6 @@ const Tabs: React.FC<{
     >
       {story.tabs.map((tab, index) => {
         const active = tab.id === story.activeTab;
-        const rowIndex = Math.floor(index / columns);
         const fiveCardGridColumn = ["1 / 3", "3 / 5", "5 / 7", "2 / 4", "4 / 6"][
           index
         ];
@@ -522,14 +602,12 @@ const Tabs: React.FC<{
               justifyContent: "flex-start",
               textAlign: "left",
               gridColumn: isFiveCardLayout ? fiveCardGridColumn : undefined,
-              borderRadius: 12,
+              borderRadius: 18,
               color: active ? palette.strong : palette.inactiveCardText,
-              border: `2px solid ${
+              border: `1.5px solid ${
                 active ? palette.activeCardBorder : palette.inactiveCardBorder
               }`,
-              background: getCardBackground(active, rowIndex),
-              backgroundSize:
-                rowIndex === 0 ? "28px 28px, 28px 28px, auto" : "58px 36px, auto",
+              background: active ? palette.activeCard : palette.inactiveCard,
               boxShadow: active
                 ? palette.activeCardShadow
                 : palette.inactiveCardShadow,
@@ -537,19 +615,20 @@ const Tabs: React.FC<{
                 ? !hasActiveTab
                   ? "none"
                   : active
-                  ? "translateY(-7px) scale(1.018)"
-                  : "translateY(2px) scale(.982)"
+                  ? "translateY(-4px) scale(1.008)"
+                  : "translateY(1px) scale(.992)"
                 : active
-                  ? "translateY(-5px)"
+                  ? "translateY(-3px)"
                   : "translateY(0)",
               overflow: "hidden",
             }}
           >
             <div
               style={{
+                color: active ? palette.contentTitle : palette.text,
                 fontSize: titleFontSize,
                 lineHeight: 1.18,
-                fontWeight: 820,
+                fontWeight: 780,
                 marginBottom: isDenseLayout ? 10 : 12,
                 display: "flex",
                 alignItems: "center",
@@ -560,6 +639,7 @@ const Tabs: React.FC<{
                 <TabIcon
                   src={tab.icon}
                   active={active}
+                  theme={theme}
                   size={isDenseLayout ? 52 : 58}
                 />
               )}
@@ -570,7 +650,7 @@ const Tabs: React.FC<{
                 color: active ? palette.activeSummary : palette.inactiveSummary,
                 fontSize: summaryFontSize,
                 lineHeight: summaryLineHeight,
-                fontWeight: active ? 590 : 520,
+                fontWeight: active ? 550 : 500,
                 letterSpacing: ".005em",
               }}
             >
@@ -619,7 +699,7 @@ const IntroOverview: React.FC<{
   );
   const titleColors =
     theme === "dark"
-      ? ["#ff6f91", "#6fd5ff", "#ffcf5a", "#79e1c4", "#b798ff", "#ff9e67"]
+      ? ["#d98978", "#8fb3bd", "#d1ad74", "#91b3a5", "#aa9abb", "#c89876"]
       : ["#cf3f67", "#167fc0", "#b77a00", "#12826d", "#7154c7", "#c15f22"];
 
   return (
@@ -658,7 +738,11 @@ const IntroOverview: React.FC<{
                 minHeight: 150,
                 padding: "26px 32px",
                 borderRadius: 18,
-                border: `1px solid ${palette.border}`,
+                border: `1px solid ${
+                  tab.id === intro.activeTab
+                    ? palette.activeCardBorder
+                    : palette.inactiveCardBorder
+                }`,
                 background:
                   tab.id === intro.activeTab
                     ? palette.activeCard
@@ -685,6 +769,7 @@ const IntroOverview: React.FC<{
                   <TabIcon
                     src={tab.icon}
                     active={tab.id === intro.activeTab}
+                    theme={theme}
                     size={58}
                   />
                 )}
@@ -726,6 +811,7 @@ export const TabLayoutPreview: React.FC<TabLayoutPreviewProps> = ({
   tabCount,
   theme,
 }) => {
+  const frame = useCurrentFrame();
   const palette = themes[theme];
   const tabs = Array.from({length: tabCount}, (_, index) => ({
     id: `preview-${index + 1}`,
@@ -754,6 +840,7 @@ export const TabLayoutPreview: React.FC<TabLayoutPreviewProps> = ({
     subtitle: `${tabCount} Tab 布局预览`,
     timing: {startMs: 0, durationMs: 3000},
   };
+  const subtitleCue = getSubtitleCue(scene, frame, 90);
 
   return (
     <AbsoluteFill
@@ -766,7 +853,7 @@ export const TabLayoutPreview: React.FC<TabLayoutPreviewProps> = ({
       <AbsoluteFill
         style={{
           backgroundImage: palette.ambient,
-          backgroundSize: "48px 48px",
+          backgroundSize: "100% 100%",
           maskImage:
             "linear-gradient(to bottom, rgba(0,0,0,.72), transparent 72%)",
           opacity: 0.72,
@@ -786,8 +873,9 @@ export const TabLayoutPreview: React.FC<TabLayoutPreviewProps> = ({
             alignItems: "center",
             justifyContent: "center",
             fontSize: 46,
-            fontWeight: 820,
-            letterSpacing: "-.025em",
+            color: palette.contentTitle,
+            fontWeight: 780,
+            letterSpacing: "-.018em",
           }}
         >
           {story.contentTitle}
@@ -808,13 +896,22 @@ export const TabLayoutPreview: React.FC<TabLayoutPreviewProps> = ({
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
-            color: "#fff",
-            fontSize: 31,
-            fontWeight: 650,
-            textShadow: palette.subtitleTextShadow,
+            justifySelf: "center",
+            alignSelf: "center",
+            maxWidth: "94%",
+            height: "fit-content",
+            color: palette.subtitleText,
+            background: palette.subtitleBackground,
+            border: `1px solid ${palette.subtitleBorder}`,
+            borderRadius: 12,
+            boxShadow: palette.subtitleShadow,
+            fontSize: 29,
+            lineHeight: 1.25,
+            fontWeight: 620,
+            whiteSpace: "nowrap",
           }}
         >
-          {scene.subtitle}
+          {subtitleCue}
         </div>
       </div>
     </AbsoluteFill>
@@ -893,10 +990,16 @@ const SourceOverlay: React.FC<{
 
 // ── Main component ───────────────────────────────────────────────────────
 
-export const AiDailyReport: React.FC = () => {
+export type AiDailyReportProps = {
+  themeOverride?: Theme;
+};
+
+export const AiDailyReport: React.FC<AiDailyReportProps> = ({
+  themeOverride,
+}) => {
   const frame = useCurrentFrame();
   const { fps } = useVideoConfig();
-  const theme = dailyReport.theme;
+  const theme = themeOverride ?? dailyReport.theme;
   const palette = themes[theme];
   const timeline = buildTimeline(fps);
   const state = getTimelineState(frame, timeline);
@@ -937,6 +1040,7 @@ export const AiDailyReport: React.FC = () => {
     extrapolateLeft: "clamp",
     extrapolateRight: "clamp",
   });
+  const subtitleCue = getSubtitleCue(scene, sceneFrame, sceneDuration);
 
   const timelineStories = [
     dailyReport.intro,
@@ -978,7 +1082,7 @@ export const AiDailyReport: React.FC = () => {
       <AbsoluteFill
         style={{
           backgroundImage: palette.ambient,
-          backgroundSize: "48px 48px",
+          backgroundSize: "100% 100%",
           maskImage:
             "linear-gradient(to bottom, rgba(0,0,0,.72), transparent 72%)",
           opacity: 0.72,
@@ -1042,10 +1146,11 @@ export const AiDailyReport: React.FC = () => {
               >
                 <div
                   style={{
+                    color: palette.contentTitle,
                     fontSize: 58,
-                    fontWeight: 860,
+                    fontWeight: 800,
                     lineHeight: 1.08,
-                    letterSpacing: "-.035em",
+                    letterSpacing: "-.025em",
                   }}
                 >
                   {story.contentTitle}
@@ -1094,10 +1199,11 @@ export const AiDailyReport: React.FC = () => {
               >
                 <div
                   style={{
+                    color: palette.contentTitle,
                     fontSize: 46,
-                    fontWeight: 820,
+                    fontWeight: 780,
                     lineHeight: 1.08,
-                    letterSpacing: "-.025em",
+                    letterSpacing: "-.018em",
                     maxWidth: "100%",
                     whiteSpace: "nowrap",
                     overflow: "hidden",
@@ -1156,22 +1262,27 @@ export const AiDailyReport: React.FC = () => {
               zIndex: 5,
               left: "50%",
               bottom: 12,
-              width: "92%",
-              padding: "8px 24px",
+              width: "max-content",
+              maxWidth: "94%",
+              padding: "7px 20px",
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
-              color: "#fff",
+              color: palette.subtitleText,
+              background: palette.subtitleBackground,
+              border: `1px solid ${palette.subtitleBorder}`,
+              borderRadius: 12,
+              boxShadow: palette.subtitleShadow,
               textAlign: "center",
-              fontSize: 31,
-              lineHeight: 1.3,
-              fontWeight: 650,
-              textShadow: palette.subtitleTextShadow,
+              fontSize: 29,
+              lineHeight: 1.25,
+              fontWeight: 620,
+              whiteSpace: "nowrap",
               opacity: sceneEnter * storyPause,
               transform: `translateX(-50%) translateY(${(1 - sceneEnter) * 10}px)`,
             }}
           >
-            {scene.subtitle}
+            {subtitleCue}
           </div>
         </div>
 
