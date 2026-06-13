@@ -1,30 +1,35 @@
 ---
 name: generate-svg
-description: Generate or improve colorful semantic SVG icons for tabs in data-scheme/data-generate.json. Use after TTS creates or changes tabs, when icon files are missing, or when existing icons need visual improvement.
+description: Generate, revise, and validate colorful semantic SVG icons for tabs in data-scheme/data-generate.json. Use when report tabs lack icons, tab meaning changes, generated icons look weak, or the icon generation workflow needs to run after TTS.
 ---
 
 # Generate SVG Icons
 
-Generate transparent, colorful, semantic SVG icons for report tabs. Let the icon concept determine
-its shapes and number of colors; do not add decorative detail merely to satisfy a fixed formula.
+Create transparent, colorful SVG icons whose silhouettes clearly communicate each tab's meaning.
+Exercise design judgment: the concept determines the number of shapes and colors.
 
-## Required Rules
+## Read First
 
-Read all four rule files before generating or revising icons:
+Read all rules before editing:
 
-- [rules/design.md](rules/design.md): visual quality and SVG construction
-- [rules/semantics.md](rules/semantics.md): choosing an icon concept from tab meaning
-- [rules/theme.md](rules/theme.md): adapting colors for dark and light report themes
-- [rules/data-workflow.md](rules/data-workflow.md): project paths, updates, and validation
+- [rules/design.md](rules/design.md)
+- [rules/semantics.md](rules/semantics.md)
+- [rules/theme.md](rules/theme.md)
+- [rules/data-workflow.md](rules/data-workflow.md)
 
-## Workflow
+## Execute
 
-1. Read `data-scheme/data-generate.json`, including its `theme`, and collect tabs from `intro.tabs`
-   and `stories[].tabs`.
-2. Inspect the whole tab group before choosing concepts so sibling icons are distinct.
-3. Preserve an existing valid icon unless it is missing, stale, semantically wrong, or visually weak.
-4. Generate or revise `data-scheme/icons/{storyId}-{tabId}.svg`.
-5. Update only the matching `icon` fields in `data-generate.json`.
-6. Remove orphan SVG files no longer referenced by any tab.
-7. Run `bun run check-icons` and `bun run lint` and `bun run comment`.
-8. Preview representative icons in the composition when visual quality is part of the request.
+1. Read `data-scheme/data-generate.json`, including its `theme` and the relevant sibling tabs.
+2. Ensure the icon output directory exists before inspecting or writing icons:
+   `mkdir -p data-scheme/icons`.
+3. Inspect existing SVG files, treating an empty newly created directory as a first-time generation.
+4. Decide which icons genuinely need generation or revision.
+5. Generate transparent SVGs at `data-scheme/icons/{storyId}-{tabId}.svg`.
+6. Update only the corresponding `icon` fields in `data-generate.json`.
+7. Remove orphan icons only when they are no longer referenced.
+8. Run `bun run val-schema` and `bun run lint` and `bun run comment`.
+9. For visual changes, open a representative Remotion frame and verify icon scale, contrast, and
+   distinction from sibling icons.
+
+Preserve unrelated user changes. Do not stop at a proposal when the icons can be generated and
+verified in the workspace.

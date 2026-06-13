@@ -7,7 +7,8 @@ import (
 	"strings"
 )
 
-func groupSimilarNews(apiKey string, scored []ScoredItem, items []Item) ([]NewsGroup, error) {
+// groupSimilarNews 让模型把候选新闻聚类去重，整理成最多 maxGroups 个适合视频展示的 Story（含要点与来源序号）。
+func groupSimilarNews(ai AIConfig, scored []ScoredItem, items []Item) ([]NewsGroup, error) {
 	var candidates []string
 	for _, item := range scored {
 		keywordNote := ""
@@ -40,10 +41,10 @@ func groupSimilarNews(apiKey string, scored []ScoredItem, items []Item) ([]NewsG
 候选新闻：
 %s`, len(scored), maxGroups, maxGroupHighlights, strings.Join(candidates, "\n"))
 
-	content, err := requestDeepSeek(apiKey, []DSMessage{
+	content, err := requestModel(ai, []ChatMessage{
 		{Role: "system", Content: newsGroupingSystemPrompt},
 		{Role: "user", Content: prompt},
-	}, DSRequestOptions{Thinking: "enabled", ReasoningEffort: "high"})
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -55,6 +56,8 @@ func groupSimilarNews(apiKey string, scored []ScoredItem, items []Item) ([]NewsG
 	return normalizeGroups(groups, scored, items), nil
 }
 
+// normalizeGroups 校正模型聚类结果：拆分被错误合并的来源、去重序号与要点、补全缺失字段、
+// 按分数排序并截断，同时把高分关键词保底候选作为独立 Story 补回。
 func normalizeGroups(groups []NewsGroup, scored []ScoredItem, items []Item) []NewsGroup {
 	candidates := make(map[int]ScoredItem, len(scored))
 	for _, item := range scored {
@@ -141,6 +144,8 @@ func normalizeGroups(groups []NewsGroup, scored []ScoredItem, items []Item) []Ne
 	return normalized
 }
 
+// splitIncompatibleGroups 检查每个 Story 内来源的本地聚类身份，把被错误归到一起的来源拆成多个独立 Story，
+// 避免仅因提到同一品牌就被合并。
 func splitIncompatibleGroups(groups []NewsGroup, candidates map[int]ScoredItem, items []Item) []NewsGroup {
 	var result []NewsGroup
 	for _, group := range groups {
@@ -180,6 +185,7 @@ func splitIncompatibleGroups(groups []NewsGroup, candidates map[int]ScoredItem, 
 	return result
 }
 
+// fallbackGroups 在模型聚类失败时的本地降级方案：按 fallbackGroupIdentity 给出的身份键就地聚合，生成 Story。
 func fallbackGroups(scored []ScoredItem) []NewsGroup {
 	groupByKey := make(map[string]int)
 	groups := make([]NewsGroup, 0, min(len(scored), maxGroups))
@@ -213,6 +219,8 @@ func fallbackGroups(scored []ScoredItem) []NewsGroup {
 	return groups
 }
 
+// fallbackGroupIdentity 由标题推断稳定的聚类身份键与展示标题：
+// 识别重点品牌及特定事件（额度重置、账号风控等），无法识别时回退为规范化标题。
 func fallbackGroupIdentity(title string) (string, string) {
 	lower := strings.ToLower(title)
 	brand := ""
@@ -258,6 +266,7 @@ func fallbackGroupIdentity(title string) (string, string) {
 	return normalizeTitle(title), title
 }
 
+// normalizeTitle 去除标题中的标点与空白并转小写，得到用于去重与聚类身份比较的规范化字符串。
 func normalizeTitle(title string) string {
 	replacer := strings.NewReplacer(
 		" ", "", "：", "", ":", "", "，", "", ",", "", "。", "", ".", "",

@@ -37,6 +37,7 @@ type VisionAnalyzer struct {
 	calls         int
 }
 
+// newVisionAnalyzer 读取一系列 CLAUDE_VISION_* 环境变量，构造带开关、调用上限与预算的图片视觉分析器。
 func newVisionAnalyzer() *VisionAnalyzer {
 	return &VisionAnalyzer{
 		enabled:       readBoolEnv("CLAUDE_VISION_ENABLED", true),
@@ -48,6 +49,7 @@ func newVisionAnalyzer() *VisionAnalyzer {
 	}
 }
 
+// analyzeItem 在满足条件时对条目中的远程图片逐张调用 Claude 视觉识别，返回与来源相关的事实结果。
 func (analyzer *VisionAnalyzer) analyzeItem(item Item, group NewsGroup) []VisionResult {
 	if !analyzer.shouldAnalyze(item, group) {
 		return nil
@@ -59,10 +61,10 @@ func (analyzer *VisionAnalyzer) analyzeItem(item Item, group NewsGroup) []Vision
 			break
 		}
 		analyzer.calls++
-		fmt.Printf("   👁 Claude 视觉补充：%s\n", imageURL)
+		fmt.Printf("   视觉补充：%s\n", imageURL)
 		result, err := analyzeRemoteImageWithClaude(imageURL, item.Title, analyzer)
 		if err != nil {
-			fmt.Printf("   ⚠ Claude 视觉识别失败，继续使用文本材料: %v\n", err)
+			fmt.Printf("   警告：Claude 视觉识别失败，继续使用文本材料：%v\n", err)
 			continue
 		}
 		if result.Relevant && len(result.Facts) > 0 {
@@ -72,14 +74,18 @@ func (analyzer *VisionAnalyzer) analyzeItem(item Item, group NewsGroup) []Vision
 	return results
 }
 
+// shouldAnalyze 判断是否应对该条目做图片视觉识别：
+// 仅在启用、Story 高分、未超调用上限、正文较短且含远程图片时才触发，以控制成本。
 func (analyzer *VisionAnalyzer) shouldAnalyze(item Item, group NewsGroup) bool {
 	return analyzer.enabled &&
 		group.Score >= 9 &&
 		analyzer.calls < analyzer.maxCalls &&
-		len([]rune(itemSourceText(item))) < analyzer.textThreshold &&
+		len([]rune(cleanRSS2ItemText(item))) < analyzer.textThreshold &&
 		len(extractRemoteImageURLs(item.Description)) > 0
 }
 
+// analyzeRemoteImageWithClaude 通过本机 claude CLI 调用图像分析 MCP 直接识别远程图片，
+// 在预算与超时约束下返回结构化的事实/不确定项结果。
 func analyzeRemoteImageWithClaude(imageURL, sourceTitle string, analyzer *VisionAnalyzer) (VisionResult, error) {
 	if _, err := exec.LookPath("claude"); err != nil {
 		return VisionResult{}, fmt.Errorf("未找到 claude CLI")
@@ -127,6 +133,7 @@ func analyzeRemoteImageWithClaude(imageURL, sourceTitle string, analyzer *Vision
 	return result, nil
 }
 
+// parseClaudeVisionOutput 从 claude CLI 的输出中解析视觉结果：优先 structured_output，其次 result 文本，最后整体兜底。
 func parseClaudeVisionOutput(output []byte, result *VisionResult) error {
 	var envelope struct {
 		StructuredOutput json.RawMessage `json:"structured_output"`
@@ -143,6 +150,7 @@ func parseClaudeVisionOutput(output []byte, result *VisionResult) error {
 	return json.Unmarshal([]byte(extractJSONObject(string(output))), result)
 }
 
+// extractRemoteImageURLs 从正文中提取远程图片地址：优先 /original/ 原图，否则用其它图片，按出现去重。
 func extractRemoteImageURLs(description string) []string {
 	seen := make(map[string]bool)
 	var originals []string
@@ -165,6 +173,7 @@ func extractRemoteImageURLs(description string) []string {
 	return others
 }
 
+// extractJSONObject 从文本中截取首个 { 到最后一个 } 之间的 JSON 对象文本。
 func extractJSONObject(content string) string {
 	content = strings.TrimSpace(content)
 	if start := strings.Index(content, "{"); start != -1 {
@@ -175,6 +184,7 @@ func extractJSONObject(content string) string {
 	return content
 }
 
+// cleanVisionFacts 去除视觉识别事实中的空白与重复项。
 func cleanVisionFacts(facts []string) []string {
 	seen := make(map[string]bool)
 	var cleaned []string
@@ -189,6 +199,7 @@ func cleanVisionFacts(facts []string) []string {
 	return cleaned
 }
 
+// readBoolEnv 读取布尔型环境变量，缺失或解析失败时返回 fallback。
 func readBoolEnv(name string, fallback bool) bool {
 	value := strings.TrimSpace(os.Getenv(name))
 	if value == "" {
@@ -198,6 +209,7 @@ func readBoolEnv(name string, fallback bool) bool {
 	return err == nil && parsed
 }
 
+// readPositiveIntEnv 读取正整数环境变量，缺失或非正时返回 fallback。
 func readPositiveIntEnv(name string, fallback int) int {
 	value, err := strconv.Atoi(strings.TrimSpace(os.Getenv(name)))
 	if err != nil || value <= 0 {
@@ -206,6 +218,7 @@ func readPositiveIntEnv(name string, fallback int) int {
 	return value
 }
 
+// readPositiveFloatEnv 校验环境变量是否为正数：合法时原样返回该字符串，否则返回 fallback。
 func readPositiveFloatEnv(name, fallback string) string {
 	value := strings.TrimSpace(os.Getenv(name))
 	parsed, err := strconv.ParseFloat(value, 64)

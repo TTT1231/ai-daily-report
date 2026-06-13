@@ -19,14 +19,16 @@ Read all rules before editing:
 
 ## Execute
 
-1. Inspect `data-scheme/data-generate.json`, including its `theme`, the relevant sibling tabs, and
-   existing SVG files.
-2. Decide which icons genuinely need generation or revision.
-3. Generate transparent SVGs at `data-scheme/icons/{storyId}-{tabId}.svg`.
-4. Update only the corresponding `icon` fields in `data-generate.json`.
-5. Remove orphan icons only when they are no longer referenced.
-6. Run `bun run val-schema` and `bun run lint` and `bun run comment`.
-7. For visual changes, open a representative Remotion frame and verify icon scale, contrast, and
+1. Read `data-scheme/data-generate.json`, including its `theme` and the relevant sibling tabs.
+2. Ensure the icon output directory exists before inspecting or writing icons:
+   `mkdir -p data-scheme/icons`.
+3. Inspect existing SVG files, treating an empty newly created directory as a first-time generation.
+4. Decide which icons genuinely need generation or revision.
+5. Generate transparent SVGs at `data-scheme/icons/{storyId}-{tabId}.svg`.
+6. Update only the corresponding `icon` fields in `data-generate.json`.
+7. Remove orphan icons only when they are no longer referenced.
+8. Run `bun run val-schema` and `bun run lint` and `bun run comment`.
+9. For visual changes, open a representative Remotion frame and verify icon scale, contrast, and
    distinction from sibling icons.
 
 Preserve unrelated user changes. Do not stop at a proposal when the icons can be generated and

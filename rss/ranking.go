@@ -5,6 +5,8 @@ import (
 	"strings"
 )
 
+// applyKeywordWeights 把模型评分与代码层关键词保底分合并：
+// 先用确定性门槛剔除不合格条目，再用关键词规则补回模型可能漏掉的重点内容，最终按分排序并截断。
 func applyKeywordWeights(scored []ScoredItem, items []Item) []ScoredItem {
 	byIndex := make(map[int]ScoredItem, len(scored))
 	for _, item := range scored {
@@ -55,6 +57,8 @@ func applyKeywordWeights(scored []ScoredItem, items []Item) []ScoredItem {
 	return result
 }
 
+// passesDeterministicInterestGate 判断标题是否通过确定性兴趣门槛：
+// 硬排除营销/地缘政治内容；重点品牌直接放行；其余只有同时命中 AI 与重大政策、或属高风险中转才放行。
 func passesDeterministicInterestGate(title string, modelScore int) bool {
 	if isHardExcludedTitle(title) {
 		return false
@@ -95,6 +99,8 @@ func passesDeterministicInterestGate(title string, modelScore int) bool {
 	return modelScore >= 9 && majorIndustryChange
 }
 
+// keywordInterestScore 按关键词规则为标题打一个 0-10 的保底分并给出理由，
+// 用于在模型漏报或调用失败时仍能召回用户关注的内容。
 func keywordInterestScore(title string) (int, string) {
 	lower := strings.ToLower(title)
 	if isHardExcludedTitle(title) {
@@ -142,6 +148,7 @@ func keywordInterestScore(title string) (int, string) {
 	return 6, "命中用户重点关注的 AI 厂商或产品关键词，但缺少明确产品变化信号"
 }
 
+// isHardExcludedTitle 判断标题是否应被无条件排除：纯营销推广（非风险类）或纯地缘政治表态（无产品影响）。
 func isHardExcludedTitle(title string) bool {
 	lower := strings.ToLower(title)
 	marketing := containsAny(lower,
@@ -169,6 +176,7 @@ func isHardExcludedTitle(title string) bool {
 	return geopolitics && !productImpact
 }
 
+// containsAny 报告 text 是否包含任意一个给定子串，是关键词匹配的基础工具。
 func containsAny(text string, terms ...string) bool {
 	for _, term := range terms {
 		if strings.Contains(text, term) {

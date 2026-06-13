@@ -2,64 +2,115 @@ package main
 
 import (
 	"fmt"
+	"strings"
 	"time"
 )
 
+// main 是程序入口，串联整条 RSS 日报生成流水线：
+// 加载配置 → 抓取并去重 → 模型评分 → 聚类合并 → 编排视频 Tabs → 打印并写出 data.json。
+// 任一 AI 步骤失败时都会降级为本地保底逻辑，尽量保证每次运行都能产出日报。
 func main() {
-	apiKey, err := loadEnv()
+	config, err := loadConfig()
 	if err != nil {
-		fmt.Printf("⚠ 加载 .env 失败: %v\n", err)
-		fmt.Println("请在 ai-daily-report 项目根目录的 .env 中设置 DEEPSEEK_API_KEY=你的密钥")
+		fmt.Printf("失败：启动配置无效：%v\n", err)
+		fmt.Println("   请检查项目根目录 .env 中的 AI_API_KEY。")
 		return
 	}
 
-	fmt.Println("📡 正在获取前沿快讯...")
-	items, err := fetchRecentItems(24 * time.Hour)
+	reportPath, err := defaultDataJSONPath()
 	if err != nil {
-		fmt.Printf("Error: %v\n", err)
+		fmt.Printf("失败：无法确定 data.json 输出位置：%v\n", err)
 		return
 	}
+
+	printRunOverview(config, reportPath)
+
+	fmt.Println("[1/6] 抓取 RSS 2.0")
+	fetchedItems, err := fetchLinuxDoRecentItems(config.Lookback)
+	if err != nil {
+		fmt.Printf("失败：RSS 抓取失败：%v\n", err)
+		return
+	}
+	if len(fetchedItems) == 0 {
+		fmt.Printf("提示：最近 %s内没有 RSS 内容，本次结束。\n", formatDuration(config.Lookback))
+		return
+	}
+	fmt.Printf("   完成：时间窗口内共 %d 条\n\n", len(fetchedItems))
+
+	fmt.Println("[2/6] 对比上一次抓取快照")
+	state, err := loadRSSState(config.StatePath)
+	if err != nil {
+		fmt.Printf("失败：无法读取上一次 RSS 快照：%v\n", err)
+		return
+	}
+	items := filterUnseenItems(fetchedItems, state)
+	if err := saveRSSState(config.StatePath, snapshotRSSState(fetchedItems)); err != nil {
+		fmt.Printf("失败：无法保存本次 RSS 快照：%v\n", err)
+		return
+	}
+	fmt.Printf("   完成：新增 %d 条，重复 %d 条；本次完整快照已保存\n\n",
+		len(items), len(fetchedItems)-len(items))
 	if len(items) == 0 {
-		fmt.Println("最近 24 小时内没有新帖子")
+		fmt.Println("提示：没有相对上一次抓取的新内容，无需生成 data.json。")
 		return
 	}
-	fmt.Printf("✅ 获取到 %d 条帖子\n\n", len(items))
 
-	fmt.Println("🤖 DeepSeek 正在分析重要性...")
-	scored, err := analyzeWithDeepSeek(apiKey, items)
+	fmt.Printf("[3/6] AI 兴趣筛选（%s）\n", config.AI.Model)
+	scored, err := analyzeWithModel(config.AI, items)
 	if err != nil {
-		fmt.Printf("⚠ DeepSeek 评分失败，使用代码级兴趣规则继续流程: %v\n", err)
+		fmt.Printf("   警告：模型评分失败，改用本地兴趣规则：%v\n", err)
 		scored = applyKeywordWeights(nil, items)
 	}
 	if len(scored) == 0 {
-		fmt.Println("没有符合个人兴趣规则的新闻")
+		fmt.Println("提示：新内容中没有符合兴趣规则的新闻，本次结束。")
 		return
 	}
+	fmt.Printf("   完成：从 %d 条新增内容中保留 %d 条候选\n\n", len(items), len(scored))
 
-	fmt.Println("🧩 正在合并相似内容并保留独立要点...")
-	groups, err := groupSimilarNews(apiKey, scored, items)
+	fmt.Println("[4/6] 合并相似新闻")
+	groups, err := groupSimilarNews(config.AI, scored, items)
 	if err != nil {
-		fmt.Printf("⚠ 相似内容合并失败，使用本地降级分组: %v\n", err)
+		fmt.Printf("   警告：AI 合并失败，改用本地分组：%v\n", err)
 		groups = fallbackGroups(scored)
 	}
+	fmt.Printf("   完成：生成 %d 个新闻主题\n\n", len(groups))
 
-	fmt.Println("🎬 正在根据首帖正文编排视频 Tabs...")
-	groups, err = generateStoryTabs(apiKey, groups, items)
+	fmt.Println("[5/6] 生成视频 Tabs 与字幕")
+	groups, err = generateStoryTabs(config.AI, groups, items)
 	if err != nil {
-		fmt.Printf("⚠ Tabs 编排失败，使用本地保底结构: %v\n", err)
+		fmt.Printf("   警告：AI Tabs 编排失败，改用本地保底结构：%v\n", err)
 		groups = withFallbackStoryTabs(groups)
 	}
+	fmt.Printf("   完成：%d 个新闻主题已完成视频编排\n", len(groups))
 
 	printNewsGroups(groups, items)
 
-	reportPath, err := defaultReportDataPath()
-	if err != nil {
-		fmt.Printf("⚠ 无法确定 data.json 输出位置: %v\n", err)
+	fmt.Println("\n[6/6] 生成 Remotion data.json")
+	if err := generateDataJSON(reportPath, groups, items); err != nil {
+		fmt.Printf("失败：data.json 生成失败：%v\n", err)
 		return
 	}
-	if err := writeReportData(reportPath, groups, items); err != nil {
-		fmt.Printf("⚠ 构建 data.json 失败: %v\n", err)
-		return
+	fmt.Printf("   完成：写入 %s\n", reportPath)
+	fmt.Printf("\n全部完成：抓取 %d 条，新增 %d 条，生成 %d 个新闻主题。\n",
+		len(fetchedItems), len(items), len(groups))
+}
+
+func printRunOverview(config AppConfig, reportPath string) {
+	fmt.Println("AI 日报 RSS 采集器")
+	fmt.Println(strings.Repeat("=", 56))
+	fmt.Println("来源：Linux.do 前沿快讯（RSS 2.0）")
+	fmt.Printf("范围：最近 %s\n", formatDuration(config.Lookback))
+	fmt.Printf("模型：%s\n", config.AI.Model)
+	fmt.Printf("快照：%s\n", config.StatePath)
+	fmt.Printf("输出：%s\n", reportPath)
+	fmt.Println(strings.Repeat("=", 56))
+	fmt.Println()
+}
+
+// formatDuration 把时间时长格式化为对用户友好的中文文案（整点显示“N 小时”，否则用默认字符串）。
+func formatDuration(value time.Duration) string {
+	if value%time.Hour == 0 {
+		return fmt.Sprintf("%d 小时", int(value/time.Hour))
 	}
-	fmt.Printf("\n✅ 已构建 Remotion data.json: %s\n", reportPath)
+	return value.String()
 }

@@ -1,6 +1,9 @@
 package main
 
 import (
+	"encoding/json"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"strings"
@@ -234,7 +237,7 @@ func TestParseScoredItemsRecoversMalformedLine(t *testing.T) {
 	}
 }
 
-func TestWriteReportData(t *testing.T) {
+func TestGenerateDataJSON(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "data.json")
 	groups := []NewsGroup{{
 		Title:  "智谱 GLM-5.2 与消耗规则动态",
@@ -249,11 +252,11 @@ func TestWriteReportData(t *testing.T) {
 	groups[0].SourceIndexes = []int{1}
 	groups[0].Highlights = []NewsHighlight{{Index: 1, Point: items[0].Title}}
 
-	if err := writeReportData(path, groups, items); err != nil {
-		t.Fatalf("writeReportData() error = %v", err)
+	if err := generateDataJSON(path, groups, items); err != nil {
+		t.Fatalf("generateDataJSON() error = %v", err)
 	}
-	if err := writeReportData(path, groups, items); err != nil {
-		t.Fatalf("writeReportData() overwrite error = %v", err)
+	if err := generateDataJSON(path, groups, items); err != nil {
+		t.Fatalf("generateDataJSON() overwrite error = %v", err)
 	}
 	data, err := os.ReadFile(path)
 	if err != nil {
@@ -267,6 +270,13 @@ func TestWriteReportData(t *testing.T) {
 	}
 	if strings.Contains(string(data), `"activeTab"`) {
 		t.Fatalf("two-tab story should omit activeTab: %s", data)
+	}
+	entries, err := os.ReadDir(filepath.Dir(path))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(entries) != 1 || entries[0].Name() != "data.json" {
+		t.Fatalf("report directory contains unexpected files: %#v", entries)
 	}
 }
 
@@ -286,17 +296,17 @@ func TestMigratedProjectPathsUseParentRoot(t *testing.T) {
 		t.Fatalf("projectEnvPath() = %q", envPath)
 	}
 	t.Setenv("REPORT_DATA_PATH", "")
-	reportPath, err := defaultReportDataPath()
+	reportPath, err := defaultDataJSONPath()
 	if err != nil {
 		t.Fatal(err)
 	}
 	if reportPath != filepath.Join(root, "data-scheme", "data.json") {
-		t.Fatalf("defaultReportDataPath() = %q", reportPath)
+		t.Fatalf("defaultDataJSONPath() = %q", reportPath)
 	}
 }
 
 func TestStoryIDUsesStableSourceIdentity(t *testing.T) {
-	items := []Item{{Title: "月之暗面 Kimi 将发行融合算力服务的 AI 原生信用卡", Link: "https://linux.do/t/topic/2386790"}}
+	items := []Item{{Title: "月之暗面 Kimi 将发行融合算力服务的 AI 原生信用卡", StableID: "topic-2386790"}}
 	group := NewsGroup{
 		Title:         "DeepSeek 每次可能改写的信用卡标题",
 		SourceIndexes: []int{1},
@@ -308,7 +318,7 @@ func TestStoryIDUsesStableSourceIdentity(t *testing.T) {
 }
 
 func TestPreferredActiveTabUsesVisualCenter(t *testing.T) {
-	tabs := []ReportTab{
+	tabs := []DataJSONTab{
 		{ID: "tab-1"},
 		{ID: "tab-2"},
 		{ID: "tab-3"},
@@ -498,5 +508,128 @@ func TestParseClaudeVisionFallsBackToTextResult(t *testing.T) {
 	}
 	if got.Relevant || len(got.Facts) != 0 {
 		t.Fatalf("parseClaudeVisionOutput() = %#v", got)
+	}
+}
+
+func TestParseRSS20ToNormalizedItems(t *testing.T) {
+	source := RSS2Source{ID: "test", Name: "测试源"}
+	rssBody := []byte(`<?xml version="1.0"?><rss version="2.0"><channel><item>
+		<guid>rss-1</guid><title>RSS 标题</title><link>https://example.com/rss-1</link>
+		<pubDate>Sat, 13 Jun 2026 08:00:00 +0000</pubDate><description>RSS 正文</description>
+	</item></channel></rss>`)
+	rssItems, err := parseRSS2(rssBody, source)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(rssItems) != 1 || rssItems[0].ID != "rss-1" || rssItems[0].SourceName != "测试源" {
+		t.Fatalf("parseRSS2() = %#v", rssItems)
+	}
+}
+
+func TestParseRSSRejectsUnsupportedFormats(t *testing.T) {
+	source := RSS2Source{ID: "test", Name: "测试源"}
+	for _, body := range []string{
+		`<rss version="1.0"><channel></channel></rss>`,
+		`<rss><channel></channel></rss>`,
+		`<feed xmlns="http://www.w3.org/2005/Atom"></feed>`,
+	} {
+		if _, err := parseRSS2([]byte(body), source); err == nil {
+			t.Fatalf("parseRSS2() accepted unsupported feed: %s", body)
+		}
+	}
+}
+
+func TestLinuxDoPageURL(t *testing.T) {
+	got, err := linuxDoPageURL(2)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got != "https://linux.do/c/news/34.rss?page=2" {
+		t.Fatalf("linuxDoPageURL() = %q", got)
+	}
+}
+
+func TestLinuxDoAdapterAddsStableTopicID(t *testing.T) {
+	item := adaptLinuxDoItem(Item{Link: "https://linux.do/t/topic/2386790"})
+	if item.StableID != "topic-2386790" {
+		t.Fatalf("adaptLinuxDoItem() StableID = %q", item.StableID)
+	}
+}
+
+func TestRSSStateOnlyComparesWithPreviousSnapshot(t *testing.T) {
+	a1 := Item{ID: "a1", SourceID: "source", Title: "A1"}
+	a2 := Item{ID: "a2", SourceID: "source", Title: "A2"}
+	b1 := Item{ID: "b1", SourceID: "source", Title: "B1"}
+	state := snapshotRSSState([]Item{a1, a2})
+
+	got := filterUnseenItems([]Item{a2, b1}, state)
+	if len(got) != 1 || got[0].ID != "b1" {
+		t.Fatalf("filterUnseenItems() = %#v", got)
+	}
+
+	path := filepath.Join(t.TempDir(), "rss-state.json")
+	if err := saveRSSState(path, snapshotRSSState([]Item{a2, b1})); err != nil {
+		t.Fatal(err)
+	}
+	loaded, err := loadRSSState(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(loaded.Items) != 2 {
+		t.Fatalf("loaded state contains %d items, want 2", len(loaded.Items))
+	}
+	got = filterUnseenItems([]Item{a1, b1}, loaded)
+	if len(got) != 1 || got[0].ID != "a1" {
+		t.Fatalf("filterUnseenItems() should forget items absent from previous snapshot: %#v", got)
+	}
+	entries, err := os.ReadDir(filepath.Dir(path))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(entries) != 1 || entries[0].Name() != "rss-state.json" {
+		t.Fatalf("state directory contains unexpected files: %#v", entries)
+	}
+}
+
+func TestRequestModelUsesOpenAICompatibleChatCompletions(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+		if request.URL.Path != "/chat/completions" {
+			t.Fatalf("request path = %q", request.URL.Path)
+		}
+		if request.Header.Get("Authorization") != "Bearer test-key" {
+			t.Fatalf("authorization = %q", request.Header.Get("Authorization"))
+		}
+		var body map[string]any
+		if err := json.NewDecoder(request.Body).Decode(&body); err != nil {
+			t.Fatal(err)
+		}
+		if body["model"] != "test-model" || body["temperature"] != float64(0) {
+			t.Fatalf("request body = %#v", body)
+		}
+		writer.Header().Set("Content-Type", "application/json")
+		_, _ = writer.Write([]byte(`{"choices":[{"message":{"role":"assistant","content":"ok"}}]}`))
+	}))
+	defer server.Close()
+
+	got, err := requestModel(AIConfig{
+		APIKey:    "test-key",
+		BaseURL:   server.URL,
+		Model:     "test-model",
+		ExtraBody: map[string]any{"temperature": 0},
+	}, []ChatMessage{{Role: "user", Content: "hello"}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got != "ok" {
+		t.Fatalf("requestModel() = %q", got)
+	}
+}
+
+func TestSourceStoryIDIsStableForGenericSource(t *testing.T) {
+	item := Item{ID: "entry-123", SourceID: "official-openai", Title: "模型发布"}
+	first := sourceStoryID(item)
+	second := sourceStoryID(item)
+	if first != second || !strings.HasPrefix(first, "official-openai-") {
+		t.Fatalf("sourceStoryID() = %q / %q", first, second)
 	}
 }

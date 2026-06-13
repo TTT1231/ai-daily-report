@@ -23,6 +23,7 @@ node_modules
 bun.lock
 build
 .env*
+!.env.example
 .vscode
 
 # TTS generated voice assets for the current daily-report package.
@@ -33,3 +34,4 @@ daily-dates
 # rss
 .playwright-*
 linuxdo-rss.exe
+rss/rss-state.json

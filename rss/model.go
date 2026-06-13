@@ -9,16 +9,16 @@ import (
 	"slices"
 	"sort"
 	"strings"
-	"time"
 )
 
-func analyzeWithDeepSeek(apiKey string, items []Item) ([]ScoredItem, error) {
+// analyzeWithModel 让模型按用户兴趣画像对条目标题打分筛选，再用关键词保底规则叠加修正，返回候选列表。
+func analyzeWithModel(ai AIConfig, items []Item) ([]ScoredItem, error) {
 	var titles []string
 	for i, item := range items {
-		titles = append(titles, fmt.Sprintf("%d. %s", i+1, item.Title))
+		titles = append(titles, fmt.Sprintf("%d. [%s] %s", i+1, item.SourceName, item.Title))
 	}
 
-	prompt := fmt.Sprintf(`以下是来自科技社区“前沿快讯”板块的 %d 条帖子标题。
+	prompt := fmt.Sprintf(`以下是 RSS 源中的 %d 条内容标题。
 
 请严格按照系统消息中的用户兴趣画像进行筛选和评分，最多返回 %d 条候选，按分数从高到低排序。只返回 7 分及以上的内容，不要凑数，也不要在此阶段合并相似标题。
 
@@ -27,13 +27,13 @@ func analyzeWithDeepSeek(apiKey string, items []Item) ([]ScoredItem, error) {
   {"index": 序号, "title": "标题", "score": 分数, "reason": "一句话说明为什么重要"}
 ]
 
-帖子列表：
+内容列表：
 %s`, len(items), maxCandidates, strings.Join(titles, "\n"))
 
-	content, err := requestDeepSeek(apiKey, []DSMessage{
+	content, err := requestModel(ai, []ChatMessage{
 		{Role: "system", Content: newsRankingSystemPrompt},
 		{Role: "user", Content: prompt},
-	}, DSRequestOptions{Thinking: "disabled"})
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -45,6 +45,7 @@ func analyzeWithDeepSeek(apiKey string, items []Item) ([]ScoredItem, error) {
 	return applyKeywordWeights(scored, items), nil
 }
 
+// parseScoredItems 从模型返回内容中解析评分 JSON；标准解析失败时尝试逐行恢复有效条目。
 func parseScoredItems(content string) ([]ScoredItem, error) {
 	var scored []ScoredItem
 	rawJSON := extractJSON(content)
@@ -53,11 +54,12 @@ func parseScoredItems(content string) ([]ScoredItem, error) {
 		if len(scored) == 0 {
 			return nil, fmt.Errorf("解析评分 JSON 失败且未能恢复有效条目: %w\n原始内容: %s", err, content)
 		}
-		fmt.Printf("⚠ DeepSeek 返回了局部无效 JSON，已跳过坏条目并恢复 %d 条有效评分\n", len(scored))
+		fmt.Printf("   警告：模型返回局部无效 JSON，已跳过坏条目并恢复 %d 条有效评分\n", len(scored))
 	}
 	return normalizeScoredItems(scored), nil
 }
 
+// recoverScoredItems 在 JSON 整体解析失败时，逐行尝试解析独立的 {...} 对象，尽量挽救有效评分。
 func recoverScoredItems(content string) []ScoredItem {
 	var recovered []ScoredItem
 	for _, line := range strings.Split(content, "\n") {
@@ -74,6 +76,7 @@ func recoverScoredItems(content string) []ScoredItem {
 	return recovered
 }
 
+// normalizeScoredItems 丢弃低于入选分数的条目，按分数降序排序并截断到候选上限。
 func normalizeScoredItems(scored []ScoredItem) []ScoredItem {
 	scored = slices.DeleteFunc(scored, func(item ScoredItem) bool {
 		return item.Score < minInterestingScore
@@ -87,47 +90,54 @@ func normalizeScoredItems(scored []ScoredItem) []ScoredItem {
 	return scored
 }
 
-func requestDeepSeek(apiKey string, messages []DSMessage, options DSRequestOptions) (string, error) {
-	reqBody := DSRequest{Model: dsModel, Messages: messages, Stream: false}
-	if options.Thinking != "" {
-		reqBody.Thinking = &DSThinking{Type: options.Thinking}
+// requestModel 向 OpenAI 兼容的 chat/completions 接口发送非流式请求，返回首条回复的文本内容。
+func requestModel(ai AIConfig, messages []ChatMessage) (string, error) {
+	requestBody := map[string]any{
+		"model":    ai.Model,
+		"messages": messages,
+		"stream":   false,
 	}
-	reqBody.ReasoningEffort = options.ReasoningEffort
+	for key, value := range ai.ExtraBody {
+		if key != "model" && key != "messages" && key != "stream" {
+			requestBody[key] = value
+		}
+	}
 
-	jsonBody, err := json.Marshal(reqBody)
+	jsonBody, err := json.Marshal(requestBody)
 	if err != nil {
-		return "", fmt.Errorf("构建请求失败: %w", err)
+		return "", fmt.Errorf("构建模型请求失败: %w", err)
 	}
-	req, err := http.NewRequest("POST", dsBaseURL+"/chat/completions", bytes.NewReader(jsonBody))
+	req, err := http.NewRequest("POST", ai.BaseURL+"/chat/completions", bytes.NewReader(jsonBody))
 	if err != nil {
-		return "", fmt.Errorf("创建请求失败: %w", err)
+		return "", fmt.Errorf("创建模型请求失败: %w", err)
 	}
 	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Authorization", "Bearer "+apiKey)
+	req.Header.Set("Authorization", "Bearer "+ai.APIKey)
 
-	resp, err := (&http.Client{Timeout: 90 * time.Second}).Do(req)
+	resp, err := newHTTPClient(defaultRequestTimeout, false).Do(req)
 	if err != nil {
-		return "", fmt.Errorf("请求 DeepSeek API 失败: %w", err)
+		return "", fmt.Errorf("请求模型 API 失败: %w", err)
 	}
 	defer resp.Body.Close()
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return "", fmt.Errorf("读取响应失败: %w", err)
+		return "", fmt.Errorf("读取模型响应失败: %w", err)
 	}
 	if resp.StatusCode != http.StatusOK {
-		return "", fmt.Errorf("DeepSeek API 返回 %d: %s", resp.StatusCode, string(body))
+		return "", fmt.Errorf("模型 API 返回 %d: %s", resp.StatusCode, truncateRunes(string(body), 500))
 	}
 
-	var dsResp DSResponse
-	if err := json.Unmarshal(body, &dsResp); err != nil {
-		return "", fmt.Errorf("解析 API 响应失败: %w", err)
+	var response ChatResponse
+	if err := json.Unmarshal(body, &response); err != nil {
+		return "", fmt.Errorf("解析模型 API 响应失败: %w", err)
 	}
-	if len(dsResp.Choices) == 0 {
-		return "", fmt.Errorf("DeepSeek 返回空响应")
+	if len(response.Choices) == 0 {
+		return "", fmt.Errorf("模型 API 返回空 choices")
 	}
-	return dsResp.Choices[0].Message.Content, nil
+	return response.Choices[0].Message.Content, nil
 }
 
+// extractJSON 从模型文本中提取 JSON 片段：优先取 ```json 代码块，其次普通代码块，最后回退到首尾方括号之间。
 func extractJSON(content string) string {
 	if idx := strings.Index(content, "```json"); idx != -1 {
 		start := idx + 7
