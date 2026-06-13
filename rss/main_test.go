@@ -1,0 +1,502 @@
+package main
+
+import (
+	"os"
+	"path/filepath"
+	"strings"
+	"testing"
+	"unicode/utf8"
+)
+
+func TestKeywordInterestScore(t *testing.T) {
+	tests := []struct {
+		name      string
+		title     string
+		wantScore int
+	}{
+		{
+			name:      "GLM product change gets strong priority",
+			title:     "智谱1倍消耗或持续到九月底，5.2也开始Max用户内测了",
+			wantScore: 9,
+		},
+		{
+			name:      "national AI regulation is highest priority",
+			title:     "中央网信办举报中心开设“涉AI应用乱象举报专区”",
+			wantScore: 10,
+		},
+		{
+			name:      "AI clear campaign is deterministically retained",
+			title:     "6.12 AI清朗清剿",
+			wantScore: 10,
+		},
+		{
+			name:      "intermediary promotion is excluded",
+			title:     "超低价GPT Claude API中转，限时优惠，注册送余额",
+			wantScore: 0,
+		},
+		{
+			name:      "intermediary risk is retained",
+			title:     "某低价GPT API中转站疑似跑路，用户余额无法提现",
+			wantScore: 8,
+		},
+		{
+			name:      "unrelated major news is excluded",
+			title:     "SpaceX创下人类最大IPO",
+			wantScore: 0,
+		},
+		{
+			name:      "brand mention alone does not force inclusion",
+			title:     "OpenAI发表与ChatGPT产品使用无关的公司表态",
+			wantScore: 6,
+		},
+		{
+			name:      "geopolitical OpenAI story is excluded",
+			title:     "OpenAI称与中国关联的ChatGPT账户试图煽动美国国内反对数据中心建设",
+			wantScore: 0,
+		},
+		{
+			name:      "geopolitical account statement remains excluded",
+			title:     "OpenAI称中国关联ChatGPT账号参与国际舆论操纵",
+			wantScore: 0,
+		},
+		{
+			name:      "Kimi marketing campaign is excluded",
+			title:     "【kimi】预测冠军队 抢万亿Token",
+			wantScore: 0,
+		},
+		{
+			name:      "DeepSeek model release gets strong priority",
+			title:     "DeepSeek V4 正式发布并开放 API",
+			wantScore: 9,
+		},
+		{
+			name:      "Qwen model release gets strong priority",
+			title:     "通义千问 Qwen 新模型发布并开源",
+			wantScore: 9,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			score, _ := keywordInterestScore(tt.title)
+			if score != tt.wantScore {
+				t.Fatalf("keywordInterestScore(%q) = %d, want %d", tt.title, score, tt.wantScore)
+			}
+		})
+	}
+}
+
+func TestPassesDeterministicInterestGate(t *testing.T) {
+	tests := []struct {
+		title string
+		score int
+		want  bool
+	}{
+		{"智谱1倍消耗或持续到九月底，5.2也开始Max用户内测了", 7, true},
+		{"6.12 AI清朗清剿", 9, true},
+		{"某低价GPT API中转站疑似跑路", 8, true},
+		{"快讯，antigravity支持额度显示了", 8, false},
+		{"DigitalOcean学生包200美元额度到期时间统一重置为8.1", 9, false},
+		{"甲骨文arm免费额度砍半", 9, false},
+		{"Agent上岗考试：最难任务仍交白卷", 8, false},
+		{"某厂商发布并开源新模型，或将改变AI行业竞争", 9, true},
+		{"DeepSeek V4 正式发布并开放 API", 7, true},
+		{"Qwen 新模型发布并开源", 7, true},
+	}
+
+	for _, tt := range tests {
+		if got := passesDeterministicInterestGate(tt.title, tt.score); got != tt.want {
+			t.Fatalf("passesDeterministicInterestGate(%q, %d) = %v, want %v", tt.title, tt.score, got, tt.want)
+		}
+	}
+}
+
+func TestFallbackGroupIdentity(t *testing.T) {
+	tests := []struct {
+		title   string
+		wantKey string
+	}{
+		{"OpenAI Codex 额度重置现在可“存起来”稍后使用", "codex-quota-reset"},
+		{"真支持自助重置了啊，codex-plus和pro有一次免费重置", "codex-quota-reset"},
+		{"Moonshotai 开源Kimi K2.7 Code", "kimi-*"},
+		{"Kimi K2.7 Code 编程模型已上线 API 开放平台", "kimi-*"},
+		{"Kimi2.6 编程模型更新", "kimi-*"},
+		{"智谱 GLM-4.7 发布", "glm-*"},
+		{"智谱 GLM-5.2 开始 Max 用户内测", "glm-*"},
+		{"GLM5 发布新版本", "glm-*"},
+		{"智谱一倍消耗持续到九月底，5.3 开始内测", "glm-*"},
+		{"GLM 账号大规模被封", "glm-account-risk"},
+		{"Claude 4.9 正式发布并开放 API", "claude-*"},
+		{"Anthropic Claude 账号大规模被封", "claude-account-risk"},
+		{"DeepSeek V4 正式发布并开放 API", "deepseek-*"},
+		{"深度求索新模型发布", "deepseek-*"},
+		{"Qwen3.5 正式发布并开源", "qwen-*"},
+		{"Qween 新模型上线", "qwen-*"},
+		{"通义千问模型更新", "qwen-*"},
+		{"阿里云百炼上线 Qwen 新模型", "qwen-*"},
+	}
+
+	for _, tt := range tests {
+		key, _ := fallbackGroupIdentity(tt.title)
+		if key != tt.wantKey {
+			t.Fatalf("fallbackGroupIdentity(%q) = %q, want %q", tt.title, key, tt.wantKey)
+		}
+	}
+}
+
+func TestSplitIncompatibleGroups(t *testing.T) {
+	items := []Item{
+		{Title: "用了半个月的plus号突然全被杀了，上一个杀一个"},
+		{Title: "OpenAI称关联账户试图煽动反对数据中心建设"},
+	}
+	candidates := map[int]ScoredItem{
+		1: {Index: 1, Score: 8},
+		2: {Index: 2, Score: 7},
+	}
+	groups := []NewsGroup{{
+		Title:         "错误的宽泛 OpenAI 分组",
+		SourceIndexes: []int{1, 2},
+		Highlights: []NewsHighlight{
+			{Index: 1, Point: items[0].Title},
+			{Index: 2, Point: items[1].Title},
+		},
+	}}
+
+	got := splitIncompatibleGroups(groups, candidates, items)
+	if len(got) != 2 {
+		t.Fatalf("splitIncompatibleGroups() returned %d groups, want 2", len(got))
+	}
+}
+
+func TestStripHTML(t *testing.T) {
+	got := stripHTML(`<p>智谱运维人员在群内表示，<strong>一倍消耗</strong>可能持续到九月底。</p><p>Max 用户开始内测。</p>`)
+	if strings.Contains(got, "<") || !strings.Contains(got, "一倍消耗") || !strings.Contains(got, "Max 用户") {
+		t.Fatalf("stripHTML() = %q", got)
+	}
+}
+
+func TestWithFallbackStoryTabsGuaranteesMinimumUsefulTabs(t *testing.T) {
+	groups := []NewsGroup{{
+		Title:         "智谱 GLM 消耗倍率或调整至九月底，Max 用户内测开启",
+		Score:         10,
+		Reason:        "智谱一倍消耗政策可能延续至九月底，同时 5.2 版本开始 Max 用户内测。",
+		SourceIndexes: []int{1},
+	}}
+
+	got := withFallbackStoryTabs(groups)
+	if len(got[0].Tabs) < minStoryTabs {
+		t.Fatalf("got %d tabs, want at least %d", len(got[0].Tabs), minStoryTabs)
+	}
+	for _, tab := range got[0].Tabs {
+		if utf8.RuneCountInString(tab.Summary) < minTabSummaryRunes {
+			t.Fatalf("tab summary too short: %q", tab.Summary)
+		}
+		if len(tab.EvidenceIndexes) == 0 || tab.EvidenceIndexes[0] != 1 {
+			t.Fatalf("tab has invalid evidence: %#v", tab.EvidenceIndexes)
+		}
+	}
+}
+
+func TestNormalizeStoryTabsRejectsShortAndUnknownEvidence(t *testing.T) {
+	group := NewsGroup{SourceIndexes: []int{2}}
+	tabs := []StoryTab{
+		{Title: "太短", Summary: "内容太短", Kind: "fact", EvidenceIndexes: []int{2}},
+		{
+			Title:           "有效内容",
+			Summary:         "这是一个长度足够且能够用于视频展示的完整信息摘要内容。",
+			Kind:            "unknown",
+			EvidenceIndexes: []int{99},
+		},
+	}
+
+	got := normalizeStoryTabs(group, tabs)
+	if len(got) != 1 {
+		t.Fatalf("got %d tabs, want 1", len(got))
+	}
+	if got[0].Kind != "fact" || len(got[0].EvidenceIndexes) != 1 || got[0].EvidenceIndexes[0] != 2 {
+		t.Fatalf("unexpected normalized tab: %#v", got[0])
+	}
+}
+
+func TestParseScoredItemsRecoversMalformedLine(t *testing.T) {
+	content := `[
+  {"index": 1, "title": "智谱发布GLM更新", "score": 10, "reason": "重点模型更新"},
+  {"index": 2, "title": "微软最糟糕的 "Nightmare "引发漏洞", "score": 1, "reason": "无关"},
+  {"index": 3, "title": "Codex额度重置", "score": 9, "reason": "影响使用权益"}
+]`
+
+	got, err := parseScoredItems(content)
+	if err != nil {
+		t.Fatalf("parseScoredItems() error = %v", err)
+	}
+	if len(got) != 2 || got[0].Index != 1 || got[1].Index != 3 {
+		t.Fatalf("parseScoredItems() = %#v", got)
+	}
+}
+
+func TestWriteReportData(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "data.json")
+	groups := []NewsGroup{{
+		Title:  "智谱 GLM-5.2 与消耗规则动态",
+		Reason: "影响用户使用成本",
+		Tabs: []StoryTab{
+			{Title: "消耗规则", Summary: "智谱非高峰期一倍消耗计划可能持续到九月底。"},
+			{Title: "内测进展", Summary: "GLM-5.2 已开始面向 Max 用户进行小范围内测。"},
+		},
+	}}
+
+	items := []Item{{Title: "智谱1倍消耗或持续到九月底，5.2也开始Max用户内测了", Link: "https://linux.do/t/topic/2388502"}}
+	groups[0].SourceIndexes = []int{1}
+	groups[0].Highlights = []NewsHighlight{{Index: 1, Point: items[0].Title}}
+
+	if err := writeReportData(path, groups, items); err != nil {
+		t.Fatalf("writeReportData() error = %v", err)
+	}
+	if err := writeReportData(path, groups, items); err != nil {
+		t.Fatalf("writeReportData() overwrite error = %v", err)
+	}
+	data, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(data), `"stories"`) || !strings.Contains(string(data), `"tabs"`) {
+		t.Fatalf("unexpected report data: %s", data)
+	}
+	if !strings.Contains(string(data), `"introTitle": "智谱 GLM-5.2 与消耗规则动态"`) {
+		t.Fatalf("report data should preserve full intro title: %s", data)
+	}
+	if strings.Contains(string(data), `"activeTab"`) {
+		t.Fatalf("two-tab story should omit activeTab: %s", data)
+	}
+}
+
+func TestMigratedProjectPathsUseParentRoot(t *testing.T) {
+	root, err := projectRoot()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if filepath.Base(root) != "ai-daily-report" {
+		t.Fatalf("projectRoot() = %q", root)
+	}
+	envPath, err := projectEnvPath()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if envPath != filepath.Join(root, ".env") {
+		t.Fatalf("projectEnvPath() = %q", envPath)
+	}
+	t.Setenv("REPORT_DATA_PATH", "")
+	reportPath, err := defaultReportDataPath()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if reportPath != filepath.Join(root, "data-scheme", "data.json") {
+		t.Fatalf("defaultReportDataPath() = %q", reportPath)
+	}
+}
+
+func TestStoryIDUsesStableSourceIdentity(t *testing.T) {
+	items := []Item{{Title: "月之暗面 Kimi 将发行融合算力服务的 AI 原生信用卡", Link: "https://linux.do/t/topic/2386790"}}
+	group := NewsGroup{
+		Title:         "DeepSeek 每次可能改写的信用卡标题",
+		SourceIndexes: []int{1},
+		Highlights:    []NewsHighlight{{Index: 1}},
+	}
+	if got := storyID(group, items); got != "topic-2386790" {
+		t.Fatalf("storyID() = %q, want topic-2386790", got)
+	}
+}
+
+func TestPreferredActiveTabUsesVisualCenter(t *testing.T) {
+	tabs := []ReportTab{
+		{ID: "tab-1"},
+		{ID: "tab-2"},
+		{ID: "tab-3"},
+		{ID: "tab-4"},
+		{ID: "tab-5"},
+	}
+	if got := preferredActiveTab(tabs[:2]); got != "" {
+		t.Fatalf("preferredActiveTab(2 tabs) = %q, want empty", got)
+	}
+	for count := 3; count <= 5; count++ {
+		if got := preferredActiveTab(tabs[:count]); got != "tab-2" {
+			t.Fatalf("preferredActiveTab(%d tabs) = %q, want tab-2", count, got)
+		}
+	}
+}
+
+func TestStoryCategoryDoesNotTreatProductPolicyAsRegulation(t *testing.T) {
+	group := NewsGroup{
+		Title:  "智谱GLM：1倍消耗或持续到九月底，5.2开始Max用户内测",
+		Reason: "智谱调整GLM消耗倍率政策，并开始模型内测",
+	}
+	if got := storyCategory(group); got != "模型产品" {
+		t.Fatalf("storyCategory() = %q, want 模型产品", got)
+	}
+}
+
+func TestStoryCategoryPrioritizesQuotaOverAccountMention(t *testing.T) {
+	group := NewsGroup{
+		Title:  "OpenAI Codex额度重置政策更新",
+		Reason: "直接影响用户账号和资源管理",
+	}
+	if got := storyCategory(group); got != "额度价格" {
+		t.Fatalf("storyCategory() = %q, want 额度价格", got)
+	}
+}
+
+func TestNavigationTitleIsShort(t *testing.T) {
+	group := NewsGroup{Title: "OpenAI Codex 额度重置规则大更新：可储存、免费重置、邀请新人重置"}
+	got := navigationTitle(group)
+	if utf8.RuneCountInString(got) > maxBottomTitleRunes {
+		t.Fatalf("navigationTitle() length = %d, want <= %d: %q", utf8.RuneCountInString(got), maxBottomTitleRunes, got)
+	}
+	if got != "额度重置" {
+		t.Fatalf("navigationTitle() = %q, want 额度重置", got)
+	}
+}
+
+func TestNavigationTitleUsesValidDeepSeekSuggestion(t *testing.T) {
+	group := NewsGroup{
+		Title:           "一个很长的完整新闻标题",
+		NavigationTitle: "Ona收购",
+	}
+	if got := navigationTitle(group); got != "Ona收购" {
+		t.Fatalf("navigationTitle() = %q, want Ona收购", got)
+	}
+}
+
+func TestNormalizeSceneSubtitleRemovesMarkdownAndLimitsLength(t *testing.T) {
+	got := normalizeSceneSubtitle("`GLM-5.2` 已开启 **Max 用户小范围内测**，具体参数仍待公布。")
+	if strings.Contains(got, "`") || strings.Contains(got, "**") {
+		t.Fatalf("normalizeSceneSubtitle() kept markdown: %q", got)
+	}
+	if utf8.RuneCountInString(got) > maxSceneSubtitleRunes {
+		t.Fatalf("normalizeSceneSubtitle() too long: %q", got)
+	}
+}
+
+func TestSceneSubtitleDoesNotRepeatFullSummary(t *testing.T) {
+	tab := StoryTab{
+		Summary:  "`Codex` 推出额度存储与邀请重置机制，用户可以灵活安排使用时间并降低额外支出。",
+		Subtitle: "Codex额度重置现在可以存起来，用户能够按需选择重置时间。",
+	}
+	got := sceneSubtitle(tab)
+	if got != tab.Subtitle {
+		t.Fatalf("sceneSubtitle() = %q, want %q", got, tab.Subtitle)
+	}
+}
+
+func TestSceneSubtitleFallsBackToSummaryFact(t *testing.T) {
+	tab := StoryTab{
+		Title:    "用户影响",
+		Summary:  "新模型上线可能导致 Codex 额度被大量消耗，有用户担心免费额度更快用完。",
+		Subtitle: "用户影响，实际影响请看卡片内容。",
+		Kind:     "impact",
+	}
+	got := sceneSubtitle(tab)
+	if got != "新模型上线可能导致 Codex 额度被大量消耗，有用户担心免费额度更快用完。" {
+		t.Fatalf("sceneSubtitle() = %q", got)
+	}
+}
+
+func TestSceneSubtitleRejectsIncompleteCauseAndUsesFullFact(t *testing.T) {
+	tab := StoryTab{
+		Summary:  "因美国政府出口管制指令，Anthropic 已禁止所有用户使用 `Claude Fable 5` 和 `Claude Mythos 5`，所有渠道均不可用，用户可通过 `/model` 切换到其他模型。",
+		Subtitle: "因美国政府出口管制指令。",
+	}
+	got := sceneSubtitle(tab)
+	if got != "因美国政府出口管制指令，Anthropic 已禁止所有用户使用 Claude Fable 5 和 Claude Mythos 5，所有渠道均不可用，用户可通过 /model 切换到其他模型。" {
+		t.Fatalf("sceneSubtitle() = %q", got)
+	}
+}
+
+func TestNormalizeSceneSubtitleRejectsInterfaceDirections(t *testing.T) {
+	if got := normalizeSceneSubtitle("用户影响，实际影响请看卡片内容。"); got != "" {
+		t.Fatalf("normalizeSceneSubtitle() = %q, want empty", got)
+	}
+}
+
+func TestNavigationTitleRejectsLongDeepSeekSuggestion(t *testing.T) {
+	group := NewsGroup{
+		Title:           "OpenAI Codex 额度重置规则大更新",
+		NavigationTitle: "OpenAI Codex 额度重置规则大更新",
+	}
+	if got := navigationTitle(group); got != "额度重置" {
+		t.Fatalf("navigationTitle() = %q, want 额度重置", got)
+	}
+}
+
+func TestExtractRemoteImageURLsPrefersOriginals(t *testing.T) {
+	description := `<a href="https://cdn.example.com/original/abc/image.jpeg"><img src="https://cdn.example.com/optimized/abc/image_2_690x388.jpeg"></a>
+		<a href="https://cdn.example.com/original/abc/image.jpeg">重复原图</a>`
+
+	got := extractRemoteImageURLs(description)
+	if len(got) != 1 || got[0] != "https://cdn.example.com/original/abc/image.jpeg" {
+		t.Fatalf("extractRemoteImageURLs() = %#v", got)
+	}
+}
+
+func TestExtractRemoteImageURLsFallsBackToSrc(t *testing.T) {
+	description := `<img src="https://cdn.example.com/optimized/abc/image.webp?width=690">`
+	got := extractRemoteImageURLs(description)
+	if len(got) != 1 || got[0] != "https://cdn.example.com/optimized/abc/image.webp?width=690" {
+		t.Fatalf("extractRemoteImageURLs() = %#v", got)
+	}
+}
+
+func TestFormatVisionMaterial(t *testing.T) {
+	got := formatVisionMaterial([]VisionResult{{
+		Relevant:  true,
+		Facts:     []string{"外国用户被禁止访问两款模型"},
+		Uncertain: []string{"恢复时间尚未明确"},
+	}})
+	if !strings.Contains(got, "图片证据") ||
+		!strings.Contains(got, "- 外国用户被禁止访问两款模型") ||
+		!strings.Contains(got, "- [不确定] 恢复时间尚未明确") {
+		t.Fatalf("formatVisionMaterial() = %q", got)
+	}
+}
+
+func TestVisionAnalyzerShouldAnalyzeOnlyHighPriorityShortImageSource(t *testing.T) {
+	analyzer := &VisionAnalyzer{enabled: true, maxCalls: 4, textThreshold: 500}
+	item := Item{
+		Title:       "Anthropic 禁用两款模型",
+		Description: `<p>正文很短。</p><img src="https://cdn.example.com/image.png">`,
+	}
+	if !analyzer.shouldAnalyze(item, NewsGroup{Score: 9}) {
+		t.Fatal("shouldAnalyze() = false, want true")
+	}
+	if analyzer.shouldAnalyze(item, NewsGroup{Score: 8}) {
+		t.Fatal("shouldAnalyze() accepted low-priority source")
+	}
+}
+
+func TestExtractJSONObjectFromClaudeText(t *testing.T) {
+	got := extractJSONObject("分析完成。\n```json\n{\"relevant\":true,\"facts\":[\"事实\"]}\n```")
+	if got != `{"relevant":true,"facts":["事实"]}` {
+		t.Fatalf("extractJSONObject() = %q", got)
+	}
+}
+
+func TestParseClaudeVisionStructuredOutput(t *testing.T) {
+	output := []byte(`{"type":"result","structured_output":{"relevant":true,"facts":["外国用户被限制访问"],"uncertain":[],"summary":"模型访问受限"}}`)
+	var got VisionResult
+	if err := parseClaudeVisionOutput(output, &got); err != nil {
+		t.Fatal(err)
+	}
+	if !got.Relevant || len(got.Facts) != 1 || got.Facts[0] != "外国用户被限制访问" {
+		t.Fatalf("parseClaudeVisionOutput() = %#v", got)
+	}
+}
+
+func TestParseClaudeVisionFallsBackToTextResult(t *testing.T) {
+	output := []byte(`{"type":"result","result":"` + "`json\\n" + `{\"relevant\":false,\"facts\":[],\"uncertain\":[],\"summary\":\"\"}` + "\\n```" + `"}`)
+	var got VisionResult
+	if err := parseClaudeVisionOutput(output, &got); err != nil {
+		t.Fatal(err)
+	}
+	if got.Relevant || len(got.Facts) != 0 {
+		t.Fatalf("parseClaudeVisionOutput() = %#v", got)
+	}
+}

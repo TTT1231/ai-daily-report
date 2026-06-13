@@ -32,6 +32,8 @@
     "tts": "bun run check-data-json && node --env-file-if-exists=.env scripts/generate-tts.mjs",
     "tts:dry-run": "bun run check-data-json && node --env-file-if-exists=.env scripts/generate-tts.mjs --dry-run",
     "tts:force": "bun run check-data-json && node --env-file-if-exists=.env scripts/generate-tts.mjs --force",
+    "rss": "go -C rss run .",
+    "rss:test": "go -C rss test ./...",
     "archive": "node scripts/archive.mjs",
     "comment": "node scripts/generate-comment.mjs",
     "prepare-report": "bun run tts && bun run check-data-json:render",

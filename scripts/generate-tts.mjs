@@ -22,8 +22,8 @@ const config = {
   voiceId:
     process.env.MINIMAX_TTS_VOICE_ID ?? "Chinese (Mandarin)_Warm_Girl",
   speed: readNumberEnv("MINIMAX_TTS_SPEED", 1, 0.5, 2),
-  vol: readNumberEnv("MINIMAX_TTS_VOLUME", 1, Number.EPSILON, 10),
-  pitch: readNumberEnv("MINIMAX_TTS_PITCH", 0, -12, 12),
+  vol: 1,
+  pitch: 0,
   tailPaddingMs: readIntegerEnv("TTS_TAIL_PADDING_MS", 250, 0),
   requestIntervalMs: readIntegerEnv("MINIMAX_TTS_REQUEST_INTERVAL_MS", 2200, 0),
   maxRetries: readIntegerEnv("MINIMAX_TTS_MAX_RETRIES", 5, 0),

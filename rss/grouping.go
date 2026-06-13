@@ -1,0 +1,268 @@
+package main
+
+import (
+	"encoding/json"
+	"fmt"
+	"sort"
+	"strings"
+)
+
+func groupSimilarNews(apiKey string, scored []ScoredItem, items []Item) ([]NewsGroup, error) {
+	var candidates []string
+	for _, item := range scored {
+		keywordNote := ""
+		if item.KeywordScore > 0 {
+			keywordNote = fmt.Sprintf("；关键词保底=%d", item.KeywordScore)
+		}
+		candidates = append(candidates, fmt.Sprintf(
+			"%d. [%d/10%s] %s；入选理由：%s",
+			item.Index, item.Score, keywordNote, item.Title, item.Reason,
+		))
+	}
+
+	prompt := fmt.Sprintf(`请将以下 %d 条候选新闻聚类、去除纯重复信息，并整理为最多 %d 个适合视频展示的 Story。
+每个 Story 最多保留 %d 个互不重复的 highlights。
+
+严格返回以下 JSON 格式，不要返回其他内容：
+[
+  {
+    "title": "合并后的 Story 标题",
+    "navigation_title": "3至5字的时间线短标题",
+    "score": 1-10,
+    "reason": "为什么值得关注",
+    "source_indexes": [归入本 Story 的所有候选序号],
+    "highlights": [
+      {"index": 最能代表该要点的候选序号, "point": "一个不重复的具体信息点"}
+    ]
+  }
+]
+
+候选新闻：
+%s`, len(scored), maxGroups, maxGroupHighlights, strings.Join(candidates, "\n"))
+
+	content, err := requestDeepSeek(apiKey, []DSMessage{
+		{Role: "system", Content: newsGroupingSystemPrompt},
+		{Role: "user", Content: prompt},
+	}, DSRequestOptions{Thinking: "enabled", ReasoningEffort: "high"})
+	if err != nil {
+		return nil, err
+	}
+
+	var groups []NewsGroup
+	if err := json.Unmarshal([]byte(extractJSON(content)), &groups); err != nil {
+		return nil, fmt.Errorf("解析聚类 JSON 失败: %w\n原始内容: %s", err, content)
+	}
+	return normalizeGroups(groups, scored, items), nil
+}
+
+func normalizeGroups(groups []NewsGroup, scored []ScoredItem, items []Item) []NewsGroup {
+	candidates := make(map[int]ScoredItem, len(scored))
+	for _, item := range scored {
+		candidates[item.Index] = item
+	}
+	groups = splitIncompatibleGroups(groups, candidates, items)
+
+	covered := make(map[int]bool)
+	normalized := make([]NewsGroup, 0, len(groups))
+	for _, group := range groups {
+		seenSources := make(map[int]bool)
+		validSources := make([]int, 0, len(group.SourceIndexes))
+		for _, index := range group.SourceIndexes {
+			if _, ok := candidates[index]; !ok || seenSources[index] || covered[index] {
+				continue
+			}
+			seenSources[index] = true
+			validSources = append(validSources, index)
+		}
+
+		validHighlights := make([]NewsHighlight, 0, len(group.Highlights))
+		seenHighlights := make(map[int]bool)
+		for _, highlight := range group.Highlights {
+			if _, ok := candidates[highlight.Index]; !ok || seenHighlights[highlight.Index] {
+				continue
+			}
+			if !seenSources[highlight.Index] && !covered[highlight.Index] {
+				seenSources[highlight.Index] = true
+				validSources = append(validSources, highlight.Index)
+			}
+			if strings.TrimSpace(highlight.Point) == "" {
+				highlight.Point = items[highlight.Index-1].Title
+			}
+			seenHighlights[highlight.Index] = true
+			validHighlights = append(validHighlights, highlight)
+			if len(validHighlights) == maxGroupHighlights {
+				break
+			}
+		}
+		if len(validSources) == 0 {
+			continue
+		}
+		if len(validHighlights) == 0 {
+			index := validSources[0]
+			validHighlights = append(validHighlights, NewsHighlight{Index: index, Point: items[index-1].Title})
+		}
+
+		maxScore := 0
+		for _, index := range validSources {
+			covered[index] = true
+			maxScore = max(maxScore, candidates[index].Score)
+		}
+		group.Score = min(max(group.Score, maxScore), 10)
+		if strings.TrimSpace(group.Title) == "" {
+			group.Title = items[validHighlights[0].Index-1].Title
+		}
+		if strings.TrimSpace(group.Reason) == "" {
+			group.Reason = candidates[validHighlights[0].Index].Reason
+		}
+		group.SourceIndexes = validSources
+		group.Highlights = validHighlights
+		normalized = append(normalized, group)
+	}
+
+	for _, item := range scored {
+		if item.KeywordScore < 9 || covered[item.Index] {
+			continue
+		}
+		normalized = append(normalized, NewsGroup{
+			Title:         item.Title,
+			Score:         item.Score,
+			Reason:        item.Reason,
+			SourceIndexes: []int{item.Index},
+			Highlights:    []NewsHighlight{{Index: item.Index, Point: item.Title}},
+		})
+	}
+
+	sort.SliceStable(normalized, func(i, j int) bool {
+		return normalized[i].Score > normalized[j].Score
+	})
+	if len(normalized) > maxGroups {
+		normalized = normalized[:maxGroups]
+	}
+	return normalized
+}
+
+func splitIncompatibleGroups(groups []NewsGroup, candidates map[int]ScoredItem, items []Item) []NewsGroup {
+	var result []NewsGroup
+	for _, group := range groups {
+		partitions := make(map[string][]int)
+		var keyOrder []string
+		for _, index := range group.SourceIndexes {
+			if _, ok := candidates[index]; !ok || index < 1 || index > len(items) {
+				continue
+			}
+			key, _ := fallbackGroupIdentity(items[index-1].Title)
+			if _, exists := partitions[key]; !exists {
+				keyOrder = append(keyOrder, key)
+			}
+			partitions[key] = append(partitions[key], index)
+		}
+		if len(partitions) <= 1 {
+			result = append(result, group)
+			continue
+		}
+
+		for _, key := range keyOrder {
+			indexes := partitions[key]
+			_, fallbackTitle := fallbackGroupIdentity(items[indexes[0]-1].Title)
+			partition := NewsGroup{Title: fallbackTitle, SourceIndexes: indexes}
+			for _, highlight := range group.Highlights {
+				if _, ok := candidates[highlight.Index]; !ok || highlight.Index < 1 || highlight.Index > len(items) {
+					continue
+				}
+				highlightKey, _ := fallbackGroupIdentity(items[highlight.Index-1].Title)
+				if highlightKey == key {
+					partition.Highlights = append(partition.Highlights, highlight)
+				}
+			}
+			result = append(result, partition)
+		}
+	}
+	return result
+}
+
+func fallbackGroups(scored []ScoredItem) []NewsGroup {
+	groupByKey := make(map[string]int)
+	groups := make([]NewsGroup, 0, min(len(scored), maxGroups))
+	for _, item := range scored {
+		key, title := fallbackGroupIdentity(item.Title)
+		position, exists := groupByKey[key]
+		if !exists {
+			groupByKey[key] = len(groups)
+			groups = append(groups, NewsGroup{
+				Title:         title,
+				Score:         item.Score,
+				Reason:        item.Reason,
+				SourceIndexes: []int{item.Index},
+				Highlights:    []NewsHighlight{{Index: item.Index, Point: item.Title}},
+			})
+			continue
+		}
+		group := &groups[position]
+		group.SourceIndexes = append(group.SourceIndexes, item.Index)
+		group.Score = max(group.Score, item.Score)
+		if len(group.Highlights) < maxGroupHighlights {
+			group.Highlights = append(group.Highlights, NewsHighlight{Index: item.Index, Point: item.Title})
+		}
+	}
+	sort.SliceStable(groups, func(i, j int) bool {
+		return groups[i].Score > groups[j].Score
+	})
+	if len(groups) > maxGroups {
+		groups = groups[:maxGroups]
+	}
+	return groups
+}
+
+func fallbackGroupIdentity(title string) (string, string) {
+	lower := strings.ToLower(title)
+	brand := ""
+	switch {
+	case strings.Contains(lower, "codex"):
+		brand = "codex"
+	case containsAny(lower, "kimi", "月之暗面", "moonshot"):
+		brand = "kimi"
+	case containsAny(lower, "智谱", "glm"):
+		brand = "glm"
+	case containsAny(lower, "claude", "anthropic"):
+		brand = "claude"
+	case containsAny(lower, "deepseek", "深度求索"):
+		brand = "deepseek"
+	case containsAny(lower, "qwen", "qween", "通义千问", "阿里云百炼", "阿里百炼"):
+		brand = "qwen"
+	case containsAny(lower, "openai", "chatgpt", "gpt"):
+		brand = "openai"
+	}
+
+	switch {
+	case brand == "codex" && containsAny(lower, "重置", "额度", "限额", "rate limit"):
+		return "codex-quota-reset", "Codex 额度与重置规则更新"
+	case brand == "openai" && containsAny(lower, "重置", "额度", "限额", "rate limit"):
+		return "codex-quota-reset", "Codex 额度与重置规则更新"
+	case brand == "codex" && containsAny(lower, "cdp", "浏览器开发者模式", "browser use"):
+		return "codex-browser-cdp", "Codex 浏览器开发者模式与 CDP 调试"
+	case brand != "" && containsAny(lower, "封号", "被封", "杀号", "风控", "掉订阅"):
+		return brand + "-account-risk", strings.ToUpper(brand) + " 账号与风控动态"
+	case strings.Contains(lower, "plus") && containsAny(lower, "封号", "被封", "杀号", "风控", "掉订阅"):
+		return "plus-account-risk", "Plus 账号与风控动态"
+	case brand == "kimi":
+		return "kimi-*", "Kimi 模型与产品动态"
+	case brand == "glm":
+		return "glm-*", "智谱 GLM 模型与产品动态"
+	case brand == "claude":
+		return "claude-*", "Anthropic Claude 模型与产品动态"
+	case brand == "deepseek":
+		return "deepseek-*", "DeepSeek 模型与产品动态"
+	case brand == "qwen":
+		return "qwen-*", "Qwen 通义千问模型与产品动态"
+	}
+	return normalizeTitle(title), title
+}
+
+func normalizeTitle(title string) string {
+	replacer := strings.NewReplacer(
+		" ", "", "：", "", ":", "", "，", "", ",", "", "。", "", ".", "",
+		"！", "", "!", "", "？", "", "?", "", "【", "", "】", "", "[", "", "]", "",
+		"（", "", "）", "", "(", "", ")", "", "-", "", "_", "",
+	)
+	return strings.ToLower(replacer.Replace(title))
+}

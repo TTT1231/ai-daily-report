@@ -13,7 +13,8 @@
 #   - [] 准备数据，`data.json` 和 所需的images素材（可选）
 #   - [] 确保 `data.json`中`$schema`指向项目根目录的`data-schema.json`,
 
-# 2. 创建.env并填写以下环境变量例如
+# 2. 只在项目根目录创建一份 .env，Remotion、TTS 与 rss/ Go 工具共同读取
+# 填写以下环境变量例如
 # MINIMAX_API_KEY=<your-api-key>
 # MINIMAX_TTS_ENDPOINT=https://api.minimaxi.com/v1/t2a_v2
 # 根据需求选择对应的tts model
@@ -21,8 +22,7 @@
 # 选择你最爱的音色id
 # MINIMAX_TTS_VOICE_ID=Chinese_sweet_girl_vv1
 # MINIMAX_TTS_SPEED=1
-# MINIMAX_TTS_VOLUME=1
-# MINIMAX_TTS_PITCH=0
+# DEEPSEEK_API_KEY=<your-api-key>
 # 默认控制在约 27 RPM，并在 MiniMax RPM 限流时自动等待重试
 # MINIMAX_TTS_REQUEST_INTERVAL_MS=2200
 # MINIMAX_TTS_MAX_RETRIES=5
@@ -32,6 +32,9 @@
 # 3. 首次生成或手动生成 TTS 音频（需要 MiniMax API Key）
 # 通常可跳过这一步，bun run dev 会自动生成并持续监听 data.json
 bun run tts
+
+# 从 Linux.do RSS 获取 AI 新闻并生成 data-scheme/data.json
+bun run rss
 
 # 4. 根据需要生成icon（可选通过skill，tabs的图标）
 # claude: /generate-svg
