@@ -280,6 +280,23 @@ func TestGenerateDataJSON(t *testing.T) {
 	}
 }
 
+func TestTopTitleSegmentCountLimitsOverGrouping(t *testing.T) {
+	stories := []DataJSONStory{
+		{TopTitle: "行业动态"},
+		{TopTitle: "模型产品"},
+		{TopTitle: "模型产品"},
+		{TopTitle: "模型产品"},
+		{TopTitle: "额度价格"},
+	}
+	got := topTitleSegmentCount(stories)
+	if got != 3 {
+		t.Fatalf("topTitleSegmentCount() = %d, want 3", got)
+	}
+	if len(stories)-got > maxTopBottomSegmentGap {
+		t.Fatalf("valid grouping gap = %d, want <= %d", len(stories)-got, maxTopBottomSegmentGap)
+	}
+}
+
 func TestMigratedProjectPathsUseParentRoot(t *testing.T) {
 	root, err := projectRoot()
 	if err != nil {
@@ -349,6 +366,16 @@ func TestStoryCategoryPrioritizesQuotaOverAccountMention(t *testing.T) {
 	group := NewsGroup{
 		Title:  "OpenAI Codex额度重置政策更新",
 		Reason: "直接影响用户账号和资源管理",
+	}
+	if got := storyCategory(group); got != "额度价格" {
+		t.Fatalf("storyCategory() = %q, want 额度价格", got)
+	}
+}
+
+func TestStoryCategoryPrioritizesQuotaOverModelMention(t *testing.T) {
+	group := NewsGroup{
+		Title:  "Claude Code额度重置并提升50%",
+		Reason: "作为模型下架补偿，订阅用户额度重置并临时提升。",
 	}
 	if got := storyCategory(group); got != "额度价格" {
 		t.Fatalf("storyCategory() = %q, want 额度价格", got)

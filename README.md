@@ -51,7 +51,9 @@ bun run tts
 开发模式会监听 `data-scheme/data.json`、`data-schema.json`、`.env` 和图片素材：
 
 - 修改 `data.json`、Schema 或 TTS 环境配置时，自动运行增量 TTS 并更新 `data-generate.json`。
-- 未改变字幕的场景会复用已有音频；只增加或修改 `overlay.src` 不会重新请求旁白。
+- 未改变字幕的场景会复用已有音频；只增加或修改 `overlayImg` 不会重新请求旁白。
+- 每个 Scene 可设置一个 `overlayImg: "images/..."`；同一 Story 的多个 Scene 可分别设置图片，并随各自字幕依次播放。
+- 顶部导航合并相邻同名 `topTitle`；排除 Intro/Outro 后，`bottomTitle` 数量减去顶部相邻分段数不得超过 2。
 - 仅替换图片文件时交由 Remotion Studio 刷新，不运行 TTS。
 - `.gitignore` 只影响 Git，不影响开发监听或 Remotion 的 `publicDir`。
 

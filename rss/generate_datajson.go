@@ -98,6 +98,15 @@ func generateDataJSON(path string, groups []NewsGroup, items []Item) error {
 		story.ActiveTab = preferredActiveTab(story.Tabs)
 		report.Stories = append(report.Stories, story)
 	}
+	topSegments := topTitleSegmentCount(report.Stories)
+	if len(report.Stories)-topSegments > maxTopBottomSegmentGap {
+		return fmt.Errorf(
+			"顶部栏目聚合过深：%d 个 Story 仅形成 %d 个相邻 topTitle 分段，差值不得超过 %d",
+			len(report.Stories),
+			topSegments,
+			maxTopBottomSegmentGap,
+		)
+	}
 
 	data, err := json.MarshalIndent(report, "", "  ")
 	if err != nil {
@@ -112,6 +121,18 @@ func generateDataJSON(path string, groups []NewsGroup, items []Item) error {
 		return fmt.Errorf("写入 data.json 失败: %w", err)
 	}
 	return nil
+}
+
+func topTitleSegmentCount(stories []DataJSONStory) int {
+	segments := 0
+	previous := ""
+	for _, story := range stories {
+		if story.TopTitle != previous {
+			segments++
+			previous = story.TopTitle
+		}
+	}
+	return segments
 }
 
 // preferredActiveTab 选出视频默认激活的 Tab：Tab 数<=2 时不指定，否则用第二个（视觉居中位置）。
@@ -202,16 +223,20 @@ func uniqueStoryID(base string, used map[string]int) string {
 
 // storyCategory 按标题与理由的关键词判定 Story 的顶部分类标签（AI监管/模型产品/额度价格/账号风险/行业动态）。
 func storyCategory(group NewsGroup) string {
+	title := strings.ToLower(group.Title)
 	text := strings.ToLower(group.Title + " " + group.Reason)
 	switch {
 	case containsAny(text, "网信办", "监管行动", "清朗", "举报专区", "专项行动", "合规治理", "执法"):
 		return "AI监管"
+	case containsAny(title, "额度", "限额", "重置", "价格", "涨价", "降价", "消耗", "倍率", "套餐") &&
+		!containsAny(title, "发布", "开源", "内测", "上线", "模型"):
+		return "额度价格"
+	case containsAny(text, "封号", "被封", "风控", "杀号", "账号", "跑路", "诈骗"):
+		return "账号风险"
 	case containsAny(text, "发布", "开源", "模型", "内测", "api", "开发者模式", "浏览器模式"):
 		return "模型产品"
 	case containsAny(text, "额度", "限额", "重置", "价格", "涨价", "降价", "消耗", "倍率", "套餐"):
 		return "额度价格"
-	case containsAny(text, "封号", "被封", "风控", "杀号", "账号", "跑路", "诈骗"):
-		return "账号风险"
 	default:
 		return "行业动态"
 	}

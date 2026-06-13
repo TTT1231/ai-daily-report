@@ -425,7 +425,8 @@ const Tabs: React.FC<{
   const rows = Math.ceil(tabCount / columns);
   const isSingleRow = rows === 1;
   const isFiveCardLayout = tabCount === 5;
-  const gap = isTwoCardLayout ? 30 : 22;
+  const isDenseLayout = tabCount >= 5;
+  const gap = isTwoCardLayout ? 30 : isDenseLayout ? 18 : 20;
   const containerWidth = isTwoCardLayout
     ? "88%"
     : tabCount === 4
@@ -435,7 +436,35 @@ const Tabs: React.FC<{
     ? "66%"
     : isSingleRow
       ? "58%"
-      : "96%";
+      : "94%";
+  const cardPadding = isTwoCardLayout
+    ? "40px 46px"
+    : isSingleRow
+      ? "32px 36px"
+      : isDenseLayout
+        ? "22px 26px"
+        : "24px 30px";
+  const titleFontSize = isTwoCardLayout
+    ? 40
+    : isSingleRow
+      ? 34
+      : isDenseLayout
+        ? 30
+        : 33;
+  const summaryFontSize = isTwoCardLayout
+    ? 33
+    : isSingleRow
+      ? 29
+      : isDenseLayout
+        ? 26
+        : 28;
+  const summaryLineHeight = isTwoCardLayout
+    ? 1.44
+    : isSingleRow
+      ? 1.45
+      : isDenseLayout
+        ? 1.38
+        : 1.42;
   const getCardBackground = (active: boolean, rowIndex: number) => {
     const base = active
       ? palette.activeCard
@@ -466,8 +495,8 @@ const Tabs: React.FC<{
           : `repeat(${columns}, minmax(0, 1fr))`,
         gridTemplateRows: `repeat(${rows}, minmax(0, 1fr))`,
         gap,
-        opacity: scene.overlay ? 0.24 : 1,
-        filter: scene.overlay ? "saturate(.72)" : "none",
+        opacity: scene.overlayImg ? 0.24 : 1,
+        filter: scene.overlayImg ? "saturate(.72)" : "none",
         transform: isTwoCardLayout
           ? "translateY(-8px)"
           : isSingleRow
@@ -486,11 +515,7 @@ const Tabs: React.FC<{
             key={tab.id}
             style={{
               minWidth: 0,
-              padding: isTwoCardLayout
-                ? "44px 50px"
-                : isSingleRow
-                  ? "38px 40px"
-                  : "30px 34px",
+              padding: cardPadding,
               display: "flex",
               flexDirection: "column",
               alignItems: "stretch",
@@ -522,10 +547,10 @@ const Tabs: React.FC<{
           >
             <div
               style={{
-                fontSize: isTwoCardLayout ? 42 : 36,
+                fontSize: titleFontSize,
                 lineHeight: 1.18,
                 fontWeight: 820,
-                marginBottom: 14,
+                marginBottom: isDenseLayout ? 10 : 12,
                 display: "flex",
                 alignItems: "center",
                 gap: 12,
@@ -535,6 +560,7 @@ const Tabs: React.FC<{
                 <TabIcon
                   src={tab.icon}
                   active={active}
+                  size={isDenseLayout ? 52 : 58}
                 />
               )}
               {tab.title}
@@ -542,8 +568,8 @@ const Tabs: React.FC<{
             <div
               style={{
                 color: active ? palette.activeSummary : palette.inactiveSummary,
-                fontSize: isTwoCardLayout ? 35 : 31,
-                lineHeight: isTwoCardLayout ? 1.48 : 1.52,
+                fontSize: summaryFontSize,
+                lineHeight: summaryLineHeight,
                 fontWeight: active ? 590 : 520,
                 letterSpacing: ".005em",
               }}
@@ -801,7 +827,7 @@ const SourceOverlay: React.FC<{
   sceneDuration: number;
   theme: Theme;
 }> = ({ scene, sceneFrame, sceneDuration, theme }) => {
-  if (!scene.overlay) return null;
+  if (!scene.overlayImg) return null;
   const palette = themes[theme];
 
   const reveal = interpolate(sceneFrame, [0, IMAGE_TRANSITION_FRAMES], [0, 1], {
@@ -852,7 +878,7 @@ const SourceOverlay: React.FC<{
       }}
     >
       <Img
-        src={staticFile(scene.overlay.src)}
+        src={staticFile(scene.overlayImg)}
         style={{
           width: "100%",
           height: "100%",
@@ -917,7 +943,7 @@ export const AiDailyReport: React.FC = () => {
     ...dailyReport.stories,
     dailyReport.outro,
   ];
-  // Merge only adjacent categories so the top timeline always moves forward.
+  // Merge adjacent stories in the same category, while validation limits over-grouping.
   const categoryDurations = timelineStories.reduce<
     {label: string; duration: number; active: boolean}[]
   >((segments, item, index) => {
@@ -1087,7 +1113,7 @@ export const AiDailyReport: React.FC = () => {
                   top: "10%",
                   left: 42,
                   right: 42,
-                  bottom: 0,
+                  bottom: 68,
                   overflow: "hidden",
                   display: "flex",
                   alignItems: "center",

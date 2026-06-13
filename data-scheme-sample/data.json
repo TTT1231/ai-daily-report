@@ -33,9 +33,7 @@
         {
           "id": "claude-code-agents",
           "subtitle": "Claude Code 现在支持 Sub-agent 继续创建子代理。",
-          "overlay": {
-            "src": "images/claude-update.png"
-          }
+          "overlayImg": "images/claude-update.png"
         },
         {
           "id": "claude-code-update",
@@ -83,9 +81,7 @@
         },
         {
           "id": "fable5-security-2",
-          "overlay": {
-            "src": "images/fable.png"
-          },
+          "overlayImg": "images/fable.png",
           "subtitle": "官方认为隐形护栏容易被持续试探和绕过，因此决定提升透明度并强化安全机制。"
         },
         {
@@ -122,9 +118,7 @@
         {
           "id": "glm5.2-beta",
           "subtitle": "GLM-5.2 已开启内测，仅部分 MAX 用户可体验。",
-          "overlay": {
-            "src": "images/glm5.2.png"
-          }
+          "overlayImg": "images/glm5.2.png"
         },
         {
           "id": "glm5.2-capability",

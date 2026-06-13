@@ -64,7 +64,7 @@
           "type": "string",
           "minLength": 3,
           "maxLength": 5,
-          "description": "顶部时间线栏目标签，必须为 3 至 5 个字符。"
+          "description": "顶部时间线栏目标签，必须为 3 至 5 个字符。相邻同名标签会合并；排除 Intro/Outro 后，bottomTitle 数量减去顶部相邻分段数不得超过 2。"
         },
         "bottomTitle": {
           "type": "string",
@@ -188,9 +188,9 @@
           "maxLength": 96,
           "description": "建议 28 至 96 字的完整事实口播，也是 TTS 的输入文案；包含主体、事件及范围或结果。"
         },
-        "overlay": {
-          "$ref": "#/$defs/overlay",
-          "description": "可选的真实图片覆盖层。"
+        "overlayImg": {
+          "$ref": "#/$defs/imagePath",
+          "description": "可选。与当前 subtitle 同步播放的一张真实图片；同一 Story 可通过多个 Scene 依次播放多张图片。"
         },
         "audioSrc": {
           "$ref": "#/$defs/audioPath",
@@ -203,17 +203,6 @@
         "tts": {
           "$ref": "#/$defs/ttsMetadata",
           "description": "仅出现在 data-generate.json，用于记录生成参数与增量缓存信息。"
-        }
-      }
-    },
-    "overlay": {
-      "type": "object",
-      "required": ["src"],
-      "additionalProperties": false,
-      "properties": {
-        "src": {
-          "$ref": "#/$defs/imagePath",
-          "description": "相对于 data-scheme/ 的图片路径。"
         }
       }
     },

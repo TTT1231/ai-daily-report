@@ -769,9 +769,7 @@ Outro
           "durationMs": 5000,
           "activeTab": "performance",
           "subtitle": "测试平台曾短暂出现 GPT-5.6 候选版本。",
-          "overlay": {
-            "src": "images/gpt56-source.png"
-          }
+          "overlayImg": "images/gpt56-source.png"
         },
         {
           "durationMs": 3500,
@@ -793,7 +791,7 @@ Outro
           </article>
           <article class="decision">
             <strong>Header 宽度如何得到？</strong>
-            <p>程序先汇总 Scene、Story 和栏目时长，再用“当前项时长 ÷ 同层总时长”计算 Header1 与 Header3 的宽度占比。</p>
+            <p>程序先汇总 Scene、Story 和相邻同名栏目时长，再用“当前项时长 ÷ 同层总时长”计算 Header1 与 Header3 的宽度占比；排除 Intro/Outro 后，两层分段数之差不超过 2。</p>
           </article>
           <article class="decision">
             <strong>为什么不生成任意 HTML？</strong>
@@ -821,7 +819,7 @@ Outro
         <div class="panel">
           <h3>结构与内容规则</h3>
           <ul class="checklist confirmed">
-            <li>Header1 是粗粒度栏目导航，Header3 是细粒度新闻导航，二者始终完整显示。</li>
+            <li>Header1 是合并相邻同类 Story 的栏目导航，Header3 是细粒度新闻导航；排除 Intro/Outro 后，二者分段数量之差不超过 2。</li>
             <li>Header1 与 Header3 的项目宽度按实际播放时长比例自动分配。</li>
             <li>Head 位于 Header1 与 Tabs 之间，显示当前新闻完整标题。</li>
             <li>Tabs 使用居中 Grid 排列，每页最多显示 6 张，并允许当前重点高亮。</li>

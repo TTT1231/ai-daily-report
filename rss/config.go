@@ -26,6 +26,7 @@ const (
 	minNavigationTitleRunes   = 3                          // 底部时间线短标题（navigation_title）的最小字符长度。
 	maxTopTitleRunes          = 5                          // 顶部标题（分类标签）的最大字符长度。
 	maxBottomTitleRunes       = 5                          // 底部时间线短标题的最大字符长度。
+	maxTopBottomSegmentGap    = 2                          // 排除 Intro/Outro 后，底部 Story 数与顶部相邻栏目分段数的最大差值。
 	maxContentTitleRunes      = 42                         // 内容主标题（contentTitle）的最大字符长度。
 	minInterestingScore       = 7                          // 内容入选的最小分数（满分 10），低于此分直接丢弃。
 )

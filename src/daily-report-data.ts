@@ -29,11 +29,7 @@ const dailySceneSchema = z.object({
     startMs: z.number().nonnegative(),
     durationMs: z.number().positive(),
   }),
-  overlay: z
-    .object({
-      src: z.string().min(1),
-    })
-    .optional(),
+  overlayImg: z.string().min(1).optional(),
 });
 
 const dailyStorySchema = z

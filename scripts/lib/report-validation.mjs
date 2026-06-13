@@ -45,6 +45,8 @@ export function validateReport(report, {renderMode = false, checkAssets = true} 
   const storyIds = new Set();
   const sceneIds = new Set();
   const topTitles = new Set();
+  let topTitleSegmentCount = 0;
+  let previousTopTitle;
   let activeIntroCount = 0;
   const timelineEntries = renderMode
     ? [
@@ -68,7 +70,11 @@ export function validateReport(report, {renderMode = false, checkAssets = true} 
       fail(`${storyPath}.id`, `"${story.id}" is reserved and generated automatically`);
     }
     if (story.activeIntro === true) activeIntroCount++;
-    if (!["intro", "outro"].includes(story.id)) topTitles.add(story.topTitle);
+    if (!["intro", "outro"].includes(story.id)) {
+      topTitles.add(story.topTitle);
+      if (story.topTitle !== previousTopTitle) topTitleSegmentCount++;
+      previousTopTitle = story.topTitle;
+    }
 
     const tabIds = new Set();
     for (const [tabIndex, tab] of (story.tabs ?? []).entries()) {
@@ -117,8 +123,8 @@ export function validateReport(report, {renderMode = false, checkAssets = true} 
           "must equal tts.audioLengthMs + tts.tailPaddingMs",
         );
       }
-      if (checkAssets && scene.overlay?.src) {
-        validateAsset(scene.overlay.src, `${scenePath}.overlay.src`, errors);
+      if (checkAssets && scene.overlayImg) {
+        validateAsset(scene.overlayImg, `${scenePath}.overlayImg`, errors);
       }
       if (checkAssets && scene.audioSrc) {
         validateAsset(scene.audioSrc, `${scenePath}.audioSrc`, errors);
@@ -131,6 +137,13 @@ export function validateReport(report, {renderMode = false, checkAssets = true} 
   }
   if (topTitles.size > 5) {
     fail("stories", `must use at most 5 unique topTitle categories, received ${topTitles.size}`);
+  }
+  const storyCount = report.stories?.length ?? 0;
+  if (storyCount - topTitleSegmentCount > 2) {
+    fail(
+      "stories",
+      `bottomTitle count (${storyCount}) minus adjacent topTitle segment count (${topTitleSegmentCount}) must be at most 2`,
+    );
   }
 
   return {errors, totalDurationMs: expectedStartMs};
