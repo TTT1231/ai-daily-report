@@ -1,0 +1,7 @@
+{
+  "explorer.fileNesting.patterns": {
+    "package.json": "bun.lock, .gitignore, README.md, LICENSE*,demo-light.png,demo-dark.png,demo-video.mp4,requirements-review.html,remotion.config.ts,tsconfig.json",
+    ".env": ".env.*",
+    "data.schema.json": "video-layout.schema.json"
+  }
+}
