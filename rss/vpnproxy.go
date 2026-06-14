@@ -3,18 +3,16 @@ package main
 import (
 	"crypto/tls"
 	"fmt"
-	"net"
 	"net/http"
 	"net/url"
-	"os"
+	"strings"
 	"time"
 )
 
 // newHTTPClient builds an *http.Client whose Transport enforces TLS 1.2+,
-// reuses idle connections, and routes traffic through a discovered VPN/HTTP
-// proxy when one is available.
+// reuses idle connections, and routes traffic through all_proxy when configured.
 func newHTTPClient(timeout time.Duration, announceProxy bool) *http.Client {
-	proxyURL := getProxyURL()
+	proxyURL, proxyErr := getProxyURL()
 	transport := &http.Transport{
 		TLSClientConfig:     &tls.Config{MinVersion: tls.VersionTLS12},
 		MaxIdleConns:        20,
@@ -22,49 +20,45 @@ func newHTTPClient(timeout time.Duration, announceProxy bool) *http.Client {
 		DisableKeepAlives:   false,
 		TLSHandshakeTimeout: 10 * time.Second,
 	}
-	if proxyURL != nil {
+	if proxyErr != nil {
+		// A configured proxy is mandatory. Returning its validation error from
+		// Transport.Proxy prevents requests from silently falling back to direct access.
+		transport.Proxy = func(*http.Request) (*url.URL, error) {
+			return nil, proxyErr
+		}
+	} else if proxyURL != nil {
 		transport.Proxy = http.ProxyURL(proxyURL)
 		if announceProxy {
-			fmt.Printf("   网络：使用代理 %s\n", proxyURL)
+			fmt.Printf("   网络：使用 all_proxy %s\n", proxyURL)
 		}
 	}
 
 	return &http.Client{Timeout: timeout, Transport: transport}
 }
 
-// getProxyURL resolves the outbound proxy to use. It prefers standard proxy
-// environment variables, then falls back to probing common local proxy ports
-// (Clash, v2rayN, Shadowsocks, etc.). Returns nil when no proxy is reachable.
-func getProxyURL() *url.URL {
-	for _, envKey := range []string{"HTTPS_PROXY", "https_proxy", "HTTP_PROXY", "http_proxy", "ALL_PROXY", "all_proxy"} {
-		if val := os.Getenv(envKey); val != "" {
-			if u, err := url.Parse(val); err == nil {
-				return u
-			}
-		}
+// getProxyURL returns the optional all_proxy configuration. No other proxy
+// variables or local proxy ports are considered.
+func getProxyURL() (*url.URL, error) {
+	configured, exists := lookupExactEnv("all_proxy")
+	value := strings.TrimSpace(configured)
+	if !exists {
+		return nil, nil
+	}
+	if value == "" {
+		return nil, nil
 	}
 
-	for _, addr := range []string{
-		"http://127.0.0.1:7890",
-		"http://127.0.0.1:7897",
-		"http://127.0.0.1:1080",
-		"http://127.0.0.1:10809",
-	} {
-		u, _ := url.Parse(addr)
-		if testPort(u.Host) {
-			return u
-		}
-	}
-	return nil
-}
-
-// testPort reports whether a TCP connection to host can be opened within a
-// short timeout, used to detect whether a local proxy is actually listening.
-func testPort(host string) bool {
-	conn, err := net.DialTimeout("tcp", host, 2*time.Second)
+	proxyURL, err := url.Parse(value)
 	if err != nil {
-		return false
+		return nil, fmt.Errorf("all_proxy 不是有效代理地址: %w", err)
 	}
-	_ = conn.Close()
-	return true
+	switch strings.ToLower(proxyURL.Scheme) {
+	case "http", "https", "socks5", "socks5h":
+	default:
+		return nil, fmt.Errorf("all_proxy 仅支持 http、https、socks5 或 socks5h 协议")
+	}
+	if proxyURL.Host == "" {
+		return nil, fmt.Errorf("all_proxy 必须包含代理主机和端口")
+	}
+	return proxyURL, nil
 }

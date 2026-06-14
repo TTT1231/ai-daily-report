@@ -88,11 +88,34 @@ func loadProjectEnv() error {
 		}
 		key = strings.TrimSpace(key)
 		value = strings.Trim(strings.TrimSpace(value), `"'`)
-		if os.Getenv(key) == "" {
+		_, exactKeyExists := lookupExactEnv(key)
+		if key == "all_proxy" && !exactKeyExists {
+			// Windows environment keys are case-insensitive and may retain the
+			// casing of an existing ALL_PROXY entry. Recreate it with the exact
+			// lowercase name required by this project.
+			_ = os.Unsetenv(key)
+			_ = os.Setenv(key, value)
+		} else if key != "all_proxy" && os.Getenv(key) == "" {
 			_ = os.Setenv(key, value)
 		}
 	}
 	return scanner.Err()
+}
+
+// lookupExactEnv reads an environment variable with case-sensitive key matching.
+// This is needed for all_proxy on Windows, where os.Getenv also matches ALL_PROXY.
+func lookupExactEnv(name string) (string, bool) {
+	return lookupExactEnvFrom(os.Environ(), name)
+}
+
+func lookupExactEnvFrom(environ []string, name string) (string, bool) {
+	for _, entry := range environ {
+		key, value, found := strings.Cut(entry, "=")
+		if found && key == name {
+			return value, true
+		}
+	}
+	return "", false
 }
 
 // envOrDefault 返回环境变量值，为空时返回 fallback 默认值。

@@ -82,7 +82,8 @@ func mergeRSSState(items []Item, previous RSSState, failures map[string]error) R
 	return next
 }
 
-// saveRSSState 直接覆盖写入上一次抓取快照。
+// saveRSSState 原子地覆盖写入上一次抓取快照：先写同目录临时文件再改名，
+// 避免进程中途被杀导致 rss-state.json 写成半截而丢失全部去重历史。
 func saveRSSState(path string, state RSSState) error {
 	data, err := json.MarshalIndent(state, "", "  ")
 	if err != nil {
@@ -92,8 +93,12 @@ func saveRSSState(path string, state RSSState) error {
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
 		return fmt.Errorf("创建 RSS 状态目录失败: %w", err)
 	}
-	if err := os.WriteFile(path, data, 0o644); err != nil {
-		return fmt.Errorf("写入 RSS 状态失败: %w", err)
+	tmpPath := path + ".tmp"
+	if err := os.WriteFile(tmpPath, data, 0o644); err != nil {
+		return fmt.Errorf("写入 RSS 状态临时文件失败: %w", err)
+	}
+	if err := os.Rename(tmpPath, path); err != nil {
+		return fmt.Errorf("提交 RSS 状态失败: %w", err)
 	}
 	return nil
 }

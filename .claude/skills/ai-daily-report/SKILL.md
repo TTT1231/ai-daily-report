@@ -23,6 +23,7 @@ description: How to use the ai-daily-report project end-to-end — set it up, ru
 
 - **环境变量** `.env`（参考 `.env.example`）：
   - RSS/AI 总结用：`AI_API_KEY`、`AI_BASE_URL`（默认 DeepSeek）、`AI_MODEL`（默认 `deepseek-v4-flash`）。
+  - 网络受限时可选：小写 `all_proxy`（如 `http://127.0.0.1:7890`）。未配置则直连；配置后 RSS 和 AI 模型请求必须走该代理，失败时不会回退直连。不要使用其他代理变量。
   - TTS 旁白用：`MINIMAX_API_KEY`、`MINIMAX_TTS_MODEL`、`MINIMAX_TTS_VOICE_ID`、`MINIMAX_TTS_SPEED`。
 - **运行时**：需要 `claude`（cli，用于图片识别 + 出图标）、`bun`、`go`（跑 RSS 采集器）。
 - **数据目录** `data-scheme/` 必须存在（自动模式会自己生成；手动模式从 `data-scheme-sample/` 复制）。
@@ -47,6 +48,8 @@ bun run all
 | `rss` | Go 采集器抓 RSS → AI 筛选/聚类 → 生成结构 | `data-scheme/data.json` |
 | `tts` | 给每个 scene 生成 MiniMax 旁白，算时间线 | `data-scheme/data-generate.json` + `audio/*.mp3` |
 | `generate-svg` | 调 `claude -p /generate-svg` 给 tabs 出图标 | `data-scheme/icons/*.svg` |
+
+`rss` 步骤会读取项目根目录 `.env` 中可选的小写 `all_proxy`。没有配置时跳过代理并直连；配置后 RSS 抓取与 AI 模型请求都会强制使用该代理，代理无效或不可用时直接报错。它不会读取 `HTTP_PROXY`、`HTTPS_PROXY`、`ALL_PROXY` 等其他代理变量，也不会自动探测本地代理端口。
 
 跑完后：
 

@@ -433,6 +433,13 @@
         </div>
 
         <div class="help-strip">
+          <strong>网络代理（可选）：</strong>
+          <span>网络受限时，在项目根目录 <code>.env</code> 配置小写 <code>all_proxy=http://127.0.0.1:7890</code>；未配置时 RSS 和 AI 模型请求直接连接</span>
+          <span>一旦配置 <code>all_proxy</code>，相关请求必须使用该代理，代理无效或不可用时会报错，不会静默回退直连</span>
+          <span>不会读取 <code>HTTP_PROXY</code>、<code>HTTPS_PROXY</code>、<code>ALL_PROXY</code> 等其他代理变量，也不会自动探测本地代理端口</span>
+        </div>
+
+        <div class="help-strip">
           <strong>🎯 兴趣偏好：</strong>
           <span><code>rss/preferences.jsonc</code> 集中维护重点实体、兴趣信号、不喜欢的内容和评分阈值，文件内包含字段注释</span>
           <span>AI 评分 Prompt 与本地关键词保底规则共享同一份兴趣画像，修改偏好无需同步修改 Go 关键词或评分 Prompt</span>
@@ -1014,7 +1021,8 @@
                 <h3>运行 RSS 采集器</h3>
                 <p>
                   保存 JSONC 后运行 <code>bun run rss</code>。程序会先校验配置；
-                  字段缺失、空关键词、重复来源 ID 或无效 URL 会直接报错。
+                  字段缺失、空关键词、重复来源 ID、无效 URL 或无效
+                  <code>all_proxy</code> 会直接报错。
                 </p>
                 <div class="copy-command">
                   <code>bun run rss</code

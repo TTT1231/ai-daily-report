@@ -140,6 +140,15 @@
               <svg class="card-arrow" aria-hidden="true" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6" /></svg>
             </a>
           </div>
+          <div class="callout info">
+            <svg aria-hidden="true" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" /><path d="M12 11v6m0-10h.01" /></svg>
+            <p>
+              网络受限时，在项目根目录 <code>.env</code> 配置小写
+              <code>all_proxy=http://127.0.0.1:7890</code>。未配置时采集器直连；
+              配置后 RSS 抓取与 AI 模型请求必须使用该代理，代理无效或不可用时会报错，不会回退直连。
+              采集器不会读取其他代理环境变量，也不会自动探测本地代理端口。
+            </p>
+          </div>
         </section>
 
         <section id="files" class="doc-section searchable">
@@ -424,6 +433,7 @@
 ├── preferences.go          # 兴趣画像校验与评分 Prompt 生成
 ├── linuxdo_adapter.go      # LinuxDo 分页与 Topic ID
 ├── rss2.go                 # 通用 RSS 2.0 下载与解析
+├── vpnproxy.go             # 可选 all_proxy，配置后强制使用
 ├── state.go                # 与上一次运行状态比较
 ├── ranking.go              # 本地评分与组合排除规则
 ├── grouping.go             # 合并相似新闻

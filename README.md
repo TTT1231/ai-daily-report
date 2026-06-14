@@ -74,7 +74,8 @@
 > **图片仍需手动插入（可选）**：`bun run all` 不会插图。执行后请到 `data-scheme/data.json` 给每个 Scene 填 `overlayImg: "images/xxx"`，并把图片放进 `data-scheme/images/`。仅替换图片不会重新请求旁白。图片是可选事实源，你可根据喜好自己添加。
 
 ```bash
-# 1. 填写好对应的tts api key和rss的模型供应商和api key
+# 1. 填写好对应的 TTS API Key 和 RSS 模型供应商、API Key
+#    网络受限时可在 .env 配置 all_proxy=http://127.0.0.1:7890
 
 # 2. install
 bun install
@@ -138,3 +139,10 @@ RSS 采集器完整图文说明见 [`rss/readme.html`](./rss/readme.html)。
 ## 可视化了解本项目
 
 如果你想深入了解本项目可以参考[html可视化文档](./.claude/claude.html)
+
+## 注意事项
+
+> [!WARNING]
+> 请确保你能够正常访问 `linux.do`。网络受限时，只需在项目根目录 `.env` 配置小写 `all_proxy`，例如 `all_proxy=http://127.0.0.1:7890`。
+>
+> `all_proxy` 是可选项：未配置时 RSS 和 AI 模型请求直接连接；配置后这些请求必须使用该代理，代理无效或不可用时会报错，不会静默改为直连。其他代理环境变量不会被读取。

@@ -11,6 +11,7 @@ export function createMinimaxClient({
   requestIntervalMs = 2200,
   maxRetries = 5,
   rateLimitRetryMs = 60000,
+  fetch = globalThis.fetch,
 }) {
   let lastRequestStartedAt = 0;
 
@@ -27,35 +28,50 @@ export function createMinimaxClient({
     for (let attempt = 0; ; attempt++) {
       await waitForRequestSlot();
 
-      const response = await fetch(endpoint, {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${apiKey}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          model,
-          text,
-          stream: false,
-          language_boost: "Chinese",
-          voice_setting: {
-            voice_id: voiceId,
-            speed,
-            vol,
-            pitch,
+      let response;
+      let raw;
+      try {
+        response = await fetch(endpoint, {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${apiKey}`,
+            "Content-Type": "application/json",
           },
-          audio_setting: {
-            sample_rate: 32000,
-            bitrate: 128000,
-            format: "mp3",
-            channel: 1,
-          },
-          subtitle_enable: false,
-          output_format: "hex",
-        }),
-      });
-
-      const raw = await response.text();
+          body: JSON.stringify({
+            model,
+            text,
+            stream: false,
+            language_boost: "Chinese",
+            voice_setting: {
+              voice_id: voiceId,
+              speed,
+              vol,
+              pitch,
+            },
+            audio_setting: {
+              sample_rate: 32000,
+              bitrate: 128000,
+              format: "mp3",
+              channel: 1,
+            },
+            subtitle_enable: false,
+            output_format: "hex",
+          }),
+        });
+        raw = await response.text();
+      } catch (error) {
+        // 瞬时网络抖动（ECONNRESET/ETIMEDOUT/DNS 等）不应让整条 TTS 管线中断；
+        // 与 429 一样按 maxRetries 重试后再放弃，避免回滚已合成的进度。
+        if (attempt < maxRetries) {
+          console.warn(
+            `MiniMax 网络请求失败，重试中 (${attempt + 1}/${maxRetries}): ${error.message}`,
+          );
+          continue;
+        }
+        throw new Error(
+          `MiniMax TTS 网络请求失败（已重试 ${maxRetries} 次）: ${error.message}`,
+        );
+      }
       let result;
       try {
         result = JSON.parse(raw);

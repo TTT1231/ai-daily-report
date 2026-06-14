@@ -1,5 +1,6 @@
 import { spawn } from "node:child_process";
 import { rootDir } from "./lib/paths.mjs";
+import { classifyStepOutcome } from "./lib/step-outcome.mjs";
 
 const bunCommand = process.platform === "win32" ? "bun.exe" : "bun";
 
@@ -39,17 +40,16 @@ function runStep(command, args, label) {
 
     child.once("close", (code, signal) => {
       const elapsed = formatSeconds(process.hrtime.bigint() - start);
-      if (code === 0 || (code === null && signal)) {
-        if (code === null && signal) {
-          console.warn(`⚠ ${label} 被信号 ${signal} 终止。`);
-        }
+      const outcome = classifyStepOutcome(code, signal);
+      if (outcome.ok) {
         console.log(`✔ 完成：${label}（耗时 ${elapsed}s）`);
         resolve(elapsed);
-      } else {
-        reject(
-          new Error(`${label} 失败 (exit ${code ?? "null"})，已终止后续流程。`),
-        );
+        return;
       }
+      const reason = outcome.signal
+        ? `${label} 被信号 ${outcome.signal} 终止，已终止后续流程。`
+        : `${label} 失败 (exit ${outcome.exitCode ?? "null"})，已终止后续流程。`;
+      reject(new Error(reason));
     });
   });
 }

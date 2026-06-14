@@ -754,6 +754,36 @@ func TestRSSStateOnlyComparesWithPreviousSnapshot(t *testing.T) {
 	}
 }
 
+func TestSaveRSSStateAtomicallyReplacesAndCleansStaleTemp(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "rss-state.json")
+
+	if err := saveRSSState(path, snapshotRSSState([]Item{{ID: "old", SourceID: "s", Title: "旧"}})); err != nil {
+		t.Fatalf("initial save error = %v", err)
+	}
+	// 模拟上一次写入被中途杀死后残留的临时文件。
+	tmpPath := path + ".tmp"
+	if err := os.WriteFile(tmpPath, []byte("partial"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := saveRSSState(path, snapshotRSSState([]Item{{ID: "new", SourceID: "s", Title: "新"}})); err != nil {
+		t.Fatalf("overwrite save error = %v", err)
+	}
+
+	// 原子写：成功提交后临时文件不应残留。
+	if _, err := os.Stat(tmpPath); !os.IsNotExist(err) {
+		t.Fatalf("stale temp file still present after atomic save: %v", err)
+	}
+	loaded, err := loadRSSState(path)
+	if err != nil {
+		t.Fatalf("load error = %v", err)
+	}
+	if len(loaded.Items) != 1 {
+		t.Fatalf("loaded %d items, want 1 (fresh state)", len(loaded.Items))
+	}
+}
+
 func TestMergeRSSStatePreservesFailedSourceOnly(t *testing.T) {
 	previous := snapshotRSSState([]Item{
 		{ID: "old-a", SourceID: "source-a", Title: "旧 A"},

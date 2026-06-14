@@ -6,17 +6,47 @@ import {
   navigationRequiredWidth,
 } from "./navigation-layout";
 
-const dailyTabSchema = z.object({
-  id: z.string().min(1),
+// 本 Zod schema 校验的是 Generated 数据契约（data-generate.json，Remotion 唯一读取的文件）。
+// 字段约束与 data.schema.json 对齐；Raw 数据（data.json）请用 bun run check-data-json 校验。
+// 下方 identifier/date/path 等基础约束与 JSON Schema 的 $defs 复用同一套规则。
+
+export const identifierSchema = z
+  .string()
+  .min(1)
+  .regex(/^[a-z0-9][a-z0-9-.]*$/, "identifier must match ^[a-z0-9][a-z0-9-.]*$");
+export const dateSchema = z
+  .string()
+  .regex(/^\d{4}-\d{2}-\d{2}$/, "date must be YYYY-MM-DD");
+export const imagePathSchema = z
+  .string()
+  .min(1)
+  .regex(
+    /^images\/.+\.(svg|png|jpe?g|webp)$/,
+    "image path must be images/<name>.<ext>",
+  );
+export const audioPathSchema = z
+  .string()
+  .min(1)
+  .regex(
+    /^audio\/.+\.(mp3|wav|m4a|aac|ogg)$/,
+    "audio path must be audio/<name>.<ext>",
+  );
+export const iconPathSchema = z
+  .string()
+  .min(1)
+  .regex(/^icons\/.+\.(svg|png)$/, "icon path must be icons/<name>.<ext>");
+
+export const dailyTabSchema = z.object({
+  id: identifierSchema,
   title: z.string().min(1),
   summary: z.string().min(1),
-  icon: z.string().min(1).optional(),
+  icon: iconPathSchema.optional(),
 });
 
-const dailySceneSchema = z.object({
-  id: z.string().min(1),
+export const dailySceneSchema = z.object({
+  id: identifierSchema,
   subtitle: z.string().min(1).max(96),
-  audioSrc: z.string().min(1).optional(),
+  audioSrc: audioPathSchema.optional(),
   tts: z
     .object({
       provider: z.literal("minimax"),
@@ -34,19 +64,19 @@ const dailySceneSchema = z.object({
     startMs: z.number().nonnegative(),
     durationMs: z.number().positive(),
   }),
-  overlayImg: z.string().min(1).optional(),
+  overlayImg: imagePathSchema.optional(),
 });
 
-const dailyStorySchema = z
+export const dailyStorySchema = z
   .object({
-    id: z.string().min(1),
+    id: identifierSchema,
     topTitle: z.string().min(1),
     bottomTitle: z.string().min(1),
     contentTitle: z.string().min(1).max(42),
     introTitle: z.string().min(1).optional(),
-    activeTab: z.string().min(1).optional(),
+    activeTab: identifierSchema.optional(),
     activeIntro: z.literal(true).optional(),
-    tabs: z.array(dailyTabSchema).min(1).max(6),
+    tabs: z.array(dailyTabSchema).min(2).max(6),
     scenes: z.array(dailySceneSchema).min(1),
   })
   .superRefine((story, context) => {
@@ -60,27 +90,27 @@ const dailyStorySchema = z
     }
   });
 
-const dailyOutroSchema = z.object({
+export const dailyOutroSchema = z.object({
   id: z.literal("outro"),
   topTitle: z.string().min(1),
   bottomTitle: z.string().min(1),
   scenes: z.array(dailySceneSchema).length(1),
 });
 
-const dailyIntroSchema = z.object({
+export const dailyIntroSchema = z.object({
   id: z.literal("intro"),
   topTitle: z.string().min(1),
   bottomTitle: z.string().min(1),
   contentTitle: z.string().min(1),
-  activeTab: z.string().min(1).optional(),
-  tabs: z.array(dailyTabSchema).min(1),
+  activeTab: identifierSchema.optional(),
+  tabs: z.array(dailyTabSchema).min(2),
   scenes: z.array(dailySceneSchema).length(1),
 });
 
-const dailyReportSchema = z
+export const dailyReportSchema = z
   .object({
     theme: z.enum(["light", "dark"]).default("light"),
-    date: z.string().min(1),
+    date: dateSchema,
     intro: dailyIntroSchema,
     stories: z.array(dailyStorySchema).min(1),
     outro: dailyOutroSchema,

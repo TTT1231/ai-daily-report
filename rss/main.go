@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"os"
 	"strings"
 	"time"
 )
@@ -10,17 +11,21 @@ import (
 // 加载配置 → 抓取并去重 → 模型评分 → 聚类合并 → 编排视频 Tabs → 打印并写出 data.json。
 // 任一 AI 步骤失败时都会降级为本地保底逻辑，尽量保证每次运行都能产出日报。
 func main() {
+	os.Exit(run())
+}
+
+func run() int {
 	config, err := loadConfig()
 	if err != nil {
 		fmt.Printf("失败：启动配置无效：%v\n", err)
 		fmt.Println("   请检查项目根目录 .env、rss/sources.jsonc 和 rss/preferences.jsonc。")
-		return
+		return 1
 	}
 
 	reportPath, err := defaultDataJSONPath()
 	if err != nil {
 		fmt.Printf("失败：无法确定 data.json 输出位置：%v\n", err)
-		return
+		return 1
 	}
 
 	printRunOverview(config, reportPath)
@@ -32,7 +37,7 @@ func main() {
 	}
 	if len(fetchFailures) == len(config.Sources) {
 		fmt.Println("失败：所有 RSS 来源均抓取失败。")
-		return
+		return 1
 	}
 	fmt.Printf("   完成：时间窗口内共 %d 条\n\n", len(fetchedItems))
 
@@ -40,16 +45,16 @@ func main() {
 	state, err := loadRSSState(config.StatePath)
 	if err != nil {
 		fmt.Printf("失败：无法读取上一次 RSS 快照：%v\n", err)
-		return
+		return 1
 	}
 	nextState := mergeRSSState(fetchedItems, state, fetchFailures)
 	if len(fetchedItems) == 0 {
 		if err := saveRSSState(config.StatePath, nextState); err != nil {
 			fmt.Printf("失败：无法保存本次 RSS 快照：%v\n", err)
-			return
+			return 1
 		}
 		fmt.Printf("提示：成功抓取的来源在最近 %s内没有内容，本次结束。\n", formatDuration(config.Lookback))
-		return
+		return 0
 	}
 	items := filterUnseenItems(fetchedItems, state)
 	fmt.Printf("   完成：新增 %d 条，重复 %d 条\n\n",
@@ -57,10 +62,10 @@ func main() {
 	if len(items) == 0 {
 		if err := saveRSSState(config.StatePath, nextState); err != nil {
 			fmt.Printf("失败：无法保存本次 RSS 快照：%v\n", err)
-			return
+			return 1
 		}
 		fmt.Println("提示：没有相对上一次抓取的新内容，无需生成 data.json。")
-		return
+		return 0
 	}
 
 	fmt.Printf("[3/6] AI 兴趣筛选（%s）\n", config.AI.Model)
@@ -72,10 +77,10 @@ func main() {
 	if len(scored) == 0 {
 		if err := saveRSSState(config.StatePath, nextState); err != nil {
 			fmt.Printf("失败：无法保存本次 RSS 快照：%v\n", err)
-			return
+			return 1
 		}
 		fmt.Println("提示：新内容中没有符合兴趣规则的新闻，本次结束。")
-		return
+		return 0
 	}
 	fmt.Printf("   完成：从 %d 条新增内容中保留 %d 条候选\n\n", len(items), len(scored))
 
@@ -100,16 +105,17 @@ func main() {
 	fmt.Println("\n[6/6] 生成 Remotion data.json")
 	if err := generateDataJSON(reportPath, groups, items); err != nil {
 		fmt.Printf("失败：data.json 生成失败：%v\n", err)
-		return
+		return 1
 	}
 	fmt.Printf("   完成：写入 %s\n", reportPath)
 	if err := saveRSSState(config.StatePath, nextState); err != nil {
 		fmt.Printf("失败：data.json 已生成，但无法保存本次 RSS 快照：%v\n", err)
-		return
+		return 1
 	}
 	fmt.Printf("   完成：本次完整 RSS 快照已保存至 %s\n", config.StatePath)
 	fmt.Printf("\n全部完成：抓取 %d 条，新增 %d 条，生成 %d 个新闻主题。\n",
 		len(fetchedItems), len(items), len(groups))
+	return 0
 }
 
 func printRunOverview(config AppConfig, reportPath string) {
