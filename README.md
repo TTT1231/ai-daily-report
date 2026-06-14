@@ -61,7 +61,7 @@
 | **手写维护**             | 你手动编辑 `data-scheme/data.json` | 想完全掌控内容，或自定义来源 |
 | **Agent 自动化（推荐）** | `bun run all` 自动抓取并生成       | 日常批量出片，一条命令搞定   |
 
-> [!TIP] 提示
+> [!TIP]
 > 本项目用 `minimax` 生成 TTS 旁白，用 `deepseek-v4-flash` 总结 RSS 抓取的内容，用 `claude -p` 识别远程图片并生成对应图标。
 >
 > 图片识别依赖 claude 的多模态能力或图片识别类 mcp。
@@ -70,7 +70,7 @@
 
 ### 方式一：Agent 自动化（推荐）
 
-> [!WARNING] 注意
+> [!WARNING]
 > **图片仍需手动插入（可选）**：`bun run all` 不会插图。执行后请到 `data-scheme/data.json` 给每个 Scene 填 `overlayImg: "images/xxx"`，并把图片放进 `data-scheme/images/`。仅替换图片不会重新请求旁白。图片是可选事实源，你可根据喜好自己添加。
 
 ```bash
@@ -88,7 +88,7 @@ bun run all
 bun run dev
 ```
 
-> [!WARNING] 注意
+> [!WARNING]
 > `rss/rss-state.json` 这里保存的是上一次命令的抓取的快照，如果有重复这里会进行剔除，但是会以这个临时文件进行参考。
 
 ### 方式二：手写维护（示例，不推荐）
