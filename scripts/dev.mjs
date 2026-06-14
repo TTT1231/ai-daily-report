@@ -92,8 +92,12 @@ function watchInputs() {
     watch(rootDir, (eventType, filename) => {
       if (eventType !== "change" && eventType !== "rename") return;
       const name = filename?.toString();
-      if (name === "data-schema.json") {
-        scheduleSync("data-schema.json 已变化");
+      if (
+        ["data.schema.json", "video-layout.json", "video-layout.schema.json"].includes(
+          name,
+        )
+      ) {
+        scheduleSync(`${name} 已变化`);
       } else if (name === ".env") {
         scheduleSync(".env 已变化，TTS 参数将重新加载");
       }
@@ -122,8 +126,10 @@ if (!existsSync(dataDir)) {
 }
 
 inputWatchers = watchInputs();
-console.log("👀 开发监听已启动：data.json、data-schema.json、.env 和图片素材。");
-console.log("   data.json / Schema / .env 变化会自动运行 TTS；图片变化不会触发 TTS。");
+console.log(
+  "👀 开发监听已启动：data.json、数据与布局 Schema、video-layout.json、.env 和图片素材。",
+);
+console.log("   数据 / Schema / 布局 / .env 变化会自动运行 TTS；图片变化不会触发 TTS。");
 if (existsSync(generatedDataPath)) {
   startStudio();
 }

@@ -18,6 +18,12 @@ import {
   type DailyScene,
   type DailyStory,
 } from "./daily-report-data";
+import {
+  getNavigationTypography,
+  navigationEdgeInset,
+  navigationItemGap,
+  navigationMinimumWidth,
+} from "./navigation-layout";
 import clickSound from "./sound/click-sound.mp3";
 
 // ── Palette & constants ──────────────────────────────────────────────────
@@ -117,9 +123,11 @@ const themes = {
 
 export type Theme = keyof typeof themes;
 
-const STORY_PAUSE_FRAMES = 2;
+const STORY_PAUSE_FRAMES = 0;
 const STORY_TRANSITION_FRAMES = 18;
 const IMAGE_TRANSITION_FRAMES = 16;
+const IMAGE_PRE_ROLL_FRAMES = 12;
+const IMAGE_POST_ROLL_FRAMES = 10;
 const IMAGE_FOCUS_SCALE = 1.08;
 const IMAGE_FOCUS_ZOOM_END = 0.42;
 const IMAGE_FOCUS_RETURN_START = 0.72;
@@ -216,6 +224,64 @@ const getSubtitleCue = (
   return cues[cues.length - 1];
 };
 
+const getOverlayAnimation = (
+  scene: DailyScene,
+  sceneFrame: number,
+  sceneDuration: number,
+) => {
+  if (!scene.overlayImg) {
+    return {
+      reveal: 0,
+      hide: 0,
+      opacity: 0,
+      revealStart: 0,
+      revealEnd: 0,
+    };
+  }
+
+  const lastSceneFrame = Math.max(1, sceneDuration - 1);
+  const revealStart = Math.min(
+    IMAGE_PRE_ROLL_FRAMES,
+    Math.max(
+      0,
+      lastSceneFrame -
+        IMAGE_TRANSITION_FRAMES * 2 -
+        IMAGE_POST_ROLL_FRAMES,
+    ),
+  );
+  const revealEnd = Math.min(
+    lastSceneFrame,
+    revealStart + IMAGE_TRANSITION_FRAMES,
+  );
+  const hideEnd = Math.max(
+    revealEnd,
+    lastSceneFrame - IMAGE_POST_ROLL_FRAMES,
+  );
+  const hideStart = Math.max(revealEnd, hideEnd - IMAGE_TRANSITION_FRAMES);
+  const reveal = interpolate(
+    sceneFrame,
+    [revealStart, revealEnd],
+    [0, 1],
+    {
+      easing: Easing.bezier(0.16, 1, 0.3, 1),
+      extrapolateLeft: "clamp",
+      extrapolateRight: "clamp",
+    },
+  );
+  const hide = interpolate(
+    sceneFrame,
+    [hideStart, hideEnd],
+    [1, 0],
+    {
+      easing: Easing.in(Easing.cubic),
+      extrapolateLeft: "clamp",
+      extrapolateRight: "clamp",
+    },
+  );
+
+  return {reveal, hide, opacity: reveal * hide, revealStart, revealEnd};
+};
+
 // ── Unified timeline (single source of truth for all frame positions) ───
 //
 // Every consumer (duration, audio placement, visual state, click sounds)
@@ -291,6 +357,7 @@ const getTimelineState = (frame: number, timeline: Timeline) => {
         sceneFrame: frame - ts.startFrame,
         sceneDuration: ts.durationFrames,
         storyFrame: frame - storyStarts[ts.storyIndex],
+        storyExit: 1,
       };
     }
 
@@ -301,6 +368,8 @@ const getTimelineState = (frame: number, timeline: Timeline) => {
       ts.storyIndex !== next.storyIndex &&
       frame < next.startFrame
     ) {
+      const transitionDuration = next.startFrame - endFrame;
+      const transitionFrame = frame - endFrame;
       return {
         story: ts.story,
         scene: ts.scene,
@@ -309,6 +378,16 @@ const getTimelineState = (frame: number, timeline: Timeline) => {
         sceneFrame: ts.durationFrames - 1,
         sceneDuration: ts.durationFrames,
         storyFrame: endFrame - storyStarts[ts.storyIndex] - 1,
+        storyExit: interpolate(
+          transitionFrame,
+          [0, Math.max(1, transitionDuration - 1)],
+          [1, 0],
+          {
+            easing: Easing.inOut(Easing.cubic),
+            extrapolateLeft: "clamp",
+            extrapolateRight: "clamp",
+          },
+        ),
       };
     }
   }
@@ -324,6 +403,7 @@ const getTimelineState = (frame: number, timeline: Timeline) => {
     sceneFrame: last.durationFrames - 1,
     sceneDuration: last.durationFrames,
     storyFrame: lastEnd - storyStarts[last.storyIndex] - 1,
+    storyExit: 1,
   };
 };
 
@@ -436,34 +516,21 @@ const TabIcon: React.FC<{
   />
 );
 
-const navigationMinimumWidth = (
-  label: string,
-  fontSize: number,
-  horizontalPadding: number,
-) => {
-  const labelWidthUnits = [...label].reduce(
-    (total, character) =>
-      total + ((character.codePointAt(0) ?? 0) <= 0xff ? 0.62 : 1),
-    0,
-  );
-  return Math.ceil(
-    Math.max(64, labelWidthUnits * fontSize + horizontalPadding * 2 + 18),
-  );
-};
-
 const Navigation: React.FC<{
   items: { label: string; duration: number; active: boolean }[];
   theme: Theme;
 }> = ({ items, theme }) => {
   const palette = themes[theme];
-  const fontSize = items.length >= 12 ? 17 : items.length >= 9 ? 19 : items.length >= 7 ? 21 : 24;
-  const horizontalPadding = items.length >= 9 ? 6 : 10;
+  const {fontSize, horizontalPadding} = getNavigationTypography(items.length);
   return (
   <div
     style={{
       display: "flex",
       height: "100%",
       alignItems: "stretch",
+      gap: navigationItemGap,
+      padding: `0 ${navigationEdgeInset}px`,
+      boxSizing: "border-box",
       background: palette.nav,
       borderTop: `1px solid ${palette.border}`,
       borderBottom: `1px solid ${palette.border}`,
@@ -471,11 +538,7 @@ const Navigation: React.FC<{
   >
     {items.map((item, index) => {
       // Reserve readable label width first, then distribute remaining width by duration.
-      const minimumWidth = navigationMinimumWidth(
-        item.label,
-        fontSize,
-        horizontalPadding,
-      );
+      const minimumWidth = navigationMinimumWidth(item.label, items.length);
       return (
         <div
           key={`${item.label}-${index}`}
@@ -488,8 +551,11 @@ const Navigation: React.FC<{
             alignItems: "center",
             justifyContent: "center",
             color: item.active ? palette.text : palette.muted,
-            borderLeft:
-              index === 0 ? "none" : `1px solid ${palette.border}`,
+            borderLeft: `1px solid ${palette.border}`,
+            borderRight:
+              index === items.length - 1
+                ? `1px solid ${palette.border}`
+                : "none",
             borderBottom: `4px solid ${item.active ? palette.blue : "transparent"}`,
             background: item.active
               ? palette.navActive
@@ -514,9 +580,9 @@ const Navigation: React.FC<{
 
 const Tabs: React.FC<{
   story: DailyStory;
-  scene: DailyScene;
   theme: Theme;
-}> = ({ story, scene, theme }) => {
+  overlayVisibility: number;
+}> = ({ story, theme, overlayVisibility }) => {
   const palette = themes[theme];
   const tabCount = story.tabs.length;
   const hasActiveTab = story.activeTab !== undefined;
@@ -565,6 +631,24 @@ const Tabs: React.FC<{
       : isDenseLayout
         ? 1.38
         : 1.42;
+  const backgroundOpacity = interpolate(
+    overlayVisibility,
+    [0, 1],
+    [1, 0.24],
+    {
+      extrapolateLeft: "clamp",
+      extrapolateRight: "clamp",
+    },
+  );
+  const backgroundSaturation = interpolate(
+    overlayVisibility,
+    [0, 1],
+    [1, 0.72],
+    {
+      extrapolateLeft: "clamp",
+      extrapolateRight: "clamp",
+    },
+  );
   return (
     <div
       style={{
@@ -576,8 +660,8 @@ const Tabs: React.FC<{
           : `repeat(${columns}, minmax(0, 1fr))`,
         gridTemplateRows: `repeat(${rows}, minmax(0, 1fr))`,
         gap,
-        opacity: scene.overlayImg ? 0.24 : 1,
-        filter: scene.overlayImg ? "saturate(.72)" : "none",
+        opacity: backgroundOpacity,
+        filter: `saturate(${backgroundSaturation})`,
         transform: isTwoCardLayout
           ? "translateY(-8px)"
           : isSingleRow
@@ -889,7 +973,11 @@ export const TabLayoutPreview: React.FC<TabLayoutPreviewProps> = ({
             margin: "0 42px",
           }}
         >
-          <Tabs story={story} scene={scene} theme={theme} />
+          <Tabs
+            story={story}
+            theme={theme}
+            overlayVisibility={0}
+          />
         </div>
         <div
           style={{
@@ -927,29 +1015,18 @@ const SourceOverlay: React.FC<{
   if (!scene.overlayImg) return null;
   const palette = themes[theme];
 
-  const reveal = interpolate(sceneFrame, [0, IMAGE_TRANSITION_FRAMES], [0, 1], {
-    easing: Easing.bezier(0.16, 1, 0.3, 1),
-    extrapolateLeft: "clamp",
-    extrapolateRight: "clamp",
-  });
-  const hide = interpolate(
+  const {reveal, hide, opacity, revealStart, revealEnd} = getOverlayAnimation(
+    scene,
     sceneFrame,
-    [sceneDuration - IMAGE_TRANSITION_FRAMES, sceneDuration],
-    [1, 0],
-    {
-      easing: Easing.in(Easing.cubic),
-      extrapolateLeft: "clamp",
-      extrapolateRight: "clamp",
-    },
+    sceneDuration,
   );
-  const opacity = reveal * hide;
   const exitProgress = 1 - hide;
   const translateY = (1 - reveal) * 18 - exitProgress * 14;
   const scale = interpolate(
     sceneFrame,
     [
-      0,
-      IMAGE_TRANSITION_FRAMES,
+      revealStart,
+      revealEnd,
       sceneDuration * IMAGE_FOCUS_ZOOM_END,
       sceneDuration * IMAGE_FOCUS_RETURN_START,
       sceneDuration * IMAGE_FOCUS_RETURN_END,
@@ -1010,6 +1087,7 @@ export const AiDailyReport: React.FC<AiDailyReportProps> = ({
     sceneDuration,
     storyFrame,
     storyIndex,
+    storyExit,
   } = state;
   const displayStory: DailyStory | null = isOutro(story)
     ? dailyReport.stories[dailyReport.stories.length - 1]
@@ -1041,6 +1119,12 @@ export const AiDailyReport: React.FC<AiDailyReportProps> = ({
     extrapolateRight: "clamp",
   });
   const subtitleCue = getSubtitleCue(scene, sceneFrame, sceneDuration);
+  const overlayVisibility = getOverlayAnimation(
+    scene,
+    sceneFrame,
+    sceneDuration,
+  ).opacity;
+  const storyVisibility = storyPause * storyExit;
 
   const timelineStories = [
     dailyReport.intro,
@@ -1141,7 +1225,7 @@ export const AiDailyReport: React.FC<AiDailyReportProps> = ({
                   justifyContent: "center",
                   padding: "0 112px",
                   textAlign: "center",
-                  opacity: storyPause,
+                  opacity: storyVisibility,
                 }}
               >
                 <div
@@ -1167,7 +1251,7 @@ export const AiDailyReport: React.FC<AiDailyReportProps> = ({
                   display: "flex",
                   alignItems: "flex-start",
                   justifyContent: "center",
-                  opacity: storyPause,
+                  opacity: storyVisibility,
                 }}
               >
                 <IntroOverview
@@ -1193,8 +1277,8 @@ export const AiDailyReport: React.FC<AiDailyReportProps> = ({
                   justifyContent: "center",
                   padding: "0 112px",
                   textAlign: "center",
-                  opacity: storyPause,
-                  transform: `translateY(${(1 - storyPause) * 8}px)`,
+                  opacity: storyVisibility,
+                  transform: `translateY(${(1 - storyVisibility) * 8}px)`,
                 }}
               >
                 <div
@@ -1224,14 +1308,14 @@ export const AiDailyReport: React.FC<AiDailyReportProps> = ({
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "center",
-                  opacity: storyPause,
+                  opacity: storyVisibility,
                 }}
               >
                 {displayStory && displayScene ? (
                   <Tabs
                     story={displayStory}
-                    scene={displayScene}
                     theme={theme}
+                    overlayVisibility={overlayVisibility}
                   />
                 ) : null}
               </div>
@@ -1246,7 +1330,7 @@ export const AiDailyReport: React.FC<AiDailyReportProps> = ({
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
-              opacity: storyPause,
+              opacity: storyVisibility,
             }}
           >
             <SourceOverlay
@@ -1278,7 +1362,7 @@ export const AiDailyReport: React.FC<AiDailyReportProps> = ({
               lineHeight: 1.25,
               fontWeight: 620,
               whiteSpace: "nowrap",
-              opacity: sceneEnter * storyPause,
+              opacity: sceneEnter * storyVisibility,
               transform: `translateX(-50%) translateY(${(1 - sceneEnter) * 10}px)`,
             }}
           >

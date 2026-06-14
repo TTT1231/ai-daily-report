@@ -1,0 +1,101 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "./video-layout.schema.json",
+  "title": "AI Daily Report Video Layout",
+  "description": "项目级固定视频布局配置。它由人工维护，供 RSS 容量计算、数据校验和 Remotion 渲染共同读取，不会随单次日报生成而自动变化。",
+  "type": "object",
+  "required": ["$schema", "width", "height", "navigation"],
+  "additionalProperties": false,
+  "properties": {
+    "$schema": {
+      "const": "./video-layout.schema.json",
+      "description": "供编辑器识别本文件对应的 JSON Schema，并提供字段说明与校验。"
+    },
+    "width": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "视频画布宽度，单位为像素。Remotion Composition 和导航容量计算共用此值。"
+    },
+    "height": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "视频画布高度，单位为像素。Remotion Composition 使用此值。"
+    },
+    "navigation": {
+      "$ref": "#/$defs/navigation",
+      "description": "顶部栏目导航与底部 Story 导航共用的宽度估算及响应式字号配置。"
+    }
+  },
+  "$defs": {
+    "navigation": {
+      "type": "object",
+      "required": [
+        "minimumItemWidth",
+        "edgeInset",
+        "itemGap",
+        "asciiWidthFactor",
+        "itemChromeWidth",
+        "layouts"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "minimumItemWidth": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "description": "每个导航标签的最小展示宽度，单位为像素。即使文字较短，标签也不会窄于此值。"
+        },
+        "edgeInset": {
+          "type": "number",
+          "minimum": 0,
+          "description": "整条导航左右两侧各自保留的空白，单位为像素。"
+        },
+        "itemGap": {
+          "type": "number",
+          "minimum": 0,
+          "description": "相邻导航标签之间的间距，单位为像素。"
+        },
+        "asciiWidthFactor": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "maximum": 1,
+          "description": "ASCII 字符相对中文全角字符的估算宽度比例，用于在渲染前计算英文和数字标签宽度。"
+        },
+        "itemChromeWidth": {
+          "type": "number",
+          "minimum": 0,
+          "description": "除文字和水平内边距外，标签边框、装饰等占用的额外宽度，单位为像素。"
+        },
+        "layouts": {
+          "type": "array",
+          "minItems": 1,
+          "description": "按 minItems 从大到小排列的响应式导航样式。系统使用第一个满足“当前标签数量大于等于 minItems”的配置；最后一项必须使用 minItems: 0 作为兜底。",
+          "items": {
+            "$ref": "#/$defs/navigationLayout"
+          }
+        }
+      }
+    },
+    "navigationLayout": {
+      "type": "object",
+      "required": ["minItems", "fontSize", "horizontalPadding"],
+      "additionalProperties": false,
+      "properties": {
+        "minItems": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "启用此样式所需的最少导航标签数量。layouts 必须按该值从大到小排列。"
+        },
+        "fontSize": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "description": "导航标签字号，单位为像素。"
+        },
+        "horizontalPadding": {
+          "type": "number",
+          "minimum": 0,
+          "description": "导航标签左右两侧各自的内边距，单位为像素。"
+        }
+      }
+    }
+  }
+}

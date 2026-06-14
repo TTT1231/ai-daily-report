@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "./data-schema.json",
+  "$id": "./data.schema.json",
   "title": "AI Daily Report Data Package",
   "description": "AI 日报 raw 内容与 TTS 派生渲染数据共用格式。data.json 由人维护，data-generate.json 由 TTS 生成。",
   "type": "object",
@@ -62,15 +62,13 @@
         },
         "topTitle": {
           "type": "string",
-          "minLength": 3,
-          "maxLength": 5,
-          "description": "顶部时间线栏目标签，必须为 3 至 5 个字符。相邻同名标签会合并；排除 Intro/Outro 后，bottomTitle 数量减去顶部相邻分段数不得超过 2。"
+          "minLength": 1,
+          "description": "顶部时间线栏目标签。相邻同名标签会合并，整条顶部导航的总展示宽度不得超过视频宽度；排除 Intro/Outro 后，bottomTitle 数量减去顶部相邻分段数不得超过 2。"
         },
         "bottomTitle": {
           "type": "string",
-          "minLength": 3,
-          "maxLength": 5,
-          "description": "底部 Story 时间线短标签，必须为 3 至 5 个字符，只保留主体与事件。"
+          "minLength": 1,
+          "description": "底部 Story 时间线短标签，只保留主体与事件。单项没有固定字符上限，整条底部导航的总展示宽度不得超过视频宽度。"
         },
         "contentTitle": {
           "type": "string",

@@ -1,6 +1,65 @@
 import {existsSync} from "node:fs";
-import {copyFile, mkdir, rename, rm, writeFile} from "node:fs/promises";
+import {copyFile, mkdir, open, rename, rm, stat, writeFile} from "node:fs/promises";
 import {resolve} from "node:path";
+import {setTimeout as sleep} from "node:timers/promises";
+
+const LOCK_POLL_INTERVAL_MS = 250;
+const LOCK_TIMEOUT_MS = 10 * 60 * 1000;
+const STALE_LOCK_MS = 30 * 60 * 1000;
+const RENAME_RETRY_ATTEMPTS = 10;
+const RENAME_RETRY_DELAY_MS = 100;
+
+async function renameWithRetry(source, destination) {
+  for (let attempt = 0; ; attempt++) {
+    try {
+      await rename(source, destination);
+      return;
+    } catch (error) {
+      const retryable = ["EACCES", "EBUSY", "EPERM"].includes(error.code);
+      if (!retryable || attempt >= RENAME_RETRY_ATTEMPTS - 1) {
+        throw error;
+      }
+      await sleep(RENAME_RETRY_DELAY_MS * (attempt + 1));
+    }
+  }
+}
+
+async function acquireTransactionLock(lockPath) {
+  const startedAt = Date.now();
+
+  for (;;) {
+    try {
+      const handle = await open(lockPath, "wx");
+      await handle.writeFile(
+        `${JSON.stringify({pid: process.pid, createdAt: new Date().toISOString()})}\n`,
+      );
+      let released = false;
+
+      return async () => {
+        if (released) return;
+        released = true;
+        await handle.close();
+        await rm(lockPath, {force: true});
+      };
+    } catch (error) {
+      if (error.code !== "EEXIST") throw error;
+
+      const lockAgeMs = await stat(lockPath)
+        .then((lockStat) => Date.now() - lockStat.mtimeMs)
+        .catch(() => 0);
+      if (lockAgeMs >= STALE_LOCK_MS) {
+        await rm(lockPath, {force: true});
+        continue;
+      }
+      if (Date.now() - startedAt >= LOCK_TIMEOUT_MS) {
+        throw new Error(
+          `Timed out waiting for another TTS process to release ${lockPath}.`,
+        );
+      }
+      await sleep(LOCK_POLL_INTERVAL_MS);
+    }
+  }
+}
 
 export async function createGeneratedOutputTransaction(dataDir) {
   const audioDir = resolve(dataDir, "audio");
@@ -8,19 +67,26 @@ export async function createGeneratedOutputTransaction(dataDir) {
   const backupAudioDir = resolve(dataDir, ".audio-backup");
   const generatedPath = resolve(dataDir, "data-generate.json");
   const stagedGeneratedPath = resolve(dataDir, ".data-generate.json.staging");
+  const lockPath = resolve(dataDir, ".tts.lock");
+  const releaseLock = await acquireTransactionLock(lockPath);
 
-  if (existsSync(backupAudioDir) && existsSync(stagedGeneratedPath)) {
-    await rm(audioDir, {recursive: true, force: true});
-    await rename(backupAudioDir, audioDir);
-  } else if (existsSync(backupAudioDir) && !existsSync(audioDir)) {
-    await rename(backupAudioDir, audioDir);
+  try {
+    if (existsSync(backupAudioDir) && existsSync(stagedGeneratedPath)) {
+      await rm(audioDir, {recursive: true, force: true});
+      await renameWithRetry(backupAudioDir, audioDir);
+    } else if (existsSync(backupAudioDir) && !existsSync(audioDir)) {
+      await renameWithRetry(backupAudioDir, audioDir);
+    }
+    await rm(stagedAudioDir, {recursive: true, force: true});
+    if (existsSync(backupAudioDir) && existsSync(audioDir)) {
+      await rm(backupAudioDir, {recursive: true, force: true});
+    }
+    await rm(stagedGeneratedPath, {force: true});
+    await mkdir(stagedAudioDir, {recursive: true});
+  } catch (error) {
+    await releaseLock();
+    throw error;
   }
-  await rm(stagedAudioDir, {recursive: true, force: true});
-  if (existsSync(backupAudioDir) && existsSync(audioDir)) {
-    await rm(backupAudioDir, {recursive: true, force: true});
-  }
-  await rm(stagedGeneratedPath, {force: true});
-  await mkdir(stagedAudioDir, {recursive: true});
 
   return {
     existingAudioPath(sceneId) {
@@ -39,26 +105,34 @@ export async function createGeneratedOutputTransaction(dataDir) {
       await writeFile(stagedGeneratedPath, `${JSON.stringify(report, null, 2)}\n`);
     },
     async commit() {
-      let backedUpAudio = false;
-      let installedAudio = false;
       try {
-        if (existsSync(audioDir)) {
-          await rename(audioDir, backupAudioDir);
-          backedUpAudio = true;
+        let backedUpAudio = false;
+        let installedAudio = false;
+        try {
+          if (existsSync(audioDir)) {
+            await renameWithRetry(audioDir, backupAudioDir);
+            backedUpAudio = true;
+          }
+          await renameWithRetry(stagedAudioDir, audioDir);
+          installedAudio = true;
+          await renameWithRetry(stagedGeneratedPath, generatedPath);
+        } catch (error) {
+          if (installedAudio) await rm(audioDir, {recursive: true, force: true});
+          if (backedUpAudio) await renameWithRetry(backupAudioDir, audioDir);
+          throw error;
         }
-        await rename(stagedAudioDir, audioDir);
-        installedAudio = true;
-        await rename(stagedGeneratedPath, generatedPath);
-      } catch (error) {
-        if (installedAudio) await rm(audioDir, {recursive: true, force: true});
-        if (backedUpAudio) await rename(backupAudioDir, audioDir);
-        throw error;
+        await rm(backupAudioDir, {recursive: true, force: true}).catch(() => {});
+      } finally {
+        await releaseLock();
       }
-      await rm(backupAudioDir, {recursive: true, force: true}).catch(() => {});
     },
     async abort() {
-      await rm(stagedAudioDir, {recursive: true, force: true});
-      await rm(stagedGeneratedPath, {force: true});
+      try {
+        await rm(stagedAudioDir, {recursive: true, force: true});
+        await rm(stagedGeneratedPath, {force: true});
+      } finally {
+        await releaseLock();
+      }
     },
   };
 }

@@ -1,6 +1,10 @@
 import {createHash} from "node:crypto";
 import {existsSync} from "node:fs";
 import {resolve} from "node:path";
+import {
+  formatAudioQualityIssues,
+  inspectAudioQuality,
+} from "./lib/audio-quality.mjs";
 import {buildGeneratedReport, collectTimelineScenes} from "./lib/report-builder.mjs";
 import {createGeneratedOutputTransaction} from "./lib/generated-output.mjs";
 import {createMinimaxClient} from "./lib/minimax-tts.mjs";
@@ -28,6 +32,8 @@ const config = {
   requestIntervalMs: readIntegerEnv("MINIMAX_TTS_REQUEST_INTERVAL_MS", 2200, 0),
   maxRetries: readIntegerEnv("MINIMAX_TTS_MAX_RETRIES", 5, 0),
   rateLimitRetryMs: readIntegerEnv("MINIMAX_TTS_RATE_LIMIT_RETRY_MS", 60000, 1000),
+  qualityCheckEnabled: readBooleanEnv("TTS_QUALITY_CHECK_ENABLED", true),
+  qualityMaxRetries: readIntegerEnv("TTS_QUALITY_MAX_RETRIES", 2, 0),
 };
 
 function readNumberEnv(name, fallback, min, max) {
@@ -48,6 +54,14 @@ function readIntegerEnv(name, fallback, min) {
     throw new Error(`${name} must be an integer greater than or equal to ${min}.`);
   }
   return value;
+}
+
+function readBooleanEnv(name, fallback) {
+  const raw = process.env[name];
+  if (raw === undefined) return fallback;
+  if (raw === "true") return true;
+  if (raw === "false") return false;
+  throw new Error(`${name} must be either true or false.`);
 }
 
 function getSceneHash(text) {
@@ -89,6 +103,9 @@ if (!dryRun && !apiKey) {
   process.exit(1);
 }
 
+const transaction = dryRun
+  ? null
+  : await createGeneratedOutputTransaction(dataDir);
 let rawReport;
 let previousReport = null;
 try {
@@ -100,6 +117,7 @@ try {
     );
   }
 } catch (error) {
+  await transaction?.abort();
   console.error(error.message);
   process.exit(1);
 }
@@ -109,6 +127,7 @@ const rawValidation = validateReport(rawReport, {
   checkAssets: false,
 });
 if (rawValidation.errors.length > 0) {
+  await transaction?.abort();
   throw new Error(`Raw report is invalid:\n- ${rawValidation.errors.join("\n- ")}`);
 }
 
@@ -116,9 +135,6 @@ const report = buildGeneratedReport(rawReport, previousReport);
 const scenes = collectTimelineScenes(report);
 const cachedScenes = createSceneCache(previousReport);
 const synthesize = createMinimaxClient({...config, apiKey});
-const transaction = dryRun
-  ? null
-  : await createGeneratedOutputTransaction(dataDir);
 
 console.log(
   `${dryRun ? "Planning" : "Generating"} ${scenes.length} scene voiceover(s) with ${config.model} / ${config.voiceId}.`,
@@ -127,6 +143,31 @@ if (!dryRun) {
   console.log(
     `MiniMax pacing: ${config.requestIntervalMs}ms between requests, up to ${config.maxRetries} retries.`,
   );
+}
+
+async function getAudioQualityIssues(input) {
+  if (!config.qualityCheckEnabled) return [];
+  return (await inspectAudioQuality(input)).issues;
+}
+
+async function synthesizeChecked(scene) {
+  for (let attempt = 0; ; attempt++) {
+    const result = await synthesize(scene.subtitle);
+    const issues = await getAudioQualityIssues(result.audio);
+    if (issues.length === 0) {
+      return result;
+    }
+
+    const summary = formatAudioQualityIssues(issues);
+    if (attempt >= config.qualityMaxRetries) {
+      throw new Error(
+        `${scene.id}: generated audio failed quality checks after ${attempt + 1} attempt(s): ${summary}`,
+      );
+    }
+    console.warn(
+      `- ${scene.id}: generated audio contains ${summary}; retrying (${attempt + 1}/${config.qualityMaxRetries})`,
+    );
+  }
 }
 
 let cursorMs = 0;
@@ -140,7 +181,16 @@ try {
     const existingAudioPath = dryRun
       ? resolve(dataDir, "audio", `${scene.id}.mp3`)
       : transaction.existingAudioPath(scene.id);
-    const reusable = isReusable(scene, cachedScene, hash, existingAudioPath);
+    let reusable = isReusable(scene, cachedScene, hash, existingAudioPath);
+    if (reusable) {
+      const issues = await getAudioQualityIssues(existingAudioPath);
+      if (issues.length > 0) {
+        reusable = false;
+        console.warn(
+          `- ${scene.id}: cached audio contains ${formatAudioQualityIssues(issues)}; regenerating`,
+        );
+      }
+    }
 
     if (dryRun) {
       console.log(
@@ -156,7 +206,7 @@ try {
       reused++;
       console.log(`- ${scene.id}: reused ${audioLengthMs}ms`);
     } else {
-      const result = await synthesize(scene.subtitle);
+      const result = await synthesizeChecked(scene);
       audioLengthMs = result.audioLengthMs;
       await transaction.stageGeneratedAudio(scene.id, result.audio);
       generated++;

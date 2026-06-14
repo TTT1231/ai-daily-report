@@ -64,7 +64,7 @@ func generateDataJSON(path string, groups []NewsGroup, items []Item) error {
 
 	now := time.Now()
 	report := DataJSON{
-		Schema: "../data-schema.json",
+		Schema: "../data.schema.json",
 		Theme:  reportTheme(now),
 		Date:   now.Format("2006-01-02"),
 	}
@@ -77,7 +77,7 @@ func generateDataJSON(path string, groups []NewsGroup, items []Item) error {
 		storyID := uniqueStoryID(storyID(group, items), usedIDs)
 		story := DataJSONStory{
 			ID:           storyID,
-			TopTitle:     truncateRunes(storyCategory(group), maxTopTitleRunes),
+			TopTitle:     storyCategory(group),
 			BottomTitle:  navigationTitle(group),
 			ContentTitle: truncateRunes(group.Title, maxContentTitleRunes),
 			IntroTitle:   strings.TrimSpace(group.Title),
@@ -98,6 +98,11 @@ func generateDataJSON(path string, groups []NewsGroup, items []Item) error {
 		story.ActiveTab = preferredActiveTab(story.Tabs)
 		report.Stories = append(report.Stories, story)
 	}
+	layout, err := loadNavigationLayout()
+	if err != nil {
+		return fmt.Errorf("加载导航布局失败: %w", err)
+	}
+	fitNavigationLabels(report.Stories, layout)
 	topSegments := topTitleSegmentCount(report.Stories)
 	if len(report.Stories)-topSegments > maxTopBottomSegmentGap {
 		return fmt.Errorf(
@@ -242,9 +247,10 @@ func storyCategory(group NewsGroup) string {
 	}
 }
 
-// navigationTitle 生成底部时间线用的 3-5 字短标题：优先校验模型给出的，否则按品牌/事件关键词推断，再退到截断标题。
+// navigationTitle 生成底部时间线短标题：优先校验模型给出的，否则按品牌/事件关键词推断，再退到截断标题。
 func navigationTitle(group NewsGroup) string {
-	if title := cleanNavigationTitle(group.NavigationTitle); title != "" {
+	if title := cleanNavigationTitle(group.NavigationTitle); title != "" &&
+		normalizeTitle(title) != normalizeTitle(group.Title) {
 		return title
 	}
 
@@ -271,7 +277,7 @@ func navigationTitle(group NewsGroup) string {
 	case containsAny(lower, "claude", "anthropic") && containsAny(lower, "封号", "被封", "账号"):
 		return "克劳德封号"
 	case containsAny(lower, "claude", "anthropic"):
-		return "克劳德动态"
+		return "Claude"
 	case containsAny(lower, "deepseek", "深度求索"):
 		return "深度求索"
 	case containsAny(lower, "qwen", "qween", "通义千问"):
@@ -282,7 +288,7 @@ func navigationTitle(group NewsGroup) string {
 		return "GPT动态"
 	}
 
-	title := truncateRunes(strings.TrimSpace(group.Title), maxBottomTitleRunes)
+	title := strings.TrimSpace(group.Title)
 	if valid := cleanNavigationTitle(title); valid != "" {
 		return valid
 	}
@@ -290,11 +296,10 @@ func navigationTitle(group NewsGroup) string {
 	return "AI动态"
 }
 
-// validNavigationTitle 校验短标题长度是否在允许区间，合格返回原值，否则返回空串表示不可用。
+// validNavigationTitle 只校验短标题非空；最终长度由整条导航的动态容量统一适配。
 func validNavigationTitle(title string) string {
 	title = strings.TrimSpace(title)
-	length := len([]rune(title))
-	if length < minNavigationTitleRunes || length > maxBottomTitleRunes {
+	if title == "" {
 		return ""
 	}
 	return title

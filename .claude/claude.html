@@ -419,7 +419,7 @@
             <div>
               <strong>配置 AI Key + Claude CLI</strong
               ><span
-                ><code>.env</code> 的 <code>AI_API_KEY</code> 喂给 rss 分析模型；generate-svg 步骤会执行 <code>claude --dangerously-skip-permissions -p "/generate-svg"</code> 生成 Tabs 图标，需先装好 Claude CLI。</span
+                ><code>.env</code> 的 <code>AI_API_KEY</code> 喂给 rss 分析模型；generate-svg 步骤会执行 <code>claude --dangerously-skip-permissions -p --no-thinking "/generate-svg"</code>（<code>--no-thinking</code> 关闭扩展思考以加速图标生成）生成 Tabs 图标，需先装好 Claude CLI。</span
               >
             </div>
           </article>
@@ -434,7 +434,7 @@
 
         <div class="help-strip">
           <strong>👁️ 图片识别（按需）：</strong>
-          <span>当某个 Story 评分 ≥9、正文较短且含远程图片时，<code>rss</code> 会调用 <code>claude --dangerously-skip-permissions -p</code> 识别图片内容，补充事实后再进入下一步解析</span>
+          <span>当某个 Story 评分 ≥9、正文较短且含远程图片时，<code>rss</code> 会调用 <code>claude --dangerously-skip-permissions -p --no-thinking</code> 识别图片内容（识别图片无需扩展思考，关闭以加速），补充事实后再进入下一步解析</span>
           <span>⚠ 因此 <strong>Claude CLI 的模型必须支持多模态</strong>，并<strong>配置图像分析 MCP</strong>，否则图片识别步骤会失败（可接受，会降级为纯文本继续，但拿不到图片里的信息）</span>
         </div>
 
@@ -646,7 +646,9 @@
 <span class="folder">│   ├── icons/</span>                          <span class="comment"># Tabs 图标素材（可选，由 generate-svg 技能产出）</span>
 <span class="folder">│   └── audio/</span>                          <span class="comment"># TTS 生成的音频</span>
 <span class="folder">├── data-scheme-sample/</span>                 <span class="comment"># 最小可运行示例数据，首次使用可复制为 data-scheme/</span>
-<span class="folder">├── data-schema.json</span>                    <span class="comment"># Raw + Generated 共用的 JSON Schema（data.json 的 $schema）</span>
+<span class="folder">├── data.schema.json</span>                    <span class="comment"># Raw + Generated 共用的 JSON Schema（data.json 的 $schema）</span>
+<span class="folder">├── video-layout.json</span>                   <span class="comment"># 人工维护的项目级固定布局配置，不随每次日报或视频生成变化</span>
+<span class="folder">├── video-layout.schema.json</span>            <span class="comment"># video-layout.json 的字段说明、取值范围与编辑器提示</span>
 <span class="folder">├── scripts/</span>
 <span class="folder">│   ├── check-data-json.mjs</span>             <span class="comment"># 数据校验脚本（Raw 内容 / Generated 渲染就绪）</span>
 <span class="folder">│   ├── generate-tts.mjs</span>                <span class="comment"># TTS 编排入口：组织构建、合成、校验和提交</span>
@@ -900,11 +902,22 @@
               <div class="rule-indicator do"></div>
               <div class="rule-content">
                 <div class="rule-text">
-                  data-schema.json 同时描述 Raw 与 Generated 格式
+                  data.schema.json 同时描述 Raw 与 Generated 格式
                 </div>
                 <div class="rule-code">
                   机器字段在 Schema 中可选，但 check-data-json:render
                   会在渲染前强制要求这些字段存在
+                </div>
+              </div>
+            </div>
+            <div class="rule-item">
+              <div class="rule-indicator do"></div>
+              <div class="rule-content">
+                <div class="rule-text">
+                  video-layout.json 是人工维护的项目级固定布局配置
+                </div>
+                <div class="rule-code">
+                  它统一控制视频分辨率与导航容量规则；rss、tts、all、预览和渲染都不会自动修改它。字段含义由 video-layout.schema.json 描述，并由 check-data-json 校验
                 </div>
               </div>
             </div>

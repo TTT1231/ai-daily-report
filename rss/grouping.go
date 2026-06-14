@@ -9,6 +9,7 @@ import (
 
 // groupSimilarNews 让模型把候选新闻聚类去重，整理成最多 maxGroups 个适合视频展示的 Story（含要点与来源序号）。
 func groupSimilarNews(ai AIConfig, scored []ScoredItem, items []Item) ([]NewsGroup, error) {
+	groupLimit := maxStoryGroupsForNavigation()
 	var candidates []string
 	for _, item := range scored {
 		keywordNote := ""
@@ -28,7 +29,7 @@ func groupSimilarNews(ai AIConfig, scored []ScoredItem, items []Item) ([]NewsGro
 [
   {
     "title": "合并后的 Story 标题",
-    "navigation_title": "3至5字的时间线短标题",
+    "navigation_title": "简洁的时间线短标题",
     "score": 1-10,
     "reason": "为什么值得关注",
     "source_indexes": [归入本 Story 的所有候选序号],
@@ -39,7 +40,7 @@ func groupSimilarNews(ai AIConfig, scored []ScoredItem, items []Item) ([]NewsGro
 ]
 
 候选新闻：
-%s`, len(scored), maxGroups, maxGroupHighlights, strings.Join(candidates, "\n"))
+%s`, len(scored), groupLimit, maxGroupHighlights, strings.Join(candidates, "\n"))
 
 	content, err := requestModel(ai, []ChatMessage{
 		{Role: "system", Content: newsGroupingSystemPrompt},
@@ -119,7 +120,7 @@ func normalizeGroups(groups []NewsGroup, scored []ScoredItem, items []Item) []Ne
 		}
 		group.SourceIndexes = validSources
 		group.Highlights = validHighlights
-		// 在聚类阶段就清洗 navigation_title：长度越界或内容空洞的清空，
+		// 在聚类阶段就清洗 navigation_title：内容过短或空洞的清空，
 		// 由下游 navigationTitle() 走品牌/事件推断降级，避免把无效短标题带到最后。
 		group.NavigationTitle = cleanNavigationTitle(group.NavigationTitle)
 		normalized = append(normalized, group)
@@ -141,8 +142,9 @@ func normalizeGroups(groups []NewsGroup, scored []ScoredItem, items []Item) []Ne
 	sort.SliceStable(normalized, func(i, j int) bool {
 		return normalized[i].Score > normalized[j].Score
 	})
-	if len(normalized) > maxGroups {
-		normalized = normalized[:maxGroups]
+	groupLimit := maxStoryGroupsForNavigation()
+	if len(normalized) > groupLimit {
+		normalized = normalized[:groupLimit]
 	}
 	return normalized
 }
@@ -191,7 +193,8 @@ func splitIncompatibleGroups(groups []NewsGroup, candidates map[int]ScoredItem, 
 // fallbackGroups 在模型聚类失败时的本地降级方案：按 fallbackGroupIdentity 给出的身份键就地聚合，生成 Story。
 func fallbackGroups(scored []ScoredItem) []NewsGroup {
 	groupByKey := make(map[string]int)
-	groups := make([]NewsGroup, 0, min(len(scored), maxGroups))
+	groupLimit := maxStoryGroupsForNavigation()
+	groups := make([]NewsGroup, 0, min(len(scored), groupLimit))
 	for _, item := range scored {
 		key, title := fallbackGroupIdentity(item.Title)
 		position, exists := groupByKey[key]
@@ -216,8 +219,8 @@ func fallbackGroups(scored []ScoredItem) []NewsGroup {
 	sort.SliceStable(groups, func(i, j int) bool {
 		return groups[i].Score > groups[j].Score
 	})
-	if len(groups) > maxGroups {
-		groups = groups[:maxGroups]
+	if len(groups) > groupLimit {
+		groups = groups[:groupLimit]
 	}
 	return groups
 }
@@ -270,7 +273,7 @@ func fallbackGroupIdentity(title string) (string, string) {
 }
 
 // cleanNavigationTitle 清洗模型给出的底部时间线短标题：
-// 长度越界或内容空洞（纯栏目名、无信息短语）时清空，交由下游 navigationTitle() 降级推断。
+// 内容过短或空洞（纯栏目名、无信息短语）时清空，交由下游 navigationTitle() 降级推断。
 func cleanNavigationTitle(title string) string {
 	title = strings.TrimSpace(title)
 	if validNavigationTitle(title) == "" {
@@ -289,7 +292,7 @@ func isVacuousNavigationTitle(title string) bool {
 	vacuous := []string{
 		"事件概览", "具体变化", "用户影响", "后续观察", "后续进展",
 		"事件综述", "要点总结", "内容详情", "详细内容", "最新消息", "最新动态",
-		"行业动态", "AI动态", "AI新闻", "新闻速递", "新闻动态",
+		"AI", "行业动态", "AI动态", "AI新闻", "新闻速递", "新闻动态",
 	}
 	for _, term := range vacuous {
 		if lower == strings.ToLower(term) {

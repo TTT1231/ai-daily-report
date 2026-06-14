@@ -5,7 +5,9 @@ export const rootDir = resolve(import.meta.dirname, "../..");
 export const dataDir = resolve(rootDir, "data-scheme");
 export const rawDataPath = resolve(dataDir, "data.json");
 export const generatedDataPath = resolve(dataDir, "data-generate.json");
-export const schemaPath = resolve(rootDir, "data-schema.json");
+export const schemaPath = resolve(rootDir, "data.schema.json");
+export const videoLayoutPath = resolve(rootDir, "video-layout.json");
+export const videoLayoutSchemaPath = resolve(rootDir, "video-layout.schema.json");
 
 export async function readJson(path, displayPath) {
   try {

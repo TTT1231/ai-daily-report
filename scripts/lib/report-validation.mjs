@@ -2,6 +2,10 @@ import {existsSync, readFileSync} from "node:fs";
 import {resolve, sep} from "node:path";
 import Ajv2020 from "ajv/dist/2020.js";
 import {dataDir, schemaPath} from "./paths.mjs";
+import {
+  navigationCapacity,
+  reportNavigationLabels,
+} from "./navigation-layout.mjs";
 
 const schema = JSON.parse(readFileSync(schemaPath, "utf8"));
 const validateSchema = new Ajv2020({allErrors: true}).compile(schema);
@@ -31,8 +35,8 @@ export function validateReport(report, {renderMode = false, checkAssets = true} 
   const errors = [...structureErrors];
   const fail = (path, message) => errors.push(`${path}: ${message}`);
 
-  if (report.$schema !== "../data-schema.json") {
-    fail("$schema", 'must equal "../data-schema.json"');
+  if (report.$schema !== "../data.schema.json") {
+    fail("$schema", 'must equal "../data.schema.json"');
   }
   if (structureErrors.length > 0) return {errors, totalDurationMs: 0};
   if (renderMode && !report.intro) fail("intro", "is required before rendering");
@@ -145,6 +149,22 @@ export function validateReport(report, {renderMode = false, checkAssets = true} 
       `bottomTitle count (${storyCount}) minus adjacent topTitle segment count (${topTitleSegmentCount}) must be at most 2`,
     );
   }
+  const navigationLabels = reportNavigationLabels(report);
+  const navigationStats = {};
+  for (const [name, labels] of Object.entries(navigationLabels)) {
+    const {availableWidth, requiredWidth} = navigationCapacity(labels);
+    navigationStats[name] = {
+      availableWidth,
+      itemCount: labels.length,
+      requiredWidth,
+    };
+    if (requiredWidth > availableWidth) {
+      fail(
+        `${name}Navigation`,
+        `requires ${requiredWidth}px but only ${availableWidth}px is available across ${labels.length} labels`,
+      );
+    }
+  }
 
-  return {errors, totalDurationMs: expectedStartMs};
+  return {errors, navigationStats, totalDurationMs: expectedStartMs};
 }

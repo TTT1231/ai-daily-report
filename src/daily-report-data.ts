@@ -1,5 +1,10 @@
 import {z} from "zod";
 import reportJson from "../data-scheme/data-generate.json";
+import {
+  mergeAdjacentNavigationLabels,
+  navigationAvailableWidth,
+  navigationRequiredWidth,
+} from "./navigation-layout";
 
 const dailyTabSchema = z.object({
   id: z.string().min(1),
@@ -35,8 +40,8 @@ const dailySceneSchema = z.object({
 const dailyStorySchema = z
   .object({
     id: z.string().min(1),
-    topTitle: z.string().min(3).max(5),
-    bottomTitle: z.string().min(3).max(5),
+    topTitle: z.string().min(1),
+    bottomTitle: z.string().min(1),
     contentTitle: z.string().min(1).max(42),
     introTitle: z.string().min(1).optional(),
     activeTab: z.string().min(1).optional(),
@@ -87,6 +92,23 @@ const dailyReportSchema = z
         path: ["stories"],
         message: "Only one story may set activeIntro to true",
       });
+    }
+    const timeline = [report.intro, ...report.stories, report.outro];
+    const navigations = {
+      bottom: timeline.map(({bottomTitle}) => bottomTitle),
+      top: mergeAdjacentNavigationLabels(
+        timeline.map(({topTitle}) => topTitle),
+      ),
+    };
+    for (const [name, labels] of Object.entries(navigations)) {
+      const requiredWidth = navigationRequiredWidth(labels);
+      if (requiredWidth > navigationAvailableWidth) {
+        context.addIssue({
+          code: "custom",
+          path: ["stories"],
+          message: `${name} navigation requires ${requiredWidth}px but only ${navigationAvailableWidth}px is available`,
+        });
+      }
     }
   });
 

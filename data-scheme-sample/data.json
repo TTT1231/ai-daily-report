@@ -1,5 +1,5 @@
 {
-  "$schema": "../data-schema.json",
+  "$schema": "../data.schema.json",
   "date": "2026-06-10",
   "stories": [
     {

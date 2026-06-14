@@ -1,5 +1,5 @@
-import {spawn} from "node:child_process";
-import {rootDir} from "./lib/paths.mjs";
+import { spawn } from "node:child_process";
+import { rootDir } from "./lib/paths.mjs";
 
 const bunCommand = process.platform === "win32" ? "bun.exe" : "bun";
 
@@ -9,7 +9,12 @@ const bunSteps = ["prerss", "rss", "tts"];
 const finalStep = {
   name: "generate-svg",
   command: "claude",
-  args: ["--dangerously-skip-permissions", "-p", "/generate-svg"],
+  args: [
+    "--dangerously-skip-permissions",
+    "-p",
+    "--no-thinking",
+    "/generate-svg",
+  ],
 };
 
 function formatSeconds(ns) {
@@ -29,9 +34,7 @@ function runStep(command, args, label) {
     });
 
     child.once("error", (error) => {
-      reject(
-        new Error(`无法启动 ${label} (${command}): ${error.message}`),
-      );
+      reject(new Error(`无法启动 ${label} (${command}): ${error.message}`));
     });
 
     child.once("close", (code, signal) => {
@@ -44,9 +47,7 @@ function runStep(command, args, label) {
         resolve(elapsed);
       } else {
         reject(
-          new Error(
-            `${label} 失败 (exit ${code ?? "null"})，已终止后续流程。`,
-          ),
+          new Error(`${label} 失败 (exit ${code ?? "null"})，已终止后续流程。`),
         );
       }
     });

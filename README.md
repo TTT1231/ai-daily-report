@@ -49,7 +49,7 @@
 bun install
 
 # 2. 准备数据目录 data-scheme/（首次可直接复制示例）
-#    确保 data.json 的 $schema 指向项目根目录的 data-schema.json
+#    确保 data.json 的 $schema 指向项目根目录的 data.schema.json
 #    图片素材放进 data-scheme/images/
 cp -r data-scheme-sample data-scheme
 
@@ -74,14 +74,14 @@ bun run tts
 
 > ⚠ **图片仍需手动插入**：`bun run all` 不会插图。执行后请到 `data-scheme/data.json` 给每个 Scene 填 `overlayImg: "images/xxx"`，并把图片放进 `data-scheme/images/`。仅替换图片不会重新请求旁白。
 
-> 👁️ **Claude CLI 图片识别（按需触发）**：`rss` 抓取时，若某 Story 评分 ≥9、正文较短且含远程图片，会调用 `claude --dangerously-skip-permissions -p`（远程图像分析 MCP）识别图片内容、补充事实后再进入下一步解析。因此 **Claude CLI 的模型必须支持多模态，并配置图像分析 MCP**，否则图片识别步骤会失败。失败不中断流程，会降级为纯文本继续（但拿不到图片里的信息）。相关开关与预算见 `.env` 的 `CLAUDE_VISION_*` 项。
+> 👁️ **Claude CLI 图片识别（按需触发）**：`rss` 抓取时，若某 Story 评分 ≥9、正文较短且含远程图片，会调用 `claude --dangerously-skip-permissions -p --no-thinking`（远程图像分析 MCP）识别图片内容、补充事实后再进入下一步解析。因此 **Claude CLI 的模型必须支持多模态，并配置图像分析 MCP**，否则图片识别步骤会失败。失败不中断流程，会降级为纯文本继续（但拿不到图片里的信息）。相关开关与预算见 `.env` 的 `CLAUDE_VISION_*` 项。
 
 ```bash
 # 1. 准备运行环境（缺一不可，首次执行）
 #    Bun:     bun --version
 #    Go:      go version      （rss/ 采集器用）
 #    Claude:  需安装 Claude CLI（generate-svg 步骤调用
-#             claude --dangerously-skip-permissions -p "/generate-svg" 生成 Tabs 图标）
+#             claude --dangerously-skip-permissions -p --no-thinking "/generate-svg" 生成 Tabs 图标）
 
 # 2. 安装依赖
 bun install
@@ -94,7 +94,7 @@ bun install
 #            AI 评分筛选 + 聚类（最多约 15 个主题），并基于 rss/rss-state.json
 #            上一次快照自动去重，生成 data-scheme/data.json
 #    tts     生成 TTS 音频与时间线
-#    generate-svg  调用 Claude CLI 生成 Tabs 图标
+#    generate-svg  调用 Claude CLI 生成 Tabs 图标（--no-thinking 关闭扩展思考以加速）
 bun run all
 
 # 5. 手动给 data.json 各 Scene 填 overlayImg，图片放 data-scheme/images/
@@ -104,12 +104,14 @@ bun run dev      # Remotion Studio
 bun run build    # 打包渲染
 ```
 
-开发模式会监听 `data-scheme/data.json`、`data-schema.json`、`.env` 和图片素材：
+开发模式会监听 `data-scheme/data.json`、`data.schema.json`、`.env` 和图片素材：
 
 - 修改 `data.json`、Schema 或 TTS 环境配置时，自动运行增量 TTS 并更新 `data-generate.json`。
 - 未改变字幕的场景会复用已有音频；只增加或修改 `overlayImg` 不会重新请求旁白。
 - 每个 Scene 可设置一个 `overlayImg: "images/..."`；同一 Story 的多个 Scene 可分别设置图片，并随各自字幕依次播放。
 - 顶部导航合并相邻同名 `topTitle`；排除 Intro/Outro 后，`bottomTitle` 数量减去顶部相邻分段数不得超过 2。
+- `topTitle` / `bottomTitle` 没有固定字符上限；导航会从 `video-layout.json` 读取视频宽度、舒适单元宽度、左右留白与项目间隔，RSS 按整条导航容量动态限制 Story 数并缩短拥挤标签，剩余宽度由 Remotion 按播放时长分配。
+- `video-layout.json` 是人工维护的项目级固定布局配置，不属于单日报数据包；执行 `rss`、`tts`、`all`、预览或渲染都不会自动修改它。文件通过 `$schema` 关联 `video-layout.schema.json`，可在编辑器中查看字段说明；`check-data-json` 会校验字段范围与 `layouts` 顺序。仅在调整视频分辨率、导航字号、间距或容量规则时修改。
 - 仅替换图片文件时交由 Remotion Studio 刷新，不运行 TTS。
 - `.gitignore` 只影响 Git，不影响开发监听或 Remotion 的 `publicDir`。
 

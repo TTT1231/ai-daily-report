@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -391,11 +392,25 @@ func TestStoryCategoryPrioritizesQuotaOverModelMention(t *testing.T) {
 func TestNavigationTitleIsShort(t *testing.T) {
 	group := NewsGroup{Title: "OpenAI Codex 额度重置规则大更新：可储存、免费重置、邀请新人重置"}
 	got := navigationTitle(group)
-	if utf8.RuneCountInString(got) > maxBottomTitleRunes {
-		t.Fatalf("navigationTitle() length = %d, want <= %d: %q", utf8.RuneCountInString(got), maxBottomTitleRunes, got)
-	}
 	if got != "额度重置" {
 		t.Fatalf("navigationTitle() = %q, want 额度重置", got)
+	}
+}
+
+func TestNavigationTitleAcceptsNarrowEnglishBrand(t *testing.T) {
+	group := NewsGroup{
+		Title:           "Claude 因服务不可用允许退款",
+		NavigationTitle: "Claude",
+	}
+	if got := navigationTitle(group); got != "Claude" {
+		t.Fatalf("navigationTitle() = %q, want Claude", got)
+	}
+}
+
+func TestNavigationTitleAllowsLongerSuggestionForGlobalFitting(t *testing.T) {
+	input := "Claude退款资格说明"
+	if got := validNavigationTitle(input); got != input {
+		t.Fatalf("validNavigationTitle() = %q, want %q", got, input)
 	}
 }
 
@@ -677,13 +692,11 @@ func TestSourceStoryIDIsStableForGenericSource(t *testing.T) {
 	}
 }
 
-func TestCleanNavigationTitleRejectsOutOfRange(t *testing.T) {
+func TestCleanNavigationTitleRejectsMissingInformation(t *testing.T) {
 	tests := []struct {
 		name  string
 		input string
 	}{
-		{"too short", "AI"},
-		{"too long", "OpenAI Codex 额度重置规则大更新"},
 		{"empty", ""},
 	}
 	for _, tc := range tests {
@@ -695,13 +708,84 @@ func TestCleanNavigationTitleRejectsOutOfRange(t *testing.T) {
 	}
 }
 
+func TestCleanNavigationTitleKeepsLongerConcreteLabelForGlobalFitting(t *testing.T) {
+	input := "Claude退款资格说明"
+	if got := cleanNavigationTitle(input); got != input {
+		t.Fatalf("cleanNavigationTitle(%q) = %q, want unchanged", input, got)
+	}
+}
+
 func TestCleanNavigationTitleRejectsVacuousLabel(t *testing.T) {
 	// 纯栏目名长度合规但无具体事件信息，应被清空，交给下游降级。
-	vacuous := []string{"事件概览", "用户影响", "后续观察", "AI动态", "最新消息"}
+	vacuous := []string{"事件概览", "用户影响", "后续观察", "AI", "AI动态", "最新消息"}
 	for _, input := range vacuous {
 		if got := cleanNavigationTitle(input); got != "" {
 			t.Fatalf("cleanNavigationTitle(%q) = %q, want empty", input, got)
 		}
+	}
+}
+
+func TestNavigationLayoutReservesComfortableSpacing(t *testing.T) {
+	layout, err := loadNavigationLayout()
+	if err != nil {
+		t.Fatal(err)
+	}
+	labels := []string{"Intro", "Claude", "再见"}
+	required := layout.requiredWidth(labels)
+	bareMinimum := float64(len(labels)) * layout.MinimumItemWidth
+	if required <= bareMinimum {
+		t.Fatalf("required width = %.0f, want more than bare minimum %.0f for edges and gaps", required, bareMinimum)
+	}
+	if layout.storyCapacity()+2 != layout.comfortableItemCapacity() {
+		t.Fatalf("story capacity = %d, item capacity = %d", layout.storyCapacity(), layout.comfortableItemCapacity())
+	}
+}
+
+func TestFitNavigationLabelsKeepsLongLabelWhenThereIsRoom(t *testing.T) {
+	layout, err := loadNavigationLayout()
+	if err != nil {
+		t.Fatal(err)
+	}
+	stories := []DataJSONStory{{
+		TopTitle:    "模型产品与开发工具",
+		BottomTitle: "Claude退款资格说明",
+	}}
+	fitNavigationLabels(stories, layout)
+	if stories[0].BottomTitle != "Claude退款资格说明" {
+		t.Fatalf("bottom title unexpectedly shortened to %q", stories[0].BottomTitle)
+	}
+	if stories[0].TopTitle != "模型产品与开发工具" {
+		t.Fatalf("top title unexpectedly shortened to %q", stories[0].TopTitle)
+	}
+}
+
+func TestFitNavigationLabelsShortensCrowdedNavigation(t *testing.T) {
+	layout, err := loadNavigationLayout()
+	if err != nil {
+		t.Fatal(err)
+	}
+	stories := make([]DataJSONStory, maxGroups)
+	for index := range stories {
+		stories[index] = DataJSONStory{
+			TopTitle:    fmt.Sprintf("很长的栏目名称%d", index),
+			BottomTitle: fmt.Sprintf("Claude退款资格说明与处理范围%d", index),
+		}
+	}
+	fitNavigationLabels(stories, layout)
+
+	bottomLabels := []string{"Intro"}
+	for _, story := range stories {
+		bottomLabels = append(bottomLabels, story.BottomTitle)
+	}
+	bottomLabels = append(bottomLabels, "再见")
+	if required := layout.requiredWidth(bottomLabels); required > float64(layout.VideoWidth) {
+		t.Fatalf("bottom navigation requires %.0fpx after fitting, available %dpx", required, layout.VideoWidth)
+	}
+	if stories[0].BottomTitle == "Claude退款资格说明与处理范围0" {
+		t.Fatalf("crowded navigation did not shorten any bottom titles")
+	}
+	if required := layout.requiredWidth(topNavigationLabels(stories)); required > float64(layout.VideoWidth) {
+		t.Fatalf("top navigation requires %.0fpx after fitting, available %dpx", required, layout.VideoWidth)
 	}
 }
 

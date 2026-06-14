@@ -6,6 +6,7 @@ import {
   TabLayoutPreview,
   type TabLayoutPreviewProps,
 } from "./AiDailyReport";
+import videoLayout from "../video-layout.json";
 
 export const RemotionRoot: React.FC = () => {
   const fps = 30;
@@ -17,8 +18,8 @@ export const RemotionRoot: React.FC = () => {
       component={AiDailyReport}
       durationInFrames={getReportDurationInFrames(fps)}
       fps={fps}
-      width={1920}
-      height={1080}
+      width={videoLayout.width}
+      height={videoLayout.height}
     />
     <Folder name="Layout-Tests">
       <Composition
@@ -26,8 +27,8 @@ export const RemotionRoot: React.FC = () => {
         component={TabLayoutPreview}
         durationInFrames={90}
         fps={fps}
-        width={1920}
-        height={1080}
+        width={videoLayout.width}
+        height={videoLayout.height}
         defaultProps={
           {tabCount: 2, theme: "light"} satisfies TabLayoutPreviewProps
         }
@@ -37,8 +38,8 @@ export const RemotionRoot: React.FC = () => {
         component={TabLayoutPreview}
         durationInFrames={90}
         fps={fps}
-        width={1920}
-        height={1080}
+        width={videoLayout.width}
+        height={videoLayout.height}
         defaultProps={
           {tabCount: 4, theme: "light"} satisfies TabLayoutPreviewProps
         }
@@ -48,8 +49,8 @@ export const RemotionRoot: React.FC = () => {
         component={TabLayoutPreview}
         durationInFrames={90}
         fps={fps}
-        width={1920}
-        height={1080}
+        width={videoLayout.width}
+        height={videoLayout.height}
         defaultProps={
           {tabCount: 5, theme: "light"} satisfies TabLayoutPreviewProps
         }

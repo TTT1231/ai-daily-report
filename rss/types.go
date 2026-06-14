@@ -77,7 +77,7 @@ type ScoredItem struct {
 // NewsGroup 是聚类后的一个 Story（视频主题），由若干来源与不重复要点组成。
 type NewsGroup struct {
 	Title           string          `json:"title"`                      // 合并后的 Story 标题。
-	NavigationTitle string          `json:"navigation_title,omitempty"` // 底部时间线短标题（3-5 字）。
+	NavigationTitle string          `json:"navigation_title,omitempty"` // 底部时间线短标题，最终长度按整条导航容量适配。
 	Score           int             `json:"score"`                      // 主题重要性分数。
 	Reason          string          `json:"reason"`                     // 为何值得关注。
 	SourceIndexes   []int           `json:"source_indexes"`             // 归入本 Story 的全部候选序号（含重复来源）。
