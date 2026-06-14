@@ -61,7 +61,7 @@
 | **手写维护**             | 你手动编辑 `data-scheme/data.json` | 想完全掌控内容，或自定义来源 |
 | **Agent 自动化（推荐）** | `bun run all` 自动抓取并生成       | 日常批量出片，一条命令搞定   |
 
-> [!Tip] 提示
+> [!TIP] 提示
 > 本项目用 `minimax` 生成 TTS 旁白，用 `deepseek-v4-flash` 总结 RSS 抓取的内容，用 `claude -p` 识别远程图片并生成对应图标。
 >
 > 图片识别依赖 claude 的多模态能力或图片识别类 mcp。
