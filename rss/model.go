@@ -12,7 +12,7 @@ import (
 )
 
 // analyzeWithModel 让模型按用户兴趣画像对条目标题打分筛选，再用关键词保底规则叠加修正，返回候选列表。
-func analyzeWithModel(ai AIConfig, items []Item) ([]ScoredItem, error) {
+func analyzeWithModel(ai AIConfig, preferences PreferencesConfig, items []Item) ([]ScoredItem, error) {
 	var titles []string
 	for i, item := range items {
 		titles = append(titles, fmt.Sprintf("%d. [%s] %s", i+1, item.SourceName, item.Title))
@@ -20,7 +20,7 @@ func analyzeWithModel(ai AIConfig, items []Item) ([]ScoredItem, error) {
 
 	prompt := fmt.Sprintf(`以下是 RSS 源中的 %d 条内容标题。
 
-请严格按照系统消息中的用户兴趣画像进行筛选和评分，最多返回 %d 条候选，按分数从高到低排序。只返回 7 分及以上的内容，不要凑数，也不要在此阶段合并相似标题。
+请严格按照系统消息中的用户兴趣画像进行筛选和评分，最多返回 %d 条候选，按分数从高到低排序。只返回 %d 分及以上的内容，不要凑数，也不要在此阶段合并相似标题。
 
 严格以以下 JSON 格式返回，不要返回任何其他内容：
 [
@@ -28,10 +28,10 @@ func analyzeWithModel(ai AIConfig, items []Item) ([]ScoredItem, error) {
 ]
 
 内容列表：
-%s`, len(items), maxCandidates, strings.Join(titles, "\n"))
+%s`, len(items), preferences.Thresholds.MaximumCandidates, preferences.Thresholds.MinimumScore, strings.Join(titles, "\n"))
 
 	content, err := requestModel(ai, []ChatMessage{
-		{Role: "system", Content: newsRankingSystemPrompt},
+		{Role: "system", Content: buildNewsRankingSystemPrompt(preferences)},
 		{Role: "user", Content: prompt},
 	})
 	if err != nil {
@@ -42,7 +42,8 @@ func analyzeWithModel(ai AIConfig, items []Item) ([]ScoredItem, error) {
 	if err != nil {
 		return nil, err
 	}
-	return applyKeywordWeights(scored, items), nil
+	scored = normalizeScoredItems(preferences, scored)
+	return applyKeywordWeights(preferences, scored, items), nil
 }
 
 // parseScoredItems 从模型返回内容中解析评分 JSON；标准解析失败时尝试逐行恢复有效条目。
@@ -56,7 +57,7 @@ func parseScoredItems(content string) ([]ScoredItem, error) {
 		}
 		fmt.Printf("   警告：模型返回局部无效 JSON，已跳过坏条目并恢复 %d 条有效评分\n", len(scored))
 	}
-	return normalizeScoredItems(scored), nil
+	return scored, nil
 }
 
 // recoverScoredItems 在 JSON 整体解析失败时，逐行尝试解析独立的 {...} 对象，尽量挽救有效评分。
@@ -77,15 +78,15 @@ func recoverScoredItems(content string) []ScoredItem {
 }
 
 // normalizeScoredItems 丢弃低于入选分数的条目，按分数降序排序并截断到候选上限。
-func normalizeScoredItems(scored []ScoredItem) []ScoredItem {
+func normalizeScoredItems(preferences PreferencesConfig, scored []ScoredItem) []ScoredItem {
 	scored = slices.DeleteFunc(scored, func(item ScoredItem) bool {
-		return item.Score < minInterestingScore
+		return item.Score < preferences.Thresholds.MinimumScore
 	})
 	sort.Slice(scored, func(i, j int) bool {
 		return scored[i].Score > scored[j].Score
 	})
-	if len(scored) > maxCandidates {
-		scored = scored[:maxCandidates]
+	if len(scored) > preferences.Thresholds.MaximumCandidates {
+		scored = scored[:preferences.Thresholds.MaximumCandidates]
 	}
 	return scored
 }

@@ -109,7 +109,7 @@ func analyzeRemoteImageWithClaude(imageURL, sourceTitle string, analyzer *Vision
 		"claude",
 		"--dangerously-skip-permissions",
 		"-p",
-		"--no-thinking",
+		"--effort", "low",
 		"--no-session-persistence",
 		"--output-format", "json",
 		"--json-schema", visionJSONSchema,

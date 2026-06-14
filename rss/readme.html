@@ -1,0 +1,516 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      name="description"
+      content="AI 日报 RSS 采集器配置、运行流程与维护指南"
+    />
+    <title>RSS 采集器文档 · AI Daily Report</title>
+    <link rel="stylesheet" href="readme.css" />
+  </head>
+  <body>
+    <a class="skip-link" href="#content">跳到正文</a>
+
+    <div class="docs-shell">
+      <aside class="sidebar">
+        <nav aria-label="文档目录">
+          <div class="nav-group">
+            <span class="nav-label">开始</span>
+            <a class="active" href="#overview">概览</a>
+            <a href="#quick-start">快速开始</a>
+            <a href="#files">维护文件</a>
+          </div>
+          <div class="nav-group">
+            <span class="nav-label">自定义</span>
+            <a href="#sources">添加 RSS 来源</a>
+            <a href="#entities">重点实体</a>
+            <a href="#priority-keywords">加分关键词</a>
+            <a href="#dislikes">排除与不喜欢</a>
+            <a href="#thresholds">筛选阈值</a>
+          </div>
+          <div class="nav-group">
+            <span class="nav-label">系统</span>
+            <a href="#workflow">运行流程</a>
+            <a href="#state">运行状态</a>
+            <a href="#directory">目录职责</a>
+          </div>
+        </nav>
+
+        <div class="sidebar-note">
+          <svg aria-hidden="true" viewBox="0 0 24 24">
+            <path d="M12 3v12m0 0 4-4m-4 4-4-4" />
+            <path d="M5 17v3h14v-3" />
+          </svg>
+          <div>
+            <strong>修改后运行</strong>
+            <code>bun run rss</code>
+          </div>
+        </div>
+      </aside>
+
+      <main id="content">
+        <section id="overview" class="hero searchable">
+          <div class="breadcrumbs">
+            <span>AI Daily Report</span>
+            <svg aria-hidden="true" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6" /></svg>
+            <strong>RSS 采集器</strong>
+          </div>
+          <div class="status-row">
+            <span class="status-dot"></span>
+            <span>多来源 RSS 采集与兴趣筛选</span>
+          </div>
+          <h1>只看真正值得关注的 AI 情报</h1>
+          <p class="lead">
+            采集器从一个或多个 RSS 2.0 来源抓取最近 24
+            小时内容，根据你的兴趣偏好评分、去重与聚类，最终生成视频日报数据。
+          </p>
+          <div class="hero-actions">
+            <a class="primary-button" href="#quick-start">
+              开始配置
+              <svg aria-hidden="true" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6" /></svg>
+            </a>
+            <a class="secondary-button" href="#workflow">了解运行流程</a>
+          </div>
+
+          <div class="system-map" aria-label="采集器数据流">
+            <div class="map-node">
+              <span>输入来源</span>
+              <strong>sources.jsonc</strong>
+            </div>
+            <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M5 12h14m-4-4 4 4-4 4" /></svg>
+            <div class="map-node">
+              <span>兴趣画像</span>
+              <strong>preferences.jsonc</strong>
+            </div>
+            <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M5 12h14m-4-4 4 4-4 4" /></svg>
+            <div class="map-node output">
+              <span>日报结果</span>
+              <strong>data.json</strong>
+            </div>
+          </div>
+        </section>
+
+        <section id="quick-start" class="doc-section searchable">
+          <div class="section-intro">
+            <span class="section-kicker">Quick start</span>
+            <h2>你想做什么？</h2>
+            <p>选择目标，直接跳到对应的配置位置。</p>
+          </div>
+          <div class="task-grid">
+            <a class="task-card" href="#sources">
+              <span class="task-icon blue" aria-hidden="true">
+                <svg viewBox="0 0 24 24"><path d="M4 11a9 9 0 0 1 9 9M4 4a16 16 0 0 1 16 16" /><circle cx="5" cy="19" r="1" /></svg>
+              </span>
+              <span>
+                <strong>添加 LinuxDo RSS</strong>
+                <small>增加新的栏目或 RSS 2.0 来源</small>
+              </span>
+              <svg class="card-arrow" aria-hidden="true" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6" /></svg>
+            </a>
+            <a class="task-card" href="#entities">
+              <span class="task-icon violet" aria-hidden="true">
+                <svg viewBox="0 0 24 24"><path d="M12 3 4 7v5c0 5 3.4 8 8 9 4.6-1 8-4 8-9V7l-8-4Z" /><path d="m9 12 2 2 4-4" /></svg>
+              </span>
+              <span>
+                <strong>关注新品牌或产品</strong>
+                <small>添加重点实体及其常见名称</small>
+              </span>
+              <svg class="card-arrow" aria-hidden="true" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6" /></svg>
+            </a>
+            <a class="task-card" href="#priority-keywords">
+              <span class="task-icon green" aria-hidden="true">
+                <svg viewBox="0 0 24 24"><path d="m13 2-9 12h7l-1 8 10-13h-7l0-7Z" /></svg>
+              </span>
+              <span>
+                <strong>添加直接加分词</strong>
+                <small>命中任意标题后获得 9 分保底</small>
+              </span>
+              <svg class="card-arrow" aria-hidden="true" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6" /></svg>
+            </a>
+            <a class="task-card" href="#dislikes">
+              <span class="task-icon orange" aria-hidden="true">
+                <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" /><path d="m9 9 6 6m0-6-6 6" /></svg>
+              </span>
+              <span>
+                <strong>排除不喜欢的内容</strong>
+                <small>添加硬排除词或自然语言偏好</small>
+              </span>
+              <svg class="card-arrow" aria-hidden="true" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6" /></svg>
+            </a>
+          </div>
+        </section>
+
+        <section id="files" class="doc-section searchable">
+          <div class="section-intro">
+            <span class="section-kicker">Configuration</span>
+            <h2>日常只维护两个文件</h2>
+            <p>来源配置与兴趣偏好职责分离，运行状态由程序自动维护。</p>
+          </div>
+          <div class="file-table">
+            <div class="file-row header">
+              <span>文件</span>
+              <span>用途</span>
+              <span>维护方式</span>
+            </div>
+            <a class="file-row" href="#sources">
+              <code>sources.jsonc</code>
+              <span>RSS 来源、启用状态与分页参数</span>
+              <span class="pill manual">人工维护</span>
+            </a>
+            <a class="file-row" href="#entities">
+              <code>preferences.jsonc</code>
+              <span>重点实体、加分词、排除词与阈值</span>
+              <span class="pill manual">人工维护</span>
+            </a>
+            <a class="file-row" href="#state">
+              <code>rss-state.json</code>
+              <span>上一轮完整抓取记录，用于跨次运行去重</span>
+              <span class="pill generated">自动生成</span>
+            </a>
+          </div>
+          <div class="callout info">
+            <svg aria-hidden="true" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" /><path d="M12 11v6m0-10h.01" /></svg>
+            <p>
+              两个 JSONC 文件都带字段注释，可以直接编辑。AI 评分 Prompt
+              与本地关键词规则共享同一份 <code>preferences.jsonc</code>。
+            </p>
+          </div>
+        </section>
+
+        <section id="sources" class="doc-section searchable">
+          <div class="section-intro">
+            <span class="section-kicker">sources.jsonc</span>
+            <h2>添加自己的 RSS 来源</h2>
+            <p>
+              新增 LinuxDo 栏目时，复制现有对象并修改
+              <code>id</code>、<code>name</code> 和 <code>url</code>。
+            </p>
+          </div>
+          <div class="code-layout">
+            <div class="code-block">
+              <div class="code-header">
+                <span>LinuxDo 来源示例</span>
+                <code>sources.jsonc</code>
+              </div>
+              <pre><code>{
+  "id": "linuxdo-new-category",
+  "name": "Linux.do 新栏目",
+  "adapter": "linuxdo",
+  "url": "https://linux.do/c/example/123.rss",
+  "enabled": true,
+  "maxPages": 2,
+  "pageStart": 0,
+  "pageDelaySeconds": 10
+}</code></pre>
+            </div>
+            <dl class="definition-list">
+              <div>
+                <dt><code>id</code></dt>
+                <dd>来源的唯一稳定标识。修改后会被视为一个新来源。</dd>
+              </div>
+              <div>
+                <dt><code>adapter: "linuxdo"</code></dt>
+                <dd>自动分页，并使用 Topic ID 跨栏目去重。</dd>
+              </div>
+              <div>
+                <dt><code>adapter: "rss2"</code></dt>
+                <dd>用于普通 RSS 2.0，且 <code>maxPages</code> 必须为 1。</dd>
+              </div>
+              <div>
+                <dt><code>enabled</code></dt>
+                <dd>设为 <code>false</code> 可临时停用来源。</dd>
+              </div>
+            </dl>
+          </div>
+        </section>
+
+        <section id="entities" class="doc-section searchable">
+          <div class="section-intro">
+            <span class="section-kicker">priorityEntities</span>
+            <h2>添加重点品牌或产品</h2>
+            <p>
+              <code>name</code> 用于告诉 AI 关注对象是谁；<code>aliases</code>
+              是标题中可能出现的名称。
+            </p>
+          </div>
+          <div class="code-block">
+            <div class="code-header">
+              <span>添加 Google Gemini</span>
+              <code>preferences.jsonc</code>
+            </div>
+            <pre><code>{
+  "name": "Google Gemini",
+  "aliases": ["google gemini", "gemini", "谷歌双子座"]
+}</code></pre>
+          </div>
+          <div class="callout success">
+            <svg aria-hidden="true" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" /><path d="m8 12 3 3 5-6" /></svg>
+            <p>
+              标题命中重点实体后会通过本地兴趣门槛；同时命中
+              <code>importantChanges</code> 时获得 9 分保底。
+            </p>
+          </div>
+        </section>
+
+        <section id="priority-keywords" class="doc-section searchable">
+          <div class="section-intro">
+            <span class="section-kicker">signals</span>
+            <h2>添加加分关键词</h2>
+            <p>不同信号词承担不同职责，最直接的入口是 <code>priorityKeywords</code>。</p>
+          </div>
+          <div class="two-column">
+            <article class="field-card featured">
+              <div class="field-card-head">
+                <span class="pill recommended">推荐</span>
+                <code>signals.priorityKeywords</code>
+              </div>
+              <h3>任意标题直接加分</h3>
+              <p>命中后获得 9 分本地保底，适合 MCP、特定项目或长期关注主题。</p>
+              <pre><code>"priorityKeywords": [
+  "mcp",
+  "你自己的直接加分词"
+]</code></pre>
+            </article>
+            <article class="field-card">
+              <div class="field-card-head">
+                <span class="pill conditional">组合条件</span>
+                <code>signals.importantChanges</code>
+              </div>
+              <h3>重点实体变化词</h3>
+              <p>重点实体同时命中发布、开源、价格等变化词时，获得 9 分保底。</p>
+              <pre><code>"importantChanges": [
+  "发布", "开源", "上线",
+  "你关注的变化词"
+]</code></pre>
+            </article>
+          </div>
+          <div class="compact-fields">
+            <div><code>riskEvents</code><span>封号、跑路、关停等风险事件</span></div>
+            <div><code>majorPolicy</code><span>国家级 AI 政策与监管信号</span></div>
+            <div><code>majorIndustryChanges</code><span>非重点实体的行业级变化</span></div>
+          </div>
+        </section>
+
+        <section id="dislikes" class="doc-section searchable">
+          <div class="section-intro">
+            <span class="section-kicker">dislikes &amp; guidance</span>
+            <h2>排除与不喜欢的内容</h2>
+            <p>明确关键词交给本地规则，复杂语义交给 AI 理解。</p>
+          </div>
+          <div class="two-column">
+            <article class="field-card danger">
+              <div class="field-card-head">
+                <span class="pill exclude">硬排除</span>
+                <code>dislikes.hardExclude</code>
+              </div>
+              <h3>命中后无条件排除</h3>
+              <pre><code>"hardExclude": [
+  "招聘",
+  "你明确不想看的词"
+]</code></pre>
+            </article>
+            <article class="field-card">
+              <div class="field-card-head">
+                <span class="pill semantic">AI 语义</span>
+                <code>guidance.notInterested</code>
+              </div>
+              <h3>描述难以关键词化的偏好</h3>
+              <pre><code>"notInterested": [
+  "不关注普通软件的小版本更新"
+]</code></pre>
+            </article>
+          </div>
+        </section>
+
+        <section id="thresholds" class="doc-section searchable">
+          <div class="section-intro">
+            <span class="section-kicker">thresholds</span>
+            <h2>调整筛选严格程度</h2>
+            <p>默认配置适合日常日报；提高最低分会让内容更精简。</p>
+          </div>
+          <div class="metric-grid">
+            <article class="metric-card">
+              <span>默认最低分</span>
+              <strong>7</strong>
+              <code>minimumScore</code>
+            </article>
+            <article class="metric-card">
+              <span>候选数量上限</span>
+              <strong>30</strong>
+              <code>maximumCandidates</code>
+            </article>
+          </div>
+          <div class="callout warning">
+            <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M12 4 3 20h18L12 4Z" /><path d="M12 10v4m0 3h.01" /></svg>
+            <p>
+              <code>minimumScore</code> 越高越严格。通常保持 7 即可，设置过高可能遗漏有价值但影响有限的内容。
+            </p>
+          </div>
+        </section>
+
+        <section id="workflow" class="doc-section searchable">
+          <div class="section-intro">
+            <span class="section-kicker">Pipeline</span>
+            <h2>运行流程</h2>
+            <p>从配置读取到生成日报，共经过五个阶段。</p>
+          </div>
+          <ol class="timeline">
+            <li>
+              <span>01</span>
+              <div><strong>读取配置</strong><code>sources.jsonc + preferences.jsonc</code></div>
+            </li>
+            <li>
+              <span>02</span>
+              <div><strong>抓取与解析</strong><code>sources.go → rss2.go</code></div>
+            </li>
+            <li>
+              <span>03</span>
+              <div><strong>去重与兴趣筛选</strong><code>state.go → ranking.go</code></div>
+            </li>
+            <li>
+              <span>04</span>
+              <div><strong>聚类与视频编排</strong><code>grouping.go → story_tabs.go</code></div>
+            </li>
+            <li>
+              <span>05</span>
+              <div><strong>生成日报数据</strong><code>data-scheme/data.json</code></div>
+            </li>
+          </ol>
+          <div class="command-box">
+            <div>
+              <span>保存配置后运行</span>
+              <strong>bun run rss</strong>
+            </div>
+            <code>bun run rss</code>
+          </div>
+        </section>
+
+        <section id="state" class="doc-section searchable">
+          <div class="section-intro">
+            <span class="section-kicker">Runtime state</span>
+            <h2><code>rss-state.json</code> 是什么？</h2>
+            <p>它是自动生成的运行状态，不是用户配置。</p>
+          </div>
+          <div class="state-explainer">
+            <div class="state-main">
+              <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M4 7c0-2 3.6-4 8-4s8 2 8 4-3.6 4-8 4-8-2-8-4Z" /><path d="M4 7v5c0 2 3.6 4 8 4s8-2 8-4V7M4 12v5c0 2 3.6 4 8 4s8-2 8-4v-5" /></svg>
+              <div>
+                <strong>保存上一轮完整抓取记录</strong>
+                <p>用于避免每次运行都重复处理最近 24 小时内容，无需人工维护。</p>
+              </div>
+            </div>
+            <div class="state-facts">
+              <div><strong>删除后</strong><span>下一次运行会把最近 24 小时内容视为新增，并自动重建。</span></div>
+              <div><strong>来源失败时</strong><span>保留该来源上一次运行状态，避免恢复后误判为新增。</span></div>
+              <div><strong>跨栏目时</strong><span>LinuxDo 同一 Topic 只处理一次。</span></div>
+            </div>
+          </div>
+        </section>
+
+        <section id="directory" class="doc-section searchable">
+          <div class="section-intro">
+            <span class="section-kicker">Directory</span>
+            <h2>目录职责</h2>
+            <p>配置、处理逻辑和自动生成状态各自独立。</p>
+          </div>
+          <div class="code-block directory-code">
+            <div class="code-header"><span>rss/</span><code>项目目录</code></div>
+            <pre><code>rss/
+├── sources.jsonc           # 人工维护：RSS 来源
+├── preferences.jsonc       # 人工维护：用户兴趣画像
+├── sources.go              # 来源校验、多来源抓取与跨来源去重
+├── preferences.go          # 兴趣画像校验与评分 Prompt 生成
+├── linuxdo_adapter.go      # LinuxDo 分页与 Topic ID
+├── rss2.go                 # 通用 RSS 2.0 下载与解析
+├── state.go                # 与上一次运行状态比较
+├── ranking.go              # 本地评分与组合排除规则
+├── grouping.go             # 合并相似新闻
+├── story_tabs.go           # 生成视频 Tabs 和字幕
+├── rss-state.json          # 自动生成的运行状态
+├── readme.html             # 当前说明页
+└── readme.css              # 当前说明页样式</code></pre>
+          </div>
+        </section>
+
+        <div id="no-results" class="no-results" hidden>
+          <svg aria-hidden="true" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7" /><path d="m20 20-4-4" /></svg>
+          <strong>没有找到相关内容</strong>
+          <span>尝试搜索 “关键词”、“LinuxDo” 或 “状态”。</span>
+        </div>
+
+        <footer>
+          <span>AI Daily Report · RSS Collector Documentation</span>
+          <a href="#overview">返回顶部</a>
+        </footer>
+      </main>
+
+      <aside class="page-outline">
+        <span>本页内容</span>
+        <a href="#sources">RSS 来源</a>
+        <a href="#entities">重点实体</a>
+        <a href="#priority-keywords">加分关键词</a>
+        <a href="#dislikes">排除内容</a>
+        <a href="#workflow">运行流程</a>
+        <a href="#state">运行状态</a>
+      </aside>
+    </div>
+
+    <script>
+      const sections = [...document.querySelectorAll(".searchable")];
+      const sidebarLinks = [...document.querySelectorAll(".sidebar nav a")];
+
+      const setActiveSection = (id) => {
+        sidebarLinks.forEach((link) => {
+          const active = link.hash === `#${id}`;
+          link.classList.toggle("active", active);
+          if (active) {
+            link.setAttribute("aria-current", "location");
+          } else {
+            link.removeAttribute("aria-current");
+          }
+        });
+      };
+
+      sidebarLinks.forEach((link) => {
+        link.addEventListener("click", (event) => {
+          const target = document.querySelector(link.hash);
+          if (!target) return;
+
+          event.preventDefault();
+          history.pushState(null, "", link.hash);
+          setActiveSection(target.id);
+          requestAnimationFrame(() => {
+            target.scrollIntoView({ behavior: "smooth", block: "start" });
+          });
+        });
+      });
+
+      let scrollFrame;
+      document.addEventListener(
+        "scroll",
+        () => {
+          cancelAnimationFrame(scrollFrame);
+          scrollFrame = requestAnimationFrame(() => {
+            const marker = parseFloat(
+              getComputedStyle(document.documentElement).getPropertyValue(
+                "--topbar-height",
+              ),
+            ) + 110;
+            const visibleSections = sections.filter((section) => !section.hidden);
+            const current =
+              [...visibleSections]
+                .reverse()
+                .find((section) => section.getBoundingClientRect().top <= marker) ??
+              visibleSections[0];
+            if (current) setActiveSection(current.id);
+          });
+        },
+        { passive: true },
+      );
+
+      setActiveSection(location.hash.slice(1) || "overview");
+    </script>
+  </body>
+</html>

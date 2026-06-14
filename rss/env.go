@@ -24,6 +24,16 @@ func loadConfig() (AppConfig, error) {
 	if apiKey == "" || apiKey == "your_api_key_here" {
 		return AppConfig{}, fmt.Errorf("请在项目根目录 .env 中填写有效的 AI_API_KEY")
 	}
+	sourcesPath := configPath(root, envOrDefault("RSS_SOURCES_PATH", defaultSourcesPath))
+	sources, err := loadSources(sourcesPath)
+	if err != nil {
+		return AppConfig{}, err
+	}
+	preferencesPath := configPath(root, envOrDefault("RSS_PREFERENCES_PATH", defaultPreferencesPath))
+	preferences, err := loadPreferences(preferencesPath)
+	if err != nil {
+		return AppConfig{}, err
+	}
 
 	extraBody := make(map[string]any)
 	if raw := strings.TrimSpace(os.Getenv("AI_EXTRA_BODY_JSON")); raw != "" {
@@ -39,9 +49,19 @@ func loadConfig() (AppConfig, error) {
 			Model:     envOrDefault("AI_MODEL", defaultAIModel),
 			ExtraBody: extraBody,
 		},
-		Lookback:  rssLookback,
-		StatePath: filepath.Join(root, filepath.FromSlash(rssStateRelativePath)),
+		Sources:     sources,
+		Preferences: preferences,
+		Lookback:    rssLookback,
+		StatePath:   filepath.Join(root, filepath.FromSlash(rssStateRelativePath)),
 	}, nil
+}
+
+func configPath(root, configured string) string {
+	configured = filepath.FromSlash(strings.TrimSpace(configured))
+	if filepath.IsAbs(configured) {
+		return configured
+	}
+	return filepath.Join(root, configured)
 }
 
 // loadProjectEnv 解析项目根目录的 .env 文件，仅当环境变量未被预先设置时才注入，

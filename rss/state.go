@@ -16,8 +16,9 @@ type RSSState struct {
 }
 
 type StateItem struct {
-	Title string `json:"title"`
-	Link  string `json:"link,omitempty"`
+	SourceID string `json:"sourceId,omitempty"`
+	Title    string `json:"title"`
+	Link     string `json:"link,omitempty"`
 }
 
 // loadRSSState 读取上一次抓取快照；文件不存在时返回空状态。
@@ -43,9 +44,10 @@ func loadRSSState(path string) (RSSState, error) {
 func filterUnseenItems(items []Item, state RSSState) []Item {
 	unseen := make([]Item, 0, len(items))
 	for _, item := range items {
-		if _, exists := state.Items[itemFingerprint(item)]; !exists {
-			unseen = append(unseen, item)
+		if _, exists := state.Items[itemFingerprint(item)]; exists {
+			continue
 		}
+		unseen = append(unseen, item)
 	}
 	return unseen
 }
@@ -55,11 +57,29 @@ func snapshotRSSState(items []Item) RSSState {
 	state := RSSState{Items: make(map[string]StateItem, len(items))}
 	for _, item := range items {
 		state.Items[itemFingerprint(item)] = StateItem{
-			Title: item.Title,
-			Link:  item.Link,
+			SourceID: item.SourceID,
+			Title:    item.Title,
+			Link:     item.Link,
 		}
 	}
 	return state
+}
+
+// mergeRSSState 使用成功抓取来源的完整快照覆盖上次状态，同时保留失败来源的上次状态。
+func mergeRSSState(items []Item, previous RSSState, failures map[string]error) RSSState {
+	next := snapshotRSSState(items)
+	if len(failures) == 0 {
+		return next
+	}
+	for key, item := range previous.Items {
+		if _, exists := next.Items[key]; exists {
+			continue
+		}
+		if _, failed := failures[item.SourceID]; failed {
+			next.Items[key] = item
+		}
+	}
+	return next
 }
 
 // saveRSSState 直接覆盖写入上一次抓取快照。
@@ -78,16 +98,21 @@ func saveRSSState(path string, state RSSState) error {
 	return nil
 }
 
-// itemFingerprint 为条目生成稳定的唯一指纹：优先用 ID，其次链接，最后用标题+发布时间兜底，
-// 再与 SourceID 拼接后做 SHA-256，生成稳定且不泄露原始内容的快照键。
+// itemFingerprint 为条目生成稳定的唯一指纹：优先使用跨来源 CanonicalID；
+// 否则使用来源 ID 与条目 ID、链接或标题时间兜底，生成不泄露原始内容的 SHA-256 快照键。
 func itemFingerprint(item Item) string {
-	identity := strings.TrimSpace(item.ID)
+	identity := strings.TrimSpace(item.CanonicalID)
+	sourceID := ""
 	if identity == "" {
-		identity = strings.TrimSpace(item.Link)
+		sourceID = strings.TrimSpace(item.SourceID)
+		identity = strings.TrimSpace(item.ID)
+		if identity == "" {
+			identity = strings.TrimSpace(item.Link)
+		}
+		if identity == "" {
+			identity = normalizeTitle(item.Title) + "|" + item.PublishedAt.UTC().Format(time.RFC3339)
+		}
 	}
-	if identity == "" {
-		identity = normalizeTitle(item.Title) + "|" + item.PublishedAt.UTC().Format(time.RFC3339)
-	}
-	hash := sha256.Sum256([]byte(strings.TrimSpace(item.SourceID) + "\x00" + identity))
+	hash := sha256.Sum256([]byte(sourceID + "\x00" + identity))
 	return hex.EncodeToString(hash[:])
 }

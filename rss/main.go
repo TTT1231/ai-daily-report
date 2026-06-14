@@ -13,7 +13,7 @@ func main() {
 	config, err := loadConfig()
 	if err != nil {
 		fmt.Printf("失败：启动配置无效：%v\n", err)
-		fmt.Println("   请检查项目根目录 .env 中的 AI_API_KEY。")
+		fmt.Println("   请检查项目根目录 .env、rss/sources.jsonc 和 rss/preferences.jsonc。")
 		return
 	}
 
@@ -26,13 +26,12 @@ func main() {
 	printRunOverview(config, reportPath)
 
 	fmt.Println("[1/6] 抓取 RSS 2.0")
-	fetchedItems, err := fetchLinuxDoRecentItems(config.Lookback)
-	if err != nil {
-		fmt.Printf("失败：RSS 抓取失败：%v\n", err)
-		return
+	fetchedItems, fetchFailures := fetchRecentItems(config.Sources, config.Lookback)
+	for sourceID, fetchErr := range fetchFailures {
+		fmt.Printf("   警告：来源 %s 抓取失败，本次保留其上一次运行状态：%v\n", sourceID, fetchErr)
 	}
-	if len(fetchedItems) == 0 {
-		fmt.Printf("提示：最近 %s内没有 RSS 内容，本次结束。\n", formatDuration(config.Lookback))
+	if len(fetchFailures) == len(config.Sources) {
+		fmt.Println("失败：所有 RSS 来源均抓取失败。")
 		return
 	}
 	fmt.Printf("   完成：时间窗口内共 %d 条\n\n", len(fetchedItems))
@@ -43,11 +42,20 @@ func main() {
 		fmt.Printf("失败：无法读取上一次 RSS 快照：%v\n", err)
 		return
 	}
+	nextState := mergeRSSState(fetchedItems, state, fetchFailures)
+	if len(fetchedItems) == 0 {
+		if err := saveRSSState(config.StatePath, nextState); err != nil {
+			fmt.Printf("失败：无法保存本次 RSS 快照：%v\n", err)
+			return
+		}
+		fmt.Printf("提示：成功抓取的来源在最近 %s内没有内容，本次结束。\n", formatDuration(config.Lookback))
+		return
+	}
 	items := filterUnseenItems(fetchedItems, state)
 	fmt.Printf("   完成：新增 %d 条，重复 %d 条\n\n",
 		len(items), len(fetchedItems)-len(items))
 	if len(items) == 0 {
-		if err := saveRSSState(config.StatePath, snapshotRSSState(fetchedItems)); err != nil {
+		if err := saveRSSState(config.StatePath, nextState); err != nil {
 			fmt.Printf("失败：无法保存本次 RSS 快照：%v\n", err)
 			return
 		}
@@ -56,13 +64,13 @@ func main() {
 	}
 
 	fmt.Printf("[3/6] AI 兴趣筛选（%s）\n", config.AI.Model)
-	scored, err := analyzeWithModel(config.AI, items)
+	scored, err := analyzeWithModel(config.AI, config.Preferences, items)
 	if err != nil {
 		fmt.Printf("   警告：模型评分失败，改用本地兴趣规则：%v\n", err)
-		scored = applyKeywordWeights(nil, items)
+		scored = applyKeywordWeights(config.Preferences, nil, items)
 	}
 	if len(scored) == 0 {
-		if err := saveRSSState(config.StatePath, snapshotRSSState(fetchedItems)); err != nil {
+		if err := saveRSSState(config.StatePath, nextState); err != nil {
 			fmt.Printf("失败：无法保存本次 RSS 快照：%v\n", err)
 			return
 		}
@@ -95,7 +103,7 @@ func main() {
 		return
 	}
 	fmt.Printf("   完成：写入 %s\n", reportPath)
-	if err := saveRSSState(config.StatePath, snapshotRSSState(fetchedItems)); err != nil {
+	if err := saveRSSState(config.StatePath, nextState); err != nil {
 		fmt.Printf("失败：data.json 已生成，但无法保存本次 RSS 快照：%v\n", err)
 		return
 	}
@@ -107,7 +115,7 @@ func main() {
 func printRunOverview(config AppConfig, reportPath string) {
 	fmt.Println("AI 日报 RSS 采集器")
 	fmt.Println(strings.Repeat("=", 56))
-	fmt.Println("来源：Linux.do 前沿快讯（RSS 2.0）")
+	fmt.Printf("来源：%s（RSS 2.0）\n", sourceNames(config.Sources))
 	fmt.Printf("范围：最近 %s\n", formatDuration(config.Lookback))
 	fmt.Printf("模型：%s\n", config.AI.Model)
 	fmt.Printf("快照：%s\n", config.StatePath)

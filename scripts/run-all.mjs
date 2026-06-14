@@ -12,7 +12,7 @@ const finalStep = {
   args: [
     "--dangerously-skip-permissions",
     "-p",
-    "--no-thinking",
+    "--effort", "low",
     "/generate-svg",
   ],
 };

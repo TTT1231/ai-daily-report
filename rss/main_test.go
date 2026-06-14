@@ -12,7 +12,21 @@ import (
 	"unicode/utf8"
 )
 
+func testPreferences(t *testing.T) PreferencesConfig {
+	t.Helper()
+	root, err := projectRoot()
+	if err != nil {
+		t.Fatal(err)
+	}
+	preferences, err := loadPreferences(filepath.Join(root, defaultPreferencesPath))
+	if err != nil {
+		t.Fatal(err)
+	}
+	return preferences
+}
+
 func TestKeywordInterestScore(t *testing.T) {
+	preferences := testPreferences(t)
 	tests := []struct {
 		name      string
 		title     string
@@ -82,7 +96,7 @@ func TestKeywordInterestScore(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			score, _ := keywordInterestScore(tt.title)
+			score, _ := keywordInterestScore(preferences, tt.title)
 			if score != tt.wantScore {
 				t.Fatalf("keywordInterestScore(%q) = %d, want %d", tt.title, score, tt.wantScore)
 			}
@@ -90,7 +104,40 @@ func TestKeywordInterestScore(t *testing.T) {
 	}
 }
 
+func TestContainsAnyIgnoresEmptyPreferenceTerm(t *testing.T) {
+	if containsAny("unrelated title", "") {
+		t.Fatal("containsAny() matched an empty term")
+	}
+}
+
+func TestPriorityEntityConfigChangesLocalRecall(t *testing.T) {
+	preferences := testPreferences(t)
+	preferences.PriorityEntities = []PriorityEntity{{
+		Name:    "NewBrand",
+		Aliases: []string{"newbrand"},
+	}}
+	if score, _ := keywordInterestScore(preferences, "NewBrand 发布新模型并开放 API"); score != 9 {
+		t.Fatalf("configured priority entity score = %d, want 9", score)
+	}
+	if score, _ := keywordInterestScore(preferences, "OpenAI 发布新模型并开放 API"); score != 0 {
+		t.Fatalf("removed priority entity score = %d, want 0", score)
+	}
+}
+
+func TestDirectPriorityAndHardExcludeKeywords(t *testing.T) {
+	preferences := testPreferences(t)
+	preferences.Signals.PriorityKeywords = []string{"mcp"}
+	if score, _ := keywordInterestScore(preferences, "MCP 新增远程工具调用规范"); score != 9 {
+		t.Fatalf("direct priority keyword score = %d, want 9", score)
+	}
+	preferences.Dislikes.HardExclude = []string{"招聘"}
+	if score, _ := keywordInterestScore(preferences, "OpenAI 发布 AI 招聘计划"); score != 0 {
+		t.Fatalf("hard excluded keyword score = %d, want 0", score)
+	}
+}
+
 func TestPassesDeterministicInterestGate(t *testing.T) {
+	preferences := testPreferences(t)
 	tests := []struct {
 		title string
 		score int
@@ -109,7 +156,7 @@ func TestPassesDeterministicInterestGate(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		if got := passesDeterministicInterestGate(tt.title, tt.score); got != tt.want {
+		if got := passesDeterministicInterestGate(preferences, tt.title, tt.score); got != tt.want {
 			t.Fatalf("passesDeterministicInterestGate(%q, %d) = %v, want %v", tt.title, tt.score, got, tt.want)
 		}
 	}
@@ -241,6 +288,20 @@ func TestParseScoredItemsRecoversMalformedLine(t *testing.T) {
 	}
 	if len(got) != 2 || got[0].Index != 1 || got[1].Index != 3 {
 		t.Fatalf("parseScoredItems() = %#v", got)
+	}
+}
+
+func TestNormalizeScoredItemsUsesPreferenceThresholds(t *testing.T) {
+	preferences := testPreferences(t)
+	preferences.Thresholds.MinimumScore = 8
+	preferences.Thresholds.MaximumCandidates = 1
+	got := normalizeScoredItems(preferences, []ScoredItem{
+		{Index: 1, Score: 7},
+		{Index: 2, Score: 8},
+		{Index: 3, Score: 10},
+	})
+	if len(got) != 1 || got[0].Index != 3 {
+		t.Fatalf("normalizeScoredItems() = %#v", got)
 	}
 }
 
@@ -598,7 +659,7 @@ func TestParseRSSRejectsUnsupportedFormats(t *testing.T) {
 }
 
 func TestLinuxDoPageURL(t *testing.T) {
-	got, err := linuxDoPageURL(2)
+	got, err := linuxDoPageURL("https://linux.do/c/news/34.rss", 2)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -611,6 +672,50 @@ func TestLinuxDoAdapterAddsStableTopicID(t *testing.T) {
 	item := adaptLinuxDoItem(Item{Link: "https://linux.do/t/topic/2386790"})
 	if item.StableID != "topic-2386790" {
 		t.Fatalf("adaptLinuxDoItem() StableID = %q", item.StableID)
+	}
+	if item.CanonicalID != "linuxdo:topic:2386790" {
+		t.Fatalf("adaptLinuxDoItem() CanonicalID = %q", item.CanonicalID)
+	}
+}
+
+func TestLinuxDoTopicsDeduplicateAcrossConfiguredSources(t *testing.T) {
+	items := []Item{
+		{ID: "first-guid", SourceID: "linuxdo-news", CanonicalID: "linuxdo:topic:2386790"},
+		{ID: "second-guid", SourceID: "linuxdo-other", CanonicalID: "linuxdo:topic:2386790"},
+	}
+	got := dedupeItems(items)
+	if len(got) != 1 || got[0].SourceID != "linuxdo-news" {
+		t.Fatalf("dedupeItems() = %#v", got)
+	}
+}
+
+func TestLoadJSONCSourceAndPreferencesConfigs(t *testing.T) {
+	root, err := projectRoot()
+	if err != nil {
+		t.Fatal(err)
+	}
+	sources, err := loadSources(filepath.Join(root, defaultSourcesPath))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(sources) != 1 || sources[0].ID != "linuxdo-news" {
+		t.Fatalf("loadSources() = %#v", sources)
+	}
+	preferences := testPreferences(t)
+	if len(preferences.PriorityEntities) == 0 || preferences.Thresholds.MinimumScore != 7 {
+		t.Fatalf("loadPreferences() = %#v", preferences)
+	}
+	prompt := buildNewsRankingSystemPrompt(preferences)
+	if !strings.Contains(prompt, "Codex") || !strings.Contains(prompt, "限时优惠") {
+		t.Fatalf("generated ranking prompt missing configured preferences: %s", prompt)
+	}
+}
+
+func TestValidatePreferencesRejectsEmptyAlias(t *testing.T) {
+	preferences := testPreferences(t)
+	preferences.PriorityEntities[0].Aliases = []string{""}
+	if err := validatePreferences(preferences); err == nil {
+		t.Fatal("validatePreferences() accepted empty alias")
 	}
 }
 
@@ -646,6 +751,27 @@ func TestRSSStateOnlyComparesWithPreviousSnapshot(t *testing.T) {
 	}
 	if len(entries) != 1 || entries[0].Name() != "rss-state.json" {
 		t.Fatalf("state directory contains unexpected files: %#v", entries)
+	}
+}
+
+func TestMergeRSSStatePreservesFailedSourceOnly(t *testing.T) {
+	previous := snapshotRSSState([]Item{
+		{ID: "old-a", SourceID: "source-a", Title: "旧 A"},
+		{ID: "old-b", SourceID: "source-b", Title: "旧 B"},
+	})
+	next := mergeRSSState(
+		[]Item{{ID: "new-a", SourceID: "source-a", Title: "新 A"}},
+		previous,
+		map[string]error{"source-b": fmt.Errorf("抓取失败")},
+	)
+	if len(next.Items) != 2 {
+		t.Fatalf("mergeRSSState() contains %d items, want 2", len(next.Items))
+	}
+	if len(filterUnseenItems([]Item{{ID: "old-b", SourceID: "source-b"}}, next)) != 0 {
+		t.Fatal("mergeRSSState() did not preserve failed source snapshot")
+	}
+	if len(filterUnseenItems([]Item{{ID: "old-a", SourceID: "source-a"}}, next)) != 1 {
+		t.Fatal("mergeRSSState() did not replace successful source snapshot")
 	}
 }
 

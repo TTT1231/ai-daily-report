@@ -71,14 +71,13 @@ async function main() {
     process.exit(1);
   }
 
-  // 3. 生成评论（仅 content stories 的场景，排除 intro/outro）
-  const contentScenes = (data.stories ?? []).flatMap(
-    (story) => story.scenes ?? [],
-  );
-
-  const comments = contentScenes.map((scene) => {
-    const timestamp = msToTimestamp(scene.timing.startMs);
-    const content = stripMarkdown(scene.subtitle || "");
+  // 3. 生成评论（每条新闻一条：时间戳取该 story 首个 scene 起始，正文用 contentTitle 概括）
+  const comments = (data.stories ?? []).map((story) => {
+    const firstScene = (story.scenes ?? [])[0];
+    const timestamp = firstScene
+      ? msToTimestamp(firstScene.timing.startMs)
+      : "00:00";
+    const content = stripMarkdown(story.contentTitle || story.introTitle || "");
     return `${timestamp}  ${content}`;
   });
 
@@ -98,7 +97,7 @@ async function main() {
 
   // 5. 写入文件
   writeFileSync(OUTPUT_PATH, output, "utf-8");
-  console.log(`✅ 已生成 ${contentScenes.length} 条评论 → data-scheme/comments.txt`);
+  console.log(`✅ 已生成 ${comments.length} 条评论 → data-scheme/comments.txt`);
 
   // 6. 可选：复制到剪贴板
   if (shouldCopy) {

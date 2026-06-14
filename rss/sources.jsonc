@@ -1,0 +1,31 @@
+{
+  // sources: RSS 来源列表。按这里的顺序抓取；同一条跨来源内容重复出现时，优先保留靠前来源的版本。
+  "sources": [
+    {
+      // id: 来源的稳定唯一标识。会参与快照去重和生成 Story ID，修改后会被视为一个新来源。
+      "id": "linuxdo-news",
+
+      // name: 来源展示名称，会出现在终端输出和发送给 AI 的来源标注中。
+      "name": "Linux.do 前沿快讯",
+
+      // adapter: 来源适配器。linuxdo 会追加 page 参数，并从话题链接中提取跨栏目的 Topic ID。
+      // 当前支持 linuxdo 和 rss2；rss2 适合不需要分页和特殊条目转换的普通 RSS 2.0 源。
+      "adapter": "linuxdo",
+
+      // url: RSS 2.0 地址。新增 LinuxDo 栏目时，复制本对象并修改 id、name 和 url。
+      "url": "https://linux.do/c/news/34.rss",
+
+      // enabled: 是否启用该来源。临时停用时改为 false，无需删除配置。
+      "enabled": true,
+
+      // maxPages: 最多抓取页数。普通 rss2 适配器必须设置为 1。
+      "maxPages": 2,
+
+      // pageStart: 第一页使用的页码。LinuxDo RSS 从 0 开始。
+      "pageStart": 0,
+
+      // pageDelaySeconds: 连续翻页之间的等待秒数，用于降低触发来源限流的概率。
+      "pageDelaySeconds": 10
+    }
+  ]
+}

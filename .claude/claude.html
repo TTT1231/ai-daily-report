@@ -419,7 +419,7 @@
             <div>
               <strong>配置 AI Key + Claude CLI</strong
               ><span
-                ><code>.env</code> 的 <code>AI_API_KEY</code> 喂给 rss 分析模型；generate-svg 步骤会执行 <code>claude --dangerously-skip-permissions -p --no-thinking "/generate-svg"</code>（<code>--no-thinking</code> 关闭扩展思考以加速图标生成）生成 Tabs 图标，需先装好 Claude CLI。</span
+                ><code>.env</code> 的 <code>AI_API_KEY</code> 喂给 rss 分析模型；generate-svg 步骤会执行 <code>claude --dangerously-skip-permissions -p --effort low "/generate-svg"</code>（<code>--effort low</code> 降低思考强度以加速图标生成）生成 Tabs 图标，需先装好 Claude CLI。</span
               >
             </div>
           </article>
@@ -427,14 +427,20 @@
 
         <div class="help-strip">
           <strong>📡 抓取来源：</strong>
-          <span><code>rss</code> 从 <strong>Linux.do「前沿快讯」</strong> RSS 2.0 源（<code>linux.do/c/news/34.rss</code>）抓取 <strong>最近 24 小时</strong> 内容</span>
+          <span><code>rss</code> 按 <code>rss/sources.jsonc</code> 从启用的 RSS 2.0 来源抓取 <strong>最近 24 小时</strong> 内容；新增 LinuxDo 栏目只需复制来源对象并修改 ID、名称和 URL</span>
           <span>经 AI 评分筛选与聚类，最多保留约 15 个 Story（视频主题）</span>
-          <span>每次运行会基于上次抓取快照 <code>rss/rss-state.json</code> <strong>自动去重</strong>，重叠条目不重复处理</span>
+          <span>每次运行会基于 <code>rss/rss-state.json</code> 自动去重；LinuxDo 同一 Topic 跨栏目只处理一次，单个来源失败时会保留它的上一次运行状态</span>
+        </div>
+
+        <div class="help-strip">
+          <strong>🎯 兴趣偏好：</strong>
+          <span><code>rss/preferences.jsonc</code> 集中维护重点实体、兴趣信号、不喜欢的内容和评分阈值，文件内包含字段注释</span>
+          <span>AI 评分 Prompt 与本地关键词保底规则共享同一份兴趣画像，修改偏好无需同步修改 Go 关键词或评分 Prompt</span>
         </div>
 
         <div class="help-strip">
           <strong>👁️ 图片识别（按需）：</strong>
-          <span>当某个 Story 评分 ≥9、正文较短且含远程图片时，<code>rss</code> 会调用 <code>claude --dangerously-skip-permissions -p --no-thinking</code> 识别图片内容（识别图片无需扩展思考，关闭以加速），补充事实后再进入下一步解析</span>
+          <span>当某个 Story 评分 ≥9、正文较短且含远程图片时，<code>rss</code> 会调用 <code>claude --dangerously-skip-permissions -p --effort low</code> 识别图片内容（识别图片无需扩展思考，降低思考强度以加速），补充事实后再进入下一步解析</span>
           <span>⚠ 因此 <strong>Claude CLI 的模型必须支持多模态</strong>，并<strong>配置图像分析 MCP</strong>，否则图片识别步骤会失败（可接受，会降级为纯文本继续，但拿不到图片里的信息）</span>
         </div>
 
@@ -574,6 +580,22 @@
           <h3>数据流</h3>
           <p>从人工编辑到视频渲染的完整流程</p>
         </a>
+        <a href="#rss-customization" class="toc-card featured">
+          <div class="toc-card-icon">
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+            >
+              <path d="M4 11a9 9 0 0 1 9 9" />
+              <path d="M4 4a16 16 0 0 1 16 16" />
+              <circle cx="5" cy="19" r="1" />
+            </svg>
+          </div>
+          <h3>自定义 RSS 与偏好</h3>
+          <p>添加 LinuxDo 栏目、关注实体、加分词和不喜欢内容</p>
+        </a>
         <a href="#responsibility" class="toc-card">
           <div class="toc-card-icon">
             <svg
@@ -662,7 +684,10 @@
 <span class="folder">│       ├── report-builder.mjs</span>          <span class="comment"># 构建 Intro / Outro、主题与图标恢复</span>
 <span class="folder">│       ├── minimax-tts.mjs</span>             <span class="comment"># MiniMax TTS API 客户端</span>
 <span class="folder">│       └── generated-output.mjs</span>        <span class="comment"># 音频与 Generated JSON 的事务提交和恢复</span>
-<span class="folder">├── rss/</span>                                <span class="comment"># Go 编写的 RSS 采集器：抓取并生成 data-scheme/data.json</span>
+<span class="folder">├── rss/</span>                                <span class="comment"># Go 编写的多来源 RSS 采集器</span>
+<span class="folder">│   ├── sources.jsonc</span>                  <span class="comment"># 人工维护：RSS 来源、启用状态和分页参数</span>
+<span class="folder">│   ├── preferences.jsonc</span>              <span class="comment"># 人工维护：重点实体、兴趣信号、不喜欢内容和筛选阈值</span>
+<span class="folder">│   └── rss-state.json</span>                 <span class="comment"># 自动生成：上一次抓取快照，不要人工修改</span>
 <span class="folder">├── daily-dates/</span>                        <span class="comment"># archive.mjs 按日期归档的历史日报数据包</span>
 <span class="folder">├── remotion.config.ts</span>                  <span class="comment"># Remotion 配置（JPEG、publicDir、Tailwind）</span>
 <span class="folder">├── requirements-review.html</span>            <span class="comment"># MVP 需求文档</span>
@@ -844,7 +869,172 @@
         </div>
       </div>
 
-      <!-- Section 3: 文件职责 -->
+      <!-- Section 3: 自定义 RSS 与偏好 -->
+      <div id="rss-customization" class="section">
+        <div class="section-header">
+          <div class="section-icon">
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+            >
+              <path d="M4 11a9 9 0 0 1 9 9" />
+              <path d="M4 4a16 16 0 0 1 16 16" />
+              <circle cx="5" cy="19" r="1" />
+            </svg>
+          </div>
+          <div class="section-info">
+            <h2>自定义 RSS 与兴趣偏好</h2>
+            <p>日常只编辑两个带注释的 JSONC 文件，不需要修改 Go 代码</p>
+          </div>
+        </div>
+        <div class="section-body">
+          <div class="pipeline-intro">
+            <div>
+              <span class="pipeline-kicker">两个维护入口</span>
+              <h3>想改什么，就改对应文件</h3>
+              <p>
+                <code>sources.jsonc</code> 决定从哪里抓；
+                <code>preferences.jsonc</code> 决定哪些内容值得进入日报。
+              </p>
+            </div>
+            <div class="pipeline-legend">
+              <span><i class="legend-dot human"></i>人工维护 JSONC</span>
+              <span><i class="legend-dot system"></i>采集器自动读取</span>
+            </div>
+          </div>
+
+          <div class="steps">
+            <article class="step-card agent">
+              <div class="step-number">01</div>
+              <div class="step-copy">
+                <span class="step-label">添加自己的 LinuxDo RSS</span>
+                <h3>编辑 <code>rss/sources.jsonc</code></h3>
+                <p>
+                  复制现有 LinuxDo 来源对象，给它一个不重复的 <code>id</code>，
+                  再修改名称和 RSS 地址。同一 LinuxDo Topic 出现在多个栏目时会自动去重。
+                </p>
+                <div class="code-block">
+                  <pre>{
+  "id": "linuxdo-my-category",
+  "name": "Linux.do 我的关注栏目",
+  "adapter": "linuxdo",
+  "url": "https://linux.do/c/example/123.rss",
+  "enabled": true,
+  "maxPages": 2,
+  "pageStart": 0,
+  "pageDelaySeconds": 10
+}</pre>
+                </div>
+              </div>
+            </article>
+
+            <article class="step-card agent">
+              <div class="step-number">02</div>
+              <div class="step-copy">
+                <span class="step-label">添加重点关注品牌或产品</span>
+                <h3>编辑 <code>priorityEntities</code></h3>
+                <p>
+                  <code>name</code> 用于告诉 AI 这是谁；<code>aliases</code>
+                  是标题中可能出现的写法。标题命中实体后会通过本地兴趣门槛，
+                  再命中重点变化词时会得到 9 分保底。
+                </p>
+                <div class="code-block">
+                  <pre>{
+  "name": "Google Gemini",
+  "aliases": ["google gemini", "gemini", "谷歌双子座"]
+}</pre>
+                </div>
+              </div>
+            </article>
+
+            <article class="step-card agent">
+              <div class="step-number">03</div>
+              <div class="step-copy">
+                <span class="step-label">添加加分关键词</span>
+                <h3>编辑 <code>signals</code></h3>
+                <p>
+                  任意标题命中后都要直接加分的词，放进 <code>priorityKeywords</code>，
+                  会获得 9 分本地保底。<code>importantChanges</code> 用于重点实体的发布、
+                  开源、价格等变化词；<code>majorPolicy</code> 和 <code>riskEvents</code>
+                  分别用于国家级 AI 政策与风险情报。
+                </p>
+                <div class="code-block">
+                  <pre>"priorityKeywords": [
+  "mcp",
+  "你自己的直接加分词"
+]</pre>
+                </div>
+              </div>
+            </article>
+
+            <article class="step-card agent">
+              <div class="step-number">04</div>
+              <div class="step-copy">
+                <span class="step-label">添加不喜欢的内容</span>
+                <h3>编辑 <code>dislikes</code> 与 <code>guidance.notInterested</code></h3>
+                <p>
+                  任意标题命中后都不要的词放进 <code>dislikes.hardExclude</code>。
+                  营销和无产品影响的地缘内容可分别维护在 <code>marketing</code> 与
+                  <code>geopolitics</code>；难以用单个词描述的偏好写进
+                  <code>guidance.notInterested</code>，交给 AI 理解。
+                </p>
+                <div class="code-block">
+                  <pre>"hardExclude": [
+  "招聘",
+  "你明确不想看的词"
+]</pre>
+                </div>
+              </div>
+            </article>
+
+            <article class="step-card agent">
+              <div class="step-number">05</div>
+              <div class="step-copy">
+                <span class="step-label">调整筛选宽松程度</span>
+                <h3>编辑 <code>thresholds</code></h3>
+                <p>
+                  <code>minimumScore</code> 越高，日报越精简；默认 7 分。
+                  <code>maximumCandidates</code> 控制聚类前最多保留多少条候选。
+                </p>
+                <div class="code-block">
+                  <pre>"thresholds": {
+  "minimumScore": 7,
+  "maximumCandidates": 30
+}</pre>
+                </div>
+              </div>
+            </article>
+
+            <article class="step-card agent">
+              <div class="step-number">06</div>
+              <div class="step-copy">
+                <span class="step-label">让修改生效</span>
+                <h3>运行 RSS 采集器</h3>
+                <p>
+                  保存 JSONC 后运行 <code>bun run rss</code>。程序会先校验配置；
+                  字段缺失、空关键词、重复来源 ID 或无效 URL 会直接报错。
+                </p>
+                <div class="copy-command">
+                  <code>bun run rss</code
+                  ><button type="button" data-copy="bun run rss" aria-label="复制 RSS 命令">
+                    复制
+                  </button>
+                </div>
+              </div>
+            </article>
+          </div>
+
+          <div class="help-strip">
+            <strong>运行状态：</strong>
+            <span><code>rss/rss-state.json</code> 不是用户配置，而是采集器自动生成的“上一轮抓取记录”，用于避免每次运行都重复处理最近 24 小时内容</span>
+            <span>无需维护；删除它会让下一次运行把最近 24 小时内容全部视为新增，并自动生成一份新状态</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Section 4: 文件职责 -->
       <div id="responsibility" class="section">
         <div class="section-header">
           <div class="section-icon">
@@ -914,6 +1104,37 @@
               <div class="rule-indicator do"></div>
               <div class="rule-content">
                 <div class="rule-text">
+                  rss/sources.jsonc 是人工维护的 RSS 来源入口
+                </div>
+                <div class="rule-code">
+                  新增 LinuxDo 栏目时复制已有来源对象；同一 Topic 会跨栏目自动去重
+                </div>
+              </div>
+            </div>
+            <div class="rule-item">
+              <div class="rule-indicator do"></div>
+              <div class="rule-content">
+                <div class="rule-text">
+                  rss/preferences.jsonc 是人工维护的兴趣画像入口
+                </div>
+                <div class="rule-code">
+                  重点实体、兴趣信号、不喜欢内容和筛选阈值会同时用于 AI 评分与本地保底规则
+                </div>
+              </div>
+            </div>
+            <div class="rule-item">
+              <div class="rule-indicator dont"></div>
+              <div class="rule-content">
+                <div class="rule-text">
+                  不要人工修改 rss/rss-state.json
+                </div>
+                <div class="rule-code">它不是用户配置；删除后下一次运行会自动重建</div>
+              </div>
+            </div>
+            <div class="rule-item">
+              <div class="rule-indicator do"></div>
+              <div class="rule-content">
+                <div class="rule-text">
                   video-layout.json 是人工维护的项目级固定布局配置
                 </div>
                 <div class="rule-code">
@@ -925,7 +1146,7 @@
         </div>
       </div>
 
-      <!-- Section 4: 时间线规则 -->
+      <!-- Section 5: 时间线规则 -->
       <div id="timeline" class="section">
         <div class="section-header">
           <div class="section-icon">

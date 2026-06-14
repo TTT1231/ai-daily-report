@@ -4,9 +4,11 @@ import "time"
 
 // AppConfig 是运行时组装出的顶层应用配置。
 type AppConfig struct {
-	AI        AIConfig      // AI 模型调用配置。
-	Lookback  time.Duration // 抓取内容的时间回溯窗口。
-	StatePath string        // 上一次抓取快照的写入路径。
+	AI          AIConfig          // AI 模型调用配置。
+	Sources     []RSS2Source      // 启用的 RSS 2.0 来源。
+	Preferences PreferencesConfig // 用户兴趣画像与筛选阈值。
+	Lookback    time.Duration     // 抓取内容的时间回溯窗口。
+	StatePath   string            // 上一次抓取快照的写入路径。
 }
 
 // AIConfig 描述调用 OpenAI 兼容 chat/completions 接口所需的凭据与参数。
@@ -32,6 +34,7 @@ type RSS2Source struct {
 type Item struct {
 	ID          string    // 原始 GUID/ID，缺失时回退为链接。
 	StableID    string    // 来源适配器提供的稳定标识，可用于生成下游 ID。
+	CanonicalID string    // 跨来源共享的稳定标识，用于识别同一底层内容。
 	SourceID    string    // 来源 ID，用于生成稳定指纹与 ID。
 	SourceName  string    // 来源展示名称。
 	Title       string    // 标题（已去除 HTML 标签）。
