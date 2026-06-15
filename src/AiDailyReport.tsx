@@ -378,16 +378,20 @@ const getTimelineState = (frame: number, timeline: Timeline) => {
         sceneFrame: ts.durationFrames - 1,
         sceneDuration: ts.durationFrames,
         storyFrame: endFrame - storyStarts[ts.storyIndex] - 1,
-        storyExit: interpolate(
-          transitionFrame,
-          [0, Math.max(1, transitionDuration - 1)],
-          [1, 0],
-          {
-            easing: Easing.inOut(Easing.cubic),
-            extrapolateLeft: "clamp",
-            extrapolateRight: "clamp",
-          },
-        ),
+        // Outro reuses the final story's content, so keep that content steady
+        // instead of fading it out and immediately showing it again.
+        storyExit: isOutro(next.story)
+          ? 1
+          : interpolate(
+              transitionFrame,
+              [0, Math.max(1, transitionDuration - 1)],
+              [1, 0],
+              {
+                easing: Easing.inOut(Easing.cubic),
+                extrapolateLeft: "clamp",
+                extrapolateRight: "clamp",
+              },
+            ),
       };
     }
   }

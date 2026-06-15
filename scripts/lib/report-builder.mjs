@@ -29,7 +29,7 @@ function buildIntro(report, hour) {
     contentTitle: `${report.date} 资讯概览`,
     tabs,
     ...(activeTitle
-      ? {activeTab: tabs.find((tab) => tab.title === activeTitle)?.id}
+      ? { activeTab: tabs.find((tab) => tab.title === activeTitle)?.id }
       : {}),
     scenes: [
       {
@@ -50,7 +50,7 @@ function buildOutro(report) {
     scenes: [
       {
         id: "outro-ending",
-        subtitle: report.outroContent ?? "今天的资讯播送完了，再见！",
+        subtitle: report.outroContent ?? "今天的资讯播送完了，明天见！",
       },
     ],
   };
@@ -80,9 +80,14 @@ function restoreIcons(report, previousReport) {
   for (const story of report.stories) applyIcons(story);
 }
 
-export function buildGeneratedReport(rawReport, previousReport, now = new Date()) {
+export function buildGeneratedReport(
+  rawReport,
+  previousReport,
+  now = new Date(),
+) {
   const report = JSON.parse(JSON.stringify(rawReport));
-  report.theme ??= now.getHours() >= 6 && now.getHours() < 18 ? "light" : "dark";
+  report.theme ??=
+    now.getHours() >= 6 && now.getHours() < 18 ? "light" : "dark";
   report.intro = buildIntro(report, now.getHours());
   report.outro = buildOutro(report);
   restoreIcons(report, previousReport);

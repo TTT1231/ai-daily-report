@@ -40,6 +40,22 @@ test("detects an audible isolated burst between silences", () => {
   ]);
 });
 
+test("detects a short isolated click between silences", () => {
+  const issues = findIsolatedBursts([
+    { startSeconds: 3.105, endSeconds: 3.416, durationSeconds: 0.311 },
+    { startSeconds: 3.423, endSeconds: 3.648, durationSeconds: 0.225 },
+  ]);
+
+  assert.deepEqual(issues, [
+    {
+      type: "isolated-burst",
+      startMs: 3416,
+      endMs: 3423,
+      durationMs: 7,
+    },
+  ]);
+});
+
 test("ignores tiny encoder blips and normal speech gaps", () => {
   const issues = findIsolatedBursts([
     { startSeconds: 1, endSeconds: 1.3, durationSeconds: 0.3 },

@@ -7,7 +7,7 @@ const DEFAULT_OPTIONS = {
   noiseDb: -35,
   minimumDetectedSilenceMs: 80,
   minimumSurroundingSilenceMs: 120,
-  minimumBurstMs: 10,
+  minimumBurstMs: 5,
   maximumBurstMs: 45,
 };
 
