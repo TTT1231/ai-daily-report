@@ -4,7 +4,7 @@
   "height": 1080,
   "navigation": {
     "minimumItemWidth": 82,
-    "edgeInset": 8,
+    "edgeInset": 0,
     "itemGap": 4,
     "asciiWidthFactor": 0.62,
     "itemChromeWidth": 18,
