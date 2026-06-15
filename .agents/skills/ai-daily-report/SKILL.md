@@ -36,11 +36,11 @@ description: How to use the ai-daily-report project end-to-end — set it up, ru
 # 0. 配好 .env（见上），然后装依赖
 bun install
 
-# 1. 跑全流程：prerss → rss → tts → generate-svg
+# 1. 跑全流程：prerss → rss → tts → generate-svg → dev
 bun run all
 ```
 
-`bun run all`（`scripts/run-all.mjs`）按顺序跑四步，任一步失败会中断：
+`bun run all`（`scripts/run-all.mjs`）先按顺序跑四个生产步骤并显示实时状态，任一步失败会中断；全部完成后以前台常驻方式启动 `bun run dev`：
 
 | 步骤 | 做什么 | 产物 |
 | --- | --- | --- |
@@ -51,10 +51,10 @@ bun run all
 
 `rss` 步骤会读取项目根目录 `.env` 中可选的小写 `all_proxy`。没有配置时跳过代理并直连；配置后 RSS 抓取与 AI 模型请求都会强制使用该代理，代理无效或不可用时直接报错。它不会读取 `HTTP_PROXY`、`HTTPS_PROXY`、`ALL_PROXY` 等其他代理变量，也不会自动探测本地代理端口。
 
-跑完后：
+生产步骤跑完后：
 
 - **图片是唯一的手动步骤**：`bun run all` 不会插图。要加图就给 `data.json` 的 scene 填 `overlayImg`，并把图片放进 `data-scheme/images/`。详见下方「把图片放进 data.json」。
-- **预览**：`bun run dev`（带 HMR + 自动 TTS 同步）。
+- **预览**：脚本自动进入 `bun run dev`（带 HMR + 自动 TTS 同步）；按 `Ctrl+C` 会停止预览并释放端口。
 
 > 关于 `rss/rss-state.json`：它存的是上次抓取的快照，用来去重。重复内容会被剔除，但这个临时文件是判断依据，平时不用动它。
 

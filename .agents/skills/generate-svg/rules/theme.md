@@ -9,7 +9,7 @@ Generate it for the current report theme while keeping it readable on the opposi
 2. Treat a theme change as a reason to review or regenerate existing icons.
 3. Optimize contrast for the current theme.
 4. Avoid colors or details that disappear completely on the opposite theme.
-5. Preview representative icons against the actual card backgrounds.
+5. Use the documented theme palette to keep icon fills and strokes distinct from card backgrounds.
 
 ## Dark Theme
 
@@ -32,4 +32,3 @@ Generate it for the current report theme while keeping it readable on the opposi
 - Do not rely on shadows for recognition.
 - If one color cannot work acceptably on both themes, prioritize the current theme and regenerate
   icons when the report theme changes.
-

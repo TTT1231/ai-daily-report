@@ -28,8 +28,8 @@ Read all rules before editing:
 6. Update only the corresponding `icon` fields in `data-generate.json`.
 7. Remove orphan icons only when they are no longer referenced.
 8. Run `bun run val-schema` and `bun run lint` and `bun run comment`.
-9. For visual changes, open a representative Remotion frame and verify icon scale, contrast, and
-   distinction from sibling icons.
+9. Finish after static SVG and data validation. Do not start `bun run dev`, Remotion Studio,
+   rendering, or another preview workflow while generating icons.
 
 Preserve unrelated user changes. Do not stop at a proposal when the icons can be generated and
 verified in the workspace.

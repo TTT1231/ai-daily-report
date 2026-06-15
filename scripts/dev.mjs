@@ -3,6 +3,13 @@ import {spawn} from "node:child_process";
 import {extname} from "node:path";
 import {clearTimeout, setTimeout} from "node:timers";
 import {dataDir, generatedDataPath, rootDir} from "./lib/paths.mjs";
+import {terminateProcessTree} from "./lib/process-tree.mjs";
+
+if (process.env.AI_DAILY_REPORT_RUN_ALL === "1") {
+  throw new Error(
+    "bun run dev cannot start during the bun run all production phase.",
+  );
+}
 
 const debounceMs = 700;
 const bunCommand = process.platform === "win32" ? "bun.exe" : "bun";
@@ -113,13 +120,17 @@ function shutdown(exitCode = 0) {
   clearTimeout(syncTimer);
   for (const watcher of inputWatchers) watcher.close();
   inputWatchers = [];
-  syncProcess?.kill();
-  studioProcess?.kill();
+  terminateProcessTree(syncProcess);
+  terminateProcessTree(studioProcess);
   process.exitCode = exitCode;
 }
 
 process.on("SIGINT", () => shutdown(0));
 process.on("SIGTERM", () => shutdown(0));
+process.on("SIGHUP", () => shutdown(0));
+if (process.platform === "win32") {
+  process.on("SIGBREAK", () => shutdown(0));
+}
 
 if (!existsSync(dataDir)) {
   throw new Error(`Missing data directory: ${dataDir}`);
@@ -133,8 +144,10 @@ console.log("   数据 / Schema / 布局 / .env 变化会自动运行 TTS；图�
 if (existsSync(generatedDataPath)) {
   startStudio();
 }
-runSync(
-  existsSync(generatedDataPath)
-    ? "启动时检查并同步原始数据"
-    : "尚未生成 data-generate.json，正在执行首次生成",
-);
+if (process.env.AI_DAILY_REPORT_SKIP_INITIAL_SYNC !== "1") {
+  runSync(
+    existsSync(generatedDataPath)
+      ? "启动时检查并同步原始数据"
+      : "尚未生成 data-generate.json，正在执行首次生成",
+  );
+}

@@ -29,5 +29,5 @@ bun run lint
 Icons must exist, use `.svg`, include `xmlns` and `viewBox="0 0 96 96"`, remain transparent without
 a full-size background rectangle, and avoid `<style>`, `<script>`, and preferably `<text>`.
 
-For visual or theme changes, preview a representative frame in Remotion Studio and inspect scale,
-contrast, and sibling distinction.
+Finish after static SVG and data validation. Never start `bun run dev`, Remotion Studio,
+rendering, or another preview workflow during icon generation.

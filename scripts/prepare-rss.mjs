@@ -20,7 +20,7 @@ try {
 }
 
 if (!date) {
-  console.log("ℹ️ data-scheme/data.json 无有效 date，视为全新工作区，跳过归档检查。");
+  console.log("data-scheme/data.json 无有效 date，视为全新工作区，跳过归档检查。");
   process.exit(0);
 }
 
@@ -34,11 +34,11 @@ if (existsSync(archivePath)) {
   for (const entry of readdirSync(dataDir)) {
     rmSync(resolve(dataDir, entry), {recursive: true, force: true});
   }
-  console.log(`🧹 ${date} 已归档过，已清空 data-scheme/，rss 将生成全新数据。`);
+  console.log(`${date} 已归档过，已清空 data-scheme/，rss 将生成全新数据。`);
   process.exit(0);
 }
 
-console.log(`📦 ${date} 尚未归档，先执行 archive...`);
+console.log(`${date} 尚未归档，先执行 archive...`);
 const archiveResult = spawnSync(
   process.execPath,
   [resolve(rootDir, "scripts/archive.mjs")],
