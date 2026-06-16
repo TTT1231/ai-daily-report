@@ -10,7 +10,7 @@ import {
   useCurrentFrame,
   useVideoConfig,
 } from "remotion";
-import {useEffect, useRef, useState} from "react";
+import { useEffect, useRef, useState, type FC } from "react";
 import {
   dailyReport,
   type DailyIntro,
@@ -37,8 +37,7 @@ const themes = {
     contentTitle: "#d49376",
     canvas:
       "radial-gradient(circle at 12% -18%, rgba(91,115,135,.17), transparent 40%), radial-gradient(circle at 92% 0%, rgba(151,89,69,.10), transparent 38%), linear-gradient(180deg, #171c21 0%, #11161b 78%)",
-    ambient:
-      "linear-gradient(180deg, rgba(255,247,238,.022), transparent 42%)",
+    ambient: "linear-gradient(180deg, rgba(255,247,238,.022), transparent 42%)",
     nav: "rgba(24,29,34,.90)",
     navInactive: "rgba(38,44,49,.54)",
     navActive:
@@ -62,18 +61,18 @@ const themes = {
     emphasisText: "#efc27f",
     emphasisBackground: "rgba(202,137,67,.15)",
     emphasisBorder: "rgba(226,164,91,.58)",
-    emphasisShadow:
-      "inset 0 0 0 1px rgba(255,238,184,.06)",
+    emphasisShadow: "inset 0 0 0 1px rgba(255,238,184,.06)",
     codeText: "#c8dce0",
     codeBackground: "rgba(81,127,137,.18)",
     codeBorder: "rgba(130,178,187,.48)",
-    codeShadow:
-      "inset 0 0 0 1px rgba(228,249,255,.06)",
+    codeShadow: "inset 0 0 0 1px rgba(228,249,255,.06)",
     subtitleText: "#e9e5df",
     subtitleBackground: "rgba(34,39,43,.82)",
     subtitleBorder: "rgba(186,181,172,.16)",
     subtitleShadow: "0 8px 22px rgba(0,0,0,.14)",
     overlayShadow: "0 30px 80px rgba(0,0,0,.54)",
+    overlayCardBackground: "rgba(31,36,40,.86)",
+    overlayCardBorder: "rgba(225,220,210,.16)",
   },
   light: {
     text: "#2d3d4c",
@@ -83,8 +82,7 @@ const themes = {
     contentTitle: "#b85f49",
     canvas:
       "radial-gradient(circle at 10% -16%, rgba(90,135,182,.09), transparent 40%), radial-gradient(circle at 94% 2%, rgba(196,112,84,.08), transparent 38%), linear-gradient(180deg, #fbfaf7 0%, #f1f3f2 100%)",
-    ambient:
-      "linear-gradient(180deg, rgba(255,255,255,.42), transparent 42%)",
+    ambient: "linear-gradient(180deg, rgba(255,255,255,.42), transparent 42%)",
     nav: "rgba(252,251,248,.92)",
     navInactive: "rgba(241,241,237,.68)",
     navActive:
@@ -118,6 +116,8 @@ const themes = {
     subtitleBorder: "rgba(91,103,113,.16)",
     subtitleShadow: "0 8px 20px rgba(65,72,78,.07)",
     overlayShadow: "0 30px 72px rgba(40,62,91,.28)",
+    overlayCardBackground: "rgba(255,255,255,.90)",
+    overlayCardBorder: "rgba(92,104,113,.16)",
   },
 };
 
@@ -128,11 +128,18 @@ const STORY_TRANSITION_FRAMES = 18;
 const IMAGE_TRANSITION_FRAMES = 16;
 const IMAGE_PRE_ROLL_FRAMES = 12;
 const IMAGE_POST_ROLL_FRAMES = 10;
-const IMAGE_FOCUS_SCALE = 1.08;
+const IMAGE_FOCUS_SCALE = 1.12;
 const IMAGE_FOCUS_ZOOM_END = 0.42;
 const IMAGE_FOCUS_RETURN_START = 0.72;
 const IMAGE_FOCUS_RETURN_END = 0.9;
-const SUBTITLE_MAX_VISUAL_UNITS = 46;
+const OVERLAY_MAX_WIDTH = 1640;
+const OVERLAY_MAX_HEIGHT = 760;
+const OVERLAY_MAX_UPSCALE = 2.25;
+const OVERLAY_SMALL_MAX_WIDTH = 980;
+const OVERLAY_SMALL_MAX_HEIGHT = 560;
+const OVERLAY_SMALL_MAX_UPSCALE = 3.6;
+const SUBTITLE_MAX_VISUAL_UNITS = 36;
+const SUBTITLE_FONT_SIZE = 36;
 
 const msToFrames = (milliseconds: number, fps: number) =>
   Math.round((milliseconds / 1000) * fps);
@@ -171,18 +178,19 @@ const splitSubtitleCues = (subtitle: string) => {
     return [normalized];
   }
 
-  const segments =
-    normalized.match(/[^，。！？；：,.!?;:]+[，。！？；：,.!?;:]?/g) ?? [
-      normalized,
-    ];
+  const segments = normalized.match(
+    /[^，。！？；：,.!?;:]+[，。！？；：,.!?;:]?/g,
+  ) ?? [normalized];
   const cues: string[] = [];
   let cue = "";
 
-  for (const segment of segments.flatMap(hardSplitSubtitleSegment)) {
-    if (
-      cue &&
-      subtitleVisualUnits(cue + segment) > SUBTITLE_MAX_VISUAL_UNITS
-    ) {
+  const splitSegments = segments.reduce<string[]>(
+    (chunks, segment) => chunks.concat(hardSplitSubtitleSegment(segment)),
+    [],
+  );
+
+  for (const segment of splitSegments) {
+    if (cue && subtitleVisualUnits(cue + segment) > SUBTITLE_MAX_VISUAL_UNITS) {
       cues.push(cue.trim());
       cue = "";
     }
@@ -244,42 +252,44 @@ const getOverlayAnimation = (
     IMAGE_PRE_ROLL_FRAMES,
     Math.max(
       0,
-      lastSceneFrame -
-        IMAGE_TRANSITION_FRAMES * 2 -
-        IMAGE_POST_ROLL_FRAMES,
+      lastSceneFrame - IMAGE_TRANSITION_FRAMES * 2 - IMAGE_POST_ROLL_FRAMES,
     ),
   );
   const revealEnd = Math.min(
     lastSceneFrame,
     revealStart + IMAGE_TRANSITION_FRAMES,
   );
-  const hideEnd = Math.max(
-    revealEnd,
-    lastSceneFrame - IMAGE_POST_ROLL_FRAMES,
-  );
+  const hideEnd = Math.max(revealEnd, lastSceneFrame - IMAGE_POST_ROLL_FRAMES);
   const hideStart = Math.max(revealEnd, hideEnd - IMAGE_TRANSITION_FRAMES);
-  const reveal = interpolate(
-    sceneFrame,
-    [revealStart, revealEnd],
-    [0, 1],
-    {
-      easing: Easing.bezier(0.16, 1, 0.3, 1),
-      extrapolateLeft: "clamp",
-      extrapolateRight: "clamp",
-    },
-  );
-  const hide = interpolate(
-    sceneFrame,
-    [hideStart, hideEnd],
-    [1, 0],
-    {
-      easing: Easing.in(Easing.cubic),
-      extrapolateLeft: "clamp",
-      extrapolateRight: "clamp",
-    },
-  );
+  const reveal = interpolate(sceneFrame, [revealStart, revealEnd], [0, 1], {
+    easing: Easing.bezier(0.16, 1, 0.3, 1),
+    extrapolateLeft: "clamp",
+    extrapolateRight: "clamp",
+  });
+  const hide = interpolate(sceneFrame, [hideStart, hideEnd], [1, 0], {
+    easing: Easing.in(Easing.cubic),
+    extrapolateLeft: "clamp",
+    extrapolateRight: "clamp",
+  });
 
-  return {reveal, hide, opacity: reveal * hide, revealStart, revealEnd};
+  return { reveal, hide, opacity: reveal * hide, revealStart, revealEnd };
+};
+
+const getOverlayImageLayout = (scene: DailyScene) => {
+  const width = scene.overlayImgWidth;
+  const height = scene.overlayImgHeight;
+  if (!width || !height) return null;
+
+  const small = width < 640 || height < 360 || width * height < 260000;
+  const maxWidth = small ? OVERLAY_SMALL_MAX_WIDTH : OVERLAY_MAX_WIDTH;
+  const maxHeight = small ? OVERLAY_SMALL_MAX_HEIGHT : OVERLAY_MAX_HEIGHT;
+  const maxUpscale = small ? OVERLAY_SMALL_MAX_UPSCALE : OVERLAY_MAX_UPSCALE;
+  const scale = Math.min(maxUpscale, maxWidth / width, maxHeight / height);
+  return {
+    width: Math.round(width * scale),
+    height: Math.round(height * scale),
+    small,
+  };
 };
 
 // ── Unified timeline (single source of truth for all frame positions) ───
@@ -307,7 +317,11 @@ interface Timeline {
 const buildTimeline = (fps: number): Timeline => {
   const scenes: TimelineScene[] = [];
   const storyStarts: number[] = [];
-  const stories = [dailyReport.intro, ...dailyReport.stories, dailyReport.outro];
+  const stories = [
+    dailyReport.intro,
+    ...dailyReport.stories,
+    dailyReport.outro,
+  ];
   let cursor = 0;
 
   for (let si = 0; si < stories.length; si++) {
@@ -363,11 +377,7 @@ const getTimelineState = (frame: number, timeline: Timeline) => {
 
     // After this scene ends — check if we're in a story-transition gap
     const next = scenes[i + 1];
-    if (
-      next &&
-      ts.storyIndex !== next.storyIndex &&
-      frame < next.startFrame
-    ) {
+    if (next && ts.storyIndex !== next.storyIndex && frame < next.startFrame) {
       const transitionDuration = next.startFrame - endFrame;
       const transitionFrame = frame - endFrame;
       return {
@@ -432,11 +442,11 @@ const hasAudio = (ts: TimelineScene): ts is VoiceoverEntry =>
 
 // ── Sub-components ───────────────────────────────────────────────────────
 
-const InlineMarkup: React.FC<{ text: string; theme: Theme; active: boolean }> = ({
-  text,
-  theme,
-  active,
-}) => {
+const InlineMarkup: FC<{
+  text: string;
+  theme: Theme;
+  active: boolean;
+}> = ({ text, theme, active }) => {
   const palette = themes[theme];
   const parts = text.split(/(\*\*.*?\*\*|`.*?`)/g).filter(Boolean);
   return (
@@ -495,12 +505,12 @@ const InlineMarkup: React.FC<{ text: string; theme: Theme; active: boolean }> = 
   );
 };
 
-const TabIcon: React.FC<{
+const TabIcon: FC<{
   src: string;
   active: boolean;
   theme: Theme;
   size?: number;
-}> = ({src, active, theme, size = 62}) => (
+}> = ({ src, active, theme, size = 62 }) => (
   <Img
     src={staticFile(src)}
     style={{
@@ -520,69 +530,67 @@ const TabIcon: React.FC<{
   />
 );
 
-const Navigation: React.FC<{
+const Navigation: FC<{
   items: { label: string; duration: number; active: boolean }[];
   theme: Theme;
 }> = ({ items, theme }) => {
   const palette = themes[theme];
-  const {fontSize, horizontalPadding} = getNavigationTypography(items.length);
+  const { fontSize, horizontalPadding } = getNavigationTypography(items.length);
   return (
-  <div
-    style={{
-      display: "flex",
-      height: "100%",
-      alignItems: "stretch",
-      gap: navigationItemGap,
-      padding: `0 ${navigationEdgeInset}px`,
-      boxSizing: "border-box",
-      background: palette.nav,
-      borderTop: `1px solid ${palette.border}`,
-      borderBottom: `1px solid ${palette.border}`,
-    }}
-  >
-    {items.map((item, index) => {
-      // Reserve readable label width first, then distribute remaining width by duration.
-      const minimumWidth = navigationMinimumWidth(item.label, items.length);
-      return (
-        <div
-          key={`${item.label}-${index}`}
-          style={{
-            flexGrow: item.duration,
-            flexShrink: 0,
-            flexBasis: minimumWidth,
-            minWidth: minimumWidth,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            color: item.active ? palette.text : palette.muted,
-            borderLeft: `1px solid ${palette.border}`,
-            borderRight:
-              index === items.length - 1
-                ? `1px solid ${palette.border}`
-                : "none",
-            borderBottom: `4px solid ${item.active ? palette.blue : "transparent"}`,
-            background: item.active
-              ? palette.navActive
-              : palette.navInactive,
-            boxShadow: item.active ? palette.navActiveShadow : "none",
-            fontSize,
-            fontWeight: item.active ? 760 : 560,
-            letterSpacing: ".02em",
-            whiteSpace: "nowrap",
-            overflow: "hidden",
-            textOverflow: "ellipsis",
-            padding: `0 ${horizontalPadding}px`,
-          }}
-        >
-          {item.label}
-        </div>
-      );
-    })}
-  </div>
+    <div
+      style={{
+        display: "flex",
+        height: "100%",
+        alignItems: "stretch",
+        gap: navigationItemGap,
+        padding: `0 ${navigationEdgeInset}px`,
+        boxSizing: "border-box",
+        background: palette.nav,
+        borderTop: `1px solid ${palette.border}`,
+        borderBottom: `1px solid ${palette.border}`,
+      }}
+    >
+      {items.map((item, index) => {
+        // Reserve readable label width first, then distribute remaining width by duration.
+        const minimumWidth = navigationMinimumWidth(item.label, items.length);
+        return (
+          <div
+            key={`${item.label}-${index}`}
+            style={{
+              flexGrow: item.duration,
+              flexShrink: 0,
+              flexBasis: minimumWidth,
+              minWidth: minimumWidth,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              color: item.active ? palette.text : palette.muted,
+              borderLeft: `1px solid ${palette.border}`,
+              borderRight:
+                index === items.length - 1
+                  ? `1px solid ${palette.border}`
+                  : "none",
+              borderBottom: `4px solid ${item.active ? palette.blue : "transparent"}`,
+              background: item.active ? palette.navActive : palette.navInactive,
+              boxShadow: item.active ? palette.navActiveShadow : "none",
+              fontSize,
+              fontWeight: item.active ? 760 : 560,
+              letterSpacing: ".02em",
+              whiteSpace: "nowrap",
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+              padding: `0 ${horizontalPadding}px`,
+            }}
+          >
+            {item.label}
+          </div>
+        );
+      })}
+    </div>
   );
 };
 
-const Tabs: React.FC<{
+const Tabs: FC<{
   story: DailyStory;
   theme: Theme;
   overlayVisibility: number;
@@ -602,11 +610,7 @@ const Tabs: React.FC<{
     : tabCount === 4
       ? "76%"
       : "94%";
-  const containerHeight = isTwoCardLayout
-    ? "58%"
-    : isSingleRow
-      ? "58%"
-      : "94%";
+  const containerHeight = isTwoCardLayout ? "58%" : isSingleRow ? "58%" : "94%";
   const cardPadding = isTwoCardLayout
     ? "40px 46px"
     : isSingleRow
@@ -635,15 +639,10 @@ const Tabs: React.FC<{
       : isDenseLayout
         ? 1.38
         : 1.42;
-  const backgroundOpacity = interpolate(
-    overlayVisibility,
-    [0, 1],
-    [1, 0.24],
-    {
-      extrapolateLeft: "clamp",
-      extrapolateRight: "clamp",
-    },
-  );
+  const backgroundOpacity = interpolate(overlayVisibility, [0, 1], [1, 0.24], {
+    extrapolateLeft: "clamp",
+    extrapolateRight: "clamp",
+  });
   const backgroundSaturation = interpolate(
     overlayVisibility,
     [0, 1],
@@ -675,9 +674,13 @@ const Tabs: React.FC<{
     >
       {story.tabs.map((tab, index) => {
         const active = tab.id === story.activeTab;
-        const fiveCardGridColumn = ["1 / 3", "3 / 5", "5 / 7", "2 / 4", "4 / 6"][
-          index
-        ];
+        const fiveCardGridColumn = [
+          "1 / 3",
+          "3 / 5",
+          "5 / 7",
+          "2 / 4",
+          "4 / 6",
+        ][index];
         return (
           <div
             key={tab.id}
@@ -703,8 +706,8 @@ const Tabs: React.FC<{
                 ? !hasActiveTab
                   ? "none"
                   : active
-                  ? "translateY(-4px) scale(1.008)"
-                  : "translateY(1px) scale(.992)"
+                    ? "translateY(-4px) scale(1.008)"
+                    : "translateY(1px) scale(.992)"
                 : active
                   ? "translateY(-3px)"
                   : "translateY(0)",
@@ -751,12 +754,12 @@ const Tabs: React.FC<{
   );
 };
 
-const IntroOverview: React.FC<{
+const IntroOverview: FC<{
   intro: DailyIntro;
   sceneFrame: number;
   sceneDuration: number;
   theme: Theme;
-}> = ({intro, sceneFrame, sceneDuration, theme}) => {
+}> = ({ intro, sceneFrame, sceneDuration, theme }) => {
   const palette = themes[theme];
   const gap = 22;
   const viewportHeight = 700;
@@ -770,7 +773,11 @@ const IntroOverview: React.FC<{
 
   useEffect(() => {
     if (!contentRef.current) return;
-    const measuredHeight = contentRef.current.getBoundingClientRect().height / scale;
+    const measuredElement = contentRef.current as {
+      getBoundingClientRect: () => { height: number };
+    };
+    const measuredHeight =
+      measuredElement.getBoundingClientRect().height / scale;
     setContentHeight(measuredHeight);
   }, [intro.tabs, scale]);
 
@@ -814,73 +821,73 @@ const IntroOverview: React.FC<{
         {columns.map((indexes, columnIndex) => (
           <div
             key={`intro-column-${columnIndex}`}
-            style={{display: "flex", flexDirection: "column", gap}}
+            style={{ display: "flex", flexDirection: "column", gap }}
           >
             {indexes.map((index) => {
               const tab = intro.tabs[index];
               const color = titleColors[index % titleColors.length];
               return (
-            <div
-              key={tab.id}
-              style={{
-                minHeight: 150,
-                padding: "26px 32px",
-                borderRadius: 18,
-                border: `1px solid ${
-                  tab.id === intro.activeTab
-                    ? palette.activeCardBorder
-                    : palette.inactiveCardBorder
-                }`,
-                background:
-                  tab.id === intro.activeTab
-                    ? palette.activeCard
-                    : palette.inactiveCard,
-                boxShadow:
-                  tab.id === intro.activeTab
-                    ? palette.activeCardShadow
-                    : palette.inactiveCardShadow,
-              }}
-            >
-              <div
-                style={{
-                  color,
-                  fontSize: 34,
-                  lineHeight: 1.15,
-                  fontWeight: 850,
-                  marginBottom: 18,
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 14,
-                }}
-              >
-                {tab.icon && (
-                  <TabIcon
-                    src={tab.icon}
-                    active={tab.id === intro.activeTab}
-                    theme={theme}
-                    size={58}
-                  />
-                )}
-                {tab.title}
-              </div>
-              <div
-                style={{
-                  color: palette.inactiveCardText,
-                  display: "grid",
-                  gap: 12,
-                  fontSize: 27,
-                  lineHeight: 1.42,
-                  fontWeight: 570,
-                }}
-              >
-                {tab.summary.split("\n").map((item) => (
-                  <div key={item} style={{display: "flex", gap: 14}}>
-                    <span style={{color, fontWeight: 900}}>•</span>
-                    <span>{item}</span>
+                <div
+                  key={tab.id}
+                  style={{
+                    minHeight: 150,
+                    padding: "26px 32px",
+                    borderRadius: 18,
+                    border: `1px solid ${
+                      tab.id === intro.activeTab
+                        ? palette.activeCardBorder
+                        : palette.inactiveCardBorder
+                    }`,
+                    background:
+                      tab.id === intro.activeTab
+                        ? palette.activeCard
+                        : palette.inactiveCard,
+                    boxShadow:
+                      tab.id === intro.activeTab
+                        ? palette.activeCardShadow
+                        : palette.inactiveCardShadow,
+                  }}
+                >
+                  <div
+                    style={{
+                      color,
+                      fontSize: 34,
+                      lineHeight: 1.15,
+                      fontWeight: 850,
+                      marginBottom: 18,
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 14,
+                    }}
+                  >
+                    {tab.icon && (
+                      <TabIcon
+                        src={tab.icon}
+                        active={tab.id === intro.activeTab}
+                        theme={theme}
+                        size={58}
+                      />
+                    )}
+                    {tab.title}
                   </div>
-                ))}
-              </div>
-            </div>
+                  <div
+                    style={{
+                      color: palette.inactiveCardText,
+                      display: "grid",
+                      gap: 12,
+                      fontSize: 27,
+                      lineHeight: 1.42,
+                      fontWeight: 570,
+                    }}
+                  >
+                    {tab.summary.split("\n").map((item) => (
+                      <div key={item} style={{ display: "flex", gap: 14 }}>
+                        <span style={{ color, fontWeight: 900 }}>•</span>
+                        <span>{item}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
               );
             })}
           </div>
@@ -895,13 +902,13 @@ export type TabLayoutPreviewProps = {
   theme: Theme;
 };
 
-export const TabLayoutPreview: React.FC<TabLayoutPreviewProps> = ({
+export const TabLayoutPreview: FC<TabLayoutPreviewProps> = ({
   tabCount,
   theme,
 }) => {
   const frame = useCurrentFrame();
   const palette = themes[theme];
-  const tabs = Array.from({length: tabCount}, (_, index) => ({
+  const tabs = Array.from({ length: tabCount }, (_, index) => ({
     id: `preview-${index + 1}`,
     title: ["核心能力", "上下文管理", "质量控制", "团队协作", "交付闭环"][
       index
@@ -919,14 +926,14 @@ export const TabLayoutPreview: React.FC<TabLayoutPreviewProps> = ({
     topTitle: "布局测试",
     bottomTitle: `${tabCount} Tabs`,
     contentTitle: `${tabCount} Tab 布局测试`,
-    ...(tabCount > 2 ? {activeTab: tabs[1]?.id} : {}),
+    ...(tabCount > 2 ? { activeTab: tabs[1]?.id } : {}),
     tabs,
     scenes: [],
   };
   const scene: DailyScene = {
     id: `preview-${tabCount}-scene`,
     subtitle: `${tabCount} Tab 布局预览`,
-    timing: {startMs: 0, durationMs: 3000},
+    timing: { startMs: 0, durationMs: 3000 },
   };
   const subtitleCue = getSubtitleCue(scene, frame, 90);
 
@@ -977,11 +984,7 @@ export const TabLayoutPreview: React.FC<TabLayoutPreviewProps> = ({
             margin: "0 42px",
           }}
         >
-          <Tabs
-            story={story}
-            theme={theme}
-            overlayVisibility={0}
-          />
+          <Tabs story={story} theme={theme} overlayVisibility={0} />
         </div>
         <div
           style={{
@@ -992,14 +995,15 @@ export const TabLayoutPreview: React.FC<TabLayoutPreviewProps> = ({
             alignSelf: "center",
             maxWidth: "94%",
             height: "fit-content",
+            padding: "9px 24px",
             color: palette.subtitleText,
             background: palette.subtitleBackground,
             border: `1px solid ${palette.subtitleBorder}`,
             borderRadius: 12,
             boxShadow: palette.subtitleShadow,
-            fontSize: 29,
-            lineHeight: 1.25,
-            fontWeight: 620,
+            fontSize: SUBTITLE_FONT_SIZE,
+            lineHeight: 1.22,
+            fontWeight: 680,
             whiteSpace: "nowrap",
           }}
         >
@@ -1010,7 +1014,7 @@ export const TabLayoutPreview: React.FC<TabLayoutPreviewProps> = ({
   );
 };
 
-const SourceOverlay: React.FC<{
+const SourceOverlay: FC<{
   scene: DailyScene;
   sceneFrame: number;
   sceneDuration: number;
@@ -1019,7 +1023,7 @@ const SourceOverlay: React.FC<{
   if (!scene.overlayImg) return null;
   const palette = themes[theme];
 
-  const {reveal, hide, opacity, revealStart, revealEnd} = getOverlayAnimation(
+  const { reveal, hide, opacity, revealStart, revealEnd } = getOverlayAnimation(
     scene,
     sceneFrame,
     sceneDuration,
@@ -1042,6 +1046,7 @@ const SourceOverlay: React.FC<{
       extrapolateRight: "clamp",
     },
   );
+  const imageLayout = getOverlayImageLayout(scene);
 
   return (
     <div
@@ -1055,16 +1060,39 @@ const SourceOverlay: React.FC<{
         transform: `translateY(${translateY}px) scale(${scale})`,
       }}
     >
-      <Img
-        src={staticFile(scene.overlayImg)}
+      <div
         style={{
-          width: "100%",
-          height: "100%",
-          objectFit: "contain",
-          borderRadius: 10,
+          padding: imageLayout?.small ? 18 : 0,
+          borderRadius: imageLayout?.small ? 18 : 10,
+          background: imageLayout?.small
+            ? palette.overlayCardBackground
+            : "transparent",
+          border: imageLayout?.small
+            ? `1px solid ${palette.overlayCardBorder}`
+            : "none",
           filter: `drop-shadow(${palette.overlayShadow})`,
         }}
-      />
+      >
+        <Img
+          src={staticFile(scene.overlayImg)}
+          style={{
+            width: imageLayout?.width ?? "auto",
+            height: imageLayout?.height ?? "auto",
+
+            maxWidth: imageLayout?.small
+              ? OVERLAY_SMALL_MAX_WIDTH
+              : OVERLAY_MAX_WIDTH,
+
+            maxHeight: imageLayout?.small
+              ? OVERLAY_SMALL_MAX_HEIGHT
+              : OVERLAY_MAX_HEIGHT,
+
+            display: "block",
+            objectFit: "contain",
+            borderRadius: imageLayout?.small ? 8 : 10,
+          }}
+        />
+      </div>
     </div>
   );
 };
@@ -1075,9 +1103,7 @@ export type AiDailyReportProps = {
   themeOverride?: Theme;
 };
 
-export const AiDailyReport: React.FC<AiDailyReportProps> = ({
-  themeOverride,
-}) => {
+export const AiDailyReport: FC<AiDailyReportProps> = ({ themeOverride }) => {
   const frame = useCurrentFrame();
   const { fps } = useVideoConfig();
   const theme = themeOverride ?? dailyReport.theme;
@@ -1098,11 +1124,12 @@ export const AiDailyReport: React.FC<AiDailyReportProps> = ({
     : isIntro(story)
       ? null
       : story;
-  const displayScene = isOutro(story) && displayStory
-    ? displayStory.scenes[displayStory.scenes.length - 1]
-    : !isIntro(story)
-      ? scene
-      : null;
+  const displayScene =
+    isOutro(story) && displayStory
+      ? displayStory.scenes[displayStory.scenes.length - 1]
+      : !isIntro(story)
+        ? scene
+        : null;
 
   const storyPause =
     storyIndex === 0 || isOutro(story)
@@ -1137,7 +1164,7 @@ export const AiDailyReport: React.FC<AiDailyReportProps> = ({
   ];
   // Merge adjacent stories in the same category, while validation limits over-grouping.
   const categoryDurations = timelineStories.reduce<
-    {label: string; duration: number; active: boolean}[]
+    { label: string; duration: number; active: boolean }[]
   >((segments, item, index) => {
     const duration = getStoryDurationMs(item);
     const active = index === storyIndex;
@@ -1146,7 +1173,7 @@ export const AiDailyReport: React.FC<AiDailyReportProps> = ({
       previous.duration += duration;
       previous.active ||= active;
     } else {
-      segments.push({label: item.topTitle, duration, active});
+      segments.push({ label: item.topTitle, duration, active });
     }
     return segments;
   }, []);
@@ -1213,7 +1240,7 @@ export const AiDailyReport: React.FC<AiDailyReportProps> = ({
           <Navigation items={categoryDurations} theme={theme} />
         </div>
 
-        <div style={{position: "relative", minHeight: 0}}>
+        <div style={{ position: "relative", minHeight: 0 }}>
           {isIntro(story) ? (
             <>
               <div
@@ -1290,7 +1317,7 @@ export const AiDailyReport: React.FC<AiDailyReportProps> = ({
                     color: palette.contentTitle,
                     fontSize: 46,
                     fontWeight: 780,
-                    lineHeight: 1.08,
+                    lineHeight: 1.4,
                     letterSpacing: "-.018em",
                     maxWidth: "100%",
                     whiteSpace: "nowrap",
@@ -1349,10 +1376,10 @@ export const AiDailyReport: React.FC<AiDailyReportProps> = ({
               position: "absolute",
               zIndex: 5,
               left: "50%",
-              bottom: 12,
+              bottom: 16,
               width: "max-content",
               maxWidth: "94%",
-              padding: "7px 20px",
+              padding: "9px 24px",
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
@@ -1362,9 +1389,9 @@ export const AiDailyReport: React.FC<AiDailyReportProps> = ({
               borderRadius: 12,
               boxShadow: palette.subtitleShadow,
               textAlign: "center",
-              fontSize: 29,
-              lineHeight: 1.25,
-              fontWeight: 620,
+              fontSize: SUBTITLE_FONT_SIZE,
+              lineHeight: 1.22,
+              fontWeight: 680,
               whiteSpace: "nowrap",
               opacity: sceneEnter * storyVisibility,
               transform: `translateX(-50%) translateY(${(1 - sceneEnter) * 10}px)`,

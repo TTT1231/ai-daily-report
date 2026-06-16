@@ -49,7 +49,7 @@ export function validateReport(report, {renderMode = false, checkAssets = true} 
   const storyIds = new Set();
   const sceneIds = new Set();
   const topTitles = new Set();
-  let topTitleSegmentCount = 0;
+  const closedTopTitleSegments = new Set();
   let previousTopTitle;
   let activeIntroCount = 0;
   const timelineEntries = renderMode
@@ -76,7 +76,17 @@ export function validateReport(report, {renderMode = false, checkAssets = true} 
     if (story.activeIntro === true) activeIntroCount++;
     if (!["intro", "outro"].includes(story.id)) {
       topTitles.add(story.topTitle);
-      if (story.topTitle !== previousTopTitle) topTitleSegmentCount++;
+      if (story.topTitle !== previousTopTitle) {
+        if (closedTopTitleSegments.has(story.topTitle)) {
+          fail(
+            `${storyPath}.topTitle`,
+            `category "${story.topTitle}" appears in multiple non-adjacent segments`,
+          );
+        }
+        if (previousTopTitle !== undefined) {
+          closedTopTitleSegments.add(previousTopTitle);
+        }
+      }
       previousTopTitle = story.topTitle;
     }
 
@@ -141,13 +151,6 @@ export function validateReport(report, {renderMode = false, checkAssets = true} 
   }
   if (topTitles.size > 5) {
     fail("stories", `must use at most 5 unique topTitle categories, received ${topTitles.size}`);
-  }
-  const storyCount = report.stories?.length ?? 0;
-  if (storyCount - topTitleSegmentCount > 2) {
-    fail(
-      "stories",
-      `bottomTitle count (${storyCount}) minus adjacent topTitle segment count (${topTitleSegmentCount}) must be at most 2`,
-    );
   }
   const navigationLabels = reportNavigationLabels(report);
   const navigationStats = {};

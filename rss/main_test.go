@@ -348,20 +348,88 @@ func TestGenerateDataJSON(t *testing.T) {
 	}
 }
 
-func TestTopTitleSegmentCountLimitsOverGrouping(t *testing.T) {
+func TestGenerateDataJSONAssignsOverlayImagesByEvidence(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "data.json")
+	groups := []NewsGroup{{
+		Title:         "测试图片插入",
+		Reason:        "验证图片只在相关 Scene 中出现",
+		SourceIndexes: []int{1, 2},
+		Highlights:    []NewsHighlight{{Index: 1, Point: "来源一"}, {Index: 2, Point: "来源二"}},
+		ImageAssets: []StoryImage{
+			{SourceIndex: 1, Path: "images/source-one.png", Width: 320, Height: 180},
+			{SourceIndex: 2, Path: "images/source-two.png", Width: 1280, Height: 720},
+		},
+		Tabs: []StoryTab{
+			{Title: "第一张", Summary: "第一张图支撑的摘要内容。", EvidenceIndexes: []int{1}},
+			{Title: "第二张", Summary: "第二张图支撑的摘要内容。", EvidenceIndexes: []int{1, 2}},
+			{Title: "无图", Summary: "没有剩余图片时不要重复插入。", EvidenceIndexes: []int{2}},
+		},
+	}}
+	items := []Item{
+		{Title: "来源一", Link: "https://example.com/one"},
+		{Title: "来源二", Link: "https://example.com/two"},
+	}
+
+	if err := generateDataJSON(path, groups, items); err != nil {
+		t.Fatalf("generateDataJSON() error = %v", err)
+	}
+	data, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var report DataJSON
+	if err := json.Unmarshal(data, &report); err != nil {
+		t.Fatal(err)
+	}
+	scenes := report.Stories[0].Scenes
+	if scenes[0].OverlayImg != "images/source-one.png" ||
+		scenes[0].OverlayImgWidth != 320 ||
+		scenes[0].OverlayImgHeight != 180 ||
+		scenes[1].OverlayImg != "images/source-two.png" ||
+		scenes[1].OverlayImgWidth != 1280 ||
+		scenes[1].OverlayImgHeight != 720 ||
+		scenes[2].OverlayImg != "" {
+		t.Fatalf("unexpected overlay assignment: %#v", scenes)
+	}
+}
+
+func TestCompactStoriesByTopTitleKeepsSameCategoryContiguous(t *testing.T) {
 	stories := []DataJSONStory{
-		{TopTitle: "行业动态"},
-		{TopTitle: "模型产品"},
-		{TopTitle: "模型产品"},
-		{TopTitle: "模型产品"},
-		{TopTitle: "额度价格"},
+		{ID: "model-1", TopTitle: "模型产品", ActiveIntro: true},
+		{ID: "account-1", TopTitle: "账号风险"},
+		{ID: "model-2", TopTitle: "模型产品"},
+		{ID: "industry-1", TopTitle: "行业动态"},
+		{ID: "account-2", TopTitle: "账号风险"},
 	}
-	got := topTitleSegmentCount(stories)
-	if got != 3 {
-		t.Fatalf("topTitleSegmentCount() = %d, want 3", got)
+	got := compactStoriesByTopTitle(stories)
+	ids := make([]string, 0, len(got))
+	for _, story := range got {
+		ids = append(ids, story.ID)
 	}
-	if len(stories)-got > maxTopBottomSegmentGap {
-		t.Fatalf("valid grouping gap = %d, want <= %d", len(stories)-got, maxTopBottomSegmentGap)
+	want := []string{"model-1", "model-2", "account-1", "account-2", "industry-1"}
+	if strings.Join(ids, ",") != strings.Join(want, ",") {
+		t.Fatalf("compactStoriesByTopTitle() ids = %#v, want %#v", ids, want)
+	}
+	if split := splitTopTitleSegmentLabel(got); split != "" {
+		t.Fatalf("compacted stories still have split topTitle %q", split)
+	}
+
+	markActiveIntroStory(got)
+	for index, story := range got {
+		if story.ActiveIntro != (index == 0) {
+			t.Fatalf("story %d activeIntro = %v", index, story.ActiveIntro)
+		}
+	}
+}
+
+func TestSplitTopTitleSegmentLabelDetectsRepeatedCategory(t *testing.T) {
+	stories := []DataJSONStory{
+		{TopTitle: "模型产品"},
+		{TopTitle: "账号风险"},
+		{TopTitle: "模型产品"},
+	}
+	if got := splitTopTitleSegmentLabel(stories); got != "模型产品" {
+		t.Fatalf("splitTopTitleSegmentLabel() = %q, want 模型产品", got)
 	}
 }
 

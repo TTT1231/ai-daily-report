@@ -70,11 +70,15 @@ bun run dev
 
 如果 `val-schema` 报 `overlayImg` 不匹配正则，基本就是路径写错了（没带 `images/` 前缀，或用了不支持的格式）。
 
-## 关于远程图片识别（不是 overlayImg）
+## 自动配图（rss 视觉识别）
 
-别和 `rss/vision.go` 搞混：
+自动模式（`bun run all`）下，`rss/vision.go` 会对高分 Story 的远程图片同时做两件事：
 
-- **本文件讲的 `overlayImg`** = 你手动放的本地图片，作为视频画面出现。
-- **`rss/vision.go`** = RSS 抓取时，可选地把 feed 里的远程图片发给 `claude` 多模态，**只用来给文案提取事实**，不下载图片、不写 `overlayImg`。由 `CLAUDE_VISION_*` 环境变量控制，默认开。
+1. **提取事实**：调 `claude` 多模态识别图片内容，补充到文案。
+2. **自动配图**：判定相关后，把该图下载到 `data-scheme/images/` 并写入对应 scene 的 `overlayImg`（带原始宽高，供 `SourceOverlay` 布局用）。
 
-两者互不影响。
+触发条件（`shouldAnalyze`）：Story 评分 ≥9、正文 <500 字且含远程图片，受 `CLAUDE_VISION_*` 的调用上限/预算控制（默认开）。不满足条件的 scene 不会自动配图，用上面的手动方式补即可。
+
+所以 `overlayImg` 有两个来源：**自动（rss 视觉识别）** 和 **手动（你按上面填）**，两者写入同一个字段、渲染方式完全一样。
+
+> 注意：自动配图只发生在 `rss` 步骤；手动模式（你自己写 data.json）不会有自动配图。

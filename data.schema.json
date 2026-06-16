@@ -190,6 +190,16 @@
           "$ref": "#/$defs/imagePath",
           "description": "可选。与当前 subtitle 同步播放的一张真实图片；同一 Story 可通过多个 Scene 依次播放多张图片。"
         },
+        "overlayImgWidth": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "可选。overlayImg 的原始像素宽度，用于渲染时避免小图被过度放大。"
+        },
+        "overlayImgHeight": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "可选。overlayImg 的原始像素高度，用于渲染时避免小图被过度放大。"
+        },
         "audioSrc": {
           "$ref": "#/$defs/audioPath",
           "description": "仅出现在 data-generate.json，由 TTS 写入的旁白音频路径。"

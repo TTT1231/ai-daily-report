@@ -65,6 +65,8 @@ export const dailySceneSchema = z.object({
     durationMs: z.number().positive(),
   }),
   overlayImg: imagePathSchema.optional(),
+  overlayImgWidth: z.number().int().positive().optional(),
+  overlayImgHeight: z.number().int().positive().optional(),
 });
 
 export const dailyStorySchema = z

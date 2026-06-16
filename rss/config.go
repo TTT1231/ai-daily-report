@@ -25,6 +25,5 @@ const (
 	maxSceneSubtitleRunes     = 96                         // 场景口播字幕（subtitle）的最大汉字长度。
 	maxStoryTabRetries        = 2                          // 单个 Story 的 Tabs 校验失败后，带反馈重试的最大次数。
 	maxSourceTextRunes        = 5000                       // 送给模型时单条来源正文的最大字符数，超出截断。
-	maxTopBottomSegmentGap    = 2                          // 排除 Intro/Outro 后，底部 Story 数与顶部相邻栏目分段数的最大差值。
 	maxContentTitleRunes      = 42                         // 内容主标题（contentTitle）的最大字符长度。
 )

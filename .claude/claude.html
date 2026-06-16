@@ -447,7 +447,7 @@
 
         <div class="help-strip">
           <strong>👁️ 图片识别（按需）：</strong>
-          <span>当某个 Story 评分 ≥9、正文较短且含远程图片时，<code>rss</code> 会调用 <code>claude --dangerously-skip-permissions -p --effort low</code> 识别图片内容（识别图片无需扩展思考，降低思考强度以加速），补充事实后再进入下一步解析</span>
+          <span>当某个 Story 评分 ≥9、正文较短且含远程图片时，<code>rss</code> 会调用 <code>claude --dangerously-skip-permissions -p --effort low</code> 识别图片内容（识别图片无需扩展思考，降低思考强度以加速），补充事实后再进入下一步解析；判定相关后还会<strong>自动把该图下载到 <code>images/</code> 并写入对应 scene 的 <code>overlayImg</code></strong>，不满足条件的 scene 仍需手动配图</span>
           <span>⚠ 因此 <strong>Claude CLI 的模型必须支持多模态</strong>，并<strong>配置图像分析 MCP</strong>，否则图片识别步骤会失败（可接受，会降级为纯文本继续，但拿不到图片里的信息）</span>
         </div>
 
@@ -459,9 +459,9 @@
               <h3>抓取 + 配音 + 图标</h3>
               <p>
                 依次自动执行 <code>prerss</code>（归档）→
-                <code>rss</code>（抓取并生成 data.json，按需调用 Claude 视觉识别图片）→
+                <code>rss</code>（抓取并生成 data.json，按需调用 Claude 视觉识别图片并自动配图）→
                 <code>tts</code>（音频与时间线）→
-                <code>generate-svg</code>（Claude CLI 生成 Tabs 图标）。
+                <code>generate-svg</code>（Claude CLI 生成 Tabs 图标）；四步跑完会<strong>自动进入 <code>bun run dev</code> 预览</strong>（Ctrl+C 退出）。清空 <code>data-scheme/</code> 后想完全重建，先跑 <code>bun run reset</code> 再 <code>bun run all</code>。
               </p>
               <div class="copy-command">
                 <code>bun run all</code
@@ -483,7 +483,7 @@
               <span class="step-label">看到画面就成功</span>
               <h3>预览或渲染视频</h3>
               <p>
-                <code>dev</code> 拉起 Remotion Studio 预览；<code>build</code>
+                上一步已自动进入 <code>dev</code>；这里可单独再起 <code>dev</code> 预览或用 <code>build</code>
                 打包渲染。dev 会自动监听 data.json 并增量更新 TTS。
               </p>
               <div class="copy-command">
@@ -501,8 +501,8 @@
         </div>
 
         <div class="help-strip">
-          <strong>⚠ 仅图片需手动：</strong>
-          <span><code>bun run all</code> 不会插图，请在 <code>data-scheme/data.json</code> 给每个 Scene 填 <code>overlayImg: "images/xxx"</code>，图片放进 <code>data-scheme/images/</code></span>
+          <strong>🖼️ 图片：自动 + 手动：</strong>
+          <span><code>rss</code> 视觉识别会给部分高分 Story <strong>自动下载并配图</strong>（写入 <code>overlayImg</code>）；其余 scene 仍需手动在 <code>data-scheme/data.json</code> 填 <code>overlayImg: "images/xxx"</code>，图片放进 <code>data-scheme/images/</code></span>
           <span>仅替换图片不会重新请求旁白</span>
         </div>
       </div>

@@ -13,14 +13,32 @@ func generateStoryTabs(ai AIConfig, groups []NewsGroup, items []Item) ([]NewsGro
 	vision := newVisionAnalyzer()
 	retryCalls := 0
 	var materials []storyTabMaterial
-	for i, group := range groups {
+	for i := range groups {
+		group := &groups[i]
 		var sources []string
-		for _, index := range representativeSourceIndexes(group) {
+		for _, index := range representativeSourceIndexes(*group) {
 			if index < 1 || index > len(items) {
 				continue
 			}
 			item := items[index-1]
-			visionMaterial := formatVisionMaterial(vision.analyzeItem(item, group))
+			visionResults := vision.analyzeItem(index, item, *group)
+			for _, result := range visionResults {
+				if result.OverlayPath == "" {
+					continue
+				}
+				group.ImageAssets = append(group.ImageAssets, StoryImage{
+					SourceIndex: result.SourceIndex,
+					SourceTitle: result.SourceTitle,
+					URL:         result.ImageURL,
+					Path:        result.OverlayPath,
+					Width:       result.OverlayW,
+					Height:      result.OverlayH,
+					Facts:       append([]string(nil), result.Facts...),
+					Uncertain:   append([]string(nil), result.Uncertain...),
+					Summary:     result.Summary,
+				})
+			}
+			visionMaterial := formatVisionMaterial(visionResults)
 			sources = append(sources, fmt.Sprintf(
 				"来源 %d\n来源站点：%s\n标题：%s\n来源正文：%s%s",
 				index, item.SourceName, item.Title, cleanRSS2ItemText(item), visionMaterial,
@@ -35,7 +53,6 @@ func generateStoryTabs(ai AIConfig, groups []NewsGroup, items []Item) ([]NewsGro
 			i+1, group.Title, group.Reason, group.SourceIndexes, strings.Join(sources, "\n"),
 		)})
 	}
-
 	for start := 0; start < len(materials); start += storyTabBatchSize {
 		end := min(start+storyTabBatchSize, len(materials))
 		batch := materials[start:end]
@@ -206,7 +223,7 @@ func retryAndKeepBestTabs(ai AIConfig, groups []NewsGroup, batch []storyTabMater
 		calls++
 		results, err := requestStoryTabsBatch(ai, batch, feedbacks)
 		if err != nil {
-			fmt.Printf("   警告：Story Tabs 重试第 %d 次调用失败: %v\n", attempt, err)
+			fmt.Printf("   ⚠️  警告：Story Tabs 重试第 %d 次调用失败: %v\n", attempt, err)
 			break
 		}
 		anyImproved := false

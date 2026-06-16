@@ -40,8 +40,11 @@ type DataJSONTab struct {
 }
 
 type DataJSONScene struct {
-	ID       string `json:"id"`
-	Subtitle string `json:"subtitle"`
+	ID               string `json:"id"`
+	Subtitle         string `json:"subtitle"`
+	OverlayImg       string `json:"overlayImg,omitempty"`
+	OverlayImgWidth  int    `json:"overlayImgWidth,omitempty"`
+	OverlayImgHeight int    `json:"overlayImgHeight,omitempty"`
 }
 
 // defaultDataJSONPath 确定 data.json 输出路径：优先用 REPORT_DATA_PATH 环境变量，否则用项目根目录下的 data-scheme/data.json。
@@ -83,6 +86,7 @@ func generateDataJSON(path string, groups []NewsGroup, items []Item) error {
 			IntroTitle:   strings.TrimSpace(group.Title),
 			ActiveIntro:  i == 0,
 		}
+		usedImages := make(map[string]bool)
 		for tabIndex, tab := range group.Tabs {
 			tabID := fmt.Sprintf("%s-tab-%d", storyID, tabIndex+1)
 			story.Tabs = append(story.Tabs, DataJSONTab{
@@ -90,27 +94,29 @@ func generateDataJSON(path string, groups []NewsGroup, items []Item) error {
 				Title:   tab.Title,
 				Summary: tab.Summary,
 			})
-			story.Scenes = append(story.Scenes, DataJSONScene{
+			scene := DataJSONScene{
 				ID:       fmt.Sprintf("%s-scene-%d", storyID, tabIndex+1),
 				Subtitle: sceneSubtitle(tab),
-			})
+			}
+			if overlay := overlayImageForTab(group, tab, usedImages); overlay.Path != "" {
+				scene.OverlayImg = overlay.Path
+				scene.OverlayImgWidth = overlay.Width
+				scene.OverlayImgHeight = overlay.Height
+			}
+			story.Scenes = append(story.Scenes, scene)
 		}
 		story.ActiveTab = preferredActiveTab(story.Tabs)
 		report.Stories = append(report.Stories, story)
 	}
+	report.Stories = compactStoriesByTopTitle(report.Stories)
+	markActiveIntroStory(report.Stories)
 	layout, err := loadNavigationLayout()
 	if err != nil {
 		return fmt.Errorf("加载导航布局失败: %w", err)
 	}
 	fitNavigationLabels(report.Stories, layout)
-	topSegments := topTitleSegmentCount(report.Stories)
-	if len(report.Stories)-topSegments > maxTopBottomSegmentGap {
-		return fmt.Errorf(
-			"顶部栏目聚合过深：%d 个 Story 仅形成 %d 个相邻 topTitle 分段，差值不得超过 %d",
-			len(report.Stories),
-			topSegments,
-			maxTopBottomSegmentGap,
-		)
+	if splitTitle := splitTopTitleSegmentLabel(report.Stories); splitTitle != "" {
+		return fmt.Errorf("顶部栏目 %q 出现多个非连续分段，请将同类 Story 放在一起", splitTitle)
 	}
 
 	data, err := json.MarshalIndent(report, "", "  ")
@@ -128,16 +134,47 @@ func generateDataJSON(path string, groups []NewsGroup, items []Item) error {
 	return nil
 }
 
-func topTitleSegmentCount(stories []DataJSONStory) int {
-	segments := 0
+func compactStoriesByTopTitle(stories []DataJSONStory) []DataJSONStory {
+	if len(stories) <= 1 {
+		return stories
+	}
+	grouped := make(map[string][]DataJSONStory, len(stories))
+	order := make([]string, 0, len(stories))
+	for _, story := range stories {
+		if _, ok := grouped[story.TopTitle]; !ok {
+			order = append(order, story.TopTitle)
+		}
+		grouped[story.TopTitle] = append(grouped[story.TopTitle], story)
+	}
+	if len(order) == len(stories) {
+		return stories
+	}
+	compacted := make([]DataJSONStory, 0, len(stories))
+	for _, topTitle := range order {
+		compacted = append(compacted, grouped[topTitle]...)
+	}
+	return compacted
+}
+
+func markActiveIntroStory(stories []DataJSONStory) {
+	for index := range stories {
+		stories[index].ActiveIntro = index == 0
+	}
+}
+
+func splitTopTitleSegmentLabel(stories []DataJSONStory) string {
+	seen := make(map[string]bool, len(stories))
 	previous := ""
 	for _, story := range stories {
 		if story.TopTitle != previous {
-			segments++
+			if seen[story.TopTitle] {
+				return story.TopTitle
+			}
+			seen[story.TopTitle] = true
 			previous = story.TopTitle
 		}
 	}
-	return segments
+	return ""
 }
 
 // preferredActiveTab 选出视频默认激活的 Tab：Tab 数<=2 时不指定，否则用第二个（视觉居中位置）。
@@ -146,6 +183,27 @@ func preferredActiveTab(tabs []DataJSONTab) string {
 		return ""
 	}
 	return tabs[1].ID
+}
+
+// overlayImageForTab conservatively maps downloaded source images to scenes:
+// an image is inserted only when its source supports the current Tab and it has
+// not already appeared in this Story.
+func overlayImageForTab(group NewsGroup, tab StoryTab, used map[string]bool) StoryImage {
+	if len(group.ImageAssets) == 0 || len(tab.EvidenceIndexes) == 0 {
+		return StoryImage{}
+	}
+	evidence := make(map[int]bool, len(tab.EvidenceIndexes))
+	for _, index := range tab.EvidenceIndexes {
+		evidence[index] = true
+	}
+	for _, image := range group.ImageAssets {
+		if image.Path == "" || used[image.Path] || !evidence[image.SourceIndex] {
+			continue
+		}
+		used[image.Path] = true
+		return image
+	}
+	return StoryImage{}
 }
 
 // reportTheme 根据当前小时返回日报主题：白天（6-18 点）用 light，其余用 dark。

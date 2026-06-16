@@ -1,14 +1,17 @@
 import { spawn } from "node:child_process";
-import {createInterface} from "node:readline";
-import {clearInterval, setInterval} from "node:timers";
+import { existsSync } from "node:fs";
+import { resolve } from "node:path";
+import { createInterface } from "node:readline";
+import { clearInterval, setInterval } from "node:timers";
 import ora from "ora";
-import { rootDir } from "./lib/paths.mjs";
+import { rawDataPath, rootDir } from "./lib/paths.mjs";
 import { terminateProcessTree } from "./lib/process-tree.mjs";
 import { classifyStepOutcome } from "./lib/step-outcome.mjs";
 
 const bunCommand = process.platform === "win32" ? "bun.exe" : "bun";
 const claudeCommand = process.platform === "win32" ? "claude.exe" : "claude";
-const productionEnv = {...process.env, AI_DAILY_REPORT_RUN_ALL: "1"};
+const productionEnv = { ...process.env, AI_DAILY_REPORT_RUN_ALL: "1" };
+const rssStatePath = resolve(rootDir, "rss", "rss-state.json");
 
 const productionSteps = [
   {
@@ -32,7 +35,8 @@ const productionSteps = [
     args: [
       "--dangerously-skip-permissions",
       "-p",
-      "--effort", "low",
+      "--effort",
+      "low",
       [
         "/generate-svg",
         "",
@@ -64,11 +68,11 @@ function writeChildLine(line) {
 }
 
 function forwardChildOutput(stream) {
-  const lines = createInterface({input: stream, crlfDelay: Infinity});
+  const lines = createInterface({ input: stream, crlfDelay: Infinity });
   lines.on("line", writeChildLine);
 }
 
-function runProductionStep({command, args, name}, index) {
+function runProductionStep({ command, args, name }, index) {
   return new Promise((resolve, reject) => {
     if (interrupted) {
       reject(new Error("流程已被用户中断。"));
@@ -116,10 +120,38 @@ function runProductionStep({command, args, name}, index) {
       }
       const reason = outcome.signal
         ? `${name} 被信号 ${outcome.signal} 终止，已终止后续流程。`
-        : `${name} 失败 (exit ${outcome.exitCode ?? "null"})，已终止后续流程。`;
+        : `${name} exit ${outcome.exitCode ?? "null"}，已终止后续流程。`;
       reject(new Error(reason));
     });
   });
+}
+
+function validateProductionStep(name) {
+  if (name !== "rss" || existsSync(rawDataPath)) {
+    return;
+  }
+  throw new Error(
+    [
+      "rss 已结束但未生成 data-scheme/data.json。",
+      "常见原因：你清空了 data-scheme/，但 rss/rss-state.json 仍记录着上次抓取内容，所以本次被判定为“无新增”。",
+      "需要完全重建时，请先运行：bun run reset",
+      "然后再运行：bun run all",
+    ].join("\n"),
+  );
+}
+
+function validateInitialState() {
+  if (existsSync(rawDataPath) || !existsSync(rssStatePath)) {
+    return;
+  }
+  throw new Error(
+    [
+      "当前缺少 data-scheme/data.json，但 rss/rss-state.json 仍存在。",
+      "这通常表示 data-scheme/ 被手动清空，而 RSS 去重快照还保留着上次抓取记录。",
+      "请先运行：bun run reset",
+      "然后再运行：bun run all",
+    ].join("\n"),
+  );
 }
 
 function runDev() {
@@ -134,7 +166,7 @@ function runDev() {
 
     const child = spawn(bunCommand, ["run", "dev"], {
       cwd: rootDir,
-      env: {...process.env, AI_DAILY_REPORT_SKIP_INITIAL_SYNC: "1"},
+      env: { ...process.env, AI_DAILY_REPORT_SKIP_INITIAL_SYNC: "1" },
       stdio: "inherit",
       shell: false,
     });
@@ -182,6 +214,7 @@ async function main() {
   const totalStart = process.hrtime.bigint();
 
   try {
+    validateInitialState();
     console.log("──────── 生产阶段 ────────");
     productionSpinner = ora({
       text: "正在准备生产流程...",
@@ -191,6 +224,7 @@ async function main() {
 
     for (const [index, step] of productionSteps.entries()) {
       await runProductionStep(step, index);
+      validateProductionStep(step.name);
     }
 
     const total = formatSeconds(process.hrtime.bigint() - totalStart);
@@ -199,9 +233,9 @@ async function main() {
 
     await runDev();
   } catch (error) {
-    productionSpinner?.fail("生产失败");
+    productionSpinner?.stop();
     productionSpinner = null;
-    console.error(`\n❌ ${error.message}`);
+    console.error(`\n❌ 生产失败：${error.message}`);
     process.exitCode = interrupted ? 130 : 1;
   }
 }

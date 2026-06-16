@@ -33,7 +33,7 @@ func run() int {
 	fmt.Println("[1/6] 抓取 RSS 2.0")
 	fetchedItems, fetchFailures := fetchRecentItems(config.Sources, config.Lookback)
 	for sourceID, fetchErr := range fetchFailures {
-		fmt.Printf("   警告：来源 %s 抓取失败，本次保留其上一次运行状态：%v\n", sourceID, fetchErr)
+		fmt.Printf("   ⚠️  警告：来源 %s 抓取失败，本次保留其上一次运行状态：%v\n", sourceID, fetchErr)
 	}
 	if len(fetchFailures) == len(config.Sources) {
 		fmt.Println("失败：所有 RSS 来源均抓取失败。")
@@ -71,7 +71,7 @@ func run() int {
 	fmt.Printf("[3/6] AI 兴趣筛选（%s）\n", config.AI.Model)
 	scored, err := analyzeWithModel(config.AI, config.Preferences, items)
 	if err != nil {
-		fmt.Printf("   警告：模型评分失败，改用本地兴趣规则：%v\n", err)
+		fmt.Printf("   ⚠️  警告：模型评分失败，改用本地兴趣规则：%v\n", err)
 		scored = applyKeywordWeights(config.Preferences, nil, items)
 	}
 	if len(scored) == 0 {
@@ -87,7 +87,7 @@ func run() int {
 	fmt.Println("[4/6] 合并相似新闻")
 	groups, err := groupSimilarNews(config.AI, scored, items)
 	if err != nil {
-		fmt.Printf("   警告：AI 合并失败，改用本地分组：%v\n", err)
+		fmt.Printf("   ⚠️  警告：AI 合并失败，改用本地分组：%v\n", err)
 		groups = fallbackGroups(scored)
 	}
 	fmt.Printf("   完成：生成 %d 个新闻主题\n\n", len(groups))
@@ -95,7 +95,7 @@ func run() int {
 	fmt.Println("[5/6] 生成视频 Tabs 与字幕")
 	groups, err = generateStoryTabs(config.AI, groups, items)
 	if err != nil {
-		fmt.Printf("   警告：AI Tabs 编排失败，改用本地保底结构：%v\n", err)
+		fmt.Printf("   ⚠️  警告：AI Tabs 编排失败，改用本地保底结构：%v\n", err)
 		groups = withFallbackStoryTabs(groups)
 	}
 	fmt.Printf("   完成：%d 个新闻主题已完成视频编排\n", len(groups))

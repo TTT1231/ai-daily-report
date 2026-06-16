@@ -71,7 +71,7 @@
 ### 方式一：Agent 自动化（推荐）
 
 > [!WARNING]
-> **图片仍需手动插入（可选）**：`bun run all` 不会插图。执行后请到 `data-scheme/data.json` 给每个 Scene 填 `overlayImg: "images/xxx"`，并把图片放进 `data-scheme/images/`。仅替换图片不会重新请求旁白。图片是可选事实源，你可根据喜好自己添加。
+> **图片：自动 + 手动**：`rss` 视觉识别会给部分高分 Story（评分 ≥9、正文短且含远程图，且 Claude 判定相关）**自动下载并配图**（写入 `overlayImg`）；其余 scene 仍需手动到 `data-scheme/data.json` 填 `overlayImg: "images/xxx"`，图片放进 `data-scheme/images/`。仅替换图片不会重新请求旁白。图片是可选事实源，你可根据喜好自己添加。
 
 ```bash
 # 1. 填写好对应的 TTS API Key 和 RSS 模型供应商、API Key
@@ -80,17 +80,21 @@
 # 2. install
 bun install
 
-# 3. run command
+# 3. run command（跑完会自动进入 dev 预览；Ctrl+C 退出）
 bun run all
 
-# 4. 插入图片（可选）： data.json Scene 中根据需要填写 `overlayImg`，图片放 `data-scheme/images/` 即可
+# 如果你手动清空了 data-scheme/，或想丢弃上次 RSS 去重状态并完全重建：
+bun run reset
+bun run all
 
-# 5. 预览（HMR）
+# 4. 图片：部分高分 Story 会被 rss 自动配图；其余 scene 可选地在 data.json 填 `overlayImg`，图片放 `data-scheme/images/`
+
+# 5. 预览（HMR）：上面 all 已自动起 dev；这里可单独再起
 bun run dev
 ```
 
 > [!WARNING]
-> `rss/rss-state.json` 这里保存的是上一次命令的抓取的快照，如果有重复这里会进行剔除，但是会以这个临时文件进行参考。
+> `rss/rss-state.json` 保存上一次 RSS 抓取快照，用来判断重复内容。日常不用手动编辑；如果你清空了 `data-scheme/` 或想完全重建，请运行 `bun run reset` 后再执行 `bun run all`。
 
 ### 方式二：手写维护（示例，不推荐）
 

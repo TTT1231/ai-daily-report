@@ -86,6 +86,7 @@ type NewsGroup struct {
 	SourceIndexes   []int           `json:"source_indexes"`             // 归入本 Story 的全部候选序号（含重复来源）。
 	Highlights      []NewsHighlight `json:"highlights"`                 // 互不重复的关键要点。
 	Tabs            []StoryTab      `json:"tabs,omitempty"`             // 后续编排出的视频 Tabs。
+	ImageAssets     []StoryImage    `json:"-"`                          // 已确认相关并可作为画面 overlay 的本地图片素材。
 	lastRejected    []rejectedTab   `json:"-"`                          // 运行时缓存：最近一次 Tab 归一化被丢弃的项，供带反馈重试使用。
 }
 
@@ -103,6 +104,19 @@ type StoryTab struct {
 	Kind             string `json:"kind"`             // 类型：fact（事实）、impact（影响）或 watch（待观察）。
 	EvidenceIndexes  []int  `json:"evidence_indexes"` // 支撑该 Tab 的来源序号。
 	subtitleFallback bool   `json:"-"`                // 运行时质量标记：模型字幕无效，已从 summary/title 降级生成。
+}
+
+// StoryImage 是从来源远程图片中识别、下载并可安全插入视频的一张素材。
+type StoryImage struct {
+	SourceIndex int      // 来源序号（1 基），用于和 Tab 的 evidence_indexes 对齐。
+	SourceTitle string   // 来源标题，便于调试与后续素材匹配。
+	URL         string   // 原始远程图片地址。
+	Path        string   // data-scheme 内的相对路径，例如 images/topic-xxx.png。
+	Width       int      // 图片原始宽度，用于渲染时限制放大倍率。
+	Height      int      // 图片原始高度，用于渲染时限制放大倍率。
+	Facts       []string // Claude 视觉识别出的确定事实。
+	Uncertain   []string // Claude 视觉识别出的不确定信息。
+	Summary     string   // Claude 视觉识别摘要。
 }
 
 // StoryTabsResult 是模型针对某个 Story 返回的 Tabs 集合，GroupIndex 对应 Story 序号。

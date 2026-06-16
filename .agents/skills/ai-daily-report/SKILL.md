@@ -38,25 +38,29 @@ bun install
 
 # 1. 跑全流程：prerss → rss → tts → generate-svg → dev
 bun run all
+
+# 如果要丢弃当前 data-scheme/ 和 RSS 去重快照后完全重建
+bun run reset
+bun run all
 ```
 
 `bun run all`（`scripts/run-all.mjs`）先按顺序跑四个生产步骤并显示实时状态，任一步失败会中断；全部完成后以前台常驻方式启动 `bun run dev`：
 
-| 步骤 | 做什么 | 产物 |
-| --- | --- | --- |
-| `prerss` | 归档上一天数据（必要时），保证每次都从干净状态开始 | `daily-dates/` |
-| `rss` | Go 采集器抓 RSS → AI 筛选/聚类 → 生成结构 | `data-scheme/data.json` |
-| `tts` | 给每个 scene 生成 MiniMax 旁白，算时间线 | `data-scheme/data-generate.json` + `audio/*.mp3` |
-| `generate-svg` | 调 `claude -p /generate-svg` 给 tabs 出图标 | `data-scheme/icons/*.svg` |
+| 步骤           | 做什么                                             | 产物                                             |
+| -------------- | -------------------------------------------------- | ------------------------------------------------ |
+| `prerss`       | 归档上一天数据（必要时），保证每次都从干净状态开始 | `daily-dates/`                                   |
+| `rss`          | Go 采集器抓 RSS → AI 筛选/聚类 → 生成结构          | `data-scheme/data.json`                          |
+| `tts`          | 给每个 scene 生成 MiniMax 旁白，算时间线           | `data-scheme/data-generate.json` + `audio/*.mp3` |
+| `generate-svg` | 调 `claude -p /generate-svg` 给 tabs 出图标        | `data-scheme/icons/*.svg`                        |
 
 `rss` 步骤会读取项目根目录 `.env` 中可选的小写 `all_proxy`。没有配置时跳过代理并直连；配置后 RSS 抓取与 AI 模型请求都会强制使用该代理，代理无效或不可用时直接报错。它不会读取 `HTTP_PROXY`、`HTTPS_PROXY`、`ALL_PROXY` 等其他代理变量，也不会自动探测本地代理端口。
 
 生产步骤跑完后：
 
-- **图片是唯一的手动步骤**：`bun run all` 不会插图。要加图就给 `data.json` 的 scene 填 `overlayImg`，并把图片放进 `data-scheme/images/`。详见下方「把图片放进 data.json」。
+- **图片大多自动配好，少数需手动补**：`rss` 视觉识别会在 Story 评分 ≥9、正文较短且含远程图片、且 Claude 判定相关时，自动把该图下载到 `data-scheme/images/` 并写入对应 scene 的 `overlayImg`；不满足条件的 scene 仍可手动给 `data.json` 的 scene 填 `overlayImg`。详见下方「把图片放进 data.json」。
 - **预览**：脚本自动进入 `bun run dev`（带 HMR + 自动 TTS 同步）；按 `Ctrl+C` 会停止预览并释放端口。
 
-> 关于 `rss/rss-state.json`：它存的是上次抓取的快照，用来去重。重复内容会被剔除，但这个临时文件是判断依据，平时不用动它。
+> 关于 `rss/rss-state.json`：它存的是上次抓取的快照，用来去重。日常不用手动编辑；如果清空了 `data-scheme/` 或想完全重建，先跑 `bun run reset`，再跑 `bun run all`。
 
 ## B. 手动模式
 
@@ -79,6 +83,7 @@ bun run all
 
 一句话结论：**把图片丢进 `data-scheme/images/`，给对应的 scene 加 `"overlayImg": "images/文件名"`。**
 
+- 自动模式（`bun run all`）下，`rss` 视觉识别会给部分高分 Story **自动下载并配图**（写入 `overlayImg`）；下面讲的是没被自动配上、或手动模式下你自己加图时怎么做。
 - 图片是 **scene 级**的（不是 story 级、不是 tab 级），一张图配一句旁白。
 - 允许格式：`.svg .png .jpg/.jpeg .webp`。
 - 多张图 = 给同一个 story 写多个 scene，依次播放。
@@ -104,11 +109,11 @@ npx remotion render AiDailyReport out/video.mp4
 
 动手做某件事前，先读对应文件：
 
-| 想做的事 | 读哪个 |
-| --- | --- |
-| 手写 / 完全手动出片 | [`rules/manual-mode.md`](./rules/manual-mode.md) |
-| 换 TTS 模型或供应商 | [`rules/tts-customize.md`](./rules/tts-customize.md) |
-| 给日报加图片 | [`rules/images.md`](./rules/images.md) |
+| 想做的事             | 读哪个                                               |
+| -------------------- | ---------------------------------------------------- |
+| 手写 / 完全手动出片  | [`rules/manual-mode.md`](./rules/manual-mode.md)     |
+| 换 TTS 模型或供应商  | [`rules/tts-customize.md`](./rules/tts-customize.md) |
+| 给日报加图片         | [`rules/images.md`](./rules/images.md)               |
 | 把视频渲染导出成 mp4 | [`rules/render-export.md`](./rules/render-export.md) |
 
 要做 Tab 图标，用 `generate-svg` skill（README 和 `package.json` 里 `/generate-svg`）；要改 Remotion 组件本身（动画、布局、`<Audio>`/`<Img>` 用法），用 `remotion-best-practices` skill。

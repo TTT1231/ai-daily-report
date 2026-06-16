@@ -21,10 +21,16 @@ var (
 const visionJSONSchema = `{"type":"object","properties":{"relevant":{"type":"boolean"},"facts":{"type":"array","items":{"type":"string"}},"uncertain":{"type":"array","items":{"type":"string"}},"summary":{"type":"string"}},"required":["relevant","facts","uncertain","summary"],"additionalProperties":false}`
 
 type VisionResult struct {
-	Relevant  bool     `json:"relevant"`
-	Facts     []string `json:"facts"`
-	Uncertain []string `json:"uncertain"`
-	Summary   string   `json:"summary"`
+	Relevant    bool     `json:"relevant"`
+	Facts       []string `json:"facts"`
+	Uncertain   []string `json:"uncertain"`
+	Summary     string   `json:"summary"`
+	SourceIndex int      `json:"-"`
+	SourceTitle string   `json:"-"`
+	ImageURL    string   `json:"-"`
+	OverlayPath string   `json:"-"`
+	OverlayW    int      `json:"-"`
+	OverlayH    int      `json:"-"`
 }
 
 type VisionAnalyzer struct {
@@ -50,7 +56,7 @@ func newVisionAnalyzer() *VisionAnalyzer {
 }
 
 // analyzeItem 在满足条件时对条目中的远程图片逐张调用 Claude 视觉识别，返回与来源相关的事实结果。
-func (analyzer *VisionAnalyzer) analyzeItem(item Item, group NewsGroup) []VisionResult {
+func (analyzer *VisionAnalyzer) analyzeItem(sourceIndex int, item Item, group NewsGroup) []VisionResult {
 	if !analyzer.shouldAnalyze(item, group) {
 		return nil
 	}
@@ -64,11 +70,26 @@ func (analyzer *VisionAnalyzer) analyzeItem(item Item, group NewsGroup) []Vision
 		fmt.Printf("   视觉补充：%s\n", imageURL)
 		result, err := analyzeRemoteImageWithClaude(imageURL, item.Title, analyzer)
 		if err != nil {
-			fmt.Printf("   警告：Claude 视觉识别失败，继续使用文本材料：%v\n", err)
+			fmt.Printf("   ⚠️  警告：Claude 视觉识别失败，继续使用文本材料：%v\n", err)
+			continue
+		}
+		result.SourceIndex = sourceIndex
+		result.SourceTitle = item.Title
+		result.ImageURL = imageURL
+		if !result.Relevant {
 			continue
 		}
 		if result.Relevant && len(result.Facts) > 0 {
+			overlay, err := downloadVisionOverlayImage(imageURL, item)
+			if err != nil {
+				fmt.Printf("   ⚠️  警告：图片可作为事实补充，但未写入 overlayImg：%v\n", err)
+			} else {
+				result.OverlayPath = overlay.Path
+				result.OverlayW = overlay.Width
+				result.OverlayH = overlay.Height
+			}
 			results = append(results, result)
+			continue
 		}
 	}
 	return results

@@ -55,7 +55,7 @@ func parseScoredItems(content string) ([]ScoredItem, error) {
 		if len(scored) == 0 {
 			return nil, fmt.Errorf("解析评分 JSON 失败且未能恢复有效条目: %w\n原始内容: %s", err, content)
 		}
-		fmt.Printf("   警告：模型返回局部无效 JSON，已跳过坏条目并恢复 %d 条有效评分\n", len(scored))
+		fmt.Printf("   ⚠️  警告：模型返回局部无效 JSON，已跳过坏条目并恢复 %d 条有效评分\n", len(scored))
 	}
 	return scored, nil
 }
