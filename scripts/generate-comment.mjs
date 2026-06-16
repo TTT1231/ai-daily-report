@@ -71,46 +71,33 @@ async function main() {
     process.exit(1);
   }
 
-  // 3. 生成评论（每条新闻一条：时间戳取该 story 首个 scene 起始，正文用 contentTitle 概括）
-  const comments = (data.stories ?? []).map((story) => {
+  // 3. 生成评论（每条新闻一条：序号 + 内容 + 【时间】）
+  //    时间戳取该 story 首个 scene 起始，正文用 contentTitle 概括
+  const items = (data.stories ?? []).map((story) => {
     const firstScene = (story.scenes ?? [])[0];
     const timestamp = firstScene
       ? msToTimestamp(firstScene.timing.startMs)
       : "00:00";
     const content = stripMarkdown(story.contentTitle || story.introTitle || "");
-    return `${timestamp}  ${content}`;
+    return `${content} 【${timestamp}】`;
   });
 
-  // 4. 组装输出文件
-  const dateStr = data.date || "unknown";
-  const lastScene = allScenes[allScenes.length - 1];
-  const totalMs = lastScene.timing.startMs + lastScene.timing.durationMs;
-  const duration = msToTimestamp(totalMs);
+  const numberedLines = items.map((line, idx) => `${idx + 1}. ${line}`);
+  const commentBlock = ["今日日报：", ...numberedLines].join("\n");
 
-  const output = [
-    `# AI 日报 ${dateStr}`,
-    `# 视频总时长：${duration}`,
-    "",
-    ...comments,
-    "",
-  ].join("\n");
+  // 4. 写入文件（直接输出评论块）
+  writeFileSync(OUTPUT_PATH, `${commentBlock}\n`, "utf-8");
+  console.log(`✅ 已生成 ${items.length} 条评论 → data-scheme/comments.txt`);
 
-  // 5. 写入文件
-  writeFileSync(OUTPUT_PATH, output, "utf-8");
-  console.log(`✅ 已生成 ${comments.length} 条评论 → data-scheme/comments.txt`);
-
-  // 6. 可选：复制到剪贴板
+  // 5. 可选：复制到剪贴板
   if (shouldCopy) {
-    const clipboardContent = comments.join("\n");
-    copyToClipboard(clipboardContent);
+    copyToClipboard(commentBlock);
     console.log("📋 评论内容已复制到剪贴板");
   }
 
-  // 7. 控制台预览
+  // 6. 控制台预览
   console.log("\n── 评论预览 ──────────────────────────────");
-  for (const line of comments) {
-    console.log(`  ${line}`);
-  }
+  console.log(commentBlock);
   console.log("──────────────────────────────────────────");
 }
 
