@@ -1,0 +1,62 @@
+import test from "node:test";
+import assert from "node:assert/strict";
+import {getOverlayAnimation} from "./AiDailyReport";
+import type {DailyScene} from "./daily-report-data";
+
+// 这些时长曾经让 interpolate() 抛出
+// "inputRange must be strictly monotonically increasing"，直接搞崩整段
+// Remotion 渲染。任何带 overlayImg 的短场景现在都必须能安全渲染。
+const CRASH_DURATIONS = [1, 5, 10, 20, 30, 38];
+
+const overlayScene = (overrides: Partial<DailyScene> = {}): DailyScene =>
+  ({
+    id: "test-scene",
+    subtitle: "一段测试字幕",
+    timing: {startMs: 0, durationMs: 1000},
+    overlayImg: "images/test.png",
+    ...overrides,
+  }) as DailyScene;
+
+for (const duration of CRASH_DURATIONS) {
+  test(`getOverlayAnimation stays in range across every frame of a ${duration}-frame overlay scene`, () => {
+    const scene = overlayScene();
+    for (let frame = 0; frame < duration; frame++) {
+      const result = getOverlayAnimation(scene, frame, duration);
+      for (const [name, value] of [
+        ["opacity", result.opacity],
+        ["reveal", result.reveal],
+        ["hide", result.hide],
+      ] as const) {
+        assert.ok(
+          value >= 0 && value <= 1,
+          `${name} out of [0,1] at frame ${frame}: ${value}`,
+        );
+      }
+      assert.ok(
+        Number.isFinite(result.scale),
+        `scale not finite at frame ${frame}: ${result.scale}`,
+      );
+    }
+  });
+}
+
+test("getOverlayAnimation returns zero opacity when the scene has no overlay image", () => {
+  const scene = overlayScene({overlayImg: undefined});
+  const result = getOverlayAnimation(scene, 0, 60);
+  assert.equal(result.opacity, 0);
+});
+
+test("getOverlayAnimation reveals, holds, then hides on a long scene", () => {
+  const scene = overlayScene();
+  const duration = 120;
+  assert.equal(getOverlayAnimation(scene, 0, duration).opacity, 0);
+  assert.equal(getOverlayAnimation(scene, 60, duration).opacity, 1);
+  assert.ok(
+    getOverlayAnimation(scene, 60, duration).scale > 1,
+    "scale should zoom past 1 mid-scene",
+  );
+  assert.ok(
+    getOverlayAnimation(scene, duration - 1, duration).opacity < 1,
+    "opacity should be fading out by the last frame",
+  );
+});

@@ -10,7 +10,7 @@ import {
   useCurrentFrame,
   useVideoConfig,
 } from "remotion";
-import { useEffect, useRef, useState, type FC } from "react";
+import { useEffect, useMemo, useRef, useState, type FC } from "react";
 import {
   dailyReport,
   type DailyIntro,
@@ -24,6 +24,15 @@ import {
   navigationItemGap,
   navigationMinimumWidth,
 } from "./navigation-layout";
+import {
+  getTabLayout,
+  INTRO_GAP,
+  INTRO_VIEWPORT_HEIGHT,
+  OVERLAY_SMALL_AREA,
+  OVERLAY_SMALL_HEIGHT,
+  OVERLAY_SMALL_WIDTH,
+} from "./layout-config";
+import {previewTabs} from "./tab-layout-preview-fixture";
 import clickSound from "./sound/click-sound.mp3";
 
 // ── Palette & constants ──────────────────────────────────────────────────
@@ -73,6 +82,7 @@ const themes = {
     overlayShadow: "0 30px 80px rgba(0,0,0,.54)",
     overlayCardBackground: "rgba(31,36,40,.86)",
     overlayCardBorder: "rgba(225,220,210,.16)",
+    introTitleColors: ["#d98978", "#8fb3bd", "#d1ad74", "#91b3a5", "#aa9abb", "#c89876"],
   },
   light: {
     text: "#2d3d4c",
@@ -118,12 +128,14 @@ const themes = {
     overlayShadow: "0 30px 72px rgba(40,62,91,.28)",
     overlayCardBackground: "rgba(255,255,255,.90)",
     overlayCardBorder: "rgba(92,104,113,.16)",
+    introTitleColors: ["#cf3f67", "#167fc0", "#b77a00", "#12826d", "#7154c7", "#c15f22"],
   },
 };
 
 export type Theme = keyof typeof themes;
 
-const STORY_PAUSE_FRAMES = 0;
+const STORY_ENTER_DELAY_FRAMES = 0; // story 入场淡入开始前停留的帧数（0 = 立即开始淡入）
+const STORY_ENTER_FADE_FRAMES = 10; // story 入场淡入持续的帧数
 const STORY_TRANSITION_FRAMES = 18;
 const IMAGE_TRANSITION_FRAMES = 16;
 const IMAGE_PRE_ROLL_FRAMES = 12;
@@ -201,12 +213,32 @@ const splitSubtitleCues = (subtitle: string) => {
   return cues;
 };
 
+// 字幕切分与视觉宽度只依赖 scene.subtitle，与帧无关，按 scene 缓存一次，
+// 避免每帧重复执行 regex 切分与逐字统计。
+const subtitleCueCache = new WeakMap<
+  DailyScene,
+  { cues: string[]; totalUnits: number }
+>();
+
+const getSubtitleCueData = (scene: DailyScene) => {
+  const cached = subtitleCueCache.get(scene);
+  if (cached) return cached;
+  const cues = splitSubtitleCues(scene.subtitle);
+  const totalUnits = cues.reduce(
+    (total, cue) => total + subtitleVisualUnits(cue),
+    0,
+  );
+  const entry = { cues, totalUnits };
+  subtitleCueCache.set(scene, entry);
+  return entry;
+};
+
 const getSubtitleCue = (
   scene: DailyScene,
   sceneFrame: number,
   sceneDuration: number,
 ) => {
-  const cues = splitSubtitleCues(scene.subtitle);
+  const { cues, totalUnits } = getSubtitleCueData(scene);
   if (cues.length === 1) return cues[0];
 
   const audioDurationFrames = scene.tts
@@ -214,10 +246,6 @@ const getSubtitleCue = (
       (scene.tts.audioLengthMs /
         (scene.tts.audioLengthMs + scene.tts.tailPaddingMs))
     : sceneDuration;
-  const totalUnits = cues.reduce(
-    (total, cue) => total + subtitleVisualUnits(cue),
-    0,
-  );
   const currentUnits =
     (Math.min(sceneFrame, Math.max(0, audioDurationFrames - 1)) /
       Math.max(1, audioDurationFrames)) *
@@ -232,19 +260,73 @@ const getSubtitleCue = (
   return cues[cues.length - 1];
 };
 
-const getOverlayAnimation = (
+interface OverlayAnimation {
+  reveal: number;
+  hide: number;
+  opacity: number;
+  scale: number;
+}
+
+// interpolate() throws when its input range is not strictly monotonically
+// increasing. Short overlay scenes collapse the reveal/hide ranges to a single
+// frame, so guard those calls and fall back to the boundary value instead of
+// letting the whole render crash.
+const interpolateRange = (
+  frame: number,
+  start: number,
+  end: number,
+  from: number,
+  to: number,
+  options: Parameters<typeof interpolate>[3],
+) => {
+  if (start >= end) return frame >= end ? to : from;
+  return interpolate(frame, [start, end], [from, to], options);
+};
+
+// Overlay zoom keyframes. On short scenes the full "zoom in then settle back"
+// arc no longer fits between the reveal and the scene end, which would hand
+// interpolate() a non-monotonic range and crash the render. Degrade to a plain
+// reveal scale instead, and never build a range that can collapse to a point.
+const getOverlayScale = (
+  frame: number,
+  revealStart: number,
+  revealEnd: number,
+  sceneDuration: number,
+) => {
+  const zoomEnd = sceneDuration * IMAGE_FOCUS_ZOOM_END;
+  const returnStart = sceneDuration * IMAGE_FOCUS_RETURN_START;
+  const returnEnd = sceneDuration * IMAGE_FOCUS_RETURN_END;
+  const fullZoomFits =
+    revealEnd < zoomEnd && zoomEnd < returnStart && returnStart < returnEnd;
+  if (fullZoomFits) {
+    return interpolate(
+      frame,
+      [revealStart, revealEnd, zoomEnd, returnStart, returnEnd],
+      [0.95, 1, IMAGE_FOCUS_SCALE, IMAGE_FOCUS_SCALE, 1],
+      {
+        easing: Easing.inOut(Easing.cubic),
+        extrapolateLeft: "clamp",
+        extrapolateRight: "clamp",
+      },
+    );
+  }
+  if (revealStart < revealEnd) {
+    return interpolate(frame, [revealStart, revealEnd], [0.95, 1], {
+      easing: Easing.inOut(Easing.cubic),
+      extrapolateLeft: "clamp",
+      extrapolateRight: "clamp",
+    });
+  }
+  return 1;
+};
+
+export const getOverlayAnimation = (
   scene: DailyScene,
   sceneFrame: number,
   sceneDuration: number,
-) => {
+): OverlayAnimation => {
   if (!scene.overlayImg) {
-    return {
-      reveal: 0,
-      hide: 0,
-      opacity: 0,
-      revealStart: 0,
-      revealEnd: 0,
-    };
+    return { reveal: 0, hide: 0, opacity: 0, scale: 1 };
   }
 
   const lastSceneFrame = Math.max(1, sceneDuration - 1);
@@ -261,18 +343,24 @@ const getOverlayAnimation = (
   );
   const hideEnd = Math.max(revealEnd, lastSceneFrame - IMAGE_POST_ROLL_FRAMES);
   const hideStart = Math.max(revealEnd, hideEnd - IMAGE_TRANSITION_FRAMES);
-  const reveal = interpolate(sceneFrame, [revealStart, revealEnd], [0, 1], {
+  const reveal = interpolateRange(sceneFrame, revealStart, revealEnd, 0, 1, {
     easing: Easing.bezier(0.16, 1, 0.3, 1),
     extrapolateLeft: "clamp",
     extrapolateRight: "clamp",
   });
-  const hide = interpolate(sceneFrame, [hideStart, hideEnd], [1, 0], {
+  const hide = interpolateRange(sceneFrame, hideStart, hideEnd, 1, 0, {
     easing: Easing.in(Easing.cubic),
     extrapolateLeft: "clamp",
     extrapolateRight: "clamp",
   });
+  const scale = getOverlayScale(
+    sceneFrame,
+    revealStart,
+    revealEnd,
+    sceneDuration,
+  );
 
-  return { reveal, hide, opacity: reveal * hide, revealStart, revealEnd };
+  return { reveal, hide, opacity: reveal * hide, scale };
 };
 
 const getOverlayImageLayout = (scene: DailyScene) => {
@@ -280,7 +368,10 @@ const getOverlayImageLayout = (scene: DailyScene) => {
   const height = scene.overlayImgHeight;
   if (!width || !height) return null;
 
-  const small = width < 640 || height < 360 || width * height < 260000;
+  const small =
+    width < OVERLAY_SMALL_WIDTH ||
+    height < OVERLAY_SMALL_HEIGHT ||
+    width * height < OVERLAY_SMALL_AREA;
   const maxWidth = small ? OVERLAY_SMALL_MAX_WIDTH : OVERLAY_MAX_WIDTH;
   const maxHeight = small ? OVERLAY_SMALL_MAX_HEIGHT : OVERLAY_MAX_HEIGHT;
   const maxUpscale = small ? OVERLAY_SMALL_MAX_UPSCALE : OVERLAY_MAX_UPSCALE;
@@ -367,7 +458,6 @@ const getTimelineState = (frame: number, timeline: Timeline) => {
         story: ts.story,
         scene: ts.scene,
         storyIndex: ts.storyIndex,
-        sceneIndex: ts.sceneIndex,
         sceneFrame: frame - ts.startFrame,
         sceneDuration: ts.durationFrames,
         storyFrame: frame - storyStarts[ts.storyIndex],
@@ -384,7 +474,6 @@ const getTimelineState = (frame: number, timeline: Timeline) => {
         story: ts.story,
         scene: ts.scene,
         storyIndex: ts.storyIndex,
-        sceneIndex: ts.sceneIndex,
         sceneFrame: ts.durationFrames - 1,
         sceneDuration: ts.durationFrames,
         storyFrame: endFrame - storyStarts[ts.storyIndex] - 1,
@@ -413,7 +502,6 @@ const getTimelineState = (frame: number, timeline: Timeline) => {
     story: last.story,
     scene: last.scene,
     storyIndex: last.storyIndex,
-    sceneIndex: last.sceneIndex,
     sceneFrame: last.durationFrames - 1,
     sceneDuration: last.durationFrames,
     storyFrame: lastEnd - storyStarts[last.storyIndex] - 1,
@@ -425,6 +513,15 @@ const getTimelineState = (frame: number, timeline: Timeline) => {
 
 const getStoryDurationMs = (story: TimelineStory) =>
   story.scenes.reduce((total, scene) => total + scene.timing.durationMs, 0);
+
+// 整条时间线与每个 story 的时长都与帧无关，模块加载时算一次即可，渲染层
+// 每帧只复用，不再重复 reduce。
+const timelineStories = [
+  dailyReport.intro,
+  ...dailyReport.stories,
+  dailyReport.outro,
+];
+const storyDurationsMs = timelineStories.map(getStoryDurationMs);
 
 const isIntro = (story: TimelineStory): story is DailyIntro =>
   story.id === "intro";
@@ -597,48 +694,22 @@ const Tabs: FC<{
 }> = ({ story, theme, overlayVisibility }) => {
   const palette = themes[theme];
   const tabCount = story.tabs.length;
+  const {
+    columns,
+    rows,
+    isTwoCardLayout,
+    isSingleRow,
+    isFiveCardLayout,
+    isDenseLayout,
+    gap,
+    containerWidth,
+    containerHeight,
+    cardPadding,
+    titleFontSize,
+    summaryFontSize,
+    summaryLineHeight,
+  } = getTabLayout(tabCount);
   const hasActiveTab = story.activeTab !== undefined;
-  const isTwoCardLayout = tabCount === 2;
-  const columns = isTwoCardLayout || tabCount === 4 ? 2 : 3;
-  const rows = Math.ceil(tabCount / columns);
-  const isSingleRow = rows === 1;
-  const isFiveCardLayout = tabCount === 5;
-  const isDenseLayout = tabCount >= 5;
-  const gap = isTwoCardLayout ? 30 : isDenseLayout ? 18 : 20;
-  const containerWidth = isTwoCardLayout
-    ? "88%"
-    : tabCount === 4
-      ? "76%"
-      : "94%";
-  const containerHeight = isTwoCardLayout ? "58%" : isSingleRow ? "58%" : "94%";
-  const cardPadding = isTwoCardLayout
-    ? "40px 46px"
-    : isSingleRow
-      ? "32px 36px"
-      : isDenseLayout
-        ? "22px 26px"
-        : "24px 30px";
-  const titleFontSize = isTwoCardLayout
-    ? 40
-    : isSingleRow
-      ? 34
-      : isDenseLayout
-        ? 30
-        : 33;
-  const summaryFontSize = isTwoCardLayout
-    ? 33
-    : isSingleRow
-      ? 29
-      : isDenseLayout
-        ? 26
-        : 28;
-  const summaryLineHeight = isTwoCardLayout
-    ? 1.44
-    : isSingleRow
-      ? 1.45
-      : isDenseLayout
-        ? 1.38
-        : 1.42;
   const backgroundOpacity = interpolate(overlayVisibility, [0, 1], [1, 0.24], {
     extrapolateLeft: "clamp",
     extrapolateRight: "clamp",
@@ -761,8 +832,8 @@ const IntroOverview: FC<{
   theme: Theme;
 }> = ({ intro, sceneFrame, sceneDuration, theme }) => {
   const palette = themes[theme];
-  const gap = 22;
-  const viewportHeight = 700;
+  const gap = INTRO_GAP;
+  const viewportHeight = INTRO_VIEWPORT_HEIGHT;
   const scale = useCurrentScale();
   const contentRef = useRef<HTMLDivElement>(null);
   const [contentHeight, setContentHeight] = useState(0);
@@ -792,10 +863,7 @@ const IntroOverview: FC<{
       extrapolateRight: "clamp",
     },
   );
-  const titleColors =
-    theme === "dark"
-      ? ["#d98978", "#8fb3bd", "#d1ad74", "#91b3a5", "#aa9abb", "#c89876"]
-      : ["#cf3f67", "#167fc0", "#b77a00", "#12826d", "#7154c7", "#c15f22"];
+  const titleColors = palette.introTitleColors;
 
   return (
     <div
@@ -908,33 +976,29 @@ export const TabLayoutPreview: FC<TabLayoutPreviewProps> = ({
 }) => {
   const frame = useCurrentFrame();
   const palette = themes[theme];
-  const tabs = Array.from({ length: tabCount }, (_, index) => ({
-    id: `preview-${index + 1}`,
-    title: ["核心能力", "上下文管理", "质量控制", "团队协作", "交付闭环"][
-      index
-    ],
-    summary: [
-      "拆分复杂任务，并协调多个 **Agent** 并行处理。",
-      "共享任务状态，减少跨步骤的信息损耗。",
-      "在提交前自动执行 `检查`、测试与评审。",
-      "让团队成员清楚掌握进度、风险与下一步。",
-      "串联编码、验证和提交，形成完整工作流。",
-    ][index],
-  }));
-  const story: DailyStory = {
-    id: `preview-${tabCount}`,
-    topTitle: "布局测试",
-    bottomTitle: `${tabCount} Tabs`,
-    contentTitle: `${tabCount} Tab 布局测试`,
-    ...(tabCount > 2 ? { activeTab: tabs[1]?.id } : {}),
-    tabs,
-    scenes: [],
-  };
-  const scene: DailyScene = {
-    id: `preview-${tabCount}-scene`,
-    subtitle: `${tabCount} Tab 布局预览`,
-    timing: { startMs: 0, durationMs: 3000 },
-  };
+  // tabs/story/scene 只依赖 tabCount，按 tabCount 缓存；每帧只重算随帧变化的字幕。
+  const { story, scene } = useMemo(() => {
+    const tabs = Array.from({ length: tabCount }, (_, index) => ({
+      id: `preview-${index + 1}`,
+      title: previewTabs[index].title,
+      summary: previewTabs[index].summary,
+    }));
+    const story: DailyStory = {
+      id: `preview-${tabCount}`,
+      topTitle: "布局测试",
+      bottomTitle: `${tabCount} Tabs`,
+      contentTitle: `${tabCount} Tab 布局测试`,
+      ...(tabCount > 2 ? { activeTab: tabs[1]?.id } : {}),
+      tabs,
+      scenes: [],
+    };
+    const scene: DailyScene = {
+      id: `preview-${tabCount}-scene`,
+      subtitle: `${tabCount} Tab 布局预览`,
+      timing: { startMs: 0, durationMs: 3000 },
+    };
+    return { story, scene };
+  }, [tabCount]);
   const subtitleCue = getSubtitleCue(scene, frame, 90);
 
   return (
@@ -1016,36 +1080,15 @@ export const TabLayoutPreview: FC<TabLayoutPreviewProps> = ({
 
 const SourceOverlay: FC<{
   scene: DailyScene;
-  sceneFrame: number;
-  sceneDuration: number;
   theme: Theme;
-}> = ({ scene, sceneFrame, sceneDuration, theme }) => {
+  animation: OverlayAnimation;
+}> = ({ scene, theme, animation }) => {
   if (!scene.overlayImg) return null;
   const palette = themes[theme];
 
-  const { reveal, hide, opacity, revealStart, revealEnd } = getOverlayAnimation(
-    scene,
-    sceneFrame,
-    sceneDuration,
-  );
+  const { reveal, hide, opacity, scale } = animation;
   const exitProgress = 1 - hide;
   const translateY = (1 - reveal) * 18 - exitProgress * 14;
-  const scale = interpolate(
-    sceneFrame,
-    [
-      revealStart,
-      revealEnd,
-      sceneDuration * IMAGE_FOCUS_ZOOM_END,
-      sceneDuration * IMAGE_FOCUS_RETURN_START,
-      sceneDuration * IMAGE_FOCUS_RETURN_END,
-    ],
-    [0.95, 1, IMAGE_FOCUS_SCALE, IMAGE_FOCUS_SCALE, 1],
-    {
-      easing: Easing.inOut(Easing.cubic),
-      extrapolateLeft: "clamp",
-      extrapolateRight: "clamp",
-    },
-  );
   const imageLayout = getOverlayImageLayout(scene);
 
   return (
@@ -1108,7 +1151,7 @@ export const AiDailyReport: FC<AiDailyReportProps> = ({ themeOverride }) => {
   const { fps } = useVideoConfig();
   const theme = themeOverride ?? dailyReport.theme;
   const palette = themes[theme];
-  const timeline = buildTimeline(fps);
+  const timeline = useMemo(() => buildTimeline(fps), [fps]);
   const state = getTimelineState(frame, timeline);
   const {
     story,
@@ -1136,7 +1179,7 @@ export const AiDailyReport: FC<AiDailyReportProps> = ({ themeOverride }) => {
       ? 1
       : interpolate(
           storyFrame,
-          [STORY_PAUSE_FRAMES, STORY_PAUSE_FRAMES + 10],
+          [STORY_ENTER_DELAY_FRAMES, STORY_ENTER_DELAY_FRAMES + STORY_ENTER_FADE_FRAMES],
           [0, 1],
           {
             easing: Easing.bezier(0.16, 1, 0.3, 1),
@@ -1150,41 +1193,44 @@ export const AiDailyReport: FC<AiDailyReportProps> = ({ themeOverride }) => {
     extrapolateRight: "clamp",
   });
   const subtitleCue = getSubtitleCue(scene, sceneFrame, sceneDuration);
-  const overlayVisibility = getOverlayAnimation(
+  const overlayAnimation = getOverlayAnimation(
     scene,
     sceneFrame,
     sceneDuration,
-  ).opacity;
+  );
+  const overlayVisibility = overlayAnimation.opacity;
   const storyVisibility = storyPause * storyExit;
 
-  const timelineStories = [
-    dailyReport.intro,
-    ...dailyReport.stories,
-    dailyReport.outro,
-  ];
   // Merge adjacent stories in the same category, while validation limits over-grouping.
-  const categoryDurations = timelineStories.reduce<
+  const categoryDurations = storyDurationsMs.reduce<
     { label: string; duration: number; active: boolean }[]
-  >((segments, item, index) => {
-    const duration = getStoryDurationMs(item);
+  >((segments, duration, index) => {
+    const label = timelineStories[index].topTitle;
     const active = index === storyIndex;
     const previous = segments[segments.length - 1];
-    if (previous?.label === item.topTitle) {
-      previous.duration += duration;
-      previous.active ||= active;
+    if (previous?.label === label) {
+      // 合并相邻同类栏目：用新对象替换末尾元素，避免原地修改累加器对象
+      segments[segments.length - 1] = {
+        label,
+        duration: previous.duration + duration,
+        active: previous.active || active,
+      };
     } else {
-      segments.push({ label: item.topTitle, duration, active });
+      segments.push({ label, duration, active });
     }
     return segments;
   }, []);
 
-  const storyDurations = timelineStories.map((item) => ({
+  const storyDurations = timelineStories.map((item, index) => ({
     label: item.bottomTitle,
-    duration: getStoryDurationMs(item),
+    duration: storyDurationsMs[index],
     active: item.id === story.id,
   }));
 
-  const voiceoverScenes = timeline.scenes.filter(hasAudio);
+  const voiceoverScenes = useMemo(
+    () => timeline.scenes.filter(hasAudio),
+    [timeline],
+  );
 
   return (
     <AbsoluteFill
@@ -1366,9 +1412,8 @@ export const AiDailyReport: FC<AiDailyReportProps> = ({ themeOverride }) => {
           >
             <SourceOverlay
               scene={scene}
-              sceneFrame={sceneFrame}
-              sceneDuration={sceneDuration}
               theme={theme}
+              animation={overlayAnimation}
             />
           </div>
           <div
