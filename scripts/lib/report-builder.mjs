@@ -99,3 +99,34 @@ export function collectTimelineScenes(report) {
     .filter(Boolean)
     .flatMap((story) => story.scenes ?? []);
 }
+
+// ── 视频帧时间线（与 Remotion 播放器保持一致） ─────────────────────────
+//
+// 评论里的时间戳必须落在播放器真实渲染故事的那一帧。成片在相邻 story 之间
+// 会插入 STORY_TRANSITION_FRAMES 的过渡（点击音效），而这些过渡帧不在 TTS
+// 的 startMs 时间线里。若评论直接用 startMs，每条都会偏早，且越往后偏差越大。
+// 下面两个常量是 src/AiDailyReport.tsx 中 buildTimeline 的镜像：改 React 侧时
+// 务必同步这里，避免评论与画面错位。
+
+export const VIDEO_FPS = 30;
+export const STORY_TRANSITION_FRAMES = 18;
+
+/**
+ * 按 Remotion 的帧时间线累计每个 story 的起始毫秒。
+ * 返回数组与 [intro, ...stories, outro] 对齐：index 0 是 intro，
+ * data.stories[i] 对应 index i + 1（intro / outro 在 generated 数据中始终存在）。
+ */
+export function buildVideoStoryStartMs(report) {
+  const timelineStories = [report.intro, ...(report.stories ?? []), report.outro];
+  const msToFrames = (ms) => Math.round((ms / 1000) * VIDEO_FPS);
+  let cursor = 0;
+  const startMs = [];
+  for (let si = 0; si < timelineStories.length; si++) {
+    startMs.push((cursor / VIDEO_FPS) * 1000);
+    for (const scene of timelineStories[si].scenes ?? []) {
+      cursor += msToFrames(scene.timing?.durationMs ?? 0);
+    }
+    if (si < timelineStories.length - 1) cursor += STORY_TRANSITION_FRAMES;
+  }
+  return startMs;
+}

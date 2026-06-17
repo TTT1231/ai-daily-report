@@ -14,7 +14,10 @@
 import { writeFileSync } from "node:fs";
 import { execFileSync } from "node:child_process";
 import { resolve } from "node:path";
-import { collectTimelineScenes } from "./lib/report-builder.mjs";
+import {
+  collectTimelineScenes,
+  buildVideoStoryStartMs,
+} from "./lib/report-builder.mjs";
 import { dataDir, generatedDataPath, readJson } from "./lib/paths.mjs";
 import { validateReport } from "./lib/report-validation.mjs";
 
@@ -71,13 +74,15 @@ async function main() {
     process.exit(1);
   }
 
-  // 3. 生成评论（每条新闻一条：序号 + 内容 + 【时间】）
-  //    时间戳取该 story 首个 scene 起始，正文用 contentTitle 概括
-  const items = (data.stories ?? []).map((story) => {
-    const firstScene = (story.scenes ?? [])[0];
-    const timestamp = firstScene
-      ? msToTimestamp(firstScene.timing.startMs)
-      : "00:00";
+  // 3. 按 Remotion 成片的帧时间线计算每个 story 的真实起始时间。
+  //    成片在相邻 story 之间插入过渡帧（点击音效），这些帧不在 TTS 的
+  //    startMs 里；若直接用 startMs，评论时间戳会整体偏早且越往后越离谱。
+  const storyStartMs = buildVideoStoryStartMs(data);
+
+  // 4. 生成评论（每条新闻一条：序号 + 内容 + 【时间】）
+  //    时间戳取该 story 在成片中的起始帧，正文用 contentTitle 概括
+  const items = (data.stories ?? []).map((story, index) => {
+    const timestamp = msToTimestamp(storyStartMs[index + 1] ?? 0);
     const content = stripMarkdown(story.contentTitle || story.introTitle || "");
     return `${content} 【${timestamp}】`;
   });
@@ -85,17 +90,17 @@ async function main() {
   const numberedLines = items.map((line, idx) => `${idx + 1}. ${line}`);
   const commentBlock = ["今日日报：", ...numberedLines].join("\n");
 
-  // 4. 写入文件（直接输出评论块）
+  // 5. 写入文件（直接输出评论块）
   writeFileSync(OUTPUT_PATH, `${commentBlock}\n`, "utf-8");
   console.log(`✅ 已生成 ${items.length} 条评论 → data-scheme/comments.txt`);
 
-  // 5. 可选：复制到剪贴板
+  // 6. 可选：复制到剪贴板
   if (shouldCopy) {
     copyToClipboard(commentBlock);
     console.log("📋 评论内容已复制到剪贴板");
   }
 
-  // 6. 控制台预览
+  // 7. 控制台预览
   console.log("\n── 评论预览 ──────────────────────────────");
   console.log(commentBlock);
   console.log("──────────────────────────────────────────");
