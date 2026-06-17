@@ -46,7 +46,7 @@ function buildOutro(report) {
   return {
     id: "outro",
     topTitle: "结语",
-    bottomTitle: "再见",
+    bottomTitle: "结语",
     scenes: [
       {
         id: "outro-ending",
