@@ -46,6 +46,7 @@
     "dev:studio": "remotion studio",
     "prebuild": "bun run check-data-json:render",
     "build": "remotion bundle",
+    "render:video": "bun run prepare-report && bunx remotion render AiDailyReport out/AiDailyReport.mp4",
     "upgrade": "remotion upgrade",
     "lint": "eslint src scripts && tsc"
   },
