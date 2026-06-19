@@ -124,6 +124,31 @@ bun run tts
 
 ---
 
+## B 站评论 + 置顶
+
+视频上传到 B 站后，可一键自动发送带时间戳的评论并置顶（方案：直接调用 web API，无需浏览器）。拆成两个独立命令：
+
+```bash
+# 0.（可选）先生成评论正文（带时间戳的章节索引）到 data-scheme/comments.txt
+bun run comment            # 或 bun run comment --copy 复制到剪贴板
+
+# 1. 发评论（不置顶）
+bun run bili:comment -- --bvid BV1xxxxxxxx --from-file data-scheme/comments.txt
+#   或直接传正文：
+bun run bili:comment -- --bvid BV1xxxxxxxx --message "今日日报：..."
+#   → 输出 rpid，用于下一步置顶
+
+# 2. 置顶（必须传 --rpid，来自上一步的输出）
+bun run bili:stick -- --bvid BV1xxxxxxxx --rpid <上一步的rpid>
+```
+
+> [!NOTE]
+> - 凭据在 `.env` 配置 `BILI_SESSDATA` 和 `BILI_JCT`（=cookie 里的 `bili_jct`），均从浏览器登录态 cookie 获取。置顶需要 UP 主权限，必须用该视频 UP 主的账号。
+> - `--bvid` 即视频 BV 号（URL 里 `BV...` 那段），脚本会自动换成评论接口需要的 oid；也可用 `--oid <aid>` 直接传内部 id。
+> - 置顶内部带等待+重试，应对评论刚发出未索引时的 `-404`。
+
+---
+
 ## FAQ
 
 如果你在使用本项目中遇到了难题可直接用本项目提供的`skill`

@@ -1,0 +1,169 @@
+#!/usr/bin/env node
+
+/**
+ * upload-bilibili.mjs  →  bun run upload
+ *
+ * 完整流程：
+ *   1. 读 bilibili-meta.json(LLM 标题/标签) + bilibili.config.json(固定参数) + mp4 + cover
+ *   2. 校验：标题 ≤80、标签 ≤10
+ *   3. 调 biliup.exe 投稿 → 从输出抓 bvid
+ *   4. (默认) 发评论(读 comments.txt) → 抓 rpid → 置顶
+ *
+ * 评论/置顶失败只警告、不判整体失败（视频已发布，可手动补）。
+ * 加 --no-comment 可跳过评论+置顶（用于测试稿）。
+ *
+ * 用法：bun run upload [-- --no-comment]
+ */
+
+import { readFileSync, existsSync } from "node:fs";
+import { resolve } from "node:path";
+import { spawn } from "node:child_process";
+import { dataDir } from "./lib/paths.mjs";
+import { resolveOid, postComment, pinComment } from "./lib/bili-api.mjs";
+
+const ROOT = process.cwd();
+const NO_COMMENT = process.argv.includes("--no-comment");
+
+const fail = (msg) => {
+  console.error(`❌ ${msg}`);
+  process.exit(1);
+};
+
+// ── 跑子进程：捕获输出(用于解析 bvid/rpid) 同时回显到终端 ──────────────
+function runCapture(cmd, args, opts = {}) {
+  return new Promise((res) => {
+    const child = spawn(cmd, args, { ...opts, stdio: ["ignore", "pipe", "pipe"] });
+    let out = "";
+    const fwd = (chunk) => {
+      out += chunk.toString();
+      process.stdout.write(chunk);
+    };
+    child.stdout.on("data", fwd);
+    child.stderr.on("data", fwd);
+    child.on("exit", (code) => res({ code, out }));
+    child.on("error", (err) => res({ code: 1, out: out + String(err) }));
+  });
+}
+
+// ── 读配置 + meta ─────────────────────────────────────────────────────
+const config = JSON.parse(readFileSync(resolve(ROOT, "bilibili.config.json"), "utf-8"));
+
+const metaPath = resolve(dataDir, "bilibili-meta.json");
+if (!existsSync(metaPath)) {
+  fail("缺少 data-scheme/bilibili-meta.json，先跑: bun run bili:meta");
+}
+const meta = JSON.parse(readFileSync(metaPath, "utf-8"));
+
+// ── 强制校验 ──────────────────────────────────────────────────────────
+const { title, tag } = meta;
+if (!title || title.length > 80) {
+  fail(`标题非法(长度 ${title?.length ?? 0}): ${title}`);
+}
+const tags = String(tag)
+  .split(/[,，]/)
+  .map((t) => t.trim())
+  .filter(Boolean);
+if (!tags.length || tags.length > 10) {
+  fail(`标签非法(数量 ${tags.length})，需 1~10 个`);
+}
+
+// ── 检查产物 ──────────────────────────────────────────────────────────
+const mp4 = resolve(ROOT, "out/AiDailyReport.mp4");
+const cover = resolve(ROOT, "out/cover.png");
+const commentsPath = resolve(dataDir, "comments.txt");
+for (const [p, hint] of [
+  [mp4, "bun run video:render"],
+  [cover, "bun run render:cover"],
+]) {
+  if (!existsSync(p)) fail(`缺少 ${p}，先跑: ${hint}`);
+}
+// biliup 由 download-bili.mjs 平铺到 biliup/ 下；exe 名按系统区分
+const exeName = process.platform === "win32" ? "biliup.exe" : "biliup";
+const exe = resolve(ROOT, "biliup", exeName);
+const cookie = resolve(ROOT, config.cookieFile);
+if (!existsSync(exe)) fail(`biliup.exe 不在: ${exe}`);
+if (!existsSync(cookie)) fail(`cookie 不在: ${cookie}，先扫码登录`);
+
+// ── 1) 投稿 ───────────────────────────────────────────────────────────
+const extraFields = JSON.stringify({ creation_statement: { id: config.creationStatementId ?? 1 } });
+const uploadArgs = [
+  "-u", cookie, "upload", mp4,
+  "--title", title,
+  "--tid", String(config.tid),
+  "--tag", tags.join(","),
+  "--copyright", String(config.copyright),
+  "--cover", cover,
+  "--submit", config.submit || "app",
+  "--extra-fields", extraFields,
+];
+
+console.log("===== 1/3 投稿 B站 =====");
+console.log(`标题 (${title.length}/80): ${title}`);
+console.log(`标签 (${tags.length}): ${tags.join(", ")}  | tid ${config.tid}  | 创作声明 id ${config.creationStatementId ?? 1}`);
+console.log("--------------------");
+
+const up = await runCapture(exe, uploadArgs);
+if (up.code !== 0) {
+  console.error(`\n❌ 投稿失败，biliup 退出码 ${up.code}`);
+  process.exit(up.code);
+}
+
+// bvid 形如 BV + 10 位，biliup 日志里出现（带 ANSI 也无所谓，正则只匹字母数字）
+const bvid = (up.out.match(/BV[0-9A-Za-z]{10}/) || [])[0];
+if (!bvid) {
+  console.warn("\n⚠️  投稿疑似成功，但未能从输出解析到 bvid（请到创作中心核对）。跳过评论/置顶。");
+  process.exit(0);
+}
+console.log(`\n✅ 投稿成功 · bvid=${bvid}`);
+
+if (NO_COMMENT) {
+  console.log("ℹ️  --no-comment 已指定，跳过评论/置顶。");
+  process.exit(0);
+}
+if (!existsSync(commentsPath)) {
+  console.warn(`⚠️  没有 ${commentsPath}，跳过评论/置顶（视频已发布）。`);
+  process.exit(0);
+}
+
+// ── 1.5) 等审核 ───────────────────────────────────────────────────────
+// 视频刚发布需先过审核才能评论，否则评论接口会失败。等 commentDelaySec（默认 180s=3 分钟）。
+const delaySec = Number(config.commentDelaySec ?? 180);
+if (delaySec > 0) {
+  console.log(`\n⏳ 等 ${delaySec}s 再评论（视频需先通过审核）…`);
+  let remain = delaySec;
+  while (remain > 0) {
+    process.stdout.write(`\r  剩余 ${remain}s …    `);
+    const step = Math.min(10, remain);
+    await new Promise((r) => setTimeout(r, step * 1000));
+    remain -= step;
+  }
+  process.stdout.write("\r  等待完成，开始评论。        \n");
+}
+
+// ── 2) 发评论 ─────────────────────────────────────────────────────────
+// 直接复用 lib/bili-api.mjs（已内置重试），不再 spawn 子进程并抓 stdout。
+console.log("\n===== 2/3 发表评论 =====");
+const message = readFileSync(commentsPath, "utf-8").trim();
+if (!message) {
+  console.warn(`\n⚠️  ${commentsPath} 为空，跳过评论/置顶（视频已发布）。`);
+  process.exit(0);
+}
+const oid = await resolveOid({ bvid });
+let rpid;
+try {
+  rpid = await postComment(oid, message);
+} catch (err) {
+  console.warn(`\n⚠️  发评论失败：${err.message}（视频 ${bvid} 已发布，可手动补评论）。`);
+  process.exit(0); // 视频已发，不算整体失败
+}
+console.log(`\n✅ 评论已发 · rpid=${rpid}`);
+
+// ── 3) 置顶 ───────────────────────────────────────────────────────────
+console.log("\n===== 3/3 置顶评论 =====");
+try {
+  await pinComment(oid, rpid);
+} catch (err) {
+  console.warn(`\n⚠️  置顶失败：${err.message}（视频 ${bvid} 已发布、评论 rpid=${rpid} 已发，可手动置顶）。`);
+  process.exit(0);
+}
+console.log(`\n🎉 全部完成 · ${bvid}（视频 + 评论 + 置顶）`);

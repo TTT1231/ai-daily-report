@@ -34,7 +34,7 @@ async function confirmReset() {
   console.log("   - rss/rss-state.json");
   console.log("");
   console.log(
-    "这会丢弃当前日报数据和 RSS 去重快照；下一次 bun run all 会重新抓取并生成。",
+    "这会丢弃当前日报数据和 RSS 去重快照；下一次 bun run video:prepare 会重新抓取并生成。",
   );
 
   const readline = createInterface({
@@ -68,4 +68,4 @@ console.log(
 if (removedTempState) {
   console.log("   已删除：rss/rss-state.json.tmp");
 }
-console.log("   下一步：运行 bun run all 重新生成日报。");
+console.log("   下一步：运行 bun run video:prepare 重新生成日报。");

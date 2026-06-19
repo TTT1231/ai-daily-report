@@ -116,7 +116,7 @@
           <h2>选择你的日报生成方式</h2>
           <p>
             所有命令都在项目根目录 <code>ai-daily-report/</code> 中运行。两种方式都能产出完整视频：<strong>手写维护</strong>由你编辑
-            <code>data.json</code>；<strong>Agent 自动化</strong>用 <code>bun run all</code> 一键抓取、配音、生成图标。
+            <code>data.json</code>；<strong>Agent 自动化</strong>用 <code>bun run video:prepare</code> 一键抓取、配音、生成图标。
           </p>
         </div>
         <div class="success-card">
@@ -169,7 +169,7 @@
           </div>
           <div class="mode-info">
             <strong>🤖 Agent 自动化</strong>
-            <span>bun run all 一键完成抓取→配音→图标</span>
+            <span>bun run video:prepare 一键完成抓取→配音→图标</span>
           </div>
           <span class="mode-arrow">→</span>
         </a>
@@ -357,7 +357,7 @@
           <div class="mode-title-text">
             <strong>方式二：Agent 自动化</strong>
             <span
-              >准备环境与 Key，<code>bun run all</code> 自动抓取、配音、生成图标</span
+              >准备环境与 Key，<code>bun run video:prepare</code> 自动抓取、配音、生成图标</span
             >
           </div>
         </div>
@@ -461,20 +461,18 @@
                 依次自动执行 <code>prerss</code>（归档）→
                 <code>rss</code>（抓取并生成 data.json，按需调用 Claude 视觉识别图片并自动配图）→
                 <code>tts</code>（音频与时间线）→
-                <code>generate-svg</code>（Claude CLI 生成 Tabs 图标）；四步跑完会<strong>自动进入 <code>bun run dev</code> 预览</strong>（Ctrl+C 退出）。清空 <code>data-scheme/</code> 后想完全重建，先跑 <code>bun run reset</code> 再 <code>bun run all</code>。
+                <code>generate-svg</code>（Claude CLI 生成 Tabs 图标）。<strong>跑完即结束，不再自动开预览</strong>（要看画面单独 <code>bun run dev</code>）。清空 <code>data-scheme/</code> 后想完全重建，先跑 <code>bun run reset</code> 再 <code>bun run video:prepare</code>。
               </p>
               <div class="copy-command">
-                <code>bun run all</code
+                <code>bun run video:prepare</code
                 ><button
                   type="button"
-                  data-copy="bun run all"
-                  aria-label="复制 bun run all"
+                  data-copy="bun run video:prepare"
+                  aria-label="复制 video:prepare 命令"
                 >
                   复制
                 </button>
               </div>
-            </div>
-          </article>
             </div>
           </article>
           <article class="step-card agent">
@@ -483,8 +481,7 @@
               <span class="step-label">看到画面就成功</span>
               <h3>预览或渲染视频</h3>
               <p>
-                上一步已自动进入 <code>dev</code>；这里可单独再起 <code>dev</code> 预览或用 <code>build</code>
-                打包渲染。dev 会自动监听 data.json 并增量更新 TTS。
+                <code>video:prepare</code> 不再自动开预览。要看画面运行 <code>dev</code>（自动监听 data.json 并增量更新 TTS）；要导出 mp4 运行 <code>video:render</code>。
               </p>
               <div class="copy-command">
                 <code>bun run dev</code
@@ -492,6 +489,26 @@
                   type="button"
                   data-copy="bun run dev"
                   aria-label="复制预览命令"
+                >
+                  复制
+                </button>
+              </div>
+            </div>
+          </article>
+          <article class="step-card agent">
+            <div class="step-number">03</div>
+            <div class="step-copy">
+              <span class="step-label">一键发布到 B站</span>
+              <h3>投稿 + 评论 + 置顶</h3>
+              <p>
+                <code>all:bili</code> 从零到发布一条龙：<code>video:prepare</code> → <code>video:render</code> → 渲封面 → LLM 生成标题/标签 → biliup 投稿 → 等审核 → 发评论 → 置顶。数据已备好只想发 B站时用 <code>publish:bili</code>。首次需 <code>biliup login</code> 扫码登录（详见 <a href="#bili-publish">B站发布</a>）。
+              </p>
+              <div class="copy-command">
+                <code>bun run all:bili</code
+                ><button
+                  type="button"
+                  data-copy="bun run all:bili"
+                  aria-label="复制 all:bili 命令"
                 >
                   复制
                 </button>
@@ -555,7 +572,7 @@
             </svg>
           </div>
           <h3>Agent 自动化</h3>
-          <p>bun run all：抓取 → 配音 → 图标 一键完成</p>
+          <p>bun run video:prepare：抓取 → 配音 → 图标 一键完成</p>
         </a>
         <a href="#directory" class="toc-card">
           <div class="toc-card-icon">
@@ -602,6 +619,21 @@
           </div>
           <h3>自定义 RSS 与偏好</h3>
           <p>添加 LinuxDo 栏目、关注实体、加分词和不喜欢内容</p>
+        </a>
+        <a href="#bili-publish" class="toc-card featured">
+          <div class="toc-card-icon">
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+            >
+              <path d="M22 2 11 13" />
+              <path d="M22 2 15 22l-4-9-9-4 20-6z" />
+            </svg>
+          </div>
+          <h3>发布到 B站</h3>
+          <p>投稿 + 评论 + 置顶 一键自动化</p>
         </a>
         <a href="#responsibility" class="toc-card">
           <div class="toc-card-icon">
@@ -678,6 +710,7 @@
 <span class="folder">├── data.schema.json</span>                    <span class="comment"># Raw + Generated 共用的 JSON Schema（data.json 的 $schema）</span>
 <span class="folder">├── video-layout.json</span>                   <span class="comment"># 人工维护的项目级固定布局配置，不随每次日报或视频生成变化</span>
 <span class="folder">├── video-layout.schema.json</span>            <span class="comment"># video-layout.json 的字段说明、取值范围与编辑器提示</span>
+<span class="folder">├── bilibili.config.json</span>                <span class="comment"># B站投稿固定配置：分区 tid / 自制 / 创作声明 / 封面帧 / 评论前等待</span>
 <span class="folder">├── scripts/</span>
 <span class="folder">│   ├── check-data-json.mjs</span>             <span class="comment"># 数据校验脚本（Raw 内容 / Generated 渲染就绪）</span>
 <span class="folder">│   ├── generate-tts.mjs</span>                <span class="comment"># TTS 编排入口：组织构建、合成、校验和提交</span>
@@ -685,16 +718,23 @@
 <span class="folder">│   ├── check-icons.mjs</span>                 <span class="comment"># Generated 数据的图标资源校验</span>
 <span class="folder">│   ├── archive.mjs</span>                     <span class="comment"># 按完整日期归档当前日报数据包</span>
 <span class="folder">│   ├── dev.mjs</span>                         <span class="comment"># 开发监听入口：自动跑 TTS 并拉起 Remotion Studio</span>
+<span class="folder">│   ├── run-all.mjs</span>                      <span class="comment"># video:prepare 编排：prerss→rss→tts→generate-svg（不再自动开预览）</span>
+<span class="folder">│   ├── download-bili.mjs</span>                <span class="comment"># 下载/更新 biliup-rs 到 biliup/（postinstall 自动触发，保留登录态）</span>
+<span class="folder">│   ├── bili-generate-title-tags.mjs</span>     <span class="comment"># LLM 生成 B站 标题+标签 → data-scheme/bilibili-meta.json</span>
+<span class="folder">│   ├── bili-upload.mjs</span>                   <span class="comment"># 投稿 + 发评论 + 置顶（调 biliup + bili-api）</span>
+<span class="folder">│   ├── bili-comment.mjs / bili-stick.mjs</span><span class="comment"># 单独 发评论 / 置顶</span>
 <span class="folder">│   └── lib/</span>                            <span class="comment"># 多个入口脚本共享的内部模块，不直接执行</span>
 <span class="folder">│       ├── paths.mjs</span>                   <span class="comment"># 集中路径定义与 JSON 读取</span>
 <span class="folder">│       ├── report-validation.mjs</span>       <span class="comment"># JSON Schema 与跨字段业务校验</span>
 <span class="folder">│       ├── report-builder.mjs</span>          <span class="comment"># 构建 Intro / Outro、主题与图标恢复</span>
 <span class="folder">│       ├── minimax-tts.mjs</span>             <span class="comment"># MiniMax TTS API 客户端</span>
-<span class="folder">│       └── generated-output.mjs</span>        <span class="comment"># 音频与 Generated JSON 的事务提交和恢复</span>
+<span class="folder">│       ├── generated-output.mjs</span>        <span class="comment"># 音频与 Generated JSON 的事务提交和恢复</span>
+<span class="folder">│       └── bili-api.mjs</span>                  <span class="comment"># B站 评论/置顶 web API（凭据从 biliup/cookies.json 读，不走 .env）</span>
 <span class="folder">├── rss/</span>                                <span class="comment"># Go 编写的多来源 RSS 采集器</span>
 <span class="folder">│   ├── sources.jsonc</span>                  <span class="comment"># 人工维护：RSS 来源、启用状态和分页参数</span>
 <span class="folder">│   ├── preferences.jsonc</span>              <span class="comment"># 人工维护：重点实体、兴趣信号、不喜欢内容和筛选阈值</span>
 <span class="folder">│   └── rss-state.json</span>                 <span class="comment"># 自动生成：上一次抓取快照，不要人工修改</span>
+<span class="folder">├── biliup/</span>                             <span class="comment"># biliup-rs 工具 + 登录态 cookies.json（download-bili 自动下载，已 gitignore）</span>
 <span class="folder">├── daily-dates/</span>                        <span class="comment"># archive.mjs 按日期归档的历史日报数据包</span>
 <span class="folder">├── remotion.config.ts</span>                  <span class="comment"># Remotion 配置（JPEG、publicDir、Tailwind）</span>
 <span class="folder">├── requirements-review.html</span>            <span class="comment"># MVP 需求文档</span>
@@ -746,7 +786,7 @@
               <h4>准备日报内容</h4>
               <code>data-scheme/data.json</code>
               <p>
-                可由 <code>bun run all</code> 一键抓取（rss）并配音（tts）、生成图标；也可手动编辑标题、Tabs、字幕与图片引用。
+                可由 <code>bun run video:prepare</code> 一键抓取（rss）并配音（tts）、生成图标；也可手动编辑标题、Tabs、字幕与图片引用。
               </p>
             </article>
             <div class="pipeline-connector"><span>校验</span>→</div>
@@ -1038,6 +1078,73 @@
             <strong>运行状态：</strong>
             <span><code>rss/rss-state.json</code> 不是用户配置，而是采集器自动生成的“上一轮抓取记录”，用于避免每次运行都重复处理最近 24 小时内容</span>
             <span>无需维护；删除它会让下一次运行把最近 24 小时内容全部视为新增，并自动生成一份新状态</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Section: B站发布 -->
+      <div id="bili-publish" class="section">
+        <div class="section-header">
+          <div class="section-icon">
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+            >
+              <path d="M22 2 11 13" />
+              <path d="M22 2 15 22l-4-9-9-4 20-6z" />
+            </svg>
+          </div>
+          <div class="section-info">
+            <h2>发布到 B站</h2>
+            <p>投稿 + 评论 + 置顶，一条龙自动化（纯 HTTP，无浏览器）</p>
+          </div>
+        </div>
+        <div class="section-body">
+          <div class="pipeline-intro">
+            <div>
+              <span class="pipeline-kicker">两种粒度</span>
+              <h3>把当期成片发到 B站</h3>
+              <p>
+                <code>all:bili</code> 从零到发布；<code>publish:bili</code> 在数据已备好时只走发布段。投稿用社区维护的
+                <code>biliup-rs</code>，评论/置顶用本项目封装的 web API。
+              </p>
+            </div>
+          </div>
+
+          <div class="help-strip">
+            <strong>首次（一次性）：</strong>
+            <span><code>bun install</code> 会经 postinstall（<code>download-bili</code>）自动把 <code>biliup-rs</code> 下载到 <code>biliup/</code>（跨平台、平铺结构，已 gitignore）</span>
+            <span>扫码登录一次：<code>./biliup/biliup.exe -u biliup/cookies.json login</code>，登录态存 <code>biliup/cookies.json</code>（评论/置顶也直接读它，<strong>不进 .env</strong>）</span>
+          </div>
+
+          <div class="code-block">
+            <pre># 一条龙（从抓取到发布）
+bun run all:bili      # video:prepare → video:render → 渲封面 → bili:meta → bili:upload
+
+# 数据已备好，只发 B站
+bun run publish:bili  # video:render → 渲封面 → bili:meta → bili:upload
+
+# 拆开单步
+bun run bili:meta     # LLM 生成标题/标签 → data-scheme/bilibili-meta.json
+bun run bili:upload   # 投稿 → 等 3 分钟审核 → 发评论 → 置顶
+bun run bili:comment  # 单独发评论
+bun run bili:stick    # 单独置顶</pre>
+          </div>
+
+          <div class="help-strip">
+            <strong>每期会变 vs 固定：</strong>
+            <span>标题前缀 + 标签 → <code>bili:meta</code> 用 LLM 生成（手机短视频风、抓重点、适度夸张），存 <code>bilibili-meta.json</code>，可手改再审</span>
+            <span>标题 = <code>前缀【AI日报 - MM - DD】</code>，≤80 字（中文/字母/符号每个算 1）；标签 ≤10 个；评论正文来自 <code>comments.txt</code></span>
+            <span>分区(tid 231 计算机技术) / 自制 / 创作声明(AI 标识) / 封面帧 / 评论前等待 → 固定在 <code>bilibili.config.json</code></span>
+          </div>
+
+          <div class="help-strip">
+            <strong>注意：</strong>
+            <span><code>bili:upload</code> 会<strong>真实发布</strong>稿件 + 评论 + 置顶到你的 B站 号；纯测试加 <code>-- --no-comment</code> 跳过评论/置顶，发完去创作中心删测试稿</span>
+            <span>评论/置顶失败只警告、不回滚已发视频（视频已发布，可手动补）；评论/置顶对瞬时失败带指数回退重试</span>
+            <span>升级 biliup：<code>bun run download-bili</code>，会自动保留 <code>cookies.json</code> 登录态</span>
           </div>
         </div>
       </div>

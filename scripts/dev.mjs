@@ -7,7 +7,7 @@ import {terminateProcessTree} from "./lib/process-tree.mjs";
 
 if (process.env.AI_DAILY_REPORT_RUN_ALL === "1") {
   throw new Error(
-    "bun run dev cannot start during the bun run all production phase.",
+    "bun run dev cannot start during the bun run video:prepare production phase.",
   );
 }
 

@@ -1,11 +1,11 @@
 ---
 name: ai-daily-report
-description: How to use the ai-daily-report project end-to-end — set it up, run the automated pipeline, switch the TTS model/provider, go fully manual, drop images into data.json, preview, and render the final mp4. Use whenever the user asks how to use this project, how to run it, how to change the TTS, how to do things manually, how to add images to the daily report, how to render/export a video, or any question about operating the pipeline or editing data.json — even if they do not explicitly say "skill".
+description: How to use the ai-daily-report project end-to-end — set it up, run the automated pipeline, switch the TTS model/provider, go fully manual, drop images into data.json, preview, render the final mp4, and publish to Bilibili. Use whenever the user asks how to use this project, how to run it, how to change the TTS, how to do things manually, how to add images to the daily report, how to render/export a video, how to publish/upload to Bilibili, or any question about operating the pipeline or editing data.json — even if they do not explicitly say "skill".
 ---
 
 # AI Daily Report 使用指南
 
-让用户「直接和 agent 对话」就把一期 AI 日报视频做出来：从配置环境、跑流水线、换 TTS、手动写内容、放图片，到预览和导出成 mp4。
+让用户「直接和 agent 对话」就把一期 AI 日报视频做出来：从配置环境、跑流水线、换 TTS、手动写内容、放图片，到预览、导出 mp4，再一键发布到 B站。
 
 本 skill 是项目的总入口指南，README 的 FAQ 里说的「遇到难题可直接用本项目提供的 skill」就是指它。它和另外两个 skill 配合：`generate-svg`（出 Tab 图标）与 `remotion-best-practices`（改 Remotion 组件时的通用规范），那两个由它们各自的触发条件处理，这里不重复。
 
@@ -13,8 +13,8 @@ description: How to use the ai-daily-report project end-to-end — set it up, ru
 
 这个 skill 触发后，遵循「**先讲解、再代执行**」：
 
-1. **先讲清楚**：用一两句话说明这一步在做什么、为什么这么做、有没有副作用（花钱、改文件、覆盖归档）。
-2. **再动手**：需要改文件或跑命令前，把打算做的事讲明白再执行；遇到不确定（比如要覆盖现有内容、要花钱调 API）先问用户。
+1. **先讲清楚**：用一两句话说明这一步在做什么、为什么这么做、有没有副作用（花钱、改文件、覆盖归档、对外发布）。
+2. **再动手**：需要改文件或跑命令前，把打算做的事讲明白再执行；遇到不确定（比如要覆盖现有内容、要花钱调 API、要往 B站 发真实稿件）先问用户。
 3. **细节进 `rules/`**：主线只放最常用的结论，深入步骤在下面的 rules 文件里，按需读，别一次性全读。
 
 ## 开始前确认
@@ -22,29 +22,30 @@ description: How to use the ai-daily-report project end-to-end — set it up, ru
 每次先在心里过一遍这两点，缺什么先补什么：
 
 - **环境变量** `.env`（参考 `.env.example`）：
-  - RSS/AI 总结用：`AI_API_KEY`、`AI_BASE_URL`（默认 DeepSeek）、`AI_MODEL`（默认 `deepseek-v4-flash`）。
+  - RSS/AI 总结用：`AI_API_KEY`、`AI_BASE_URL`（默认 DeepSeek）、`AI_MODEL`（默认 `deepseek-v4-flash`）。`bili:meta` 生成 B站 标题/标签也复用这套。
   - 网络受限时可选：小写 `all_proxy`（如 `http://127.0.0.1:7890`）。未配置则直连；配置后 RSS 和 AI 模型请求必须走该代理，失败时不会回退直连。不要使用其他代理变量。
   - TTS 旁白用：`MINIMAX_API_KEY`、`MINIMAX_TTS_MODEL`、`MINIMAX_TTS_VOICE_ID`、`MINIMAX_TTS_SPEED`。
 - **运行时**：需要 `claude`（cli，用于图片识别 + 出图标）、`bun`、`go`（跑 RSS 采集器）。
 - **数据目录** `data-scheme/` 必须存在（自动模式会自己生成；手动模式从 `data-scheme-sample/` 复制）。
+- **发布到 B站** 额外需要一次扫码登录（见下方「发布到 B站」），登录态存 `biliup/cookies.json`，不进 `.env`。
 
 ## A. 自动出片（推荐主线）
 
 适合「日常批量出片，一条命令搞定」。把数据采集、AI 总结、TTS、图标全自动化。
 
 ```bash
-# 0. 配好 .env（见上），然后装依赖
+# 0. 配好 .env（见上），然后装依赖（postinstall 会自动下载 biliup 工具到 biliup/）
 bun install
 
-# 1. 跑全流程：prerss → rss → tts → generate-svg → dev
-bun run all
+# 1. 跑全流程：prerss → rss → tts → generate-svg（跑完即结束，不自动开预览）
+bun run video:prepare
 
 # 如果要丢弃当前 data-scheme/ 和 RSS 去重快照后完全重建
 bun run reset
-bun run all
+bun run video:prepare
 ```
 
-`bun run all`（`scripts/run-all.mjs`）先按顺序跑四个生产步骤并显示实时状态，任一步失败会中断；全部完成后以前台常驻方式启动 `bun run dev`：
+`bun run video:prepare`（`scripts/run-all.mjs`）先按顺序跑四个生产步骤并显示实时状态，任一步失败会中断。**跑完即结束，不再自动开预览**（要看画面单独 `bun run dev`）：
 
 | 步骤           | 做什么                                             | 产物                                             |
 | -------------- | -------------------------------------------------- | ------------------------------------------------ |
@@ -58,9 +59,9 @@ bun run all
 生产步骤跑完后：
 
 - **图片大多自动配好，少数需手动补**：`rss` 视觉识别会在 Story 评分 ≥9、正文较短且含远程图片、且 Claude 判定相关时，自动把该图下载到 `data-scheme/images/` 并写入对应 scene 的 `overlayImg`；不满足条件的 scene 仍可手动给 `data.json` 的 scene 填 `overlayImg`。详见下方「把图片放进 data.json」。
-- **预览**：脚本自动进入 `bun run dev`（带 HMR + 自动 TTS 同步）；按 `Ctrl+C` 会停止预览并释放端口。
+- **预览 / 渲染 / 发布**：`video:prepare` 不再自动开预览。要看画面运行 `bun run dev`（带 HMR + 自动 TTS 同步）；要导出 mp4 运行 `bun run video:render`；要一键发 B站 运行 `bun run all:bili`（详见下方「发布到 B站」）。
 
-> 关于 `rss/rss-state.json`：它存的是上次抓取的快照，用来去重。日常不用手动编辑；如果清空了 `data-scheme/` 或想完全重建，先跑 `bun run reset`，再跑 `bun run all`。
+> 关于 `rss/rss-state.json`：它存的是上次抓取的快照，用来去重。日常不用手动编辑；如果清空了 `data-scheme/` 或想完全重建，先跑 `bun run reset`，再跑 `bun run video:prepare`。
 
 ## B. 手动模式
 
@@ -83,7 +84,7 @@ bun run all
 
 一句话结论：**把图片丢进 `data-scheme/images/`，给对应的 scene 加 `"overlayImg": "images/文件名"`。**
 
-- 自动模式（`bun run all`）下，`rss` 视觉识别会给部分高分 Story **自动下载并配图**（写入 `overlayImg`）；下面讲的是没被自动配上、或手动模式下你自己加图时怎么做。
+- 自动模式（`bun run video:prepare`）下，`rss` 视觉识别会给部分高分 Story **自动下载并配图**（写入 `overlayImg`）；下面讲的是没被自动配上、或手动模式下你自己加图时怎么做。
 - 图片是 **scene 级**的（不是 story 级、不是 tab 级），一张图配一句旁白。
 - 允许格式：`.svg .png .jpg/.jpeg .webp`。
 - 多张图 = 给同一个 story 写多个 scene，依次播放。
@@ -93,17 +94,46 @@ bun run all
 
 ## 渲染导出 mp4
 
-一句话结论：**项目没有现成的 render 脚本（`build` 只是 `remotion bundle` 打包，不渲染），用裸命令 `npx remotion render` 即可。**
+一句话结论：**用 `bun run video:render`（= `prepare-report` + `remotion render` → `out/AiDailyReport.mp4`）。** 想自定义渲染参数再用裸命令 `npx remotion render`。
 
 ```bash
-# 1. 先确保 data-generate.json 和音频是最新的（= 跑一次 TTS + 渲染态校验）
-bun run prepare-report
+# 标准做法：自动备好渲染数据 + 渲成 mp4
+bun run video:render
 
-# 2. 渲染（composition id = AiDailyReport，30fps，尺寸取自 video-layout.json）
-npx remotion render AiDailyReport out/video.mp4
+# 或手动两步（便于控制时机 / 传参数）
+bun run prepare-report
+npx remotion render AiDailyReport out/AiDailyReport.mp4
 ```
 
 时长、可选参数、常见坑：**先读 [`rules/render-export.md`](./rules/render-export.md)** 再动手。
+
+## 发布到 B站（投稿 + 评论 + 置顶）
+
+把当期成片自动发到 B站，并发表 + 置顶「今日日报」评论（内容来自 `data-scheme/comments.txt`）。一条龙：
+
+```bash
+# 从零到发布：video:prepare → video:render → 渲封面 → LLM 标题/标签 → biliup 投稿 → 等审核 → 发评论 → 置顶
+bun run all:bili
+
+# 数据已备好、只想发 B站：video:render → 渲封面 → bili:meta → bili:upload
+bun run publish:bili
+```
+
+**首次使用（一次性）**——扫码登录 B站，登录态存进 `biliup/cookies.json`（已 gitignore；评论/置顶也直接读它，**不进 `.env`**）：
+
+```bash
+./biliup/biliup.exe -u biliup/cookies.json login   # 用 B站 App 扫码确认
+```
+
+要点：
+
+- **标题 / 标签** 由 `bili:meta` 用 LLM 生成（手机短视频风、抓重点、适度夸张），写到 `data-scheme/bilibili-meta.json`——可手改再审。标题 = `前缀【AI日报 - MM - DD】`（≤80 字，中文/字母/符号每个算 1），标签 ≤10 个。
+- **固定参数**（分区 `tid 231` 计算机技术、自制、创作声明 AI 标识、封面帧、评论前等待 3 分钟过审核）在 `bilibili.config.json`。
+- **凭据**：评论/置顶的 `SESSDATA` / `bili_jct` 直接从 `biliup/cookies.json` 读（`scripts/lib/bili-api.mjs`），不在 `.env` 重复维护。
+- **biliup 工具**由 `bun install`（postinstall → `download-bili`）自动下载到 `biliup/`（跨平台、平铺结构）。升级重跑 `bun run download-bili`，会自动保留登录态。
+- 也可拆开单步：`bili:meta`（生成标题/标签）、`bili:upload`（投稿+评论+置顶）、`bili:comment` / `bili:stick`（单独发评/置顶）。
+
+> `bili:upload` 会**真实发布**稿件 + 评论 + 置顶到你的 B站 号（对外动作）；纯测试加 `-- --no-comment` 跳过评论/置顶，发完记得去创作中心删测试稿。
 
 ## Read First（按需读的细节）
 
@@ -115,5 +145,7 @@ npx remotion render AiDailyReport out/video.mp4
 | 换 TTS 模型或供应商  | [`rules/tts-customize.md`](./rules/tts-customize.md) |
 | 给日报加图片         | [`rules/images.md`](./rules/images.md)               |
 | 把视频渲染导出成 mp4 | [`rules/render-export.md`](./rules/render-export.md) |
+
+发布到 B站 没有独立 rule 文件，主线（登录 / 配置 / 命令 / 注意事项）就在上面的「发布到 B站」一节。
 
 要做 Tab 图标，用 `generate-svg` skill（README 和 `package.json` 里 `/generate-svg`）；要改 Remotion 组件本身（动画、布局、`<Audio>`/`<Img>` 用法），用 `remotion-best-practices` skill。

@@ -6,7 +6,7 @@
 
 - 想完全掌控内容（不用 RSS 那套 AI 筛选）。
 - 内容来源不是 RSS（手头的素材、内部新闻等）。
-- 自动模式 `bun run all` 出了问题，需要兜底出一期。
+- 自动模式 `bun run video:prepare` 出了问题，需要兜底出一期。
 - 想做一期「特别篇」，结构和日常不一样。
 
 手动模式 = **你写 `data.json`，跳过 `rss` 那一步**；但 TTS、图标、预览、渲染这些后续步骤照常。
@@ -108,4 +108,4 @@ bun run check-data-json:render
 
 ## 和自动模式并存
 
-手动模式产出后，`data-scheme/` 里就是你这期的内容。**别再跑 `bun run all` 或 `bun run rss`**，否则 `rss` 会覆盖你的 `data.json`。需要的话用 `bun run archive` 把当前这期归档到 `daily-dates/` 再开始下一期。
+手动模式产出后，`data-scheme/` 里就是你这期的内容。**别再跑 `bun run video:prepare` 或 `bun run rss`**，否则 `rss` 会覆盖你的 `data.json`。需要的话用 `bun run archive` 把当前这期归档到 `daily-dates/` 再开始下一期。

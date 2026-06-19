@@ -72,7 +72,7 @@ bun run dev
 
 ## 自动配图（rss 视觉识别）
 
-自动模式（`bun run all`）下，`rss/vision.go` 会对高分 Story 的远程图片同时做两件事：
+自动模式（`bun run video:prepare`）下，`rss/vision.go` 会对高分 Story 的远程图片同时做两件事：
 
 1. **提取事实**：调 `claude` 多模态识别图片内容，补充到文案。
 2. **自动配图**：判定相关后，把该图下载到 `data-scheme/images/` 并写入对应 scene 的 `overlayImg`（带原始宽高，供 `SourceOverlay` 布局用）。

@@ -135,7 +135,7 @@ function validateProductionStep(name) {
       "rss 已结束但未生成 data-scheme/data.json。",
       "常见原因：你清空了 data-scheme/，但 rss/rss-state.json 仍记录着上次抓取内容，所以本次被判定为“无新增”。",
       "需要完全重建时，请先运行：bun run reset",
-      "然后再运行：bun run all",
+      "然后再运行：bun run video:prepare",
     ].join("\n"),
   );
 }
@@ -149,7 +149,7 @@ function validateInitialState() {
       "当前缺少 data-scheme/data.json，但 rss/rss-state.json 仍存在。",
       "这通常表示 data-scheme/ 被手动清空，而 RSS 去重快照还保留着上次抓取记录。",
       "请先运行：bun run reset",
-      "然后再运行：bun run all",
+      "然后再运行：bun run video:prepare",
     ].join("\n"),
   );
 }
@@ -231,7 +231,9 @@ async function main() {
     console.log(`✔ 生产完成 · ${total}s`);
     productionSpinner = null;
 
-    await runDev();
+    // 默认不再自动进入预览（职责分离：要看预览单独 `bun run dev`）。
+    // 需要老行为时 VIDEO_PREVIEW=1 bun run video:prepare
+    if (process.env.VIDEO_PREVIEW === "1") await runDev();
   } catch (error) {
     productionSpinner?.stop();
     productionSpinner = null;
