@@ -128,7 +128,9 @@ const rawValidation = validateReport(rawReport, {
 });
 if (rawValidation.errors.length > 0) {
   await transaction?.abort();
-  throw new Error(`Raw report is invalid:\n- ${rawValidation.errors.join("\n- ")}`);
+  throw new Error(
+    `Raw report is invalid:\n- ${rawValidation.errors.join("\n- ")}\n\n👉 请按上方错误修改 data-scheme/data.json 后重试 \`bun run tts\`。`,
+  );
 }
 
 const report = buildGeneratedReport(rawReport, previousReport);

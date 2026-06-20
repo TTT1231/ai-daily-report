@@ -62,13 +62,13 @@
 
 ```bash
 # 1. 校验 schema（包含 overlayImg 的正则）
-bun run val-schema
+bun run check-icons
 
 # 2. 预览看效果
 bun run dev
 ```
 
-如果 `val-schema` 报 `overlayImg` 不匹配正则，基本就是路径写错了（没带 `images/` 前缀，或用了不支持的格式）。
+如果 `check-icons` 报 `overlayImg` 不匹配正则，基本就是路径写错了（没带 `images/` 前缀，或用了不支持的格式）。
 
 ## 自动配图（rss 视觉识别）
 

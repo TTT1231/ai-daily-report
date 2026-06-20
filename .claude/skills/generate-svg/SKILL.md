@@ -27,7 +27,7 @@ Read all rules before editing:
 5. Generate transparent SVGs at `data-scheme/icons/{storyId}-{tabId}.svg`.
 6. Update only the corresponding `icon` fields in `data-generate.json`.
 7. Remove orphan icons only when they are no longer referenced.
-8. Run `bun run val-schema` and `bun run lint` and `bun run comment`.
+8. Run `bun run check-icons` and `bun run lint` and `bun run report:comment`.
 9. For visual changes, open a representative Remotion frame and verify icon scale, contrast, and
    distinction from sibling icons.
 

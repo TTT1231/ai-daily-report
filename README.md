@@ -59,7 +59,7 @@
 | 方式                     | 谁准备 data.json                   | 适合场景                     |
 | ------------------------ | ---------------------------------- | ---------------------------- |
 | **手写维护**             | 你手动编辑 `data-scheme/data.json` | 想完全掌控内容，或自定义来源 |
-| **Agent 自动化（推荐）** | `bun run all` 自动抓取并生成       | 日常批量出片，一条命令搞定   |
+| **Agent 自动化（推荐）** | `bun run video:prepare` 自动抓取并生成 | 日常批量出片，一条命令搞定 |
 
 > [!TIP]
 > 本项目用 `minimax` 生成 TTS 旁白，用 `deepseek-v4-flash` 总结 RSS 抓取的内容，用 `claude -p` 识别远程图片并生成对应图标。
@@ -75,26 +75,22 @@
 
 ```bash
 # 1. 填写好对应的 TTS API Key 和 RSS 模型供应商、API Key
-#    网络受限时可在 .env 配置 all_proxy=http://127.0.0.1:7890
+#    网络受限时可在 .env 配置代理，例如all_proxy=http://127.0.0.1:7890
 
 # 2. install
 bun install
 
-# 3. run command（跑完会自动进入 dev 预览；Ctrl+C 退出）
-bun run all
+# 3. 生成预览视频
+bun run video:render
 
-# 如果你手动清空了 data-scheme/，或想丢弃上次 RSS 去重状态并完全重建：
-bun run reset
-bun run all
+# 4（可选）. 自定义图片：部分高分 Story 会被 rss 自动配图；其余 scene 可选地在 data.json 填 `overlayImg`，图片放 `data-scheme/images/`
 
-# 4. 图片：部分高分 Story 会被 rss 自动配图；其余 scene 可选地在 data.json 填 `overlayImg`，图片放 `data-scheme/images/`
-
-# 5. 预览（HMR）：上面 all 已自动起 dev；这里可单独再起
+# 5. 预览（HMR）：video:prepare / video:render 默认不开预览，单独起 dev
 bun run dev
 ```
 
 > [!WARNING]
-> `ingest/rss-state.json` 保存上一次 RSS 抓取快照，用来判断重复内容。日常不用手动编辑；如果你清空了 `data-scheme/` 或想完全重建，请运行 `bun run reset` 后再执行 `bun run all`。
+> `ingest/rss-state.json` 保存上一次 RSS 抓取快照，用来判断重复内容。日常不用手动编辑；如果你清空了 `data-scheme/` 或想完全重建，请运行 `bun run reset` 后再执行 `bun run video:prepare`。
 
 ### 方式二：手写维护（示例，不推荐）
 
@@ -130,7 +126,7 @@ bun run tts
 
 ```bash
 # 0.（可选）先生成评论正文（带时间戳的章节索引）到 data-scheme/comments.txt
-bun run comment            # 或 bun run comment --copy 复制到剪贴板
+bun run report:comment            # 或 bun run report:comment --copy 复制到剪贴板
 
 # 1. 发评论（不置顶）
 bun run bili:comment -- --bvid BV1xxxxxxxx --from-file data-scheme/comments.txt
@@ -143,7 +139,8 @@ bun run bili:stick -- --bvid BV1xxxxxxxx --rpid <上一步的rpid>
 ```
 
 > [!NOTE]
-> - 凭据在 `.env` 配置 `BILI_SESSDATA` 和 `BILI_JCT`（=cookie 里的 `bili_jct`），均从浏览器登录态 cookie 获取。置顶需要 UP 主权限，必须用该视频 UP 主的账号。
+>
+> - 凭据从 `biliup/cookies.json` 读取（由 `biliup login` 扫码登录生成，已 gitignore，**不进 `.env`**）。置顶需要 UP 主权限，必须用该视频 UP 主的账号。
 > - `--bvid` 即视频 BV 号（URL 里 `BV...` 那段），脚本会自动换成评论接口需要的 oid；也可用 `--oid <aid>` 直接传内部 id。
 > - 置顶内部带等待+重试，应对评论刚发出未索引时的 `-404`。
 

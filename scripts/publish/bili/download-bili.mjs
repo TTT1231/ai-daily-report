@@ -2,7 +2,9 @@
 
 /**
  * download-bili.mjs  →  bun run download-bili
- * 也在 `bun install` 时经 postinstall 自动触发。
+ * 不再经 postinstall 自动触发（旧设计每次 install 都联网下载，对不发 B 站的用户是负担）；
+ * 改为首次跑 bili:upload / bili:comment / bili:stick 时由 ensure-biliup 按需调用，
+ * 也可手动 `bun run download-bili` 触发。
  *
  * 把 biliup-rs 最新版下载/更新到 ./biliup/，跨平台：
  *   1. 递归备份 biliup/ 下已有的 cookies.json（保住登录态，升级免重扫）

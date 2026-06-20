@@ -2,32 +2,38 @@
 
 ## Paths
 
-- Generated report: `data-scheme/data-generate.json`
-- Raw human-maintained report: `data-scheme/data.json`
+- Source package: `data-scheme/data-generate.json`
 - Icons: `data-scheme/icons/`
-- Icon field: `icons/{storyId}-{tabId}.svg`
-- Intro story ID: `intro`
+- Icon field format: `icons/{storyId}-{tabId}.svg`
+- Intro uses `intro` as the story ID.
 
-## Editing
+## Updating Data
 
 - Collect tabs from `intro.tabs` and `stories[].tabs`.
-- Preserve valid existing icons unless meaning, report theme, or visual quality requires revision.
-- Update only matching tab `icon` fields; do not modify unrelated generated data.
-- Never modify `data-scheme/data.json` while generating icons.
+- Preserve valid existing icons during incremental generation.
+- Regenerate an icon when its title, meaning, or report theme changed, the file is missing, or quality
+  is inadequate.
+- Update only tab `icon` fields. Do not change unrelated generated data.
+- Do not modify `data-scheme/data.json`.
 - Preserve two-space JSON indentation.
-- Remove only icon files that are no longer referenced.
+- Remove icon files that are no longer referenced.
 
-## Validate
+## Validation
 
 Run:
 
 ```bash
-bun run val-schema
-bun run lint
+bun run check-icons
 ```
 
-Icons must exist, use `.svg`, include `xmlns` and `viewBox="0 0 96 96"`, remain transparent without
-a full-size background rectangle, and avoid `<style>`, `<script>`, and preferably `<text>`.
+The icon must:
 
-Finish after static SVG and data validation. Never start `bun run dev`, Remotion Studio,
-rendering, or another preview workflow during icon generation.
+- Exist at the referenced path
+- Use `.svg`
+- Include `xmlns` and `viewBox="0 0 96 96"`
+- Use a transparent canvas without a full-size background rectangle
+- Avoid `<style>`, `<script>`, and preferably `<text>`
+- Remain under the validator's recommended file-size limit
+
+When changing icon design, sizing, or the report theme, preview at least one representative frame in
+Remotion Studio.

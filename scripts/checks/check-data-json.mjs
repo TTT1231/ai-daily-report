@@ -28,6 +28,11 @@ const {errors, navigationStats, totalDurationMs} = validateReport(report, {rende
 if (errors.length > 0) {
   console.error(`${displayPath} validation failed with ${errors.length} error(s):`);
   errors.forEach((error) => console.error(`- ${error}`));
+  console.error(
+    renderMode
+      ? `\n👉 data-generate.json 是生成的、不要手改；请先修 data-scheme/data.json，再 \`bun run tts\` 重新生成。`
+      : `\n👉 请按上方错误修改 data-scheme/data.json 后重试。`,
+  );
   process.exit(1);
 }
 

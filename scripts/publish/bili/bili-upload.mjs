@@ -1,19 +1,25 @@
 #!/usr/bin/env node
 
 /**
- * bili-upload.mjs  →  bun run bili:upload
+ * bili-upload.mjs  →  bili:upload（纯投稿） / bili:publish（投稿+评论+置顶 全套）
  *
- * 完整流程：
+ * 同一个脚本两种用法：
+ *   bili:upload    命令已带 --no-comment，只投稿、不发评论/置顶（适合测试稿、只发视频）
+ *   bili:publish   默认全套：投稿 → 等审核 → 发评论 → 置顶
+ *
+ * 流程：
  *   1. 读 bilibili-meta.json(LLM 标题/标签) + bilibili.config.json(固定参数) + mp4 + cover
  *   2. 校验：标题 ≤80、标签 ≤10
  *   3. 调 biliup.exe 投稿 → 从输出抓 bvid
- *   4. (默认) 发评论(读 comments.txt) → 抓 rpid → 置顶
+ *   4. (bili:publish，即未指定 --no-comment 时) 等审核 → 发评论 → 置顶
  *
  * 评论/置顶失败只警告、不判整体失败（视频已发布，可手动补）。
- * 加 --no-comment 可跳过评论+置顶（用于测试稿）。
- * 加 --dry-run 只做全量校验、不真正投稿（用于发布前确认 meta/产物就绪）。
+ * 加 --dry-run 只做全量校验、不真正投稿（发布前确认 meta/产物就绪）。
  *
- * 用法：bun run upload [-- --no-comment] [-- --dry-run]
+ * 用法：
+ *   bun run bili:upload                  # 纯投稿
+ *   bun run bili:publish                 # 投稿 + 评论 + 置顶
+ *   bun run bili:upload -- --dry-run     # 只校验，不真发
  */
 
 import { readFileSync, existsSync } from "node:fs";
@@ -21,6 +27,7 @@ import { resolve } from "node:path";
 import { spawn } from "node:child_process";
 import { dataDir } from "../../lib/paths.mjs";
 import { resolveOid, postComment, pinComment } from "./bili-api.mjs";
+import { ensureBiliup } from "./ensure-biliup.mjs";
 
 const ROOT = process.cwd();
 const NO_COMMENT = process.argv.includes("--no-comment");
@@ -79,12 +86,10 @@ for (const [p, hint] of [
 ]) {
   if (!existsSync(p)) fail(`缺少 ${p}，先跑: ${hint}`);
 }
-// biliup 由 download-bili.mjs 平铺到 biliup/ 下；exe 名按系统区分
+// biliup.exe / cookie 路径（真实存在性由下方 ensureBiliup 按需补齐后校验，取代旧 postinstall）
 const exeName = process.platform === "win32" ? "biliup.exe" : "biliup";
 const exe = resolve(ROOT, "biliup", exeName);
 const cookie = resolve(ROOT, config.cookieFile);
-if (!existsSync(exe)) fail(`biliup.exe 不在: ${exe}`);
-if (!existsSync(cookie)) fail(`cookie 不在: ${cookie}，先扫码登录`);
 
 // ── 1) 投稿 ───────────────────────────────────────────────────────────
 const extraFields = JSON.stringify({ creation_statement: { id: config.creationStatementId ?? 1 } });
@@ -110,6 +115,12 @@ if (DRY_RUN) {
   console.log(`   mp4: ${mp4}\n   cover: ${cover}\n   cookie: ${cookie}`);
   process.exit(0);
 }
+
+// 按需补齐 biliup：缺 exe 自动下载、缺登录态自动扫码登录（替代旧 postinstall，不发 B 站就不触发）
+ensureBiliup({ needExe: true, needCookie: true });
+// download-bili 是 best-effort，补齐后再确认一次真实存在性
+if (!existsSync(exe)) fail(`biliup.exe 仍不在: ${exe}（下载可能失败，可手动 \`bun run download-bili\`）`);
+if (!existsSync(cookie)) fail(`cookie 仍不在: ${cookie}，先扫码登录`);
 
 const up = await runCapture(exe, uploadArgs);
 if (up.code !== 0) {

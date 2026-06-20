@@ -6,22 +6,21 @@
 
 `package.json` 里和「出片」相关的命令：
 
-- `video:render` = `prepare-report` + `remotion render` → **直接渲成 mp4**（`out/AiDailyReport.mp4`）。日常用这个。
+- `video:render` = `tts` + `remotion render` → **直接渲成 mp4**（`out/AiDailyReport.mp4`）。日常用这个。
 - `build` = `remotion bundle` → 只**打包**（产出 `build/`），不渲染视频。
 - `dev` / `dev:studio` → Remotion Studio **预览**，不导出文件。
-- `prepare-report` = `tts` + 渲染态校验 → 只备数据，不渲染。
 
 想自定义渲染参数（scale / concurrency 等）就用 Remotion 的裸命令 `remotion render`（`@remotion/cli` 已经是依赖，用 `npx` 即可，不需要全局装）。
 
 ## 标准流程
 
 ```bash
-# 最省心：自动备好渲染数据 + 渲成 mp4
+# 最省心：自动跑 TTS 备好渲染数据 + 渲成 mp4
 bun run video:render
 # 产物：out/AiDailyReport.mp4
 
 # 或手动两步（便于控制时机 / 传参数）
-bun run prepare-report
+bun run tts
 npx remotion render AiDailyReport out/AiDailyReport.mp4
 ```
 
@@ -36,7 +35,7 @@ npx remotion render AiDailyReport out/AiDailyReport.mp4
 渲染是「最后一公里」，前面任何一步没做好，要么报错要么出废片。按这个顺序确认：
 
 1. **`data-scheme/` 存在**，里面有 `data.json`。
-2. **`data-generate.json` 和 `audio/*.mp3` 是最新的**：如果刚改过 `data.json`，先 `bun run tts`（或整个 `prepare-report`）。`video:render` 已自动做这步。
+2. **`data-generate.json` 和 `audio/*.mp3` 是最新的**：如果刚改过 `data.json`，先 `bun run tts`。`video:render` 已自动做这步。
 3. **图标都在**：`data-generate.json` 里每个 tab 都有 `icon` 且对应文件存在。没有就先 `/generate-svg`。
 4. **图片都在**：你写过 `overlayImg` 的图片都在 `data-scheme/images/`。
 5. **校验通过**：`bun run check-data-json:render`。
@@ -57,7 +56,7 @@ npx remotion render AiDailyReport out/video.mp4 \
 
 ## 常见坑
 
-- **报「data-generate.json 不存在 / audio 不存在」** → 跳了 `prepare-report`。补跑 `bun run tts`，或直接 `bun run video:render`。
+- **报「data-generate.json 不存在 / audio 不存在」** → 跳了 `tts`。补跑 `bun run tts`，或直接 `bun run video:render`。
 - **时长不对 / 旁白错位** → `data-generate.json` 是旧的。改了 `data.json` 后必须重新 `tts`，因为时间线是按音频时长算的。
 - **`check-data-json:render` 报 `provider` 不合法** → 改过 TTS 供应商但 schema/代码没对齐，见 [`tts-customize.md`](./tts-customize.md)。
 - **图片显示不出来** → `overlayImg` 路径没带 `images/` 前缀，或文件没放进 `data-scheme/images/`，见 [`images.md`](./images.md)。

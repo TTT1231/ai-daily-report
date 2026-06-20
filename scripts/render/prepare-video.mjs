@@ -13,9 +13,9 @@ const productionEnv = { ...process.env, AI_DAILY_REPORT_RUN_ALL: "1" };
 
 const productionSteps = [
   {
-    name: "prerss",
+    name: "archive:check",
     command: bunCommand,
-    args: ["run", "prerss"],
+    args: ["run", "archive:check"],
   },
   {
     name: "rss",

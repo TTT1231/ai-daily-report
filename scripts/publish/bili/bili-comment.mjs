@@ -16,6 +16,7 @@
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { resolveOid, postComment } from "./bili-api.mjs";
+import { ensureBiliup } from "./ensure-biliup.mjs";
 
 function parseArgs(argv) {
   const out = {};
@@ -50,6 +51,8 @@ if (args.message && args.fromFile) {
 }
 
 async function main() {
+  // 0. 按需补齐登录态（缺 cookie 自动扫码；评论走 web API，不需要 biliup.exe 投稿）
+  ensureBiliup({ needCookie: true });
   // 1. 解析 oid
   const oid = await resolveOid({ bvid: args.bvid, oid: args.oid });
   console.log(`✓ oid = ${oid}${args.bvid ? ` (bvid=${args.bvid})` : ""}`);

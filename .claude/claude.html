@@ -458,7 +458,7 @@
               <span class="step-label">一条命令全自动</span>
               <h3>抓取 + 配音 + 图标</h3>
               <p>
-                依次自动执行 <code>prerss</code>（归档）→
+                依次自动执行 <code>archive:check</code>（归档）→
                 <code>rss</code>（抓取并生成 data.json，按需调用 Claude 视觉识别图片并自动配图）→
                 <code>tts</code>（音频与时间线）→
                 <code>generate-svg</code>（Claude CLI 生成 Tabs 图标）。<strong>跑完即结束，不再自动开预览</strong>（要看画面单独 <code>bun run dev</code>）。清空 <code>data-scheme/</code> 后想完全重建，先跑 <code>bun run reset</code> 再 <code>bun run video:prepare</code>。
@@ -719,13 +719,13 @@
 <span class="folder">│   │   ├── generate-tts.mjs</span>            <span class="comment"># TTS 编排入口：组织构建、合成、校验和提交</span>
 <span class="folder">│   │   ├── generate-comment.mjs</span>        <span class="comment"># 从时间线数据生成 B 站风格跳转评论</span>
 <span class="folder">│   │   ├── dev.mjs</span>                     <span class="comment"># 开发监听入口：自动跑 TTS 并拉起 Remotion Studio</span>
-<span class="folder">│   │   └── run-all.mjs</span>                  <span class="comment"># video:prepare 编排：prerss→rss→tts→generate-svg（不再自动开预览）</span>
+<span class="folder">│   │   └── prepare-video.mjs</span>                  <span class="comment"># video:prepare 编排：archive:check→rss→tts→generate-svg（不再自动开预览）</span>
 <span class="folder">│   ├── archive/</span>                        <span class="comment"># 归档与重置</span>
 <span class="folder">│   │   ├── archive.mjs</span>                 <span class="comment"># 按完整日期归档当前日报数据包</span>
-<span class="folder">│   │   ├── archive-check.mjs</span>           <span class="comment"># prerss 钩子：归档前的状态检查</span>
+<span class="folder">│   │   ├── archive-check.mjs</span>           <span class="comment"># archive:check 命令：归档前的状态检查</span>
 <span class="folder">│   │   └── reset.mjs</span>                    <span class="comment"># 清空 data-scheme/ 后用于完全重建</span>
 <span class="folder">│   ├── publish/bili/</span>                   <span class="comment"># B站 发布工具链</span>
-<span class="folder">│   │   ├── download-bili.mjs</span>           <span class="comment"># 下载/更新 biliup-rs 到 biliup/（postinstall 自动触发，保留登录态）</span>
+<span class="folder">│   │   ├── download-bili.mjs</span>           <span class="comment"># 下载/更新 biliup-rs 到 biliup/（首次跑 bili 命令时按需触发，保留登录态）</span>
 <span class="folder">│   │   ├── bili-meta.mjs</span>               <span class="comment"># LLM 生成 B站 标题+标签 → data-scheme/bilibili-meta.json</span>
 <span class="folder">│   │   ├── bili-upload.mjs</span>              <span class="comment"># 投稿 + 发评论 + 置顶（调 biliup + bili-api）</span>
 <span class="folder">│   │   ├── bili-comment.mjs / bili-stick.mjs</span><span class="comment"># 单独 发评论 / 置顶</span>
@@ -740,7 +740,7 @@
 <span class="folder">│   ├── sources.jsonc</span>                  <span class="comment"># 人工维护：RSS 来源、启用状态和分页参数</span>
 <span class="folder">│   ├── preferences.jsonc</span>              <span class="comment"># 人工维护：重点实体、兴趣信号、不喜欢内容和筛选阈值</span>
 <span class="folder">│   └── rss-state.json</span>                 <span class="comment"># 自动生成：上一次抓取快照，不要人工修改</span>
-<span class="folder">├── biliup/</span>                             <span class="comment"># biliup-rs 工具 + 登录态 cookies.json（download-bili 自动下载，已 gitignore）</span>
+<span class="folder">├── biliup/</span>                             <span class="comment"># biliup-rs 工具 + 登录态 cookies.json（首次跑 bili 命令时按需下载，已 gitignore）</span>
 <span class="folder">├── daily-dates/</span>                        <span class="comment"># archive.mjs 按日期归档的历史日报数据包</span>
 <span class="folder">├── remotion.config.ts</span>                  <span class="comment"># Remotion 配置（JPEG、publicDir、Tailwind）</span>
 <span class="folder">├── requirements-review.html</span>            <span class="comment"># MVP 需求文档</span>
@@ -1121,20 +1121,21 @@
 
           <div class="help-strip">
             <strong>首次（一次性）：</strong>
-            <span><code>bun install</code> 会经 postinstall（<code>download-bili</code>）自动把 <code>biliup-rs</code> 下载到 <code>biliup/</code>（跨平台、平铺结构，已 gitignore）</span>
-            <span>扫码登录一次：<code>./biliup/biliup.exe -u biliup/cookies.json login</code>，登录态存 <code>biliup/cookies.json</code>（评论/置顶也直接读它，<strong>不进 .env</strong>）</span>
+            <span>首次跑 <code>bili:upload</code> / <code>bili:comment</code> / <code>bili:stick</code> 时，<code>ensure-biliup</code> 自动下载 <code>biliup-rs</code> 到 <code>biliup/</code>（跨平台、平铺、已 gitignore）；<code>bun install</code> 不再联网下载，不发 B 站就零副作用。也可主动 <code>bun run biliup:prepare</code> 一步备齐（下载+登录+清理）</span>
+            <span>缺登录态时自动拉起扫码：<code>./biliup/biliup.exe -u biliup/cookies.json login</code>（非交互终端则提示该命令手动跑）；登录态存 <code>biliup/cookies.json</code>（评论/置顶也直接读它，<strong>不进 .env</strong>）</span>
           </div>
 
           <div class="code-block">
             <pre># 一条龙（从抓取到发布）
-bun run all:bili      # video:prepare → video:render → 渲封面 → bili:meta → bili:upload
+bun run all:bili      # video:prepare → video:render → 渲封面 → bili:meta → bili:publish
 
 # 数据已备好，只发 B站
-bun run publish:bili  # video:render → 渲封面 → bili:meta → bili:upload
+bun run publish:bili  # video:render → 渲封面 → bili:meta → bili:publish
 
 # 拆开单步
 bun run bili:meta     # LLM 生成标题/标签 → data-scheme/bilibili-meta.json
-bun run bili:upload   # 投稿 → 等 3 分钟审核 → 发评论 → 置顶
+bun run bili:upload   # 纯投稿（只发视频，命令已带 --no-comment）
+bun run bili:publish  # 投稿 → 等 3 分钟审核 → 发评论 → 置顶（全套）
 bun run bili:comment  # 单独发评论
 bun run bili:stick    # 单独置顶</pre>
           </div>
@@ -1148,7 +1149,7 @@ bun run bili:stick    # 单独置顶</pre>
 
           <div class="help-strip">
             <strong>注意：</strong>
-            <span><code>bili:upload</code> 会<strong>真实发布</strong>稿件 + 评论 + 置顶到你的 B站 号；纯测试加 <code>-- --no-comment</code> 跳过评论/置顶，发完去创作中心删测试稿</span>
+            <span><code>bili:publish</code> 会<strong>真实发布</strong>稿件 + 评论 + 置顶到你的 B站 号；<code>bili:upload</code> 只投稿、默认带 <code>--no-comment</code> 不发评论/置顶，适合测试稿（发完去创作中心删）</span>
             <span>评论/置顶失败只警告、不回滚已发视频（视频已发布，可手动补）；评论/置顶对瞬时失败带指数回退重试</span>
             <span>升级 biliup：<code>bun run download-bili</code>，会自动保留 <code>cookies.json</code> 登录态</span>
           </div>

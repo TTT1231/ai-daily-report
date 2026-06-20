@@ -7,8 +7,8 @@
  * 时间戳格式：MM:SS（如 01:23），点击可跳转到视频对应帧。
  *
  * 用法：
- *   bun run comment          # 生成到 comments.txt 并预览
- *   bun run comment --copy    # 同时复制到剪贴板
+ *   bun run report:comment          # 生成到 comments.txt 并预览
+ *   bun run report:comment --copy    # 同时复制到剪贴板
  */
 
 import { writeFileSync } from "node:fs";
