@@ -11,7 +11,6 @@ import { classifyStepOutcome } from "../lib/step-outcome.mjs";
 const bunCommand = process.platform === "win32" ? "bun.exe" : "bun";
 const claudeCommand = process.platform === "win32" ? "claude.exe" : "claude";
 const productionEnv = { ...process.env, AI_DAILY_REPORT_RUN_ALL: "1" };
-const rssStatePath = resolve(rootDir, "ingest", "rss-state.json");
 
 const productionSteps = [
   {
@@ -140,20 +139,6 @@ function validateProductionStep(name) {
   );
 }
 
-function validateInitialState() {
-  if (existsSync(rawDataPath) || !existsSync(rssStatePath)) {
-    return;
-  }
-  throw new Error(
-    [
-      "当前缺少 data-scheme/data.json，但 ingest/rss-state.json 仍存在。",
-      "这通常表示 data-scheme/ 被手动清空，而 RSS 去重快照还保留着上次抓取记录。",
-      "请先运行：bun run reset",
-      "然后再运行：bun run video:prepare",
-    ].join("\n"),
-  );
-}
-
 function runDev() {
   return new Promise((resolve, reject) => {
     if (interrupted) {
@@ -214,7 +199,6 @@ async function main() {
   const totalStart = process.hrtime.bigint();
 
   try {
-    validateInitialState();
     console.log("──────── 生产阶段 ────────");
     productionSpinner = ora({
       text: "正在准备生产流程...",
