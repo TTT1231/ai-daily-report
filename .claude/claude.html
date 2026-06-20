@@ -434,8 +434,8 @@
 
         <div class="help-strip">
           <strong>网络代理（可选）：</strong>
-          <span>网络受限时，在项目根目录 <code>.env</code> 配置小写 <code>all_proxy=http://127.0.0.1:7890</code>；未配置时 RSS 和 AI 模型请求直接连接</span>
-          <span>一旦配置 <code>all_proxy</code>，相关请求必须使用该代理，代理无效或不可用时会报错，不会静默回退直连</span>
+          <span><strong>仅作用于 <code>rss</code> 抓取阶段</strong>（RSS 源抓取 + 该阶段内部的 AI 评分请求）；MiniMax TTS、B站 标题/标签生成与投稿/评论/置顶等 Node 端请求<strong>不</strong>走此代理，始终直连。网络受限时在项目根目录 <code>.env</code> 配置小写 <code>all_proxy=http://127.0.0.1:7890</code>；未配置时 <code>rss</code> 阶段请求直接连接</span>
+          <span>一旦配置 <code>all_proxy</code>，上述 <code>rss</code> 阶段请求必须使用该代理，代理无效或不可用时会报错，不会静默回退直连</span>
           <span>不会读取 <code>HTTP_PROXY</code>、<code>HTTPS_PROXY</code>、<code>ALL_PROXY</code> 等其他代理变量，也不会自动探测本地代理端口</span>
         </div>
 
@@ -458,8 +458,9 @@
               <span class="step-label">一条命令全自动</span>
               <h3>抓取 + 配音 + 图标</h3>
               <p>
-                依次自动执行 <code>archive:check</code>（归档）→
+                依次自动执行 <code>archive:rotate</code>（归档）→
                 <code>rss</code>（抓取并生成 data.json，按需调用 Claude 视觉识别图片并自动配图）→
+                <code>check-data-json</code>（校验 Raw 数据）→
                 <code>tts</code>（音频与时间线）→
                 <code>generate-svg</code>（Claude CLI 生成 Tabs 图标）。<strong>跑完即结束，不再自动开预览</strong>（要看画面单独 <code>bun run dev</code>）。清空 <code>data-scheme/</code> 后想完全重建，先跑 <code>bun run reset</code> 再 <code>bun run video:prepare</code>。
               </p>
@@ -717,17 +718,17 @@
 <span class="folder">│   │   └── check-icons.mjs</span>             <span class="comment"># Generated 数据的图标资源校验</span>
 <span class="folder">│   ├── render/</span>                         <span class="comment"># 视频生成与预览入口</span>
 <span class="folder">│   │   ├── generate-tts.mjs</span>            <span class="comment"># TTS 编排入口：组织构建、合成、校验和提交</span>
-<span class="folder">│   │   ├── generate-comment.mjs</span>        <span class="comment"># 从时间线数据生成 B 站风格跳转评论</span>
 <span class="folder">│   │   ├── dev.mjs</span>                     <span class="comment"># 开发监听入口：自动跑 TTS 并拉起 Remotion Studio</span>
-<span class="folder">│   │   └── prepare-video.mjs</span>                  <span class="comment"># video:prepare 编排：archive:check→rss→tts→generate-svg（不再自动开预览）</span>
+<span class="folder">│   │   └── prepare-video.mjs</span>                  <span class="comment"># video:prepare 编排：archive:rotate→rss→check-data-json→tts→generate-svg（不再自动开预览）</span>
 <span class="folder">│   ├── archive/</span>                        <span class="comment"># 归档与重置</span>
 <span class="folder">│   │   ├── archive.mjs</span>                 <span class="comment"># 按完整日期归档当前日报数据包</span>
-<span class="folder">│   │   ├── archive-check.mjs</span>           <span class="comment"># archive:check 命令：归档前的状态检查</span>
+<span class="folder">│   │   ├── archive-rotate.mjs</span>          <span class="comment"># archive:rotate 命令：抓取 RSS 前的归档轮转</span>
 <span class="folder">│   │   └── reset.mjs</span>                    <span class="comment"># 清空 data-scheme/ 后用于完全重建</span>
 <span class="folder">│   ├── publish/bili/</span>                   <span class="comment"># B站 发布工具链</span>
+<span class="folder">│   │   ├── generate-comment.mjs</span>        <span class="comment"># 从时间线数据生成 B 站风格跳转评论 → data-scheme/comments.txt</span>
 <span class="folder">│   │   ├── download-bili.mjs</span>           <span class="comment"># 下载/更新 biliup-rs 到 biliup/（首次跑 bili 命令时按需触发，保留登录态）</span>
 <span class="folder">│   │   ├── bili-meta.mjs</span>               <span class="comment"># LLM 生成 B站 标题+标签 → data-scheme/bilibili-meta.json</span>
-<span class="folder">│   │   ├── bili-upload.mjs</span>              <span class="comment"># 投稿 + 发评论 + 置顶（调 biliup + bili-api）</span>
+<span class="folder">│   │   ├── bili-upload.mjs</span>              <span class="comment"># bili:upload（纯投稿）/ bili:full（投稿+评论+置顶）（调 biliup + bili-api）</span>
 <span class="folder">│   │   ├── bili-comment.mjs / bili-stick.mjs</span><span class="comment"># 单独 发评论 / 置顶</span>
 <span class="folder">│   │   └── bili-api.mjs</span>                  <span class="comment"># B站 评论/置顶 web API（凭据从 biliup/cookies.json 读，不走 .env）</span>
 <span class="folder">│   └── lib/</span>                            <span class="comment"># 多个入口脚本共享的内部模块，不直接执行</span>
@@ -1127,15 +1128,15 @@
 
           <div class="code-block">
             <pre># 一条龙（从抓取到发布）
-bun run all:bili      # video:prepare → video:render → 渲封面 → bili:meta → bili:publish
+bun run all:bili      # video:prepare → video:render → 渲封面 → comment:generate → bili:meta → bili:full
 
 # 数据已备好，只发 B站
-bun run publish:bili  # video:render → 渲封面 → bili:meta → bili:publish
+bun run publish:bili  # video:render → 渲封面 → comment:generate → bili:meta → bili:full
 
 # 拆开单步
 bun run bili:meta     # LLM 生成标题/标签 → data-scheme/bilibili-meta.json
 bun run bili:upload   # 纯投稿（只发视频，命令已带 --no-comment）
-bun run bili:publish  # 投稿 → 等 3 分钟审核 → 发评论 → 置顶（全套）
+bun run bili:full    # 投稿 → 等 3 分钟审核 → 发评论 → 置顶（全套）
 bun run bili:comment  # 单独发评论
 bun run bili:stick    # 单独置顶</pre>
           </div>
@@ -1149,7 +1150,7 @@ bun run bili:stick    # 单独置顶</pre>
 
           <div class="help-strip">
             <strong>注意：</strong>
-            <span><code>bili:publish</code> 会<strong>真实发布</strong>稿件 + 评论 + 置顶到你的 B站 号；<code>bili:upload</code> 只投稿、默认带 <code>--no-comment</code> 不发评论/置顶，适合测试稿（发完去创作中心删）</span>
+            <span><code>bili:full</code> 会<strong>真实发布</strong>稿件 + 评论 + 置顶到你的 B站 号；<code>bili:upload</code> 只投稿、默认带 <code>--no-comment</code> 不发评论/置顶，适合测试稿（发完去创作中心删）</span>
             <span>评论/置顶失败只警告、不回滚已发视频（视频已发布，可手动补）；评论/置顶对瞬时失败带指数回退重试</span>
             <span>升级 biliup：<code>bun run download-bili</code>，会自动保留 <code>cookies.json</code> 登录态</span>
           </div>

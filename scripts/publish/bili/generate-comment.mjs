@@ -7,8 +7,8 @@
  * 时间戳格式：MM:SS（如 01:23），点击可跳转到视频对应帧。
  *
  * 用法：
- *   bun run report:comment          # 生成到 comments.txt 并预览
- *   bun run report:comment --copy    # 同时复制到剪贴板
+ *   bun run comment:generate          # 生成到 comments.txt 并预览
+ *   bun run comment:generate --copy    # 同时复制到剪贴板
  */
 
 import { writeFileSync } from "node:fs";
@@ -17,9 +17,9 @@ import { resolve } from "node:path";
 import {
   collectTimelineScenes,
   buildVideoStoryStartMs,
-} from "../lib/report-builder.mjs";
-import { dataDir, generatedDataPath, readJson } from "../lib/paths.mjs";
-import { validateReport } from "../lib/report-validation.mjs";
+} from "../../lib/report-builder.mjs";
+import { dataDir, generatedDataPath, readJson } from "../../lib/paths.mjs";
+import { validateReport } from "../../lib/report-validation.mjs";
 
 // ── 路径 ──────────────────────────────────────────────
 const OUTPUT_PATH = resolve(dataDir, "comments.txt");

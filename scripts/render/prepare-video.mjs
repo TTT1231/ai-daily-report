@@ -13,14 +13,19 @@ const productionEnv = { ...process.env, AI_DAILY_REPORT_RUN_ALL: "1" };
 
 const productionSteps = [
   {
-    name: "archive:check",
+    name: "archive:rotate",
     command: bunCommand,
-    args: ["run", "archive:check"],
+    args: ["run", "archive:rotate"],
   },
   {
     name: "rss",
     command: "go",
     args: ["-C", "ingest", "run", "."],
+  },
+  {
+    name: "check-data-json",
+    command: bunCommand,
+    args: ["run", "check-data-json"],
   },
   {
     name: "tts",

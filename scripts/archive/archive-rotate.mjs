@@ -1,4 +1,4 @@
-// archive-check.mjs  →  bun run archive:check（抓取 RSS 前的归档前检查）
+// archive-rotate.mjs  →  bun run archive:rotate（抓取 RSS 前的归档轮转）
 //
 // 它不碰 RSS/ingest 抓取本身。只做两件事：
 //   1. 读 data-scheme/data.json 的 date；没有就视为全新工作区，直接放行让 ingest 从零抓。

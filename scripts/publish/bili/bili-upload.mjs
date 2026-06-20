@@ -1,24 +1,24 @@
 #!/usr/bin/env node
 
 /**
- * bili-upload.mjs  →  bili:upload（纯投稿） / bili:publish（投稿+评论+置顶 全套）
+ * bili-upload.mjs  →  bili:upload（纯投稿） / bili:full（投稿+评论+置顶 全套）
  *
  * 同一个脚本两种用法：
  *   bili:upload    命令已带 --no-comment，只投稿、不发评论/置顶（适合测试稿、只发视频）
- *   bili:publish   默认全套：投稿 → 等审核 → 发评论 → 置顶
+ *   bili:full   默认全套：投稿 → 等审核 → 发评论 → 置顶
  *
  * 流程：
  *   1. 读 bilibili-meta.json(LLM 标题/标签) + bilibili.config.json(固定参数) + mp4 + cover
  *   2. 校验：标题 ≤80、标签 ≤10
  *   3. 调 biliup.exe 投稿 → 从输出抓 bvid
- *   4. (bili:publish，即未指定 --no-comment 时) 等审核 → 发评论 → 置顶
+ *   4. (bili:full，即未指定 --no-comment 时) 等审核 → 发评论 → 置顶
  *
  * 评论/置顶失败只警告、不判整体失败（视频已发布，可手动补）。
  * 加 --dry-run 只做全量校验、不真正投稿（发布前确认 meta/产物就绪）。
  *
  * 用法：
  *   bun run bili:upload                  # 纯投稿
- *   bun run bili:publish                 # 投稿 + 评论 + 置顶
+ *   bun run bili:full                 # 投稿 + 评论 + 置顶
  *   bun run bili:upload -- --dry-run     # 只校验，不真发
  */
 
