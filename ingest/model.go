@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"regexp"
 	"slices"
 	"sort"
 	"strings"
@@ -46,11 +47,18 @@ func analyzeWithModel(ai AIConfig, preferences PreferencesConfig, items []Item) 
 	return applyKeywordWeights(preferences, scored, items), nil
 }
 
-// parseScoredItems 从模型返回内容中解析评分 JSON；标准解析失败时尝试逐行恢复有效条目。
+// parseScoredItems 从模型返回内容中解析评分 JSON；标准解析失败时先尝试修复常见的
+// 「字符串值漏掉左引号」再整体解析，最后退化为逐行恢复有效条目。
 func parseScoredItems(content string) ([]ScoredItem, error) {
 	var scored []ScoredItem
 	rawJSON := extractJSON(content)
 	if err := json.Unmarshal([]byte(rawJSON), &scored); err != nil {
+		if repaired := repairUnquotedStrings(rawJSON); repaired != rawJSON {
+			if err2 := json.Unmarshal([]byte(repaired), &scored); err2 == nil {
+				fmt.Printf("   ⚠️  警告：模型返回的 JSON 存在未加引号的字符串值，已自动修复并解析\n")
+				return scored, nil
+			}
+		}
 		scored = recoverScoredItems(rawJSON)
 		if len(scored) == 0 {
 			return nil, fmt.Errorf("解析评分 JSON 失败且未能恢复有效条目: %w\n原始内容: %s", err, content)
@@ -58,6 +66,16 @@ func parseScoredItems(content string) ([]ScoredItem, error) {
 		fmt.Printf("   ⚠️  警告：模型返回局部无效 JSON，已跳过坏条目并恢复 %d 条有效评分\n", len(scored))
 	}
 	return scored, nil
+}
+
+// unquotedStringRe 匹配形如 "key": value" 的字符串值：value 缺失左引号、却保留了
+// 右引号（模型偶发产物）。已正确加引号的值以 " 开头，不会被本规则命中。
+var unquotedStringRe = regexp.MustCompile(`("[^"]+"):\s*([^\d\-[{"][^"]*?)"(\s*[},])`)
+
+// repairUnquotedStrings 给漏掉左引号的字符串值补回引号，幂等：对已修复或本就合法的
+// 内容不再改动。
+func repairUnquotedStrings(s string) string {
+	return unquotedStringRe.ReplaceAllString(s, "$1: \"$2\"$3")
 }
 
 // recoverScoredItems 在 JSON 整体解析失败时，逐行尝试解析独立的 {...} 对象，尽量挽救有效评分。
@@ -72,6 +90,13 @@ func recoverScoredItems(content string) []ScoredItem {
 		var item ScoredItem
 		if json.Unmarshal([]byte(line), &item) == nil {
 			recovered = append(recovered, item)
+			continue
+		}
+		// 单行解析失败时，尝试修复漏掉左引号的字符串值后再解析一次。
+		if repaired := repairUnquotedStrings(line); repaired != line {
+			if json.Unmarshal([]byte(repaired), &item) == nil {
+				recovered = append(recovered, item)
+			}
 		}
 	}
 	return recovered
