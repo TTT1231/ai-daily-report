@@ -24,6 +24,14 @@ func loadConfig() (AppConfig, error) {
 	if apiKey == "" || apiKey == "your_api_key_here" {
 		return AppConfig{}, fmt.Errorf("请在项目根目录 .env 中填写有效的 AI_API_KEY")
 	}
+	baseURL := strings.TrimSpace(os.Getenv("AI_BASE_URL"))
+	if baseURL == "" {
+		return AppConfig{}, fmt.Errorf("请在项目根目录 .env 中填写有效的 AI_BASE_URL")
+	}
+	model := strings.TrimSpace(os.Getenv("AI_MODEL"))
+	if model == "" {
+		return AppConfig{}, fmt.Errorf("请在项目根目录 .env 中填写有效的 AI_MODEL")
+	}
 	sourcesPath := configPath(root, envOrDefault("RSS_SOURCES_PATH", defaultSourcesPath))
 	sources, err := loadSources(sourcesPath)
 	if err != nil {
@@ -45,8 +53,8 @@ func loadConfig() (AppConfig, error) {
 	return AppConfig{
 		AI: AIConfig{
 			APIKey:    apiKey,
-			BaseURL:   strings.TrimRight(envOrDefault("AI_BASE_URL", defaultAIBaseURL), "/"),
-			Model:     envOrDefault("AI_MODEL", defaultAIModel),
+			BaseURL:   baseURL,
+			Model:     model,
 			ExtraBody: extraBody,
 		},
 		Sources:     sources,

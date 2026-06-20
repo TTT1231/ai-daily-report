@@ -779,6 +779,30 @@ func TestLoadJSONCSourceAndPreferencesConfigs(t *testing.T) {
 	}
 }
 
+func TestStripTrailingCommasToleratesJSONC(t *testing.T) {
+	cases := map[string]string{
+		"object trailing comma":      `{"a":1,}`,
+		"array trailing comma":       `{"a":[1,2,],}`,
+		"comma before newline":       "{\n  \"a\": 1,\n}",
+		"nested":                     `{"a":{"b":[1,],},}`,
+	}
+	for name, in := range cases {
+		t.Run(name, func(t *testing.T) {
+			cleaned := stripTrailingCommas([]byte(in))
+			var v map[string]any
+			if err := json.Unmarshal(cleaned, &v); err != nil {
+				t.Fatalf("json.Unmarshal(%s) failed: %v", cleaned, err)
+			}
+		})
+	}
+	// 字符串内的逗号+闭括号不能被误删
+	src := `{"s":"a,]"}`
+	cleaned := stripTrailingCommas([]byte(src))
+	if string(cleaned) != src {
+		t.Fatalf("stripTrailingCommas altered string content: got %s", cleaned)
+	}
+}
+
 func TestValidatePreferencesRejectsEmptyAlias(t *testing.T) {
 	preferences := testPreferences(t)
 	preferences.PriorityEntities[0].Aliases = []string{""}

@@ -1,5 +1,5 @@
 /**
- * lib/bili-api.mjs
+ * publish/bili/bili-api.mjs
  *
  * B 站评论相关 web API 封装（发评论 / 置顶）。
  * 鉴权只需 cookie 里的 SESSDATA + bili_jct(=csrf)，风控签名参数
@@ -16,7 +16,7 @@
 
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
-import { rootDir } from "./paths.mjs";
+import { rootDir } from "../../lib/paths.mjs";
 
 const API = "https://api.bilibili.com";
 const UA =

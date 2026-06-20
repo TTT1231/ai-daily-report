@@ -2,8 +2,8 @@ import {existsSync, watch} from "node:fs";
 import {spawn} from "node:child_process";
 import {extname} from "node:path";
 import {clearTimeout, setTimeout} from "node:timers";
-import {dataDir, generatedDataPath, rootDir} from "./lib/paths.mjs";
-import {terminateProcessTree} from "./lib/process-tree.mjs";
+import {dataDir, generatedDataPath, rootDir} from "../lib/paths.mjs";
+import {terminateProcessTree} from "../lib/process-tree.mjs";
 
 if (process.env.AI_DAILY_REPORT_RUN_ALL === "1") {
   throw new Error(

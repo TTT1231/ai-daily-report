@@ -1,6 +1,14 @@
 {
   // sources: RSS 来源列表。按这里的顺序抓取；同一条跨来源内容重复出现时，优先保留靠前来源的版本。
   "sources": [
+    /**
+     * ! 注意事项：如果 RSS 源是 LinuxDo 的源但是不同的栏目，这里的 id 必须各不相同
+     *   （例如 linuxdo-news、linuxdo-dev），否则会被当成同一个来源，加载时报
+     *   "sources[N] 使用了重复 id" 错误并中止，整条流水线无法启动。
+     *   - 跨栏目的同一话题不需要担心重复：linuxdo 适配器会给每条话题打上
+     *     CanonicalID（linuxdo:topic:<topicId>），靠它自动去重，与来源 id 无关。
+     *   - 所以 id 的唯一性只需保证"来源本身"不重名即可。
+     */
     {
       // id: 来源的稳定唯一标识。会参与快照去重和生成 Story ID，修改后会被视为一个新来源。
       "id": "linuxdo-news",
@@ -25,7 +33,7 @@
       "pageStart": 0,
 
       // pageDelaySeconds: 连续翻页之间的等待秒数，用于降低触发来源限流的概率。
-      "pageDelaySeconds": 10
-    }
-  ]
+      "pageDelaySeconds": 10,
+    },
+  ],
 }

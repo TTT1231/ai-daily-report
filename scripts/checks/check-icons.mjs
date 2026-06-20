@@ -1,6 +1,6 @@
 import {existsSync, readdirSync, readFileSync} from "node:fs";
 import {resolve, sep} from "node:path";
-import {dataDir, generatedDataPath, readJson} from "./lib/paths.mjs";
+import {dataDir, generatedDataPath, readJson} from "../lib/paths.mjs";
 
 const iconsDir = resolve(dataDir, "icons");
 const errors = [];

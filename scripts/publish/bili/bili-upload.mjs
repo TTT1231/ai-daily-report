@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 /**
- * upload-bilibili.mjs  →  bun run upload
+ * bili-upload.mjs  →  bun run bili:upload
  *
  * 完整流程：
  *   1. 读 bilibili-meta.json(LLM 标题/标签) + bilibili.config.json(固定参数) + mp4 + cover
@@ -18,8 +18,8 @@
 import { readFileSync, existsSync } from "node:fs";
 import { resolve } from "node:path";
 import { spawn } from "node:child_process";
-import { dataDir } from "./lib/paths.mjs";
-import { resolveOid, postComment, pinComment } from "./lib/bili-api.mjs";
+import { dataDir } from "../../lib/paths.mjs";
+import { resolveOid, postComment, pinComment } from "./bili-api.mjs";
 
 const ROOT = process.cwd();
 const NO_COMMENT = process.argv.includes("--no-comment");
@@ -141,7 +141,7 @@ if (delaySec > 0) {
 }
 
 // ── 2) 发评论 ─────────────────────────────────────────────────────────
-// 直接复用 lib/bili-api.mjs（已内置重试），不再 spawn 子进程并抓 stdout。
+// 直接复用 ./bili-api.mjs（已内置重试），不再 spawn 子进程并抓 stdout。
 console.log("\n===== 2/3 发表评论 =====");
 const message = readFileSync(commentsPath, "utf-8").trim();
 if (!message) {

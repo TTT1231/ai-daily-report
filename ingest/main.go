@@ -18,7 +18,7 @@ func run() int {
 	config, err := loadConfig()
 	if err != nil {
 		fmt.Printf("失败：启动配置无效：%v\n", err)
-		fmt.Println("   请检查项目根目录 .env、rss/sources.jsonc 和 rss/preferences.jsonc。")
+		fmt.Println("   请检查项目根目录 .env、ingest/sources.jsonc 和 ingest/preferences.jsonc。")
 		return 1
 	}
 

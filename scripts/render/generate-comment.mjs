@@ -17,9 +17,9 @@ import { resolve } from "node:path";
 import {
   collectTimelineScenes,
   buildVideoStoryStartMs,
-} from "./lib/report-builder.mjs";
-import { dataDir, generatedDataPath, readJson } from "./lib/paths.mjs";
-import { validateReport } from "./lib/report-validation.mjs";
+} from "../lib/report-builder.mjs";
+import { dataDir, generatedDataPath, readJson } from "../lib/paths.mjs";
+import { validateReport } from "../lib/report-validation.mjs";
 
 // ── 路径 ──────────────────────────────────────────────
 const OUTPUT_PATH = resolve(dataDir, "comments.txt");

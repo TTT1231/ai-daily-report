@@ -1,6 +1,6 @@
-import {generatedDataPath, rawDataPath, readJson} from "./lib/paths.mjs";
-import {validateReport} from "./lib/report-validation.mjs";
-import {validateVideoLayout} from "./lib/video-layout-validation.mjs";
+import {generatedDataPath, rawDataPath, readJson} from "../lib/paths.mjs";
+import {validateReport} from "../lib/report-validation.mjs";
+import {validateVideoLayout} from "../lib/video-layout-validation.mjs";
 
 const renderMode = process.argv.includes("--render");
 const displayPath = renderMode

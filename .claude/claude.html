@@ -378,7 +378,7 @@
             <div>
               <strong>安装 Bun + Go</strong
               ><span
-                >TTS 脚本用 Bun，<code>rss/</code> 采集器用 Go，<code>bun --version</code> 与
+                >TTS 脚本用 Bun，<code>ingest/</code> 采集器用 Go，<code>bun --version</code> 与
                 <code>go version</code> 都要正常。</span
               >
             </div>
@@ -427,9 +427,9 @@
 
         <div class="help-strip">
           <strong>📡 抓取来源：</strong>
-          <span><code>rss</code> 按 <code>rss/sources.jsonc</code> 从启用的 RSS 2.0 来源抓取 <strong>最近 24 小时</strong> 内容；新增 LinuxDo 栏目只需复制来源对象并修改 ID、名称和 URL</span>
+          <span><code>rss</code> 按 <code>ingest/sources.jsonc</code> 从启用的 RSS 2.0 来源抓取 <strong>最近 24 小时</strong> 内容；新增 LinuxDo 栏目只需复制来源对象并修改 ID、名称和 URL</span>
           <span>经 AI 评分筛选与聚类，最多保留约 15 个 Story（视频主题）</span>
-          <span>每次运行会基于 <code>rss/rss-state.json</code> 自动去重；LinuxDo 同一 Topic 跨栏目只处理一次，单个来源失败时会保留它的上一次运行状态</span>
+          <span>每次运行会基于 <code>ingest/rss-state.json</code> 自动去重；LinuxDo 同一 Topic 跨栏目只处理一次，单个来源失败时会保留它的上一次运行状态</span>
         </div>
 
         <div class="help-strip">
@@ -441,7 +441,7 @@
 
         <div class="help-strip">
           <strong>🎯 兴趣偏好：</strong>
-          <span><code>rss/preferences.jsonc</code> 集中维护重点实体、兴趣信号、不喜欢的内容和评分阈值，文件内包含字段注释</span>
+          <span><code>ingest/preferences.jsonc</code> 集中维护重点实体、兴趣信号、不喜欢的内容和评分阈值，文件内包含字段注释</span>
           <span>AI 评分 Prompt 与本地关键词保底规则共享同一份兴趣画像，修改偏好无需同步修改 Go 关键词或评分 Prompt</span>
         </div>
 
@@ -701,7 +701,7 @@
 <span class="folder">│   └── sound/</span>
 <span class="folder">│       └── click-sound.mp3</span>             <span class="comment"># Story 切换音效</span>
 <span class="folder">├── data-scheme/</span>                        <span class="comment"># 当前日报数据包（Remotion publicDir 指向此处）</span>
-<span class="folder">│   ├── data.json</span>                       <span class="comment"># Raw 数据：标题、Tabs、字幕与图片引用（可由 rss/ 生成）</span>
+<span class="folder">│   ├── data.json</span>                       <span class="comment"># Raw 数据：标题、Tabs、字幕与图片引用（可由 ingest/ 生成）</span>
 <span class="folder">│   ├── data-generate.json</span>              <span class="comment"># Generated 数据：TTS 派生的音频、时间线和缓存元数据</span>
 <span class="folder">│   ├── images/</span>                         <span class="comment"># Scene overlayImg 图片素材</span>
 <span class="folder">│   ├── icons/</span>                          <span class="comment"># Tabs 图标素材（可选，由 generate-svg 技能产出）</span>
@@ -712,25 +712,31 @@
 <span class="folder">├── video-layout.schema.json</span>            <span class="comment"># video-layout.json 的字段说明、取值范围与编辑器提示</span>
 <span class="folder">├── bilibili.config.json</span>                <span class="comment"># B站投稿固定配置：分区 tid / 自制 / 创作声明 / 封面帧 / 评论前等待</span>
 <span class="folder">├── scripts/</span>
-<span class="folder">│   ├── check-data-json.mjs</span>             <span class="comment"># 数据校验脚本（Raw 内容 / Generated 渲染就绪）</span>
-<span class="folder">│   ├── generate-tts.mjs</span>                <span class="comment"># TTS 编排入口：组织构建、合成、校验和提交</span>
-<span class="folder">│   ├── generate-comment.mjs</span>            <span class="comment"># 从时间线数据生成 B 站风格跳转评论</span>
-<span class="folder">│   ├── check-icons.mjs</span>                 <span class="comment"># Generated 数据的图标资源校验</span>
-<span class="folder">│   ├── archive.mjs</span>                     <span class="comment"># 按完整日期归档当前日报数据包</span>
-<span class="folder">│   ├── dev.mjs</span>                         <span class="comment"># 开发监听入口：自动跑 TTS 并拉起 Remotion Studio</span>
-<span class="folder">│   ├── run-all.mjs</span>                      <span class="comment"># video:prepare 编排：prerss→rss→tts→generate-svg（不再自动开预览）</span>
-<span class="folder">│   ├── download-bili.mjs</span>                <span class="comment"># 下载/更新 biliup-rs 到 biliup/（postinstall 自动触发，保留登录态）</span>
-<span class="folder">│   ├── bili-generate-title-tags.mjs</span>     <span class="comment"># LLM 生成 B站 标题+标签 → data-scheme/bilibili-meta.json</span>
-<span class="folder">│   ├── bili-upload.mjs</span>                   <span class="comment"># 投稿 + 发评论 + 置顶（调 biliup + bili-api）</span>
-<span class="folder">│   ├── bili-comment.mjs / bili-stick.mjs</span><span class="comment"># 单独 发评论 / 置顶</span>
+<span class="folder">│   ├── checks/</span>                         <span class="comment"># 数据与资源校验</span>
+<span class="folder">│   │   ├── check-data-json.mjs</span>         <span class="comment"># 数据校验脚本（Raw 内容 / Generated 渲染就绪）</span>
+<span class="folder">│   │   └── check-icons.mjs</span>             <span class="comment"># Generated 数据的图标资源校验</span>
+<span class="folder">│   ├── render/</span>                         <span class="comment"># 视频生成与预览入口</span>
+<span class="folder">│   │   ├── generate-tts.mjs</span>            <span class="comment"># TTS 编排入口：组织构建、合成、校验和提交</span>
+<span class="folder">│   │   ├── generate-comment.mjs</span>        <span class="comment"># 从时间线数据生成 B 站风格跳转评论</span>
+<span class="folder">│   │   ├── dev.mjs</span>                     <span class="comment"># 开发监听入口：自动跑 TTS 并拉起 Remotion Studio</span>
+<span class="folder">│   │   └── run-all.mjs</span>                  <span class="comment"># video:prepare 编排：prerss→rss→tts→generate-svg（不再自动开预览）</span>
+<span class="folder">│   ├── archive/</span>                        <span class="comment"># 归档与重置</span>
+<span class="folder">│   │   ├── archive.mjs</span>                 <span class="comment"># 按完整日期归档当前日报数据包</span>
+<span class="folder">│   │   ├── archive-check.mjs</span>           <span class="comment"># prerss 钩子：归档前的状态检查</span>
+<span class="folder">│   │   └── reset.mjs</span>                    <span class="comment"># 清空 data-scheme/ 后用于完全重建</span>
+<span class="folder">│   ├── publish/bili/</span>                   <span class="comment"># B站 发布工具链</span>
+<span class="folder">│   │   ├── download-bili.mjs</span>           <span class="comment"># 下载/更新 biliup-rs 到 biliup/（postinstall 自动触发，保留登录态）</span>
+<span class="folder">│   │   ├── bili-meta.mjs</span>               <span class="comment"># LLM 生成 B站 标题+标签 → data-scheme/bilibili-meta.json</span>
+<span class="folder">│   │   ├── bili-upload.mjs</span>              <span class="comment"># 投稿 + 发评论 + 置顶（调 biliup + bili-api）</span>
+<span class="folder">│   │   ├── bili-comment.mjs / bili-stick.mjs</span><span class="comment"># 单独 发评论 / 置顶</span>
+<span class="folder">│   │   └── bili-api.mjs</span>                  <span class="comment"># B站 评论/置顶 web API（凭据从 biliup/cookies.json 读，不走 .env）</span>
 <span class="folder">│   └── lib/</span>                            <span class="comment"># 多个入口脚本共享的内部模块，不直接执行</span>
-<span class="folder">│       ├── paths.mjs</span>                   <span class="comment"># 集中路径定义与 JSON 读取</span>
+<span class="folder">│       ├── paths.mjs</span>                   <span class="comment"># 集中路径定义与 JSON 读取（rootDir 锚定，与入口目录深度无关）</span>
 <span class="folder">│       ├── report-validation.mjs</span>       <span class="comment"># JSON Schema 与跨字段业务校验</span>
 <span class="folder">│       ├── report-builder.mjs</span>          <span class="comment"># 构建 Intro / Outro、主题与图标恢复</span>
 <span class="folder">│       ├── minimax-tts.mjs</span>             <span class="comment"># MiniMax TTS API 客户端</span>
-<span class="folder">│       ├── generated-output.mjs</span>        <span class="comment"># 音频与 Generated JSON 的事务提交和恢复</span>
-<span class="folder">│       └── bili-api.mjs</span>                  <span class="comment"># B站 评论/置顶 web API（凭据从 biliup/cookies.json 读，不走 .env）</span>
-<span class="folder">├── rss/</span>                                <span class="comment"># Go 编写的多来源 RSS 采集器</span>
+<span class="folder">│       └── generated-output.mjs</span>        <span class="comment"># 音频与 Generated JSON 的事务提交和恢复</span>
+<span class="folder">├── ingest/</span>                             <span class="comment"># Go 编写的多来源 RSS 采集器</span>
 <span class="folder">│   ├── sources.jsonc</span>                  <span class="comment"># 人工维护：RSS 来源、启用状态和分页参数</span>
 <span class="folder">│   ├── preferences.jsonc</span>              <span class="comment"># 人工维护：重点实体、兴趣信号、不喜欢内容和筛选阈值</span>
 <span class="folder">│   └── rss-state.json</span>                 <span class="comment"># 自动生成：上一次抓取快照，不要人工修改</span>
@@ -957,7 +963,7 @@
               <div class="step-number">01</div>
               <div class="step-copy">
                 <span class="step-label">添加自己的 LinuxDo RSS</span>
-                <h3>编辑 <code>rss/sources.jsonc</code></h3>
+                <h3>编辑 <code>ingest/sources.jsonc</code></h3>
                 <p>
                   复制现有 LinuxDo 来源对象，给它一个不重复的 <code>id</code>，
                   再修改名称和 RSS 地址。同一 LinuxDo Topic 出现在多个栏目时会自动去重。
@@ -1076,7 +1082,7 @@
 
           <div class="help-strip">
             <strong>运行状态：</strong>
-            <span><code>rss/rss-state.json</code> 不是用户配置，而是采集器自动生成的“上一轮抓取记录”，用于避免每次运行都重复处理最近 24 小时内容</span>
+            <span><code>ingest/rss-state.json</code> 不是用户配置，而是采集器自动生成的“上一轮抓取记录”，用于避免每次运行都重复处理最近 24 小时内容</span>
             <span>无需维护；删除它会让下一次运行把最近 24 小时内容全部视为新增，并自动生成一份新状态</span>
           </div>
         </div>
@@ -1219,7 +1225,7 @@ bun run bili:stick    # 单独置顶</pre>
               <div class="rule-indicator do"></div>
               <div class="rule-content">
                 <div class="rule-text">
-                  rss/sources.jsonc 是人工维护的 RSS 来源入口
+                  ingest/sources.jsonc 是人工维护的 RSS 来源入口
                 </div>
                 <div class="rule-code">
                   新增 LinuxDo 栏目时复制已有来源对象；同一 Topic 会跨栏目自动去重
@@ -1230,7 +1236,7 @@ bun run bili:stick    # 单独置顶</pre>
               <div class="rule-indicator do"></div>
               <div class="rule-content">
                 <div class="rule-text">
-                  rss/preferences.jsonc 是人工维护的兴趣画像入口
+                  ingest/preferences.jsonc 是人工维护的兴趣画像入口
                 </div>
                 <div class="rule-code">
                   重点实体、兴趣信号、不喜欢内容和筛选阈值会同时用于 AI 评分与本地保底规则
@@ -1241,7 +1247,7 @@ bun run bili:stick    # 单独置顶</pre>
               <div class="rule-indicator dont"></div>
               <div class="rule-content">
                 <div class="rule-text">
-                  不要人工修改 rss/rss-state.json
+                  不要人工修改 ingest/rss-state.json
                 </div>
                 <div class="rule-code">它不是用户配置；删除后下一次运行会自动重建</div>
               </div>

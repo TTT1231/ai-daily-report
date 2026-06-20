@@ -50,7 +50,7 @@
 
 ## 关键行为：改图片不会重算 TTS
 
-`scripts/dev.mjs` 的监听逻辑里，**只有** `data.json` / schema / `video-layout.json` / `.env` 变化才会重新跑 TTS；图片文件变化只会让 Remotion Studio 刷新画面、**不调 API、不花钱**。
+`scripts/render/dev.mjs` 的监听逻辑里，**只有** `data.json` / schema / `video-layout.json` / `.env` 变化才会重新跑 TTS；图片文件变化只会让 Remotion Studio 刷新画面、**不调 API、不花钱**。
 
 所以日常迭代图片很安全：改完保存，预览自己就更新了。
 
@@ -72,7 +72,7 @@ bun run dev
 
 ## 自动配图（rss 视觉识别）
 
-自动模式（`bun run video:prepare`）下，`rss/vision.go` 会对高分 Story 的远程图片同时做两件事：
+自动模式（`bun run video:prepare`）下，`ingest/vision.go` 会对高分 Story 的远程图片同时做两件事：
 
 1. **提取事实**：调 `claude` 多模态识别图片内容，补充到文案。
 2. **自动配图**：判定相关后，把该图下载到 `data-scheme/images/` 并写入对应 scene 的 `overlayImg`（带原始宽高，供 `SourceOverlay` 布局用）。

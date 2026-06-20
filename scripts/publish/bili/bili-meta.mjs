@@ -1,25 +1,30 @@
 #!/usr/bin/env node
 
 /**
- * generate-bili-meta.mjs
+ * bili-meta.mjs
  *
- * 读当天 data-generate.json 的新闻，调 LLM(复用 rss 同款 OpenAI 兼容接口)
+ * 读当天 data.json 的新闻，调 LLM(复用 ingest 同款 OpenAI 兼容接口)
  * 生成 B站 短视频标题前缀 + 标签，拼上固定后缀，校验后写到
- * data-scheme/bilibili-meta.json，供 upload-bilibili.mjs 读取。
+ * data-scheme/bilibili-meta.json，供 bili-upload.mjs 读取。
+ * 只取 contentTitle/introTitle，这两个字段 data.json 与 data-generate.json 完全一致，
+ * 因此不依赖 generate-svg 产出的 data-generate.json，可独立运行。
  *
  * 用法：bun run bili:meta   (package.json 已带 --env-file-if-exists=.env)
  */
 
 import { writeFileSync } from "node:fs";
 import { resolve } from "node:path";
-import { dataDir, generatedDataPath, readJson } from "./lib/paths.mjs";
+import { dataDir, rawDataPath, readJson } from "../../lib/paths.mjs";
 
 // ── LLM 配置（复用 rss 的 AI_API_KEY / AI_BASE_URL / AI_MODEL）──────────
-const BASE_URL = (process.env.AI_BASE_URL || "https://api.deepseek.com").replace(/\/+$/, "");
-const MODEL = process.env.AI_MODEL || "deepseek-v4-flash";
-const API_KEY = process.env.AI_API_KEY;
-if (!API_KEY) {
-  console.error("❌ 缺少 AI_API_KEY，请在 .env 配置（与 rss 同源）");
+const { AI_API_KEY: API_KEY, AI_BASE_URL: BASE_URL, AI_MODEL: MODEL } = process.env;
+const missing = [
+  !API_KEY && "AI_API_KEY",
+  !BASE_URL && "AI_BASE_URL",
+  !MODEL && "AI_MODEL",
+].filter(Boolean);
+if (missing.length) {
+  console.error(`❌ 缺少环境变量 ${missing.join("、")}，请在 .env 配置（与 rss 同源）`);
   process.exit(1);
 }
 
@@ -37,8 +42,16 @@ const buildSuffix = (date) => {
 async function llm(messages) {
   const res = await fetch(`${BASE_URL}/chat/completions`, {
     method: "POST",
-    headers: { "Content-Type": "application/json", Authorization: `Bearer ${API_KEY}` },
-    body: JSON.stringify({ model: MODEL, stream: false, temperature: 0.85, messages }),
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${API_KEY}`,
+    },
+    body: JSON.stringify({
+      model: MODEL,
+      stream: false,
+      temperature: 0.85,
+      messages,
+    }),
   });
   if (!res.ok) throw new Error(`AI 接口 ${res.status}: ${await res.text()}`);
   const data = await res.json();
@@ -49,7 +62,10 @@ async function llm(messages) {
 
 // 容错解析：剥掉 ```json 围栏，取第一个 {..} 块
 function parseLoose(text) {
-  const cleaned = text.replace(/^```(?:json)?/i, "").replace(/```$/i, "").trim();
+  const cleaned = text
+    .replace(/^```(?:json)?/i, "")
+    .replace(/```$/i, "")
+    .trim();
   const start = cleaned.indexOf("{");
   const end = cleaned.lastIndexOf("}");
   if (start < 0 || end < 0) throw new Error("找不到 JSON 块");
@@ -58,10 +74,10 @@ function parseLoose(text) {
 
 // ── 主流程 ────────────────────────────────────────────────────────────
 async function main() {
-  const report = await readJson(generatedDataPath, "data-scheme/data-generate.json");
+  const report = await readJson(rawDataPath, "data-scheme/data.json");
   const { date, stories = [] } = report;
-  if (!date) throw new Error("data-generate.json 缺 date");
-  if (!stories.length) throw new Error("data-generate.json 没有 stories");
+  if (!date) throw new Error("data.json 缺 date");
+  if (!stories.length) throw new Error("data.json 没有 stories");
 
   const newsList = stories
     .map((s, i) => `${i + 1}. ${s.contentTitle || s.introTitle || ""}`)
@@ -83,7 +99,10 @@ ${newsList}
 
   console.log(`[LLM] 模型 ${MODEL}，生成标题/标签 …`);
   const raw = await llm([
-    { role: "system", content: "你是B站短视频标题写手，严格遵守字符限制，只输出 JSON。" },
+    {
+      role: "system",
+      content: "你是B站短视频标题写手，严格遵守字符限制，只输出 JSON。",
+    },
     { role: "user", content: prompt },
   ]);
 
@@ -99,7 +118,8 @@ ${newsList}
   const tagRaw = String(parsed.tag || "");
 
   // 前缀超长就截断（BMP 字符按 UTF-16 码元算，中文各占 1）
-  if (titlePrefix.length > PREFIX_MAX) titlePrefix = titlePrefix.slice(0, PREFIX_MAX);
+  if (titlePrefix.length > PREFIX_MAX)
+    titlePrefix = titlePrefix.slice(0, PREFIX_MAX);
 
   const title = titlePrefix + buildSuffix(date);
   if (title.length > MAX_TITLE) {

@@ -1,9 +1,9 @@
 import { existsSync, mkdirSync, readdirSync, rmSync } from "node:fs";
 import { resolve } from "node:path";
 import { createInterface } from "node:readline/promises";
-import { dataDir, rootDir } from "./lib/paths.mjs";
+import { dataDir, rootDir } from "../lib/paths.mjs";
 
-const rssStatePath = resolve(rootDir, "rss", "rss-state.json");
+const rssStatePath = resolve(rootDir, "ingest", "rss-state.json");
 const rssStateTempPath = `${rssStatePath}.tmp`;
 const yes = process.argv.includes("--yes") || process.argv.includes("-y");
 
@@ -31,7 +31,7 @@ async function confirmReset() {
 
   console.log("⚠️  reset 会清空以下内容：");
   console.log("   - data-scheme/");
-  console.log("   - rss/rss-state.json");
+  console.log("   - ingest/rss-state.json");
   console.log("");
   console.log(
     "这会丢弃当前日报数据和 RSS 去重快照；下一次 bun run video:prepare 会重新抓取并生成。",
@@ -62,10 +62,10 @@ console.log("✅ reset 完成");
 console.log("   已清空：data-scheme/");
 console.log(
   removedState
-    ? "   已删除：rss/rss-state.json"
-    : "   跳过：rss/rss-state.json 不存在",
+    ? "   已删除：ingest/rss-state.json"
+    : "   跳过：ingest/rss-state.json 不存在",
 );
 if (removedTempState) {
-  console.log("   已删除：rss/rss-state.json.tmp");
+  console.log("   已删除：ingest/rss-state.json.tmp");
 }
 console.log("   下一步：运行 bun run video:prepare 重新生成日报。");

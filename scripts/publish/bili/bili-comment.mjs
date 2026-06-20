@@ -10,12 +10,12 @@
  *   bili:comment -- --bvid BV1xxxx --from-file data-scheme/comments.txt
  *   bili:comment -- --oid <aid> --message "..."
  *
- * 凭据 SESSDATA / bili_jct 从 biliup/cookies.json 读取（见 lib/bili-api.mjs）。
+ * 凭据 SESSDATA / bili_jct 从 biliup/cookies.json 读取（见 ./bili-api.mjs）。
  */
 
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
-import { resolveOid, postComment } from "./lib/bili-api.mjs";
+import { resolveOid, postComment } from "./bili-api.mjs";
 
 function parseArgs(argv) {
   const out = {};

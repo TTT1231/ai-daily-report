@@ -16,6 +16,7 @@ func readJSONC(path string, target any) error {
 	if err != nil {
 		return fmt.Errorf("解析配置 %s 的注释失败: %w", path, err)
 	}
+	cleaned = stripTrailingCommas(cleaned)
 	if err := json.Unmarshal(cleaned, target); err != nil {
 		return fmt.Errorf("解析配置 %s 失败: %w", path, err)
 	}
@@ -81,4 +82,43 @@ func stripJSONComments(input []byte) ([]byte, error) {
 		return nil, fmt.Errorf("字符串未闭合")
 	}
 	return output, nil
+}
+
+// stripTrailingCommas 删除紧邻 } 或 ] 之前的逗号（含中间空白/换行）。
+// .jsonc（与 VS Code、Prettier 等 JSON-with-comments 格式化器）允许尾随逗号，
+// 而编辑器保存时会自动补回，手删拦不住；这里在交给标准库 json.Unmarshal 前统一清掉。
+func stripTrailingCommas(input []byte) []byte {
+	output := make([]byte, 0, len(input))
+	inString := false
+	escaped := false
+	for i := 0; i < len(input); i++ {
+		current := input[i]
+		if inString {
+			output = append(output, current)
+			if escaped {
+				escaped = false
+			} else if current == '\\' {
+				escaped = true
+			} else if current == '"' {
+				inString = false
+			}
+			continue
+		}
+		if current == '"' {
+			inString = true
+			output = append(output, current)
+			continue
+		}
+		if current == ',' {
+			j := i + 1
+			for j < len(input) && (input[j] == ' ' || input[j] == '\t' || input[j] == '\n' || input[j] == '\r') {
+				j++
+			}
+			if j < len(input) && (input[j] == '}' || input[j] == ']') {
+				continue // 丢弃这个尾随逗号
+			}
+		}
+		output = append(output, current)
+	}
+	return output
 }

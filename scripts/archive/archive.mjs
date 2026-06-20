@@ -1,8 +1,8 @@
 import {mkdirSync, renameSync} from "node:fs";
 import {resolve} from "node:path";
-import {readJson} from "./lib/paths.mjs";
+import {readJson} from "../lib/paths.mjs";
 
-const root = resolve(import.meta.dirname, "..");
+const root = resolve(import.meta.dirname, "../..");
 const srcDir = resolve(root, "data-scheme");
 const dailyDatesDir = resolve(root, "daily-dates");
 

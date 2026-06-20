@@ -4,7 +4,7 @@
 
 ## 现状
 
-- **唯一适配的 TTS 供应商是 MiniMax。** 项目所有 TTS 代码（`scripts/lib/minimax-tts.mjs`、`scripts/generate-tts.mjs`）都是按 MiniMax 的 `t2a_v2` 接口写的。
+- **唯一适配的 TTS 供应商是 MiniMax。** 项目所有 TTS 代码（`scripts/lib/minimax-tts.mjs`、`scripts/render/generate-tts.mjs`）都是按 MiniMax 的 `t2a_v2` 接口写的。
 - RSS 用的 AI 总结模型（`AI_MODEL`）可以随便换，只改 `.env` 即可，**不涉及这里**。
 - `data.schema.json` 里 `ttsMetadata.provider` 是 `const: "minimax"`（写死的枚举）。
 - `generate-tts.mjs` 里 `vol`、`pitch` 是**硬编码**的（`vol: 1`、`pitch: 0`），没有对应环境变量。
@@ -21,7 +21,7 @@ MINIMAX_TTS_VOICE_ID=Chinese (Mandarin)_Warm_Girl   # 音色
 MINIMAX_TTS_SPEED=1.18                  # 0.5 ~ 2
 ```
 
-其它可调（节流 / 重试 / 尾部静音 / 质量检查）见 `.env.example` 的 MiniMax 段。想调 `vol` / `pitch` 必须改 `scripts/generate-tts.mjs` 第 29~30 行。
+其它可调（节流 / 重试 / 尾部静音 / 质量检查）见 `.env.example` 的 MiniMax 段。想调 `vol` / `pitch` 必须改 `scripts/render/generate-tts.mjs` 第 29~30 行。
 
 ### 情况二：换成别的 TTS 供应商（阿里、字节、OpenAI TTS 等）
 
@@ -29,8 +29,8 @@ MINIMAX_TTS_SPEED=1.18                  # 0.5 ~ 2
 
 | 文件 | 改什么 |
 | --- | --- |
-| `scripts/lib/minimax-tts.mjs` | HTTP 客户端。这里发的是 MiniMax 专属请求体（`voice_setting`、`audio_setting`、`output_format: "hex"`、`base_resp.status_code`、`extra_info.audio_length`）。新供应商的请求/响应结构多半不一样，要么改这个文件，要么新写一个 `scripts/lib/<provider>-tts.mjs` 并在 `generate-tts.mjs` 里换 `createMinimaxClient` 的导入。 |
-| `scripts/generate-tts.mjs` | 1) `config` 里读你的新 env（key/endpoint/model/voice/speed 等）。2) `getSceneHash`（第 67~82 行）里把 `provider: "minimax"` 改成新名字、把参与 hash 的字段对齐。3) 写回 `scene.tts` 的 `provider`（第 222 行）也改。4) `vol`/`pitch` 若新供应商要支持，从硬编码改成 env。 |
+| `scripts/lib/minimax-tts.mjs` | HTTP 客户端。这里发的是 MiniMax 专属请求体（`voice_setting`、`audio_setting`、`output_format: "hex"`、`base_resp.status_code`、`extra_info.audio_length`）。新供应商的请求/响应结构多半不一样，要么改这个文件，要么新写一个 `scripts/lib/<provider>-tts.mjs` 并在 `render/generate-tts.mjs` 里换 `createMinimaxClient` 的导入。 |
+| `scripts/render/generate-tts.mjs` | 1) `config` 里读你的新 env（key/endpoint/model/voice/speed 等）。2) `getSceneHash`（第 67~82 行）里把 `provider: "minimax"` 改成新名字、把参与 hash 的字段对齐。3) 写回 `scene.tts` 的 `provider`（第 222 行）也改。4) `vol`/`pitch` 若新供应商要支持，从硬编码改成 env。 |
 | `data.schema.json` | `ttsMetadata.provider`（第 239~242 行）现在是 `const: "minimax"`，改成你的供应商名，或改成 `enum` / `type: "string"` 放开。 |
 | `.env` | 加新供应商的 key/endpoint/voice 等，替换掉 `MINIMAX_*`。 |
 

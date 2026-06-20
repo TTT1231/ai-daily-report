@@ -39,7 +39,7 @@ data-scheme-*
 data-scheme
 daily-dates
 
-# rss
+# ingest
 .playwright-*
 linuxdo-rss.exe
-rss/rss-state.json
+ingest/rss-state.json

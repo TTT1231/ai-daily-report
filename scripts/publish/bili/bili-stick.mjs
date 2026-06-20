@@ -9,10 +9,10 @@
  *   bili:stick -- --bvid BV1xxxx --rpid 3063...
  *   bili:stick -- --oid <aid> --rpid 3063...
  *
- * 凭据 SESSDATA / bili_jct 从 biliup/cookies.json 读取（见 lib/bili-api.mjs）。置顶需 UP 主权限。
+ * 凭据 SESSDATA / bili_jct 从 biliup/cookies.json 读取（见 ./bili-api.mjs）。置顶需 UP 主权限。
  */
 
-import { resolveOid, pinComment } from "./lib/bili-api.mjs";
+import { resolveOid, pinComment } from "./bili-api.mjs";
 
 function parseArgs(argv) {
   const out = {};

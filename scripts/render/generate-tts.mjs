@@ -4,17 +4,17 @@ import {resolve} from "node:path";
 import {
   formatAudioQualityIssues,
   inspectAudioQuality,
-} from "./lib/audio-quality.mjs";
-import {buildGeneratedReport, collectTimelineScenes} from "./lib/report-builder.mjs";
-import {createGeneratedOutputTransaction} from "./lib/generated-output.mjs";
-import {createMinimaxClient} from "./lib/minimax-tts.mjs";
+} from "../lib/audio-quality.mjs";
+import {buildGeneratedReport, collectTimelineScenes} from "../lib/report-builder.mjs";
+import {createGeneratedOutputTransaction} from "../lib/generated-output.mjs";
+import {createMinimaxClient} from "../lib/minimax-tts.mjs";
 import {
   dataDir,
   generatedDataPath,
   rawDataPath,
   readJson,
-} from "./lib/paths.mjs";
-import {validateReport} from "./lib/report-validation.mjs";
+} from "../lib/paths.mjs";
+import {validateReport} from "../lib/report-validation.mjs";
 
 const dryRun = process.argv.includes("--dry-run");
 const force = process.argv.includes("--force");

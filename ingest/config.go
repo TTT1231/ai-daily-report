@@ -6,12 +6,10 @@ import "time"
 // 这些常量不对应外部可配置项，
 // 而是控制抓取窗口、AI 输出规模与视频文案长度的内部调参点。
 const (
-	defaultAIBaseURL          = "https://api.deepseek.com" // 默认 AI 服务地址（DeepSeek 官方 OpenAI 兼容接口）。
-	defaultAIModel            = "deepseek-v4-flash"        // 默认模型名，未设置 AI_MODEL 时生效。
 	rssLookback               = 24 * time.Hour             // 固定抓取最近 24 小时内的内容。
-	rssStateRelativePath      = "rss/rss-state.json"       // 固定保存上一次抓取快照的位置。
-	defaultSourcesPath        = "rss/sources.jsonc"        // 默认 RSS 来源配置。
-	defaultPreferencesPath    = "rss/preferences.jsonc"    // 默认用户兴趣画像配置。
+	rssStateRelativePath      = "ingest/rss-state.json"    // 固定保存上一次抓取快照的位置。
+	defaultSourcesPath        = "ingest/sources.jsonc"     // 默认 RSS 来源配置。
+	defaultPreferencesPath    = "ingest/preferences.jsonc" // 默认用户兴趣画像配置。
 	defaultRequestTimeout     = 90 * time.Second           // 调用 AI 模型 chat/completions 接口的默认超时。
 	defaultFeedRequestTimeout = 20 * time.Second           // 抓取 RSS 2.0 源的默认 HTTP 超时。
 	maxGroups                 = 15                         // 聚类后最多保留的 Story（视频主题）数量上限。

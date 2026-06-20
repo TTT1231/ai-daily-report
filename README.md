@@ -6,7 +6,7 @@
 
 从 RSS 内容采集、AI 筛选，到 TTS 旁白与视频生成，一条流水线完成每日内容生产。
 
-[快速开始](#快速开始) · [RSS 配置](./rss/readme.html) · [可视化文档](./.claude/claude.html)
+[快速开始](#快速开始) · [RSS 配置](./ingest/readme.html) · [可视化文档](./.claude/claude.html)
 
 <br />
 
@@ -66,7 +66,7 @@
 >
 > 图片识别依赖 claude 的多模态能力或图片识别类 mcp。
 >
-> RSS 的模型可自由切换；TTS 目前仅适配了 `minimax`，若要换其他 TTS，修改 `scripts/generate-tts.mjs` 即可。
+> RSS 的模型可自由切换；TTS 目前仅适配了 `minimax`，若要换其他 TTS，修改 `scripts/render/generate-tts.mjs` 即可。
 
 ### 方式一：Agent 自动化（推荐）
 
@@ -94,7 +94,7 @@ bun run dev
 ```
 
 > [!WARNING]
-> `rss/rss-state.json` 保存上一次 RSS 抓取快照，用来判断重复内容。日常不用手动编辑；如果你清空了 `data-scheme/` 或想完全重建，请运行 `bun run reset` 后再执行 `bun run all`。
+> `ingest/rss-state.json` 保存上一次 RSS 抓取快照，用来判断重复内容。日常不用手动编辑；如果你清空了 `data-scheme/` 或想完全重建，请运行 `bun run reset` 后再执行 `bun run all`。
 
 ### 方式二：手写维护（示例，不推荐）
 
@@ -159,7 +159,7 @@ bun run bili:stick -- --bvid BV1xxxxxxxx --rpid <上一步的rpid>
 
 ## 了解本项目rss
 
-RSS 采集器完整图文说明见 [`rss/readme.html`](./rss/readme.html)。
+RSS 采集器完整图文说明见 [`ingest/readme.html`](./ingest/readme.html)。
 
 ## 示例数据
 

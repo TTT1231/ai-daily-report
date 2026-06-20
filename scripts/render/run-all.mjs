@@ -4,14 +4,14 @@ import { resolve } from "node:path";
 import { createInterface } from "node:readline";
 import { clearInterval, setInterval } from "node:timers";
 import ora from "ora";
-import { rawDataPath, rootDir } from "./lib/paths.mjs";
-import { terminateProcessTree } from "./lib/process-tree.mjs";
-import { classifyStepOutcome } from "./lib/step-outcome.mjs";
+import { rawDataPath, rootDir } from "../lib/paths.mjs";
+import { terminateProcessTree } from "../lib/process-tree.mjs";
+import { classifyStepOutcome } from "../lib/step-outcome.mjs";
 
 const bunCommand = process.platform === "win32" ? "bun.exe" : "bun";
 const claudeCommand = process.platform === "win32" ? "claude.exe" : "claude";
 const productionEnv = { ...process.env, AI_DAILY_REPORT_RUN_ALL: "1" };
-const rssStatePath = resolve(rootDir, "rss", "rss-state.json");
+const rssStatePath = resolve(rootDir, "ingest", "rss-state.json");
 
 const productionSteps = [
   {
@@ -22,7 +22,7 @@ const productionSteps = [
   {
     name: "rss",
     command: "go",
-    args: ["-C", "rss", "run", "."],
+    args: ["-C", "ingest", "run", "."],
   },
   {
     name: "tts",
@@ -133,7 +133,7 @@ function validateProductionStep(name) {
   throw new Error(
     [
       "rss 已结束但未生成 data-scheme/data.json。",
-      "常见原因：你清空了 data-scheme/，但 rss/rss-state.json 仍记录着上次抓取内容，所以本次被判定为“无新增”。",
+      "常见原因：你清空了 data-scheme/，但 ingest/rss-state.json 仍记录着上次抓取内容，所以本次被判定为“无新增”。",
       "需要完全重建时，请先运行：bun run reset",
       "然后再运行：bun run video:prepare",
     ].join("\n"),
@@ -146,7 +146,7 @@ function validateInitialState() {
   }
   throw new Error(
     [
-      "当前缺少 data-scheme/data.json，但 rss/rss-state.json 仍存在。",
+      "当前缺少 data-scheme/data.json，但 ingest/rss-state.json 仍存在。",
       "这通常表示 data-scheme/ 被手动清空，而 RSS 去重快照还保留着上次抓取记录。",
       "请先运行：bun run reset",
       "然后再运行：bun run video:prepare",

@@ -22,7 +22,7 @@ description: How to use the ai-daily-report project end-to-end — set it up, ru
 每次先在心里过一遍这两点，缺什么先补什么：
 
 - **环境变量** `.env`（参考 `.env.example`）：
-  - RSS/AI 总结用：`AI_API_KEY`、`AI_BASE_URL`（默认 DeepSeek）、`AI_MODEL`（默认 `deepseek-v4-flash`）。`bili:meta` 生成 B站 标题/标签也复用这套。
+  - RSS/AI 总结用：`AI_API_KEY`、`AI_BASE_URL`、`AI_MODEL` 三者均必填（OpenAI 兼容接口；`.env.example` 给了 DeepSeek 示例值）。`bili:meta` 生成 B站 标题/标签也复用这套。
   - 网络受限时可选：小写 `all_proxy`（如 `http://127.0.0.1:7890`）。未配置则直连；配置后 RSS 和 AI 模型请求必须走该代理，失败时不会回退直连。不要使用其他代理变量。
   - TTS 旁白用：`MINIMAX_API_KEY`、`MINIMAX_TTS_MODEL`、`MINIMAX_TTS_VOICE_ID`、`MINIMAX_TTS_SPEED`。
 - **运行时**：需要 `claude`（cli，用于图片识别 + 出图标）、`bun`、`go`（跑 RSS 采集器）。
@@ -45,7 +45,7 @@ bun run reset
 bun run video:prepare
 ```
 
-`bun run video:prepare`（`scripts/run-all.mjs`）先按顺序跑四个生产步骤并显示实时状态，任一步失败会中断。**跑完即结束，不再自动开预览**（要看画面单独 `bun run dev`）：
+`bun run video:prepare`（`scripts/render/run-all.mjs`）先按顺序跑四个生产步骤并显示实时状态，任一步失败会中断。**跑完即结束，不再自动开预览**（要看画面单独 `bun run dev`）：
 
 | 步骤           | 做什么                                             | 产物                                             |
 | -------------- | -------------------------------------------------- | ------------------------------------------------ |
@@ -61,7 +61,7 @@ bun run video:prepare
 - **图片大多自动配好，少数需手动补**：`rss` 视觉识别会在 Story 评分 ≥9、正文较短且含远程图片、且 Claude 判定相关时，自动把该图下载到 `data-scheme/images/` 并写入对应 scene 的 `overlayImg`；不满足条件的 scene 仍可手动给 `data.json` 的 scene 填 `overlayImg`。详见下方「把图片放进 data.json」。
 - **预览 / 渲染 / 发布**：`video:prepare` 不再自动开预览。要看画面运行 `bun run dev`（带 HMR + 自动 TTS 同步）；要导出 mp4 运行 `bun run video:render`；要一键发 B站 运行 `bun run all:bili`（详见下方「发布到 B站」）。
 
-> 关于 `rss/rss-state.json`：它存的是上次抓取的快照，用来去重。日常不用手动编辑；如果清空了 `data-scheme/` 或想完全重建，先跑 `bun run reset`，再跑 `bun run video:prepare`。
+> 关于 `ingest/rss-state.json`：它存的是上次抓取的快照，用来去重。日常不用手动编辑；如果清空了 `data-scheme/` 或想完全重建，先跑 `bun run reset`，再跑 `bun run video:prepare`。
 
 ## B. 手动模式
 
@@ -76,7 +76,7 @@ bun run video:prepare
 一句话结论：**目前只适配了 MiniMax，RSS 用的 AI 模型随便换（改 `.env` 即可），TTS 要换供应商需要改代码。**
 
 - 只换 MiniMax 的模型/音色/语速 → 纯改 `.env`（`MINIMAX_TTS_MODEL` / `MINIMAX_TTS_VOICE_ID` / `MINIMAX_TTS_SPEED`）。
-- 换成别的 TTS 供应商（如阿里/字节）→ 要改 `scripts/lib/minimax-tts.mjs`、`scripts/generate-tts.mjs`、`data.schema.json` 三处，外加 `.env`。
+- 换成别的 TTS 供应商（如阿里/字节）→ 要改 `scripts/lib/minimax-tts.mjs`、`scripts/render/generate-tts.mjs`、`data.schema.json` 三处，外加 `.env`。
 
 详细改哪些点、怎么验证、缓存为何不用 `--force`：**先读 [`rules/tts-customize.md`](./rules/tts-customize.md)** 再动手。
 
@@ -88,7 +88,7 @@ bun run video:prepare
 - 图片是 **scene 级**的（不是 story 级、不是 tab 级），一张图配一句旁白。
 - 允许格式：`.svg .png .jpg/.jpeg .webp`。
 - 多张图 = 给同一个 story 写多个 scene，依次播放。
-- 改图片**不会**重新请求 TTS（`scripts/dev.mjs` 故意如此），想只刷新预览直接保存即可。
+- 改图片**不会**重新请求 TTS（`scripts/render/dev.mjs` 故意如此），想只刷新预览直接保存即可。
 
 完整规则、命名、验证方法：**先读 [`rules/images.md`](./rules/images.md)** 再动手。
 
@@ -129,7 +129,7 @@ bun run publish:bili
 
 - **标题 / 标签** 由 `bili:meta` 用 LLM 生成（手机短视频风、抓重点、适度夸张），写到 `data-scheme/bilibili-meta.json`——可手改再审。标题 = `前缀【AI日报 - MM - DD】`（≤80 字，中文/字母/符号每个算 1），标签 ≤10 个。
 - **固定参数**（分区 `tid 231` 计算机技术、自制、创作声明 AI 标识、封面帧、评论前等待 3 分钟过审核）在 `bilibili.config.json`。
-- **凭据**：评论/置顶的 `SESSDATA` / `bili_jct` 直接从 `biliup/cookies.json` 读（`scripts/lib/bili-api.mjs`），不在 `.env` 重复维护。
+- **凭据**：评论/置顶的 `SESSDATA` / `bili_jct` 直接从 `biliup/cookies.json` 读（`scripts/publish/bili/bili-api.mjs`），不在 `.env` 重复维护。
 - **biliup 工具**由 `bun install`（postinstall → `download-bili`）自动下载到 `biliup/`（跨平台、平铺结构）。升级重跑 `bun run download-bili`，会自动保留登录态。
 - 也可拆开单步：`bili:meta`（生成标题/标签）、`bili:upload`（投稿+评论+置顶）、`bili:comment` / `bili:stick`（单独发评/置顶）。
 
