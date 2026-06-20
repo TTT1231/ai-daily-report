@@ -117,7 +117,14 @@ export async function createGeneratedOutputTransaction(dataDir) {
           installedAudio = true;
           await renameWithRetry(stagedGeneratedPath, generatedPath);
         } catch (error) {
-          if (installedAudio) await rm(audioDir, {recursive: true, force: true});
+          if (installedAudio) {
+            // 移开刚装好的新音频而不是直接删除，让旧音频的恢复先成功。恢复若也失败，
+            // 下一次运行的启动期对账仍能从 .audio-backup 恢复（见上方 setup 块），
+            // 新音频则留在 .audio-staging 等待清理，避免任何路径下 audio/ 被删空且无备份。
+            await renameWithRetry(audioDir, stagedAudioDir).catch(async () => {
+              await rm(audioDir, {recursive: true, force: true}).catch(() => {});
+            });
+          }
           if (backedUpAudio) await renameWithRetry(backupAudioDir, audioDir);
           throw error;
         }

@@ -57,6 +57,7 @@
     "publish:bili": "bun run video:render && bun run render:cover && bun run bili:meta && bun run bili:upload",
     "all:bili": "bun run video:prepare && bun run publish:bili",
     "upgrade": "remotion upgrade",
+    "test": "node --test scripts/lib/*.test.mjs",
     "lint": "eslint src scripts && tsc"
   },
   "sideEffects": [

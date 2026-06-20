@@ -2,12 +2,23 @@ package main
 
 import (
 	"encoding/xml"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
+	"strconv"
 	"strings"
 	"time"
 )
+
+// httpError 标记可重试的 HTTP/网络错误，并携带 Retry-After 建议等待时长。
+type httpError struct {
+	message    string
+	retryable  bool
+	retryAfter time.Duration
+}
+
+func (e *httpError) Error() string { return e.message }
 
 type rss2Document struct {
 	XMLName xml.Name    `xml:"rss"`
@@ -64,21 +75,28 @@ func fetchRSS2Source(client *http.Client, source RSS2Source, cutoff time.Time) (
 	return recent, nil
 }
 
-// fetchRSS2Page 抓取单个 RSS 2.0 页面，失败时按递增等待时间最多重试 3 次（主要应对 429 限流），
-// 解析后返回晚于 cutoff 的条目以及本页中最旧的发布时间（用于判断是否需要继续翻页）。
+// fetchRSS2Page 抓取单个 RSS 2.0 页面，仅对可重试错误（429 / 5xx / 网络超时）最多重试 3 次，
+// 优先遵守 Retry-After 头，否则用递增退避；4xx 等永久错误立即返回。
 func fetchRSS2Page(client *http.Client, rawURL string, source RSS2Source, cutoff time.Time) ([]Item, time.Time, error) {
+	const maxRetries = 3
 	var body []byte
 	var err error
-	for retry := 0; retry < 3; retry++ {
+	for retry := 0; retry < maxRetries; retry++ {
 		body, err = doGet(client, rawURL)
 		if err == nil {
 			break
 		}
-		if retry < 2 {
-			wait := time.Duration(retry+1) * 10 * time.Second
-			fmt.Printf("   重试：第 %d 次请求失败，等待 %v 后继续\n", retry+1, wait)
-			time.Sleep(wait)
+		var he *httpError
+		retryable := errors.As(err, &he) && he.retryable
+		if !retryable || retry == maxRetries-1 {
+			break
 		}
+		wait := he.retryAfter
+		if wait <= 0 {
+			wait = time.Duration(retry+1) * 10 * time.Second
+		}
+		fmt.Printf("   重试：第 %d 次请求失败，等待 %v 后继续\n", retry+1, wait)
+		time.Sleep(wait)
 	}
 	if err != nil {
 		return nil, time.Time{}, err
@@ -180,7 +198,8 @@ func firstNonEmpty(values ...string) string {
 	return ""
 }
 
-// doGet 发起带固定 User-Agent 的 GET 请求，429 限流与非 200 状态码都视为错误并返回响应体字节。
+// doGet 发起带固定 User-Agent 的 GET 请求，429 / 5xx 与网络错误返回可重试的 *httpError
+// （携带 Retry-After），4xx 返回不可重试错误，成功返回响应体字节。
 func doGet(client *http.Client, rawURL string) ([]byte, error) {
 	req, err := http.NewRequest("GET", rawURL, nil)
 	if err != nil {
@@ -190,18 +209,45 @@ func doGet(client *http.Client, rawURL string) ([]byte, error) {
 
 	resp, err := client.Do(req)
 	if err != nil {
-		return nil, fmt.Errorf("请求失败: %w", err)
+		return nil, &httpError{message: "请求失败: " + err.Error(), retryable: true}
 	}
 	defer resp.Body.Close()
-	if resp.StatusCode == http.StatusTooManyRequests {
-		return nil, fmt.Errorf("HTTP 429 限流")
-	}
-	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("HTTP 状态码: %d", resp.StatusCode)
+	switch {
+	case resp.StatusCode == http.StatusTooManyRequests:
+		return nil, &httpError{
+			message:    "HTTP 429 限流",
+			retryable:  true,
+			retryAfter: parseRetryAfter(resp),
+		}
+	case resp.StatusCode >= 500:
+		return nil, &httpError{
+			message:    fmt.Sprintf("HTTP 状态码: %d", resp.StatusCode),
+			retryable:  true,
+			retryAfter: parseRetryAfter(resp),
+		}
+	case resp.StatusCode != http.StatusOK:
+		return nil, &httpError{message: fmt.Sprintf("HTTP 状态码: %d", resp.StatusCode), retryable: false}
 	}
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return nil, fmt.Errorf("读取响应体失败: %w", err)
 	}
 	return body, nil
+}
+
+// parseRetryAfter 解析 Retry-After 响应头：支持秒数与 HTTP 日期，无法识别时返回 0。
+func parseRetryAfter(resp *http.Response) time.Duration {
+	value := strings.TrimSpace(resp.Header.Get("Retry-After"))
+	if value == "" {
+		return 0
+	}
+	if seconds, err := strconv.Atoi(value); err == nil {
+		return time.Duration(seconds) * time.Second
+	}
+	if t, err := http.ParseTime(value); err == nil {
+		if wait := time.Until(t); wait > 0 {
+			return wait
+		}
+	}
+	return 0
 }

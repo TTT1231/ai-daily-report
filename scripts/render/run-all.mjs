@@ -1,6 +1,5 @@
 import { spawn } from "node:child_process";
 import { existsSync } from "node:fs";
-import { resolve } from "node:path";
 import { createInterface } from "node:readline";
 import { clearInterval, setInterval } from "node:timers";
 import ora from "ora";

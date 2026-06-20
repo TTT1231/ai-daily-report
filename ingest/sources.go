@@ -103,7 +103,7 @@ func buildSource(definition SourceDefinition) (RSS2Source, error) {
 
 // fetchRecentItems 抓取所有启用来源。单个来源失败时保留其他来源的结果，并返回失败来源供快照合并使用。
 func fetchRecentItems(sources []RSS2Source, within time.Duration) ([]Item, map[string]error) {
-	client := newHTTPClient(defaultFeedRequestTimeout, true)
+	client := newHTTPClient(defaultFeedRequestTimeout, true, false)
 	cutoff := time.Now().Add(-within)
 	var combined []Item
 	failures := make(map[string]error)

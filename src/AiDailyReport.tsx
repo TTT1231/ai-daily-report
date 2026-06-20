@@ -6,17 +6,17 @@ import {
   interpolate,
   Sequence,
   staticFile,
-  useCurrentScale,
   useCurrentFrame,
   useVideoConfig,
 } from "remotion";
-import { useEffect, useMemo, useRef, useState, type FC } from "react";
+import {useMemo, type FC} from "react";
 import {
   dailyReport,
   type DailyIntro,
   type DailyOutro,
   type DailyScene,
   type DailyStory,
+  type DailyTab,
 } from "./daily-report-data";
 import {
   getNavigationTypography,
@@ -285,23 +285,33 @@ const interpolateRange = (
 
 // Overlay zoom keyframes. On short scenes the full "zoom in then settle back"
 // arc no longer fits between the reveal and the scene end, which would hand
-// interpolate() a non-monotonic range and crash the render. Degrade to a plain
-// reveal scale instead, and never build a range that can collapse to a point.
+// interpolate() a non-monotonic range and crash the render. Whenever there is
+// room for a peak between revealEnd and returnStart we keep the zoom, clamping
+// the peak into the valid window so the 5-point range stays strictly
+// increasing; only when even that doesn't fit do we degrade to a plain reveal.
 const getOverlayScale = (
   frame: number,
   revealStart: number,
   revealEnd: number,
   sceneDuration: number,
 ) => {
+  const lastSceneFrame = Math.max(1, sceneDuration - 1);
   const zoomEnd = sceneDuration * IMAGE_FOCUS_ZOOM_END;
   const returnStart = sceneDuration * IMAGE_FOCUS_RETURN_START;
   const returnEnd = sceneDuration * IMAGE_FOCUS_RETURN_END;
   const fullZoomFits =
-    revealEnd < zoomEnd && zoomEnd < returnStart && returnStart < returnEnd;
+    revealStart < revealEnd &&
+    revealEnd + 1 < returnStart &&
+    returnStart < returnEnd &&
+    returnEnd <= lastSceneFrame;
   if (fullZoomFits) {
+    // Clamp the peak so it always sits strictly between revealEnd and
+    // returnStart — never collapses the range, no matter where 0.42*duration
+    // lands relative to the reveal window.
+    const peak = Math.min(Math.max(zoomEnd, revealEnd + 1), returnStart - 1);
     return interpolate(
       frame,
-      [revealStart, revealEnd, zoomEnd, returnStart, returnEnd],
+      [revealStart, revealEnd, peak, returnStart, returnEnd],
       [0.95, 1, IMAGE_FOCUS_SCALE, IMAGE_FOCUS_SCALE, 1],
       {
         easing: Easing.inOut(Easing.cubic),
@@ -825,6 +835,74 @@ const Tabs: FC<{
   );
 };
 
+// ── Intro content height (deterministic) ──────────────────────────────────
+//
+// The intro auto-scrolls when its 2-column card grid is taller than the
+// viewport. Measuring that height with getBoundingClientRect inside a render
+// effect breaks Remotion's "same frame → same pixels" contract (the first
+// paint of every frame uses a stale 0, then the effect flips it). Instead we
+// estimate the height purely from the intro data, so every frame of every
+// render derives the same scroll distance. The constants mirror the CSS
+// metrics used by IntroOverview; the bottom fade mask hides small drift, and
+// the value is memoized per intro object so it is computed once per report.
+const INTRO_TITLE_LINE_HEIGHT = 39; // fontSize 34 * lineHeight 1.15
+const INTRO_SUMMARY_LINE_HEIGHT = 38; // fontSize 27 * lineHeight 1.42
+const INTRO_CARD_PADDING_Y = 52; // 26px top + 26px bottom
+const INTRO_TITLE_MARGIN_BOTTOM = 18;
+const INTRO_SUMMARY_GAP = 12;
+const INTRO_CARD_MIN_HEIGHT = 150;
+const INTRO_TITLE_CHARS_PER_LINE = 16;
+const INTRO_SUMMARY_CHARS_PER_LINE = 24;
+
+const runeCount = (text: string) => [...text].length;
+
+const estimateIntroCardHeight = (tab: DailyTab) => {
+  const titleLines = Math.max(
+    1,
+    Math.ceil(runeCount(tab.title) / INTRO_TITLE_CHARS_PER_LINE),
+  );
+  const bullets = tab.summary
+    .split("\n")
+    .map((line) => line.trim())
+    .filter((line) => line.length > 0);
+  const summaryLines = bullets.reduce(
+    (total, bullet) =>
+      total +
+      Math.max(1, Math.ceil(runeCount(bullet) / INTRO_SUMMARY_CHARS_PER_LINE)),
+    0,
+  );
+  const summaryHeight =
+    summaryLines * INTRO_SUMMARY_LINE_HEIGHT +
+    Math.max(0, bullets.length - 1) * INTRO_SUMMARY_GAP;
+  return Math.max(
+    INTRO_CARD_MIN_HEIGHT,
+    INTRO_CARD_PADDING_Y +
+      titleLines * INTRO_TITLE_LINE_HEIGHT +
+      INTRO_TITLE_MARGIN_BOTTOM +
+      summaryHeight,
+  );
+};
+
+const introContentHeightCache = new WeakMap<DailyIntro, number>();
+
+const getIntroContentHeight = (intro: DailyIntro) => {
+  const cached = introContentHeightCache.get(intro);
+  if (cached !== undefined) return cached;
+  const columnHeights = [0, 1].map((modulo) => {
+    let height = 0;
+    let cards = 0;
+    intro.tabs.forEach((tab, index) => {
+      if (index % 2 !== modulo) return;
+      height += estimateIntroCardHeight(tab);
+      cards++;
+    });
+    return height + Math.max(0, cards - 1) * INTRO_GAP;
+  });
+  const contentHeight = Math.max(columnHeights[0], columnHeights[1]);
+  introContentHeightCache.set(intro, contentHeight);
+  return contentHeight;
+};
+
 const IntroOverview: FC<{
   intro: DailyIntro;
   sceneFrame: number;
@@ -834,24 +912,11 @@ const IntroOverview: FC<{
   const palette = themes[theme];
   const gap = INTRO_GAP;
   const viewportHeight = INTRO_VIEWPORT_HEIGHT;
-  const scale = useCurrentScale();
-  const contentRef = useRef<HTMLDivElement>(null);
-  const [contentHeight, setContentHeight] = useState(0);
+  const contentHeight = getIntroContentHeight(intro);
   const columns = [
     intro.tabs.map((_, index) => index).filter((index) => index % 2 === 0),
     intro.tabs.map((_, index) => index).filter((index) => index % 2 === 1),
   ];
-
-  useEffect(() => {
-    if (!contentRef.current) return;
-    const measuredElement = contentRef.current as {
-      getBoundingClientRect: () => { height: number };
-    };
-    const measuredHeight =
-      measuredElement.getBoundingClientRect().height / scale;
-    setContentHeight(measuredHeight);
-  }, [intro.tabs, scale]);
-
   const scrollDistance = Math.max(0, contentHeight - viewportHeight);
   const scrollProgress = interpolate(
     sceneFrame,
@@ -878,7 +943,6 @@ const IntroOverview: FC<{
       }}
     >
       <div
-        ref={contentRef}
         style={{
           display: "grid",
           gridTemplateColumns: "repeat(2, minmax(0, 1fr))",

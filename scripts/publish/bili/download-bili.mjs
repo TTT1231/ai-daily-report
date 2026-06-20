@@ -26,8 +26,9 @@ import {
 } from "node:fs";
 import { resolve, join } from "node:path";
 import { spawnSync } from "node:child_process";
+import { rootDir } from "../../lib/paths.mjs";
 
-const ROOT = process.cwd();
+const ROOT = rootDir;
 const BILIUP_DIR = resolve(ROOT, "biliup");
 const UA = "ai-daily-report-installer";
 const log = (...a) => console.log("[download-bili]", ...a);

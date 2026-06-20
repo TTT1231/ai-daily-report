@@ -139,12 +139,75 @@ func isHardExcludedTitle(preferences PreferencesConfig, title string) bool {
 	return geopolitics && !productImpact
 }
 
-// containsAny 报告 text 是否包含任意一个给定子串，是关键词匹配的基础工具。
+// containsAny 报告 text 是否命中任意一个关键词。
+//
+// 纯 ASCII 字母/数字的短词（如 ai、gpt、glm、api、pro）必须落在词边界上才算命中，
+// 避免 "chain" 命中 "ai"、"capital" 命中 "api" 这类子串误判；CJK 与带符号的词没有
+// 词边界概念，仍用子串匹配。所有调用方传入的 text 均已 ToLower，词也按小写约定配置。
 func containsAny(text string, terms ...string) bool {
 	for _, term := range terms {
-		if term = strings.TrimSpace(term); term != "" && strings.Contains(text, term) {
+		term = strings.TrimSpace(term)
+		if term == "" {
+			continue
+		}
+		if isASCIIWordTerm(term) {
+			if containsWord(text, term) {
+				return true
+			}
+			continue
+		}
+		if strings.Contains(text, term) {
 			return true
 		}
 	}
 	return false
+}
+
+// isASCIIWordTerm 报告 term 是否全部由 ASCII 字母/数字构成（需要词边界校验的那类）。
+func isASCIIWordTerm(term string) bool {
+	if term == "" {
+		return false
+	}
+	for _, r := range term {
+		switch {
+		case r >= 'a' && r <= 'z', r >= 'A' && r <= 'Z', r >= '0' && r <= '9':
+		default:
+			return false
+		}
+	}
+	return true
+}
+
+// containsWord 报告 word 是否作为完整词出现在 text 中：只要任一侧紧邻 ASCII 字母就
+// 视为更长单词的一部分（"chain" 不命中 "ai"）；数字（版本号，如 kimi2/glm5/qwen3）、
+// 标点、空白与 CJK 多字节首字节（≥ 0x80）都算合法边界。word 是 ASCII，故按字节判定即可。
+func containsWord(text, word string) bool {
+	for {
+		idx := strings.Index(text, word)
+		if idx < 0 {
+			return false
+		}
+		if !isLetterByte(byteBefore(text, idx)) && !isLetterByte(byteAfter(text, idx+len(word))) {
+			return true
+		}
+		text = text[idx+len(word):]
+	}
+}
+
+func byteBefore(text string, i int) byte {
+	if i <= 0 {
+		return 0
+	}
+	return text[i-1]
+}
+
+func byteAfter(text string, i int) byte {
+	if i >= len(text) {
+		return 0
+	}
+	return text[i]
+}
+
+func isLetterByte(b byte) bool {
+	return (b >= 'a' && b <= 'z') || (b >= 'A' && b <= 'Z')
 }

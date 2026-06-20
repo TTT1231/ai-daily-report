@@ -60,3 +60,20 @@ test("getOverlayAnimation reveals, holds, then hides on a long scene", () => {
     "opacity should be fading out by the last frame",
   );
 });
+
+test("getOverlayAnimation keeps the zoom on a medium-length scene (43-66 frame band that previously lost it)", () => {
+  for (const duration of [43, 50, 60, 66]) {
+    const scene = overlayScene();
+    let zoomed = false;
+    for (let frame = 0; frame < duration; frame++) {
+      if (getOverlayAnimation(scene, frame, duration).scale > 1.0001) {
+        zoomed = true;
+        break;
+      }
+    }
+    assert.ok(
+      zoomed,
+      `scale should exceed 1 at some frame of a ${duration}-frame overlay scene`,
+    );
+  }
+});

@@ -28,7 +28,7 @@ type downloadedOverlayImage struct {
 
 func downloadVisionOverlayImage(imageURL string, item Item) (downloadedOverlayImage, error) {
 	extension := supportedOverlayImageExtensionFromURL(imageURL)
-	client := newHTTPClient(defaultFeedRequestTimeout, false)
+	client := newHTTPClient(defaultFeedRequestTimeout, false, true)
 	request, err := http.NewRequest(http.MethodGet, imageURL, nil)
 	if err != nil {
 		return downloadedOverlayImage{}, fmt.Errorf("创建图片请求失败: %w", err)

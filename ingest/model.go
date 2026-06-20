@@ -78,28 +78,67 @@ func repairUnquotedStrings(s string) string {
 	return unquotedStringRe.ReplaceAllString(s, "$1: \"$2\"$3")
 }
 
-// recoverScoredItems 在 JSON 整体解析失败时，逐行尝试解析独立的 {...} 对象，尽量挽救有效评分。
+// recoverScoredItems 在 JSON 整体解析失败时，按括号深度扫描出每个平衡的 {...} 对象
+// 再逐个解析，尽量挽救有效评分。相比按行匹配，它能处理模型美化输出（每个对象跨多行）
+// 或压缩成一行的情况；字符串字面量内的 { } 与 " 不会干扰对象边界判定。
 func recoverScoredItems(content string) []ScoredItem {
 	var recovered []ScoredItem
-	for _, line := range strings.Split(content, "\n") {
-		line = strings.TrimSpace(line)
-		line = strings.TrimSuffix(line, ",")
-		if !strings.HasPrefix(line, "{") || !strings.HasSuffix(line, "}") {
+	depth := 0
+	start := -1
+	inString := false
+	escaped := false
+	for i, r := range content {
+		if inString {
+			if escaped {
+				escaped = false
+				continue
+			}
+			if r == '\\' {
+				escaped = true
+				continue
+			}
+			if r == '"' {
+				inString = false
+			}
 			continue
 		}
-		var item ScoredItem
-		if json.Unmarshal([]byte(line), &item) == nil {
-			recovered = append(recovered, item)
-			continue
-		}
-		// 单行解析失败时，尝试修复漏掉左引号的字符串值后再解析一次。
-		if repaired := repairUnquotedStrings(line); repaired != line {
-			if json.Unmarshal([]byte(repaired), &item) == nil {
-				recovered = append(recovered, item)
+		switch r {
+		case '"':
+			inString = true
+		case '{':
+			if depth == 0 {
+				start = i
+			}
+			depth++
+		case '}':
+			depth--
+			if depth == 0 && start >= 0 {
+				if item, ok := recoverScoredObject(content[start : i+1]); ok {
+					recovered = append(recovered, item)
+				}
+				start = -1
+			} else if depth < 0 {
+				// 多余的 }：JSON 结构已破坏，重置以避免后续误配对。
+				depth = 0
+				start = -1
 			}
 		}
 	}
 	return recovered
+}
+
+// recoverScoredObject 尝试把单个 {...} 文本解析成评分条目；标准解析失败时再尝试修复漏引号。
+func recoverScoredObject(objectText string) (ScoredItem, bool) {
+	var item ScoredItem
+	if json.Unmarshal([]byte(objectText), &item) == nil {
+		return item, true
+	}
+	if repaired := repairUnquotedStrings(objectText); repaired != objectText {
+		if json.Unmarshal([]byte(repaired), &item) == nil {
+			return item, true
+		}
+	}
+	return ScoredItem{}, false
 }
 
 // normalizeScoredItems 丢弃低于入选分数的条目，按分数降序排序并截断到候选上限。
@@ -140,7 +179,7 @@ func requestModel(ai AIConfig, messages []ChatMessage) (string, error) {
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Authorization", "Bearer "+ai.APIKey)
 
-	resp, err := newHTTPClient(defaultRequestTimeout, false).Do(req)
+	resp, err := newHTTPClient(defaultRequestTimeout, false, false).Do(req)
 	if err != nil {
 		return "", fmt.Errorf("请求模型 API 失败: %w", err)
 	}

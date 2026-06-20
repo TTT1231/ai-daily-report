@@ -125,10 +125,7 @@ func generateDataJSON(path string, groups []NewsGroup, items []Item) error {
 	}
 	data = append(data, '\n')
 
-	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
-		return fmt.Errorf("创建 data.json 目录失败: %w", err)
-	}
-	if err := os.WriteFile(path, data, 0o644); err != nil {
+	if err := writeFileAtomic(path, data, 0o755, 0o644); err != nil {
 		return fmt.Errorf("写入 data.json 失败: %w", err)
 	}
 	return nil

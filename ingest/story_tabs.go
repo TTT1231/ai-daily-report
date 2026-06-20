@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"strings"
+	"time"
 )
 
 // generateStoryTabs 让模型根据来源正文为每个 Story 编排 2-6 个视频 Tab（含摘要与口播字幕），
@@ -55,7 +56,7 @@ func generateStoryTabs(ai AIConfig, groups []NewsGroup, items []Item) ([]NewsGro
 	for start := 0; start < len(materials); start += storyTabBatchSize {
 		end := min(start+storyTabBatchSize, len(materials))
 		batch := materials[start:end]
-		results, err := requestStoryTabsBatch(ai, batch, nil)
+		results, err := requestStoryTabsBatchWithRetry(ai, batch, nil)
 		if err != nil {
 			return groups, err
 		}
@@ -84,6 +85,28 @@ func generateStoryTabs(ai AIConfig, groups []NewsGroup, items []Item) ([]NewsGro
 type storyTabMaterial struct {
 	GroupIndex int
 	Body       string
+}
+
+// requestStoryTabsBatchWithRetry 调用 requestStoryTabsBatch，对瞬时失败（限流/5xx/网络）
+// 退避重试，避免单批次抖动就直接整段回退到保底 Tabs。重试次数与请求成本独立于
+// retryAndKeepBestTabs 的质量重试。
+func requestStoryTabsBatchWithRetry(ai AIConfig, batch []storyTabMaterial, feedbacks map[int][]string) ([][]StoryTab, error) {
+	const maxAttempts = 3
+	var lastErr error
+	for attempt := 1; attempt <= maxAttempts; attempt++ {
+		results, err := requestStoryTabsBatch(ai, batch, feedbacks)
+		if err == nil {
+			return results, nil
+		}
+		lastErr = err
+		if attempt == maxAttempts {
+			break
+		}
+		wait := time.Duration(attempt) * 5 * time.Second
+		fmt.Printf("   ⚠️  警告：Story Tabs 批次请求第 %d 次失败，等待 %v 后重试: %v\n", attempt, wait, err)
+		time.Sleep(wait)
+	}
+	return nil, lastErr
 }
 
 // requestStoryTabsBatch 调用模型为一个批次的 Story 生成 Tabs。

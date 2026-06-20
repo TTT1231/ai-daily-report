@@ -3,6 +3,7 @@ package main
 import (
 	"crypto/tls"
 	"fmt"
+	"net"
 	"net/http"
 	"net/url"
 	"strings"
@@ -11,7 +12,10 @@ import (
 
 // newHTTPClient builds an *http.Client whose Transport enforces TLS 1.2+,
 // reuses idle connections, and routes traffic through all_proxy when configured.
-func newHTTPClient(timeout time.Duration, announceProxy bool) *http.Client {
+// blockPrivateHosts enables an SSRF guard at the dial layer that rejects
+// loopback/private/link-local destinations; use it for outbound requests whose
+// URL comes from untrusted feed content (e.g. remote overlay images).
+func newHTTPClient(timeout time.Duration, announceProxy, blockPrivateHosts bool) *http.Client {
 	proxyURL, proxyErr := getProxyURL()
 	transport := &http.Transport{
 		TLSClientConfig:     &tls.Config{MinVersion: tls.VersionTLS12},
@@ -31,6 +35,15 @@ func newHTTPClient(timeout time.Duration, announceProxy bool) *http.Client {
 		if announceProxy {
 			fmt.Printf("   网络：使用 all_proxy %s\n", proxyURL)
 		}
+	} else if blockPrivateHosts {
+		// No proxy: enforce the SSRF guard at the dial layer so a malicious
+		// image URL cannot reach internal/cloud-metadata hosts. With a proxy
+		// configured the dial targets the proxy itself, so we skip the guard
+		// and let the proxy own destination policy.
+		transport.DialContext = (&net.Dialer{
+			Timeout: 30 * time.Second,
+			Control: ssrfControl,
+		}).DialContext
 	}
 
 	return &http.Client{Timeout: timeout, Transport: transport}

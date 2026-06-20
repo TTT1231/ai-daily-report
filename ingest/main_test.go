@@ -1287,6 +1287,43 @@ func TestCollectStoryTabQualityStats(t *testing.T) {
 	}
 }
 
+func TestContainsAnyUsesWordBoundariesForASCIITerms(t *testing.T) {
+	// 纯 ASCII 短词必须落在词边界上，避免子串误命中。
+	if containsAny("digital capital mainstream chain", "ai", "api", "glm") {
+		t.Fatal("containsAny() matched an ASCII term inside a larger word")
+	}
+	// 真正作为独立词出现时仍应命中（前后是空白）。
+	if !containsAny("开放 api 与 gpt 模型", "api", "gpt") {
+		t.Fatal("containsAny() missed a standalone ASCII term")
+	}
+	// CJK 词无词边界概念，仍走子串匹配。
+	if !containsAny("网信办开设举报专区", "网信办") {
+		t.Fatal("containsAny() dropped CJK substring matching")
+	}
+}
+
+func TestRecoverScoredItemsHandlesMultilineObjects(t *testing.T) {
+	// 模型美化输出：每个对象跨多行。旧版逐行恢复会返回 0 条，括号深度扫描应全部救回。
+	content := `[
+  {
+    "index": 1,
+    "title": "多行对象一",
+    "score": 9,
+    "reason": "重要"
+  },
+  {
+    "index": 2,
+    "title": "多行对象二",
+    "score": 8,
+    "reason": "次要"
+  }
+]`
+	got := recoverScoredItems(content)
+	if len(got) != 2 || got[0].Index != 1 || got[1].Index != 2 {
+		t.Fatalf("recoverScoredItems() = %#v", got)
+	}
+}
+
 // jsonQuote 把字符串编码为合法的 JSON 字符串字面量（含外层引号）。
 func jsonQuote(s string) string {
 	b, _ := json.Marshal(s)

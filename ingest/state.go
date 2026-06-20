@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
-	"path/filepath"
 	"strings"
 	"time"
 )
@@ -90,15 +89,8 @@ func saveRSSState(path string, state RSSState) error {
 		return fmt.Errorf("编码 RSS 状态失败: %w", err)
 	}
 	data = append(data, '\n')
-	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
-		return fmt.Errorf("创建 RSS 状态目录失败: %w", err)
-	}
-	tmpPath := path + ".tmp"
-	if err := os.WriteFile(tmpPath, data, 0o644); err != nil {
-		return fmt.Errorf("写入 RSS 状态临时文件失败: %w", err)
-	}
-	if err := os.Rename(tmpPath, path); err != nil {
-		return fmt.Errorf("提交 RSS 状态失败: %w", err)
+	if err := writeFileAtomic(path, data, 0o755, 0o644); err != nil {
+		return fmt.Errorf("原子写 RSS 状态失败: %w", err)
 	}
 	return nil
 }

@@ -40,7 +40,7 @@ func TestGetProxyURLReadsAllProxy(t *testing.T) {
 func TestConfiguredInvalidAllProxyDoesNotFallBackToDirectAccess(t *testing.T) {
 	t.Setenv("all_proxy", "127.0.0.1:7890")
 
-	client := newHTTPClient(time.Second, false)
+	client := newHTTPClient(time.Second, false, false)
 	transport := client.Transport.(*http.Transport)
 	proxyURL, err := transport.Proxy(&http.Request{})
 	if err == nil {

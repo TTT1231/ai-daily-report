@@ -11,8 +11,9 @@
  *
  * 评论/置顶失败只警告、不判整体失败（视频已发布，可手动补）。
  * 加 --no-comment 可跳过评论+置顶（用于测试稿）。
+ * 加 --dry-run 只做全量校验、不真正投稿（用于发布前确认 meta/产物就绪）。
  *
- * 用法：bun run upload [-- --no-comment]
+ * 用法：bun run upload [-- --no-comment] [-- --dry-run]
  */
 
 import { readFileSync, existsSync } from "node:fs";
@@ -23,6 +24,7 @@ import { resolveOid, postComment, pinComment } from "./bili-api.mjs";
 
 const ROOT = process.cwd();
 const NO_COMMENT = process.argv.includes("--no-comment");
+const DRY_RUN = process.argv.includes("--dry-run");
 
 const fail = (msg) => {
   console.error(`❌ ${msg}`);
@@ -101,6 +103,13 @@ console.log("===== 1/3 投稿 B站 =====");
 console.log(`标题 (${title.length}/80): ${title}`);
 console.log(`标签 (${tags.length}): ${tags.join(", ")}  | tid ${config.tid}  | 创作声明 id ${config.creationStatementId ?? 1}`);
 console.log("--------------------");
+
+if (DRY_RUN) {
+  // 校验全部通过，但不真正投稿：用于发布前确认标题/标签/封面/视频都就绪。
+  console.log("\n🧪 --dry-run：校验通过，未执行真实投稿/评论/置顶。去掉 --dry-run 后才会真正发布。");
+  console.log(`   mp4: ${mp4}\n   cover: ${cover}\n   cookie: ${cookie}`);
+  process.exit(0);
+}
 
 const up = await runCapture(exe, uploadArgs);
 if (up.code !== 0) {
