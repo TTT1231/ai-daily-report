@@ -1,0 +1,5 @@
+{
+  "$schema": "./video-timeline.schema.json",
+  "fps": 30,
+  "storyTransitionFrames": 18
+}

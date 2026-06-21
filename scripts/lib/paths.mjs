@@ -8,6 +8,8 @@ export const generatedDataPath = resolve(dataDir, "data-generate.json");
 export const schemaPath = resolve(rootDir, "data.schema.json");
 export const videoLayoutPath = resolve(rootDir, "video-layout.json");
 export const videoLayoutSchemaPath = resolve(rootDir, "video-layout.schema.json");
+export const videoTimelinePath = resolve(rootDir, "video-timeline.json");
+export const videoTimelineSchemaPath = resolve(rootDir, "video-timeline.schema.json");
 
 export async function readJson(path, displayPath) {
   try {

@@ -14,10 +14,7 @@
 import { writeFileSync } from "node:fs";
 import { execFileSync } from "node:child_process";
 import { resolve } from "node:path";
-import {
-  collectTimelineScenes,
-  buildVideoStoryStartMs,
-} from "../../lib/report-builder.mjs";
+import {collectTimelineScenes} from "../../lib/report-builder.mjs";
 import { dataDir, generatedDataPath, readJson } from "../../lib/paths.mjs";
 import { validateReport } from "../../lib/report-validation.mjs";
 
@@ -74,15 +71,22 @@ async function main() {
     process.exit(1);
   }
 
-  // 3. 按 Remotion 成片的帧时间线计算每个 story 的真实起始时间。
-  //    成片在相邻 story 之间插入过渡帧（点击音效），这些帧不在 TTS 的
-  //    startMs 里；若直接用 startMs，评论时间戳会整体偏早且越往后越离谱。
-  const storyStartMs = buildVideoStoryStartMs(data);
+  // 3. 评论时间戳直接读 generated 数据里 story.videoStartMs，不再自行重算。
+  //    该值由 TTS 流程用与渲染侧同源的时间线（含 story 间过渡帧）一次性写入，
+  //    避免此前评论侧独立计算导致与画面错位。
+  const missingStartMs = (data.stories ?? []).filter(
+    (story) => !Number.isFinite(story.videoStartMs),
+  );
+  if (missingStartMs.length > 0) {
+    console.warn(
+      `⚠️  有 ${missingStartMs.length} 条 story 缺少 videoStartMs（data-generate.json 可能是旧的）。时间戳将回退为 00:00，请重新 bun run tts。`,
+    );
+  }
 
   // 4. 生成评论（每条新闻一条：序号 + 内容 + 【时间】）
-  //    时间戳取该 story 在成片中的起始帧，正文用 contentTitle 概括
-  const items = (data.stories ?? []).map((story, index) => {
-    const timestamp = msToTimestamp(storyStartMs[index + 1] ?? 0);
+  //    时间戳取该 story 的成片起始毫秒，正文用 contentTitle 概括
+  const items = (data.stories ?? []).map((story) => {
+    const timestamp = msToTimestamp(story.videoStartMs ?? 0);
     const content = stripMarkdown(story.contentTitle || story.introTitle || "");
     return `${content} 【${timestamp}】`;
   });

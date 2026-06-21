@@ -5,7 +5,11 @@ import {
   formatAudioQualityIssues,
   inspectAudioQuality,
 } from "../lib/audio-quality.mjs";
-import {buildGeneratedReport, collectTimelineScenes} from "../lib/report-builder.mjs";
+import {
+  buildGeneratedReport,
+  buildVideoStoryStartMs,
+  collectTimelineScenes,
+} from "../lib/report-builder.mjs";
 import {createGeneratedOutputTransaction} from "../lib/generated-output.mjs";
 import {createMinimaxClient} from "../lib/minimax-tts.mjs";
 import {
@@ -238,6 +242,15 @@ try {
     console.log("Dry run complete. No API requests were sent and no files were changed.");
     process.exit(0);
   }
+
+  // 把每个 story 的成片起始毫秒写回 generated 数据。评论侧和其它消费方直接读
+  // story.videoStartMs，不再各自重算时间线——它由下面 buildVideoStoryStartMs
+  // 这一权威实现（常量与渲染侧同源 video-timeline.json）一次性算出。
+  const videoStoryStartMs = buildVideoStoryStartMs(report);
+  const timelineStories = [report.intro, ...(report.stories ?? []), report.outro];
+  timelineStories.forEach((story, index) => {
+    if (story) story.videoStartMs = videoStoryStartMs[index] ?? 0;
+  });
 
   const generatedValidation = validateReport(report, {
     renderMode: true,

@@ -32,6 +32,9 @@ import {
   OVERLAY_SMALL_HEIGHT,
   OVERLAY_SMALL_WIDTH,
 } from "./layout-config";
+// 时间线常量的单一事实源是 video-timeline.json（与 scripts/lib/report-builder.mjs
+// 评论/生成侧同源读取），改配置即两侧同步，避免此前硬编码常量漂移导致评论与画面错位。
+import videoTimeline from "../video-timeline.json";
 import {previewTabs} from "./tab-layout-preview-fixture";
 import clickSound from "./sound/click-sound.mp3";
 
@@ -136,7 +139,7 @@ export type Theme = keyof typeof themes;
 
 const STORY_ENTER_DELAY_FRAMES = 0; // story 入场淡入开始前停留的帧数（0 = 立即开始淡入）
 const STORY_ENTER_FADE_FRAMES = 10; // story 入场淡入持续的帧数
-const STORY_TRANSITION_FRAMES = 18;
+const STORY_TRANSITION_FRAMES = videoTimeline.storyTransitionFrames;
 const IMAGE_TRANSITION_FRAMES = 16;
 const IMAGE_PRE_ROLL_FRAMES = 12;
 const IMAGE_POST_ROLL_FRAMES = 10;
