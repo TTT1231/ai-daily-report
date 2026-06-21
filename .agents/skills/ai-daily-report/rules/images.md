@@ -50,7 +50,7 @@
 
 ## 关键行为：改图片不会重算 TTS
 
-`scripts/render/dev.mjs` 的监听逻辑里，**只有** `data.json` / schema / `video-layout.json` / `.env` 变化才会重新跑 TTS；图片文件变化只会让 Remotion Studio 刷新画面、**不调 API、不花钱**。
+`scripts/render/dev.mjs` 的监听逻辑里，**只有** `data.json` / schema / `video-layout.json` / `video-timeline.json` / `.env` 变化才会重新跑 TTS；图片文件变化只会让 Remotion Studio 刷新画面、**不调 API、不花钱**。
 
 所以日常迭代图片很安全：改完保存，预览自己就更新了。
 

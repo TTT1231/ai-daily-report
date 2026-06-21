@@ -51,6 +51,11 @@
       "minLength": 1,
       "pattern": "^[a-z0-9][a-z0-9-.]*$"
     },
+    "videoStartMs": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "仅出现在 data-generate.json。该 Story（或 intro/outro）在成片中的起始毫秒，由 TTS 流程按含 story 间过渡帧的时间线（与 Remotion 渲染同源）写入。评论时间戳直接读它，不再各自重算。intro 恒为 0。"
+    },
     "story": {
       "type": "object",
       "required": ["id", "topTitle", "bottomTitle", "contentTitle", "tabs", "scenes"],
@@ -101,7 +106,8 @@
           "minItems": 1,
           "description": "Story 内按播放顺序排列的画面和旁白片段。",
           "items": {"$ref": "#/$defs/scene"}
-        }
+        },
+        "videoStartMs": {"$ref": "#/$defs/videoStartMs"}
       }
     },
     "intro": {
@@ -127,7 +133,8 @@
           "minItems": 1,
           "maxItems": 1,
           "items": {"$ref": "#/$defs/scene"}
-        }
+        },
+        "videoStartMs": {"$ref": "#/$defs/videoStartMs"}
       }
     },
     "outro": {
@@ -143,7 +150,8 @@
           "minItems": 1,
           "maxItems": 1,
           "items": {"$ref": "#/$defs/scene"}
-        }
+        },
+        "videoStartMs": {"$ref": "#/$defs/videoStartMs"}
       }
     },
     "tab": {

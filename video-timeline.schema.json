@@ -1,0 +1,25 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "./video-timeline.schema.json",
+  "title": "AI Daily Report Video Timeline",
+  "description": "项目级固定视频时间线配置。它由人工维护，供 TTS 起始时间计算、评论时间戳生成和 Remotion 渲染共同读取，不会随单次日报生成而自动变化。把它抽成单一事实源，是为了消除此前 src/AiDailyReport.tsx（渲染侧）与 scripts/lib/report-builder.mjs（评论侧）各自硬编码同一常量导致的漂移风险——改这里即两侧同步。",
+  "type": "object",
+  "required": ["$schema", "fps", "storyTransitionFrames"],
+  "additionalProperties": false,
+  "properties": {
+    "$schema": {
+      "const": "./video-timeline.schema.json",
+      "description": "供编辑器识别本文件对应的 JSON Schema，并提供字段说明与校验。"
+    },
+    "fps": {
+      "type": "integer",
+      "const": 30,
+      "description": "视频帧率，单位为帧/秒。Remotion Composition、TTS 帧换算和评论时间戳共用此值。当前固定为 30；改动前需同步 Root.tsx 中传入的 fps。"
+    },
+    "storyTransitionFrames": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "相邻 Story 之间插入的过渡帧数（伴随点击音效）。这些帧不在 TTS 的 startMs 音频时间线里，因此评论时间戳必须按包含过渡的成片时间线计算，否则会越往后越偏早。"
+    }
+  }
+}

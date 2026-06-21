@@ -321,6 +321,21 @@ export function validateReport(report, {renderMode = false, checkAssets = true} 
         validateAsset(scene.audioSrc, `${scenePath}.audioSrc`, errors);
       }
     }
+
+    // videoStartMs 是 TTS 写入的成片起始毫秒（generated-only）。raw 数据没有它，
+    // 因此只在 renderMode 下做类型卫生校验；不校验它是否等于算法预期，避免与
+    // 时间线算法重新耦合（算法的单一事实源是 video-timeline.json）。
+    if (renderMode && story.videoStartMs !== undefined) {
+      if (
+        !Number.isInteger(story.videoStartMs) ||
+        story.videoStartMs < 0
+      ) {
+        fail(
+          `${storyPath}.videoStartMs`,
+          "must be a non-negative integer when present",
+        );
+      }
+    }
   }
 
   if (activeIntroCount > 1) {

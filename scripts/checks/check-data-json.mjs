@@ -1,6 +1,7 @@
 import {generatedDataPath, rawDataPath, readJson} from "../lib/paths.mjs";
 import {validateReport} from "../lib/report-validation.mjs";
 import {validateVideoLayout} from "../lib/video-layout-validation.mjs";
+import {validateVideoTimeline} from "../lib/video-timeline-validation.mjs";
 
 const renderMode = process.argv.includes("--render");
 const displayPath = renderMode
@@ -13,6 +14,15 @@ if (layoutValidation.errors.length > 0) {
     `video-layout.json validation failed with ${layoutValidation.errors.length} error(s):`,
   );
   layoutValidation.errors.forEach((error) => console.error(`- ${error}`));
+  process.exit(1);
+}
+
+const timelineValidation = validateVideoTimeline();
+if (timelineValidation.errors.length > 0) {
+  console.error(
+    `video-timeline.json validation failed with ${timelineValidation.errors.length} error(s):`,
+  );
+  timelineValidation.errors.forEach((error) => console.error(`- ${error}`));
   process.exit(1);
 }
 

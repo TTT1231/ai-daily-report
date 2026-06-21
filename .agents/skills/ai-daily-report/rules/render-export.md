@@ -26,7 +26,7 @@ npx remotion render AiDailyReport out/AiDailyReport.mp4
 
 - **composition id = `AiDailyReport`**（见 `src/Root.tsx`，大小写敏感；`TwoTabLayout` / `FourTabLayout` / `FiveTabLayout` 是布局测试用的，别拿来导正片）。
 - **输出路径**：`video:render` 固定写 `out/AiDailyReport.mp4`；裸命令可自己定（目录会自动创建）。
-- 帧率 30fps、宽高取自 `video-layout.json`、时长由 `getReportDurationInFrames(30)` 按所有 scene 的音频时长**动态**算出来。
+- 帧率与 story 间过渡帧取自 `video-timeline.json`（当前 30fps / 18 帧）、宽高取自 `video-layout.json`、时长由 `getReportDurationInFrames(fps)` 按所有 scene 的音频时长**动态**算出来。`video-timeline.json` 是时间线常量的单一事实源——渲染侧（TS）和评论/生成侧（JS）同源读取，改它即两侧同步。
 
 > 不需要传 `--props`：组件直接通过 `staticFile` 读 `data-scheme/`，没有输入 props。
 

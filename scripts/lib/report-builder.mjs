@@ -1,3 +1,12 @@
+import {readFileSync} from "node:fs";
+import {resolve} from "node:path";
+
+// 时间线常量的单一事实源是 video-timeline.json（与 src/AiDailyReport.tsx 渲染侧同源读取）。
+// 改这里即两侧同步，避免此前硬编码常量在 JS/TS 两处各自维护导致的评论与画面错位。
+const videoTimeline = JSON.parse(
+  readFileSync(resolve(import.meta.dirname, "../../video-timeline.json"), "utf8"),
+);
+
 function getGreeting(hour) {
   if (hour >= 5 && hour < 12) return "早上好";
   if (hour >= 12 && hour < 14) return "中午好";
@@ -105,11 +114,15 @@ export function collectTimelineScenes(report) {
 // 评论里的时间戳必须落在播放器真实渲染故事的那一帧。成片在相邻 story 之间
 // 会插入 STORY_TRANSITION_FRAMES 的过渡（点击音效），而这些过渡帧不在 TTS
 // 的 startMs 时间线里。若评论直接用 startMs，每条都会偏早，且越往后偏差越大。
-// 下面两个常量是 src/AiDailyReport.tsx 中 buildTimeline 的镜像：改 React 侧时
-// 务必同步这里，避免评论与画面错位。
+//
+// 常量不再硬编码：VIDEO_FPS / STORY_TRANSITION_FRAMES 与 src/AiDailyReport.tsx
+// 渲染侧从同一份 video-timeline.json 读取（见文件顶部），改配置即两侧同步。
+// buildVideoStoryStartMs 是生成侧的权威实现：generate-tts 用它把每个 story 的
+// 成片起始毫秒写入 data-generate.json 的 story.videoStartMs，评论侧直接读，
+// 不再各自计算。
 
-export const VIDEO_FPS = 30;
-export const STORY_TRANSITION_FRAMES = 18;
+export const VIDEO_FPS = videoTimeline.fps;
+export const STORY_TRANSITION_FRAMES = videoTimeline.storyTransitionFrames;
 
 /**
  * 按 Remotion 的帧时间线累计每个 story 的起始毫秒。

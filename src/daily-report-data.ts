@@ -80,6 +80,7 @@ export const dailyStorySchema = z
     activeIntro: z.literal(true).optional(),
     tabs: z.array(dailyTabSchema).min(2).max(6),
     scenes: z.array(dailySceneSchema).min(1),
+    videoStartMs: z.number().nonnegative().optional(),
   })
   .superRefine((story, context) => {
     const tabIds = new Set(story.tabs.map((tab) => tab.id));
@@ -97,6 +98,7 @@ export const dailyOutroSchema = z.object({
   topTitle: z.string().min(1),
   bottomTitle: z.string().min(1),
   scenes: z.array(dailySceneSchema).length(1),
+  videoStartMs: z.number().nonnegative().optional(),
 });
 
 export const dailyIntroSchema = z.object({
@@ -107,6 +109,7 @@ export const dailyIntroSchema = z.object({
   activeTab: identifierSchema.optional(),
   tabs: z.array(dailyTabSchema).min(2),
   scenes: z.array(dailySceneSchema).length(1),
+  videoStartMs: z.number().nonnegative().optional(),
 });
 
 export const dailyReportSchema = z

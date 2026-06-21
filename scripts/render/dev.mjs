@@ -100,9 +100,13 @@ function watchInputs() {
       if (eventType !== "change" && eventType !== "rename") return;
       const name = filename?.toString();
       if (
-        ["data.schema.json", "video-layout.json", "video-layout.schema.json"].includes(
-          name,
-        )
+        [
+          "data.schema.json",
+          "video-layout.json",
+          "video-layout.schema.json",
+          "video-timeline.json",
+          "video-timeline.schema.json",
+        ].includes(name)
       ) {
         scheduleSync(`${name} 已变化`);
       } else if (name === ".env") {

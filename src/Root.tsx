@@ -7,9 +7,11 @@ import {
   type TabLayoutPreviewProps,
 } from "./AiDailyReport";
 import videoLayout from "../video-layout.json";
+// fps 与时间线常量共用同一事实源，避免 Root.tsx 的帧率与渲染/评论时间线漂移。
+import videoTimeline from "../video-timeline.json";
 
 export const RemotionRoot: React.FC = () => {
-  const fps = 30;
+  const fps = videoTimeline.fps;
 
   return (
     <>
