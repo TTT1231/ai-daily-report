@@ -27,54 +27,71 @@ type downloadedOverlayImage struct {
 }
 
 func downloadVisionOverlayImage(imageURL string, item Item) (downloadedOverlayImage, error) {
-	extension := supportedOverlayImageExtensionFromURL(imageURL)
 	client := newHTTPClient(defaultFeedRequestTimeout, false, true)
-	request, err := http.NewRequest(http.MethodGet, imageURL, nil)
+	data, extension, err := fetchOverlayImage(client, imageURL, item.Link)
 	if err != nil {
-		return downloadedOverlayImage{}, fmt.Errorf("创建图片请求失败: %w", err)
+		return downloadedOverlayImage{}, err
 	}
-	request.Header.Set("User-Agent", "ai-daily-report-rss/1.0")
-	if strings.TrimSpace(item.Link) != "" {
-		request.Header.Set("Referer", item.Link)
-	}
-
-	response, err := client.Do(request)
-	if err != nil {
-		return downloadedOverlayImage{}, fmt.Errorf("下载图片失败: %w", err)
-	}
-	defer response.Body.Close()
-	if response.StatusCode != http.StatusOK {
-		return downloadedOverlayImage{}, fmt.Errorf("下载图片 HTTP 状态码: %d", response.StatusCode)
-	}
-	contentType := mediaType(response.Header.Get("Content-Type"))
-	contentExtension := supportedOverlayImageExtensionFromContentType(contentType)
-	if extension == "" {
-		extension = contentExtension
-	}
-	if extension == "" {
-		return downloadedOverlayImage{}, fmt.Errorf("不支持的图片格式: %s", firstNonEmpty(contentType, imageURL))
-	}
-	if contentExtension == "" && contentType != "" && contentType != "application/octet-stream" {
-		return downloadedOverlayImage{}, fmt.Errorf("响应不是可用图片类型: %s", contentType)
-	}
-	if response.ContentLength > maxOverlayImageBytes {
-		return downloadedOverlayImage{}, fmt.Errorf("图片过大: %d bytes", response.ContentLength)
-	}
-
-	data, err := io.ReadAll(io.LimitReader(response.Body, maxOverlayImageBytes+1))
-	if err != nil {
-		return downloadedOverlayImage{}, fmt.Errorf("读取图片失败: %w", err)
-	}
-	if int64(len(data)) > maxOverlayImageBytes {
-		return downloadedOverlayImage{}, fmt.Errorf("图片超过 %d bytes", maxOverlayImageBytes)
-	}
-
-	relativePath := "images/" + overlayImageFilename(item, imageURL, extension)
 	root, err := projectRoot()
 	if err != nil {
 		return downloadedOverlayImage{}, err
 	}
-	absolutePath := filepath.Join(root, "data-scheme", filepath.FromSlash(relativePath))
+	return saveOverlayImage(data, overlayImageFilename(item, imageURL, extension), root)
+}
+
+// fetchOverlayImage 下载远程图片字节，校验类型与大小，返回字节内容与最终落盘扩展名（.png/.jpg/.webp）。
+// client 由调用方注入：生产传带 SSRF 防护的 newHTTPClient(defaultFeedRequestTimeout,false,true)，
+// 测试传放行 loopback 的 newHTTPClient(defaultFeedRequestTimeout,false,false)（SSRF 防护会拦 127.0.0.1，httptest 需要放行）。
+// refererLink 非空时作为 Referer 发送，用于绕过部分图床的防盗链。
+func fetchOverlayImage(client *http.Client, imageURL, refererLink string) ([]byte, string, error) {
+	request, err := http.NewRequest(http.MethodGet, imageURL, nil)
+	if err != nil {
+		return nil, "", fmt.Errorf("创建图片请求失败: %w", err)
+	}
+	request.Header.Set("User-Agent", "ai-daily-report-rss/1.0")
+	if strings.TrimSpace(refererLink) != "" {
+		request.Header.Set("Referer", refererLink)
+	}
+
+	response, err := client.Do(request)
+	if err != nil {
+		return nil, "", fmt.Errorf("下载图片失败: %w", err)
+	}
+	defer response.Body.Close()
+	if response.StatusCode != http.StatusOK {
+		return nil, "", fmt.Errorf("下载图片 HTTP 状态码: %d", response.StatusCode)
+	}
+	contentType := mediaType(response.Header.Get("Content-Type"))
+	contentExtension := supportedOverlayImageExtensionFromContentType(contentType)
+	extension := supportedOverlayImageExtensionFromURL(imageURL)
+	if extension == "" {
+		extension = contentExtension
+	}
+	if extension == "" {
+		return nil, "", fmt.Errorf("不支持的图片格式: %s", firstNonEmpty(contentType, imageURL))
+	}
+	if contentExtension == "" && contentType != "" && contentType != "application/octet-stream" {
+		return nil, "", fmt.Errorf("响应不是可用图片类型: %s", contentType)
+	}
+	if response.ContentLength > maxOverlayImageBytes {
+		return nil, "", fmt.Errorf("图片过大: %d bytes", response.ContentLength)
+	}
+
+	data, err := io.ReadAll(io.LimitReader(response.Body, maxOverlayImageBytes+1))
+	if err != nil {
+		return nil, "", fmt.Errorf("读取图片失败: %w", err)
+	}
+	if int64(len(data)) > maxOverlayImageBytes {
+		return nil, "", fmt.Errorf("图片超过 %d bytes", maxOverlayImageBytes)
+	}
+	return data, extension, nil
+}
+
+// saveOverlayImage 把字节写入 <rootDir>/data-scheme/images/<filename>（按需建目录），
+// 解码尺寸后返回相对路径（images/<filename>）与宽高。
+func saveOverlayImage(data []byte, filename, rootDir string) (downloadedOverlayImage, error) {
+	relativePath := "images/" + filename
+	absolutePath := filepath.Join(rootDir, "data-scheme", filepath.FromSlash(relativePath))
 	if err := os.MkdirAll(filepath.Dir(absolutePath), 0o755); err != nil {
 		return downloadedOverlayImage{}, fmt.Errorf("创建图片目录失败: %w", err)
 	}

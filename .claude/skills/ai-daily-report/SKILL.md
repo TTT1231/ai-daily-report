@@ -24,8 +24,10 @@ description: How to use the ai-daily-report project end-to-end — set it up, ru
 - **环境变量** `.env`（参考 `.env.example`）：
   - RSS/AI 总结用：`AI_API_KEY`、`AI_BASE_URL`、`AI_MODEL` 三者均必填（OpenAI 兼容接口；`.env.example` 给了 DeepSeek 示例值）。`bili:meta` 生成 B站 标题/标签也复用这套。
   - 网络受限时可选：小写 `all_proxy`（如 `http://127.0.0.1:7890`）。**仅作用于 `rss` 抓取阶段**（RSS 源抓取 + 该阶段内部的 AI 评分请求）；MiniMax TTS、B站 标题/标签生成与投稿/评论/置顶等 Node 端请求**不**走此代理，始终直连。未配置则直连；配置后上述 `rss` 阶段请求必须走该代理，失败时不会回退直连。不要使用其他代理变量。
-  - TTS 旁白用：`MINIMAX_API_KEY`、`MINIMAX_TTS_MODEL`、`MINIMAX_TTS_VOICE_ID`、`MINIMAX_TTS_SPEED`。
-- **运行时**：需要 `claude`（cli，用于图片识别 + 出图标）、`bun`、`go`（跑 RSS 采集器）。
+  - TTS 旁白用：`TTS_REQUIRE=true` 时需要 `MINIMAX_API_KEY`、`MINIMAX_TTS_MODEL`、`MINIMAX_TTS_VOICE_ID`、`MINIMAX_TTS_SPEED`；不需要旁白或没有 MiniMax Key 时设 `TTS_REQUIRE=false`，会跳过 MiniMax、音频和 ffmpeg 音质检测。
+  - 图片识别用：`CLAUDE_VISION_ENABLED=true` 时，评分 ≥9 且含远程图的 Story 会尝试识图并自动写 `overlayImg`；没有多模态能力或图片识别 MCP 时设为 `false`，流程会下载候选图到 `data-scheme/images/` 供手动配图。
+  - 语音质量检测用：`REQUIRE_VOICE_QUALITY_FFMPEG=true` 时需要可用的 `ffmpeg`；没装 ffmpeg 但仍要生成旁白时设为 `false`。
+- **运行时**：需要 `bun`、`go`（跑 RSS 采集器）；需要自动识图或生成 Tab 图标时还需要 `claude` CLI。
 - **数据目录** `data-scheme/` 必须存在（自动模式会自己生成；手动模式从 `data-scheme-sample/` 复制）。
 - **发布到 B站** 额外需要一次扫码登录（见下方「发布到 B站」），登录态存 `biliup/cookies.json`，不进 `.env`。
 
@@ -61,7 +63,7 @@ bun run video:prepare
 
 生产步骤跑完后：
 
-- **图片大多自动配好，少数需手动补**：`rss` 视觉识别会在 Story 评分 ≥9、正文较短且含远程图片、且 Claude 判定相关时，自动把该图下载到 `data-scheme/images/` 并写入对应 scene 的 `overlayImg`；不满足条件的 scene 仍可手动给 `data.json` 的 scene 填 `overlayImg`。详见下方「把图片放进 data.json」。
+- **图片自动 + 手动两条路**：`CLAUDE_VISION_ENABLED=true` 时，`rss` 视觉识别会在 Story 评分 ≥9 且含远程图片、且 Claude 判定相关时，自动把该图下载到 `data-scheme/images/` 并写入对应 scene 的 `overlayImg`；`CLAUDE_VISION_ENABLED=false` 时不会写 `overlayImg`，但会下载候选图，方便手动填图。详见下方「把图片放进 data.json」。
 - **预览 / 渲染 / 发布**：`video:prepare` 不再自动开预览。要看画面运行 `bun run dev`（带 HMR + 自动 TTS 同步）；要导出 mp4 运行 `bun run video:render`；要一键发 B站 运行 `bun run all:bili`（详见下方「发布到 B站」）。
 
 > 关于 `ingest/rss-state.json`：它存的是上次抓取的快照，用来去重。日常不用手动编辑；如果清空了 `data-scheme/` 或想完全重建，先跑 `bun run reset`，再跑 `bun run video:prepare`。
@@ -87,7 +89,7 @@ bun run video:prepare
 
 一句话结论：**把图片丢进 `data-scheme/images/`，给对应的 scene 加 `"overlayImg": "images/文件名"`。**
 
-- 自动模式（`bun run video:prepare`）下，`rss` 视觉识别会给部分高分 Story **自动下载并配图**（写入 `overlayImg`）；下面讲的是没被自动配上、或手动模式下你自己加图时怎么做。
+- 自动模式（`bun run video:prepare`）下，`rss` 视觉识别开启时会给部分高分 Story **自动下载并配图**（写入 `overlayImg`）；视觉关闭时只下载候选图，不写 `overlayImg`。下面讲的是没被自动配上、或手动模式下你自己加图时怎么做。
 - 图片是 **scene 级**的（不是 story 级、不是 tab 级），一张图配一句旁白。
 - 允许格式：`.svg .png .jpg/.jpeg .webp`。
 - 多张图 = 给同一个 story 写多个 scene，依次播放。
@@ -97,7 +99,7 @@ bun run video:prepare
 
 ## 渲染导出 mp4
 
-一句话结论：**用 `bun run video:render`（= `tts` + `render:mp4` → `out/AiDailyReport.mp4`）。** 想自定义渲染参数再用裸命令 `npx remotion render`。
+一句话结论：**用 `bun run video:render`（= `tts` + `render:mp4` → `out/AiDailyReport.mp4`）。** 想自定义渲染参数再用裸命令 `bunx remotion render`。
 
 ```bash
 # 标准做法：自动跑 TTS 备好渲染数据 + 渲成 mp4
@@ -105,7 +107,7 @@ bun run video:render
 
 # 或手动两步（便于控制时机 / 传参数）
 bun run tts
-npx remotion render AiDailyReport out/AiDailyReport.mp4
+bunx remotion render AiDailyReport out/AiDailyReport.mp4
 ```
 
 时长、可选参数、常见坑：**先读 [`rules/render-export.md`](./rules/render-export.md)** 再动手。

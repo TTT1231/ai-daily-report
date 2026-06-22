@@ -335,7 +335,8 @@
       <div class="help-strip">
         <strong>卡住时先检查：</strong>
         <span><code>bun --version</code> 是否正常</span>
-        <span><code>.env</code> 是否有 <code>MINIMAX_API_KEY</code></span>
+        <span><code>TTS_REQUIRE=true</code> 时 <code>.env</code> 是否有 <code>MINIMAX_API_KEY</code></span>
+        <span>TTS 默认用 ffmpeg 做音质检；没装 ffmpeg 时设 <code>REQUIRE_VOICE_QUALITY_FFMPEG=false</code> 跳过</span>
         <span>命令是否在项目根目录运行</span>
       </div>
       </div>
@@ -399,8 +400,8 @@
             <div>
               <strong>配置 MiniMax Key</strong
               ><span
-                >用于生成 TTS 旁白，写入根目录 <code>.env</code> 的
-                <code>MINIMAX_API_KEY</code>。</span
+                ><code>TTS_REQUIRE=true</code> 时用于生成 TTS 旁白，写入根目录 <code>.env</code> 的
+                <code>MINIMAX_API_KEY</code>；不需要旁白时设 <code>TTS_REQUIRE=false</code>。</span
               >
             </div>
           </article>
@@ -447,8 +448,9 @@
 
         <div class="help-strip">
           <strong>👁️ 图片识别（按需）：</strong>
-          <span>当某个 Story 评分 ≥9、正文较短且含远程图片时，<code>rss</code> 会调用 <code>claude --dangerously-skip-permissions -p --effort low</code> 识别图片内容（识别图片无需扩展思考，降低思考强度以加速），补充事实后再进入下一步解析；判定相关后还会<strong>自动把该图下载到 <code>images/</code> 并写入对应 scene 的 <code>overlayImg</code></strong>，不满足条件的 scene 仍需手动配图</span>
-          <span>⚠ 因此 <strong>Claude CLI 的模型必须支持多模态</strong>，并<strong>配置图像分析 MCP</strong>，否则图片识别步骤会失败（可接受，会降级为纯文本继续，但拿不到图片里的信息）</span>
+          <span><code>CLAUDE_VISION_ENABLED=true</code> 时，Story 评分 ≥9 且含远程图片就会触发预算内识图：<code>rss</code> 调用 <code>claude --dangerously-skip-permissions -p --effort low</code> 识别图片内容，补充事实；判定相关后还会<strong>自动把该图下载到 <code>images/</code> 并写入对应 scene 的 <code>overlayImg</code></strong></span>
+          <span><code>CLAUDE_VISION_ENABLED=false</code> 时不识图、不写 <code>overlayImg</code>，但会把高分 Story 的候选图下载到 <code>data-scheme/images/</code>，供你手动判断后填图</span>
+          <span>⚠ 自动识图要求 <strong>Claude CLI 的模型支持多模态</strong>，并<strong>配置图像分析 MCP</strong>；不具备时建议关闭 <code>CLAUDE_VISION_ENABLED</code></span>
         </div>
 
         <div class="steps">
@@ -520,7 +522,7 @@
 
         <div class="help-strip">
           <strong>🖼️ 图片：自动 + 手动：</strong>
-          <span><code>rss</code> 视觉识别会给部分高分 Story <strong>自动下载并配图</strong>（写入 <code>overlayImg</code>）；其余 scene 仍需手动在 <code>data-scheme/data.json</code> 填 <code>overlayImg: "images/xxx"</code>，图片放进 <code>data-scheme/images/</code></span>
+          <span><code>rss</code> 视觉识别开启时会给部分高分 Story <strong>自动下载并配图</strong>（写入 <code>overlayImg</code>）；关闭时只下载候选图，不写 <code>overlayImg</code>，你可以手动在 <code>data-scheme/data.json</code> 填 <code>overlayImg: "images/xxx"</code></span>
           <span>仅替换图片不会重新请求旁白</span>
         </div>
       </div>

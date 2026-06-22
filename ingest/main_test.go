@@ -655,16 +655,24 @@ func TestFormatVisionMaterial(t *testing.T) {
 	}
 }
 
-func TestVisionAnalyzerShouldAnalyzeOnlyHighPriorityShortImageSource(t *testing.T) {
-	analyzer := &VisionAnalyzer{enabled: true, maxCalls: 4, textThreshold: 500}
-	item := Item{
+func TestVisionAnalyzerShouldAnalyzeOnlyHighPriorityImageSource(t *testing.T) {
+	analyzer := &VisionAnalyzer{enabled: true, maxCalls: 4}
+	shortItem := Item{
 		Title:       "Anthropic 禁用两款模型",
 		Description: `<p>正文很短。</p><img src="https://cdn.example.com/image.png">`,
 	}
-	if !analyzer.shouldAnalyze(item, NewsGroup{Score: 9}) {
-		t.Fatal("shouldAnalyze() = false, want true")
+	longItem := Item{
+		Title:       "Anthropic 禁用两款模型",
+		Description: `<p>` + strings.Repeat("正文较长。", 200) + `</p><img src="https://cdn.example.com/image.png">`,
 	}
-	if analyzer.shouldAnalyze(item, NewsGroup{Score: 8}) {
+	// 高分 + 有远程图片就识别，不看正文长短
+	if !analyzer.shouldAnalyze(shortItem, NewsGroup{Score: 9}) {
+		t.Fatal("short item shouldAnalyze() = false, want true")
+	}
+	if !analyzer.shouldAnalyze(longItem, NewsGroup{Score: 9}) {
+		t.Fatal("long item shouldAnalyze() = false, want true (text length no longer gates)")
+	}
+	if analyzer.shouldAnalyze(shortItem, NewsGroup{Score: 8}) {
 		t.Fatal("shouldAnalyze() accepted low-priority source")
 	}
 }
@@ -781,10 +789,10 @@ func TestLoadJSONCSourceAndPreferencesConfigs(t *testing.T) {
 
 func TestStripTrailingCommasToleratesJSONC(t *testing.T) {
 	cases := map[string]string{
-		"object trailing comma":      `{"a":1,}`,
-		"array trailing comma":       `{"a":[1,2,],}`,
-		"comma before newline":       "{\n  \"a\": 1,\n}",
-		"nested":                     `{"a":{"b":[1,],},}`,
+		"object trailing comma": `{"a":1,}`,
+		"array trailing comma":  `{"a":[1,2,],}`,
+		"comma before newline":  "{\n  \"a\": 1,\n}",
+		"nested":                `{"a":{"b":[1,],},}`,
 	}
 	for name, in := range cases {
 		t.Run(name, func(t *testing.T) {

@@ -29,15 +29,13 @@ function runCommand(command, args) {
 }
 
 async function runFfmpeg(args) {
-  const candidates = process.env.FFMPEG_PATH
-    ? [{ command: process.env.FFMPEG_PATH, args }]
-    : [
-        { command: "ffmpeg", args },
-        {
-          command: process.platform === "win32" ? "npx.cmd" : "npx",
-          args: ["remotion", "ffmpeg", ...args],
-        },
-      ];
+  const candidates = [
+    { command: "ffmpeg", args },
+    {
+      command: process.platform === "win32" ? "bunx.exe" : "bunx",
+      args: ["remotion", "ffmpeg", ...args],
+    },
+  ];
 
   const errors = [];
   for (const candidate of candidates) {

@@ -34,24 +34,22 @@ type VisionResult struct {
 }
 
 type VisionAnalyzer struct {
-	enabled       bool
-	maxCalls      int
-	maxImages     int
-	textThreshold int
-	timeout       time.Duration
-	maxBudgetUSD  string
-	calls         int
+	enabled      bool
+	maxCalls     int
+	maxImages    int
+	timeout      time.Duration
+	maxBudgetUSD string
+	calls        int
 }
 
 // newVisionAnalyzer 读取一系列 CLAUDE_VISION_* 环境变量，构造带开关、调用上限与预算的图片视觉分析器。
 func newVisionAnalyzer() *VisionAnalyzer {
 	return &VisionAnalyzer{
-		enabled:       readBoolEnv("CLAUDE_VISION_ENABLED", true),
-		maxCalls:      readPositiveIntEnv("CLAUDE_VISION_MAX_CALLS", 4),
-		maxImages:     readPositiveIntEnv("CLAUDE_VISION_MAX_IMAGES_PER_SOURCE", 2),
-		textThreshold: readPositiveIntEnv("CLAUDE_VISION_TEXT_THRESHOLD", 500),
-		timeout:       time.Duration(readPositiveIntEnv("CLAUDE_VISION_TIMEOUT_SECONDS", 180)) * time.Second,
-		maxBudgetUSD:  readPositiveFloatEnv("CLAUDE_VISION_MAX_BUDGET_USD", "1.00"),
+		enabled:      readBoolEnv("CLAUDE_VISION_ENABLED", true),
+		maxCalls:     readPositiveIntEnv("CLAUDE_VISION_MAX_CALLS", 4),
+		maxImages:    readPositiveIntEnv("CLAUDE_VISION_MAX_IMAGES_PER_SOURCE", 2),
+		timeout:      time.Duration(readPositiveIntEnv("CLAUDE_VISION_TIMEOUT_SECONDS", 180)) * time.Second,
+		maxBudgetUSD: readPositiveFloatEnv("CLAUDE_VISION_MAX_BUDGET_USD", "1.00"),
 	}
 }
 
@@ -96,12 +94,11 @@ func (analyzer *VisionAnalyzer) analyzeItem(sourceIndex int, item Item, group Ne
 }
 
 // shouldAnalyze 判断是否应对该条目做图片视觉识别：
-// 仅在启用、Story 高分、未超调用上限、正文较短且含远程图片时才触发，以控制成本。
+// 仅在启用、Story 高分、未超调用上限且含远程图片时才触发，不看正文长短，以控制成本。
 func (analyzer *VisionAnalyzer) shouldAnalyze(item Item, group NewsGroup) bool {
 	return analyzer.enabled &&
 		group.Score >= 9 &&
 		analyzer.calls < analyzer.maxCalls &&
-		len([]rune(cleanRSS2ItemText(item))) < analyzer.textThreshold &&
 		len(extractRemoteImageURLs(item.Description)) > 0
 }
 

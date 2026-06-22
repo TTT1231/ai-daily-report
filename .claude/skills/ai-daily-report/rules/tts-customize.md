@@ -6,6 +6,8 @@
 
 - **唯一适配的 TTS 供应商是 MiniMax。** 项目所有 TTS 代码（`scripts/lib/minimax-tts.mjs`、`scripts/render/generate-tts.mjs`）都是按 MiniMax 的 `t2a_v2` 接口写的。
 - RSS 用的 AI 总结模型（`AI_MODEL`）可以随便换，只改 `.env` 即可，**不涉及这里**。
+- `TTS_REQUIRE=false` 是 TTS 总开关：会跳过 MiniMax 请求、音频生成和 ffmpeg 音质检测。适合只准备数据、不需要旁白，或暂时没有 MiniMax Key 的场景。
+- `REQUIRE_VOICE_QUALITY_FFMPEG=false` 只关闭 ffmpeg 音质检测：MiniMax 仍会生成旁白，适合没装 ffmpeg 但仍要出音频的场景。
 - `data.schema.json` 里 `ttsMetadata.provider` 是 `const: "minimax"`（写死的枚举）。
 - `generate-tts.mjs` 里 `vol`、`pitch` 是**硬编码**的（`vol: 1`、`pitch: 0`），没有对应环境变量。
 
@@ -21,7 +23,7 @@ MINIMAX_TTS_VOICE_ID=Chinese (Mandarin)_Warm_Girl   # 音色
 MINIMAX_TTS_SPEED=1.18                  # 0.5 ~ 2
 ```
 
-其它可调（节流 / 重试 / 尾部静音 / 质量检查）见 `.env.example` 的 MiniMax 段。想调 `vol` / `pitch` 必须改 `scripts/render/generate-tts.mjs` 第 29~30 行。
+其它可调（节流 / 重试 / 尾部静音 / ffmpeg 音质检测开关）见 `.env.example` 的 MiniMax 段。想调 `vol` / `pitch` 必须改 `scripts/render/generate-tts.mjs` 的 `config`。
 
 ### 情况二：换成别的 TTS 供应商（阿里、字节、OpenAI TTS 等）
 

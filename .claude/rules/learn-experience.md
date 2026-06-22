@@ -8,7 +8,7 @@
 ## Remotion `interpolate()` 对输入区间有「严格单调」硬校验，短场景会让 overlay 动画直接崩渲染
 
 - **Tags**: `#runtime` `#third-party-library` `#remotion` `#tricky-issue`
-- **Trigger Context**: Remotion 4.0.475；视频里某个 scene 带有 `overlayImg`，且该 scene 时长较短（约 < 30~39 帧）；本项目 RSS 流水线会按相关性给「高分 + 正文较短」的 scene 自动配图，正好踩中这个条件。
+- **Trigger Context**: Remotion 4.0.475；视频里某个 scene 带有 `overlayImg`，且该 scene 时长较短（约 < 30~39 帧）；本项目 RSS 流水线会按相关性给「高分 + 含远程图」的 scene 自动配图，可能踩中这个条件。
 - **Symptoms**: 渲染（Studio 预览 / `remotion render` / `remotion bundle` 后渲染帧）整段崩溃，抛出：
   ```
   inputRange must be strictly monotonically increasing but got [16,16]

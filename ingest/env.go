@@ -32,12 +32,12 @@ func loadConfig() (AppConfig, error) {
 	if model == "" {
 		return AppConfig{}, fmt.Errorf("请在项目根目录 .env 中填写有效的 AI_MODEL")
 	}
-	sourcesPath := configPath(root, envOrDefault("RSS_SOURCES_PATH", defaultSourcesPath))
+	sourcesPath := configPath(root, defaultSourcesPath)
 	sources, err := loadSources(sourcesPath)
 	if err != nil {
 		return AppConfig{}, err
 	}
-	preferencesPath := configPath(root, envOrDefault("RSS_PREFERENCES_PATH", defaultPreferencesPath))
+	preferencesPath := configPath(root, defaultPreferencesPath)
 	preferences, err := loadPreferences(preferencesPath)
 	if err != nil {
 		return AppConfig{}, err
@@ -124,14 +124,6 @@ func lookupExactEnvFrom(environ []string, name string) (string, bool) {
 		}
 	}
 	return "", false
-}
-
-// envOrDefault 返回环境变量值，为空时返回 fallback 默认值。
-func envOrDefault(name, fallback string) string {
-	if value := strings.TrimSpace(os.Getenv(name)); value != "" {
-		return value
-	}
-	return fallback
 }
 
 // projectRoot 定位 ai-daily-report 项目根目录：

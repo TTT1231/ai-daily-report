@@ -29,8 +29,9 @@ type DataJSONStory struct {
 	IntroTitle   string          `json:"introTitle,omitempty"`
 	ActiveTab    string          `json:"activeTab,omitempty"`
 	ActiveIntro  bool            `json:"activeIntro,omitempty"`
-	Tabs         []DataJSONTab   `json:"tabs"`
-	Scenes       []DataJSONScene `json:"scenes"`
+	Tabs             []DataJSONTab   `json:"tabs"`
+	Scenes           []DataJSONScene `json:"scenes"`
+	sourceGroupIndex int             `json:"-"` // 本 Story 来自 groups 的下标，供 vision-off 候选图下载定位证据来源
 }
 
 type DataJSONTab struct {
@@ -79,12 +80,13 @@ func generateDataJSON(path string, groups []NewsGroup, items []Item) error {
 		}
 		storyID := uniqueStoryID(storyID(group, items), usedIDs)
 		story := DataJSONStory{
-			ID:           storyID,
-			TopTitle:     storyCategory(group),
-			BottomTitle:  navigationTitle(group),
-			ContentTitle: truncateRunes(group.Title, maxContentTitleRunes),
-			IntroTitle:   strings.TrimSpace(group.Title),
-			ActiveIntro:  i == 0,
+			ID:               storyID,
+			TopTitle:         storyCategory(group),
+			BottomTitle:      navigationTitle(group),
+			ContentTitle:     truncateRunes(group.Title, maxContentTitleRunes),
+			IntroTitle:       strings.TrimSpace(group.Title),
+			ActiveIntro:      i == 0,
+			sourceGroupIndex: i,
 		}
 		usedImages := make(map[string]bool)
 		for tabIndex, tab := range group.Tabs {
@@ -128,6 +130,20 @@ func generateDataJSON(path string, groups []NewsGroup, items []Item) error {
 	if err := writeFileAtomic(path, data, 0o755, 0o644); err != nil {
 		return fmt.Errorf("写入 data.json 失败: %w", err)
 	}
+
+	if !readBoolEnv("CLAUDE_VISION_ENABLED", true) {
+		root, rootErr := projectRoot()
+		switch {
+		case rootErr != nil:
+			fmt.Printf("   ⚠️  警告：无法定位项目根目录，跳过候选图下载：%v\n", rootErr)
+		default:
+			client := newHTTPClient(defaultFeedRequestTimeout, false, true)
+			if err := downloadManualCandidateImages(client, report, groups, items, root); err != nil {
+				fmt.Printf("   ⚠️  警告：候选图下载失败（不影响 data.json）：%v\n", err)
+			}
+		}
+	}
+
 	return nil
 }
 

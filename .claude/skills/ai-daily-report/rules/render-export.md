@@ -10,7 +10,7 @@
 - `build` = `remotion bundle` → 只**打包**（产出 `build/`），不渲染视频。
 - `dev` / `dev:studio` → Remotion Studio **预览**，不导出文件。
 
-想自定义渲染参数（scale / concurrency 等）就用 Remotion 的裸命令 `remotion render`（`@remotion/cli` 已经是依赖，用 `npx` 即可，不需要全局装）。
+想自定义渲染参数（scale / concurrency 等）就用 Remotion 的裸命令 `remotion render`（`@remotion/cli` 已经是依赖，用 `bunx` 即可，不需要全局装）。
 
 ## 标准流程
 
@@ -21,7 +21,7 @@ bun run video:render
 
 # 或手动两步（便于控制时机 / 传参数）
 bun run tts
-npx remotion render AiDailyReport out/AiDailyReport.mp4
+bunx remotion render AiDailyReport out/AiDailyReport.mp4
 ```
 
 - **composition id = `AiDailyReport`**（见 `src/Root.tsx`，大小写敏感；`TwoTabLayout` / `FourTabLayout` / `FiveTabLayout` 是布局测试用的，别拿来导正片）。
@@ -45,14 +45,14 @@ npx remotion render AiDailyReport out/AiDailyReport.mp4
 ## 常用可选参数（裸命令）
 
 ```bash
-npx remotion render AiDailyReport out/video.mp4 \
+bunx remotion render AiDailyReport out/video.mp4 \
   --scale 1           # 默认 1；想清晰点用 2（更慢、4 倍像素）；想快预览用 0.5
   --concurrency 50%   # 默认用一半 CPU 核；调高更快但更吃内存
   --jpeg-quality 80    # （仅 image sequence / 部分场景）画面质量
   --log verbose        # 看详细进度
 ```
 
-完整参数见 `npx remotion render --help`。
+完整参数见 `bunx remotion render --help`。
 
 ## 常见坑
 

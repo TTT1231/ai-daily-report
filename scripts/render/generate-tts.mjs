@@ -24,6 +24,10 @@ const dryRun = process.argv.includes("--dry-run");
 const force = process.argv.includes("--force");
 const apiKey = process.env.MINIMAX_API_KEY;
 const config = {
+  // Master switch for the whole TTS subsystem. false => skip voice generation
+  // entirely (no MiniMax, no audio, no ffmpeg quality check); every MINIMAX_* /
+  // TTS_* / REQUIRE_VOICE_QUALITY_FFMPEG setting is then ignored.
+  ttsEnabled: readBooleanEnv("TTS_REQUIRE", true),
   endpoint:
     process.env.MINIMAX_TTS_ENDPOINT ?? "https://api.minimaxi.com/v1/t2a_v2",
   model: process.env.MINIMAX_TTS_MODEL ?? "speech-2.8-hd",
@@ -36,9 +40,14 @@ const config = {
   requestIntervalMs: readIntegerEnv("MINIMAX_TTS_REQUEST_INTERVAL_MS", 2200, 0),
   maxRetries: readIntegerEnv("MINIMAX_TTS_MAX_RETRIES", 5, 0),
   rateLimitRetryMs: readIntegerEnv("MINIMAX_TTS_RATE_LIMIT_RETRY_MS", 60000, 1000),
-  qualityCheckEnabled: readBooleanEnv("TTS_QUALITY_CHECK_ENABLED", true),
-  qualityMaxRetries: readIntegerEnv("TTS_QUALITY_MAX_RETRIES", 2, 0),
+  // ffmpeg-based voice-quality gate (isolated-burst / click detection). On by
+  // default; set REQUIRE_VOICE_QUALITY_FFMPEG=false to skip it and the ffmpeg dependency.
+  requireVoiceQualityFfmpeg: readBooleanEnv("REQUIRE_VOICE_QUALITY_FFMPEG", true),
 };
+
+// When the ffmpeg quality gate is on, retry MiniMax this many times before
+// aborting the TTS run for a clip that still contains isolated-burst artifacts.
+const QUALITY_RETRY_LIMIT = 2;
 
 function readNumberEnv(name, fallback, min, max) {
   const raw = process.env[name];
@@ -102,6 +111,12 @@ function isReusable(scene, cachedScene, hash, outputPath) {
   );
 }
 
+if (!config.ttsEnabled) {
+  console.log("TTS_REQUIRE=false: skipping TTS voice generation (no MiniMax calls, no audio).");
+  console.log("All MINIMAX_* / TTS_* / REQUIRE_VOICE_QUALITY_FFMPEG settings are ignored in this mode.");
+  process.exit(0);
+}
+
 if (!dryRun && !apiKey) {
   console.error("MINIMAX_API_KEY is required. Set it in the environment, then run bun run tts.");
   process.exit(1);
@@ -152,7 +167,7 @@ if (!dryRun) {
 }
 
 async function getAudioQualityIssues(input) {
-  if (!config.qualityCheckEnabled) return [];
+  if (!config.requireVoiceQualityFfmpeg) return [];
   return (await inspectAudioQuality(input)).issues;
 }
 
@@ -165,13 +180,13 @@ async function synthesizeChecked(scene) {
     }
 
     const summary = formatAudioQualityIssues(issues);
-    if (attempt >= config.qualityMaxRetries) {
+    if (attempt >= QUALITY_RETRY_LIMIT) {
       throw new Error(
         `${scene.id}: generated audio failed quality checks after ${attempt + 1} attempt(s): ${summary}`,
       );
     }
     console.warn(
-      `- ${scene.id}: generated audio contains ${summary}; retrying (${attempt + 1}/${config.qualityMaxRetries})`,
+      `- ${scene.id}: generated audio contains ${summary}; retrying (${attempt + 1}/${QUALITY_RETRY_LIMIT})`,
     );
   }
 }
