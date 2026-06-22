@@ -135,7 +135,9 @@ export function buildVideoStoryStartMs(report) {
   let cursor = 0;
   const startMs = [];
   for (let si = 0; si < timelineStories.length; si++) {
-    startMs.push((cursor / VIDEO_FPS) * 1000);
+    // cursor 是帧数，换算成毫秒后必须取整：videoStartMs 的 schema 要求非负整数，
+    // 直接 (cursor / VIDEO_FPS) * 1000 在 fps=30 等场景下会是 33.33 这类小数。
+    startMs.push(Math.round((cursor / VIDEO_FPS) * 1000));
     for (const scene of timelineStories[si].scenes ?? []) {
       cursor += msToFrames(scene.timing?.durationMs ?? 0);
     }
