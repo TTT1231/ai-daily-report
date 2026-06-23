@@ -214,6 +214,16 @@
       white-space: nowrap;
     }
 
+    /* Nav-item widths are driven by data-duration-weight (not inline styles),
+       so Edge Tools' "no inline styles" rule stays satisfied. */
+    .nav-item[data-duration-weight="5"] { --duration-weight: 5; }
+    .nav-item[data-duration-weight="7"] { --duration-weight: 7; }
+    .nav-item[data-duration-weight="12"] { --duration-weight: 12; }
+    .nav-item[data-duration-weight="15"] { --duration-weight: 15; }
+    .nav-item[data-duration-weight="18"] { --duration-weight: 18; }
+    .nav-item[data-duration-weight="24"] { --duration-weight: 24; }
+    .nav-item[data-duration-weight="45"] { --duration-weight: 45; }
+
     .nav-item.active {
       color: white;
       border-bottom-color: var(--blue);
@@ -551,11 +561,11 @@
         <div class="video-frame" aria-label="日报视频结构示意图">
           <div class="video-inner">
             <nav class="nav-row" aria-label="Header1 粗粒度栏目导航">
-              <span class="nav-item" style="--duration-weight: 7">Intro</span>
-              <span class="nav-item active" style="--duration-weight: 24">要闻 · 24s</span>
-              <span class="nav-item" style="--duration-weight: 45">开发生态 · 45s</span>
-              <span class="nav-item" style="--duration-weight: 18">行业动态 · 18s</span>
-              <span class="nav-item" style="--duration-weight: 5">Outro</span>
+              <span class="nav-item" data-duration-weight="7">Intro</span>
+              <span class="nav-item active" data-duration-weight="24">要闻 · 24s</span>
+              <span class="nav-item" data-duration-weight="45">开发生态 · 45s</span>
+              <span class="nav-item" data-duration-weight="18">行业动态 · 18s</span>
+              <span class="nav-item" data-duration-weight="5">Outro</span>
             </nav>
 
             <div class="story-head">据称 OpenAI GPT-5.6 候选版本短暂现身测试平台后移除</div>
@@ -602,13 +612,13 @@
             </div>
 
             <nav class="nav-row" aria-label="Header3 细粒度新闻导航">
-              <span class="nav-item" style="--duration-weight: 7">Intro</span>
-              <span class="nav-item active" style="--duration-weight: 24">GPT-5.6</span>
-              <span class="nav-item" style="--duration-weight: 12">Mythos</span>
-              <span class="nav-item" style="--duration-weight: 18">Trae Work</span>
-              <span class="nav-item" style="--duration-weight: 15">AI 开放平台</span>
-              <span class="nav-item" style="--duration-weight: 18">DeepSeek</span>
-              <span class="nav-item" style="--duration-weight: 5">Outro</span>
+              <span class="nav-item" data-duration-weight="7">Intro</span>
+              <span class="nav-item active" data-duration-weight="24">GPT-5.6</span>
+              <span class="nav-item" data-duration-weight="12">Mythos</span>
+              <span class="nav-item" data-duration-weight="18">Trae Work</span>
+              <span class="nav-item" data-duration-weight="15">AI 开放平台</span>
+              <span class="nav-item" data-duration-weight="18">DeepSeek</span>
+              <span class="nav-item" data-duration-weight="5">Outro</span>
             </nav>
           </div>
         </div>

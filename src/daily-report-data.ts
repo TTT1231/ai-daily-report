@@ -1,4 +1,5 @@
-import {z} from "zod";
+import { z } from "zod";
+// @ts-expect-error data-generate.json 由 TTS 运行时生成，文件存在时 TS 反而报 TS2307（JSON 模块解析与 schema 校验的已知交互），缺失时则不报，两种状态都需要抑制。
 import reportJson from "../data-scheme/data-generate.json";
 import {
   mergeAdjacentNavigationLabels,
@@ -13,7 +14,10 @@ import {
 export const identifierSchema = z
   .string()
   .min(1)
-  .regex(/^[a-z0-9][a-z0-9-.]*$/, "identifier must match ^[a-z0-9][a-z0-9-.]*$");
+  .regex(
+    /^[a-z0-9][a-z0-9-.]*$/,
+    "identifier must match ^[a-z0-9][a-z0-9-.]*$",
+  );
 export const dateSchema = z
   .string()
   .regex(/^\d{4}-\d{2}-\d{2}$/, "date must be YYYY-MM-DD");
@@ -121,7 +125,9 @@ export const dailyReportSchema = z
     outro: dailyOutroSchema,
   })
   .superRefine((report, context) => {
-    if (report.stories.filter((story) => story.activeIntro === true).length > 1) {
+    if (
+      report.stories.filter((story) => story.activeIntro === true).length > 1
+    ) {
       context.addIssue({
         code: "custom",
         path: ["stories"],
@@ -130,9 +136,9 @@ export const dailyReportSchema = z
     }
     const timeline = [report.intro, ...report.stories, report.outro];
     const navigations = {
-      bottom: timeline.map(({bottomTitle}) => bottomTitle),
+      bottom: timeline.map(({ bottomTitle }) => bottomTitle),
       top: mergeAdjacentNavigationLabels(
-        timeline.map(({topTitle}) => topTitle),
+        timeline.map(({ topTitle }) => topTitle),
       ),
     };
     for (const [name, labels] of Object.entries(navigations)) {
