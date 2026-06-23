@@ -19,7 +19,7 @@ export const RemotionRoot: React.FC = () => {
     <Composition
       id="AiDailyReport"
       component={AiDailyReport as React.FC<Record<string, unknown>>}
-      durationInFrames={getReportDurationInFrames(fps)}
+      durationInFrames={fps * 60}
       calculateMetadata={({props}) => ({
         durationInFrames: getReportDurationInFrames(
           fps,

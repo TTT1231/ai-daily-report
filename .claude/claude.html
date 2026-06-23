@@ -823,7 +823,7 @@
               ><span class="pipeline-role">最终产物</span>
               <h4>预览与渲染</h4>
               <code>data-generate.json + audio/</code>
-              <p>通过渲染校验后，由 Remotion Studio、Build 和 Render 使用。</p>
+              <p>通过渲染校验后，作为 props 交给 Remotion Studio 和 Render 使用。</p>
             </article>
           </div>
 
@@ -1212,7 +1212,7 @@ bun run bili:stick    # 单独置顶</pre>
               <div class="rule-indicator do"></div>
               <div class="rule-content">
                 <div class="rule-text">
-                  data-generate.json 是 Remotion 唯一读取的数据文件
+                  data-generate.json 是 Remotion 的视频数据来源，通过 props 传入
                 </div>
               </div>
             </div>

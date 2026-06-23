@@ -68,7 +68,7 @@
 >
 > 图片识别依赖 claude 的多模态能力或图片识别类 mcp。
 >
-> RSS 的模型可自由切换；TTS 目前仅适配了 `minimax`，若要换其他 TTS，修改 `scripts/render/generate-tts.mjs` 即可。
+> RSS 的模型可自由切换；TTS 目前仅适配了 `minimax`，若要换其他 TTS，需要同步改 TTS 生成代码与 schema。
 
 ### 只看示例
 
@@ -80,6 +80,16 @@ bun run preview:notts # sample-2：无 TTS 静音版本
 ```
 
 这两个命令只读 `data-scheme-sample-1/2`，不会跑 RSS/TTS，也不会改 `data-scheme/`。
+
+数据来源速记：
+
+| 命令 | 数据 props | 静态资源目录 | 是否需要 `data-scheme/` |
+| --- | --- | --- | --- |
+| `bun run preview` | `data-scheme-sample-1/data-generate.json` | `data-scheme-sample-1` | 否 |
+| `bun run preview:notts` | `data-scheme-sample-2/data-generate.json` | `data-scheme-sample-2` | 否 |
+| `bun run dev` / `bun run video:render` | `data-scheme/data-generate.json` | `data-scheme` | 是 |
+
+如果示例预览报 `data-scheme/data-generate.json` 找不到，说明预览数据和正式数据又耦合到了一起。
 
 ### 方式一：Agent 自动化（推荐）
 

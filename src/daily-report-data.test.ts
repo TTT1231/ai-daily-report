@@ -8,6 +8,7 @@ import {
   iconPathSchema,
   dailyStorySchema,
   dailyIntroSchema,
+  resolveDailyReport,
 } from "./daily-report-data";
 
 // 这些约束与 data.schema.json 的 $defs（identifier / imagePath / audioPath / iconPath / date）
@@ -83,4 +84,49 @@ test("dailyIntroSchema rejects an intro with fewer than 2 tabs", () => {
     scenes: [validScene()],
   };
   assert.throws(() => dailyIntroSchema.parse(oneTabIntro));
+});
+
+test("resolveDailyReport parses supplied props without requiring generated data on disk", () => {
+  const scene = {
+    id: "scene-1",
+    subtitle: "一段不超 96 字的字幕",
+    timing: {startMs: 0, durationMs: 1000},
+  };
+  const report = resolveDailyReport({
+    theme: "light",
+    date: "2026-06-23",
+    intro: {
+      id: "intro",
+      topTitle: "开场",
+      bottomTitle: "开场",
+      contentTitle: "今日概览",
+      tabs: [validTab({id: "tab-1"}), validTab({id: "tab-2"})],
+      scenes: [scene],
+    },
+    stories: [
+      {
+        id: "story-1",
+        topTitle: "栏目",
+        bottomTitle: "短标",
+        contentTitle: "完整标题",
+        tabs: [validTab({id: "tab-1"}), validTab({id: "tab-2"})],
+        scenes: [scene],
+      },
+    ],
+    outro: {
+      id: "outro",
+      topTitle: "结束",
+      bottomTitle: "结束",
+      scenes: [scene],
+    },
+  });
+
+  assert.equal(report.date, "2026-06-23");
+});
+
+test("resolveDailyReport explains how to provide report data", () => {
+  assert.throws(
+    () => resolveDailyReport({}),
+    /Pass --props=data-scheme\/data-generate\.json/,
+  );
 });

@@ -22,14 +22,16 @@ bun run video:render
 
 # 或手动两步（便于控制时机 / 传参数）
 bun run tts
-bunx remotion render AiDailyReport out/AiDailyReport.mp4
+bunx remotion render AiDailyReport out/AiDailyReport.mp4 \
+  --props=data-scheme/data-generate.json \
+  --public-dir=data-scheme
 ```
 
 - **composition id = `AiDailyReport`**（见 `src/Root.tsx`，大小写敏感；`TwoTabLayout` / `FourTabLayout` / `FiveTabLayout` 是布局测试用的，别拿来导正片）。
 - **输出路径**：`video:render` 固定写 `out/AiDailyReport.mp4`；裸命令可自己定（目录会自动创建）。
 - 帧率与 story 间过渡帧取自 `video-timeline.json`（当前 30fps / 18 帧）、宽高取自 `video-layout.json`、时长由 `getReportDurationInFrames(fps)` 按所有 scene 的音频时长**动态**算出来。`video-timeline.json` 是时间线常量的单一事实源——渲染侧（TS）和评论/生成侧（JS）同源读取，改它即两侧同步。
 
-> 正片渲染不用传 `--props`；`preview` 命令会把示例数据传给 Remotion。
+> `video:render` 已替你传入 `--props=data-scheme/data-generate.json` 和 `--public-dir=data-scheme`。手写 Remotion 命令时也要成对传：JSON 走 `--props`，音频/图片/图标走 `--public-dir`。
 
 ## 渲染前检查清单
 
@@ -47,6 +49,8 @@ bunx remotion render AiDailyReport out/AiDailyReport.mp4
 
 ```bash
 bunx remotion render AiDailyReport out/video.mp4 \
+  --props=data-scheme/data-generate.json \
+  --public-dir=data-scheme \
   --scale 1           # 默认 1；想清晰点用 2（更慢、4 倍像素）；想快预览用 0.5
   --concurrency 50%   # 默认用一半 CPU 核；调高更快但更吃内存
   --jpeg-quality 80    # （仅 image sequence / 部分场景）画面质量

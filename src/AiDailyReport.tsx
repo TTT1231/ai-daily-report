@@ -11,7 +11,6 @@ import {
 } from "remotion";
 import {useMemo, type FC} from "react";
 import {
-  dailyReport,
   resolveDailyReport,
   type DailyIntro,
   type DailyOutro,
@@ -458,7 +457,7 @@ const buildTimeline = (fps: number, report: DailyReport): Timeline => {
 
 export const getReportDurationInFrames = (
   fps: number,
-  report: DailyReport = dailyReport,
+  report: DailyReport,
 ) => buildTimeline(fps, report).totalFrames;
 
 // ── Timeline state lookup ───────────────────────────────────────────────

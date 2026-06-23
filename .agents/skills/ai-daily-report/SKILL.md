@@ -29,6 +29,8 @@ description: How to use the ai-daily-report project end-to-end — set it up, ru
   - 语音质量检测用：`REQUIRE_VOICE_QUALITY_FFMPEG=true` 时需要可用的 `ffmpeg`；没装 ffmpeg 但仍要生成旁白时设为 `false`。
 - **运行时**：需要 `bun`、`go`（跑 RSS 采集器）；需要自动识图或生成 Tab 图标时还需要 `claude` CLI。
 - **数据目录**：正式数据固定用 `data-scheme/`；示例预览用 `data-scheme-sample-1/2`，不会改正式数据。
+  - `bun run preview` / `preview:notts` 只读 sample 目录；即使 `data-scheme/` 为空也应该能启动。
+  - `bun run dev` / `video:render` 读取正式 `data-scheme/data-generate.json`，由 `tts` 生成。
 - **发布到 B站** 额外需要一次扫码登录（见下方「发布到 B站」），登录态存 `biliup/cookies.json`，不进 `.env`。
 
 ## A. 自动出片（推荐主线）
@@ -107,7 +109,9 @@ bun run video:render
 
 # 或手动两步（便于控制时机 / 传参数）
 bun run tts
-bunx remotion render AiDailyReport out/AiDailyReport.mp4
+bunx remotion render AiDailyReport out/AiDailyReport.mp4 \
+  --props=data-scheme/data-generate.json \
+  --public-dir=data-scheme
 ```
 
 时长、可选参数、常见坑：**先读 [`rules/render-export.md`](./rules/render-export.md)** 再动手。

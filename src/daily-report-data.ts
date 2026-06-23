@@ -1,13 +1,11 @@
 import { z } from "zod";
-// @ts-expect-error data-generate.json 由 TTS 运行时生成，文件存在时 TS 反而报 TS2307（JSON 模块解析与 schema 校验的已知交互），缺失时则不报，两种状态都需要抑制。
-import reportJson from "../data-scheme/data-generate.json";
 import {
   mergeAdjacentNavigationLabels,
   navigationAvailableWidth,
   navigationRequiredWidth,
 } from "./navigation-layout";
 
-// 本 Zod schema 校验的是 Generated 数据契约（data-generate.json，Remotion 唯一读取的文件）。
+// 本 Zod schema 校验的是 Generated 数据契约（data-generate.json，作为 Remotion props 传入）。
 // 字段约束与 data.schema.json 对齐；Raw 数据（data.json）请用 bun run check-data-json 校验。
 // 下方 identifier/date/path 等基础约束与 JSON Schema 的 $defs 复用同一套规则。
 
@@ -160,8 +158,6 @@ export type DailyIntro = z.infer<typeof dailyIntroSchema>;
 export type DailyOutro = z.infer<typeof dailyOutroSchema>;
 export type DailyReport = z.infer<typeof dailyReportSchema>;
 
-export const dailyReport: DailyReport = dailyReportSchema.parse(reportJson);
-
 export const resolveDailyReport = (input: unknown): DailyReport => {
   if (
     input &&
@@ -172,5 +168,7 @@ export const resolveDailyReport = (input: unknown): DailyReport => {
     return dailyReportSchema.parse(input);
   }
 
-  return dailyReport;
+  throw new Error(
+    "AiDailyReport requires report props. Pass --props=data-scheme/data-generate.json for production data or use bun run preview for sample data.",
+  );
 };
