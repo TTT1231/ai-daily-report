@@ -89,11 +89,13 @@ bun run video:prepare
 
 ## 把图片放进 data.json
 
-一句话结论：**把图片丢进 `data-scheme/images/`，给对应的 scene 加 `"overlayImg": "images/文件名"`。**
+一句话结论：**把图片丢进 `data-scheme/images/`，给对应的 scene 加 `"overlayImg": "images/文件名"`；截图或小图建议同时填原始像素 `"overlayImgWidth"` / `"overlayImgHeight"`，避免渲染时被过度放大。**
 
 - 自动模式（`bun run video:prepare`）下，`rss` 视觉识别开启时会给部分高分 Story **自动下载并配图**（写入 `overlayImg`）；视觉关闭时只下载候选图，不写 `overlayImg`。下面讲的是没被自动配上、或手动模式下你自己加图时怎么做。
 - 图片是 **scene 级**的（不是 story 级、不是 tab 级），一张图配一句旁白。
 - 允许格式：`.svg .png .jpg/.jpeg .webp`。
+- `overlayImgWidth` / `overlayImgHeight` 填图片文件的**原始像素宽高**，两个字段要一起填；错填会被 `bun run check-data-json` 报出来。
+- 只想让某一张图更大/更小，用当前 scene 的 `overlayImgScale`（如 `1.2`）手动微调基础倍率；它会和正常的入场/聚焦动画叠加，不要改 Remotion 组件里的全局样式。
 - 多张图 = 给同一个 story 写多个 scene，依次播放。
 - 改图片**不会**重新请求 TTS（`scripts/render/dev.mjs` 故意如此），想只刷新预览直接保存即可。
 
@@ -155,7 +157,7 @@ bun run biliup:prepare                              # 一键备好 biliup 工具
 | -------------------- | ---------------------------------------------------- |
 | 手写 / 完全手动出片  | [`rules/manual-mode.md`](./rules/manual-mode.md)     |
 | 换 TTS 模型或供应商  | [`rules/tts-customize.md`](./rules/tts-customize.md) |
-| 给日报加图片         | [`rules/images.md`](./rules/images.md)               |
+| 给日报加图片       | [`rules/images.md`](./rules/images.md)               |
 | 把视频渲染导出成 mp4 | [`rules/render-export.md`](./rules/render-export.md) |
 
 发布到 B站 没有独立 rule 文件，主线（登录 / 配置 / 命令 / 注意事项）就在上面的「发布到 B站」一节。

@@ -25,7 +25,7 @@ Read all rules before editing:
 3. Inspect existing SVG files, treating an empty newly created directory as a first-time generation.
 4. Decide which icons genuinely need generation or revision.
 5. Generate transparent SVGs at `data-scheme/icons/{storyId}-{tabId}.svg`.
-6. Update only the corresponding `icon` fields in `data-generate.json`.
+6. Update only the corresponding `icon` fields in `data-generate.json`. If the user is manually maintaining or replacing a story in `data-scheme/data.json`, mirror those same `icon` fields there too so the next `bun run tts` keeps them.
 7. Remove orphan icons only when they are no longer referenced.
 8. Run `bun run check-icons` and `bun run lint` and `bun run comment:generate`.
 9. For visual changes, open a representative Remotion frame and verify icon scale, contrast, and

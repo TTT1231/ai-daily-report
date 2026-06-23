@@ -1,6 +1,9 @@
 import {
   AbsoluteFill,
   Audio,
+  cancelRender,
+  continueRender,
+  delayRender,
   Easing,
   Img,
   interpolate,
@@ -9,8 +12,9 @@ import {
   useCurrentFrame,
   useVideoConfig,
 } from "remotion";
-import {useMemo, type FC} from "react";
+import { useEffect, useMemo, useRef, useState, type FC } from "react";
 import {
+  hasDailyReportProps,
   resolveDailyReport,
   type DailyIntro,
   type DailyOutro,
@@ -36,7 +40,7 @@ import {
 // 时间线常量的单一事实源是 video-timeline.json（与 scripts/lib/report-builder.mjs
 // 评论/生成侧同源读取），改配置即两侧同步，避免此前硬编码常量漂移导致评论与画面错位。
 import videoTimeline from "../video-timeline.json";
-import {previewTabs} from "./tab-layout-preview-fixture";
+import { previewTabs } from "./tab-layout-preview-fixture";
 import clickSound from "./sound/click-sound.mp3";
 
 // ── Palette & constants ──────────────────────────────────────────────────
@@ -86,7 +90,14 @@ const themes = {
     overlayShadow: "0 30px 80px rgba(0,0,0,.54)",
     overlayCardBackground: "rgba(31,36,40,.86)",
     overlayCardBorder: "rgba(225,220,210,.16)",
-    introTitleColors: ["#d98978", "#8fb3bd", "#d1ad74", "#91b3a5", "#aa9abb", "#c89876"],
+    introTitleColors: [
+      "#d98978",
+      "#8fb3bd",
+      "#d1ad74",
+      "#91b3a5",
+      "#aa9abb",
+      "#c89876",
+    ],
   },
   light: {
     text: "#2d3d4c",
@@ -132,7 +143,14 @@ const themes = {
     overlayShadow: "0 30px 72px rgba(40,62,91,.28)",
     overlayCardBackground: "rgba(255,255,255,.90)",
     overlayCardBorder: "rgba(92,104,113,.16)",
-    introTitleColors: ["#cf3f67", "#167fc0", "#b77a00", "#12826d", "#7154c7", "#c15f22"],
+    introTitleColors: [
+      "#cf3f67",
+      "#167fc0",
+      "#b77a00",
+      "#12826d",
+      "#7154c7",
+      "#c15f22",
+    ],
   },
 };
 
@@ -422,11 +440,7 @@ interface Timeline {
 const buildTimeline = (fps: number, report: DailyReport): Timeline => {
   const scenes: TimelineScene[] = [];
   const storyStarts: number[] = [];
-  const stories = [
-    report.intro,
-    ...report.stories,
-    report.outro,
-  ];
+  const stories = [report.intro, ...report.stories, report.outro];
   let cursor = 0;
 
   for (let si = 0; si < stories.length; si++) {
@@ -455,10 +469,8 @@ const buildTimeline = (fps: number, report: DailyReport): Timeline => {
   return { scenes, storyStarts, totalFrames: cursor };
 };
 
-export const getReportDurationInFrames = (
-  fps: number,
-  report: DailyReport,
-) => buildTimeline(fps, report).totalFrames;
+export const getReportDurationInFrames = (fps: number, report: DailyReport) =>
+  buildTimeline(fps, report).totalFrames;
 
 // ── Timeline state lookup ───────────────────────────────────────────────
 
@@ -1175,6 +1187,8 @@ const SourceOverlay: FC<{
             ? `1px solid ${palette.overlayCardBorder}`
             : "none",
           filter: `drop-shadow(${palette.overlayShadow})`,
+          transform: `scale(${scene.overlayImgScale ?? 1})`,
+          transformOrigin: "center center",
         }}
       >
         <Img
@@ -1207,11 +1221,76 @@ export type AiDailyReportProps = {
   themeOverride?: Theme;
 } & Partial<DailyReport>;
 
-export const AiDailyReport: FC<AiDailyReportProps> = (props) => {
+const reportDataPath = "data-generate.json";
+
+const useDailyReport = (props: AiDailyReportProps) => {
+  const inlineReport = useMemo(
+    () => (hasDailyReportProps(props) ? resolveDailyReport(props) : null),
+    [props],
+  );
+  const [fallbackReport, setFallbackReport] = useState<DailyReport | null>(
+    null,
+  );
+  const [delayHandle] = useState(() =>
+    hasDailyReportProps(props)
+      ? null
+      : delayRender(`Loading ${reportDataPath} from public dir`),
+  );
+  const completedDelay = useRef(false);
+
+  useEffect(() => {
+    const completeDelay = () => {
+      if (delayHandle === null || completedDelay.current) return;
+      completedDelay.current = true;
+      continueRender(delayHandle);
+    };
+
+    if (inlineReport) {
+      completeDelay();
+      return;
+    }
+
+    let cancelled = false;
+
+    fetch(staticFile(reportDataPath))
+      .then(async (response) => {
+        if (!response.ok) {
+          throw new Error(
+            `Failed to load ${reportDataPath}: ${response.status} ${response.statusText}`,
+          );
+        }
+        return response.json();
+      })
+      .then((json) => resolveDailyReport(json))
+      .then((report) => {
+        if (cancelled) return;
+        setFallbackReport(report);
+        completeDelay();
+      })
+      .catch((error) => {
+        if (cancelled) return;
+        cancelRender(error instanceof Error ? error : new Error(String(error)));
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [delayHandle, inlineReport]);
+
+  return inlineReport ?? fallbackReport;
+};
+
+type AiDailyReportContentProps = {
+  dailyReport: DailyReport;
+  themeOverride?: Theme;
+};
+
+const AiDailyReportContent: FC<AiDailyReportContentProps> = ({
+  dailyReport,
+  themeOverride,
+}) => {
   const frame = useCurrentFrame();
   const { fps } = useVideoConfig();
-  const dailyReport = useMemo(() => resolveDailyReport(props), [props]);
-  const {themeOverride} = props;
   const theme = themeOverride ?? dailyReport.theme;
   const palette = themes[theme];
   const timeline = useMemo(
@@ -1253,7 +1332,10 @@ export const AiDailyReport: FC<AiDailyReportProps> = (props) => {
       ? 1
       : interpolate(
           storyFrame,
-          [STORY_ENTER_DELAY_FRAMES, STORY_ENTER_DELAY_FRAMES + STORY_ENTER_FADE_FRAMES],
+          [
+            STORY_ENTER_DELAY_FRAMES,
+            STORY_ENTER_DELAY_FRAMES + STORY_ENTER_FADE_FRAMES,
+          ],
           [0, 1],
           {
             easing: Easing.bezier(0.16, 1, 0.3, 1),
@@ -1523,5 +1605,20 @@ export const AiDailyReport: FC<AiDailyReportProps> = (props) => {
         <Navigation items={storyDurations} theme={theme} />
       </div>
     </AbsoluteFill>
+  );
+};
+
+export const AiDailyReport: FC<AiDailyReportProps> = (props) => {
+  const dailyReport = useDailyReport(props);
+
+  if (!dailyReport) {
+    return null;
+  }
+
+  return (
+    <AiDailyReportContent
+      dailyReport={dailyReport}
+      themeOverride={props.themeOverride}
+    />
   );
 };

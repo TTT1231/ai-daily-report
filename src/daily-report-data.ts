@@ -69,6 +69,7 @@ export const dailySceneSchema = z.object({
   overlayImg: imagePathSchema.optional(),
   overlayImgWidth: z.number().int().positive().optional(),
   overlayImgHeight: z.number().int().positive().optional(),
+  overlayImgScale: z.number().min(0.5).max(1.6).optional(),
 });
 
 export const dailyStorySchema = z
@@ -158,13 +159,13 @@ export type DailyIntro = z.infer<typeof dailyIntroSchema>;
 export type DailyOutro = z.infer<typeof dailyOutroSchema>;
 export type DailyReport = z.infer<typeof dailyReportSchema>;
 
+export const hasDailyReportProps = (input: unknown): input is DailyReport =>
+  Boolean(
+    input && typeof input === "object" && "date" in input && "stories" in input,
+  );
+
 export const resolveDailyReport = (input: unknown): DailyReport => {
-  if (
-    input &&
-    typeof input === "object" &&
-    "date" in input &&
-    "stories" in input
-  ) {
+  if (hasDailyReportProps(input)) {
     return dailyReportSchema.parse(input);
   }
 

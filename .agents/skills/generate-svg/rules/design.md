@@ -7,19 +7,32 @@
 - Make the meaningful silhouette occupy most of the canvas, generally within `12-84`.
 - Keep the icon clearly recognizable when displayed around 48-64px.
 - Use color. Avoid grayscale-only or white-only icons.
-- Let the concept determine color count:
+- Choose the number of colors from the concept:
   - One strong color is valid for a simple outline or silhouette.
-  - Add colors only when they clarify structure, state, motion, or hierarchy.
+  - Add another color when it clarifies structure, state, motion, or hierarchy.
   - Add highlights only when they improve legibility.
 - Follow [theme.md](theme.md) when choosing fills, strokes, and highlights.
 - Prefer solid fills and confident strokes. Use strokes around 5px or heavier for primary line icons.
-- Keep files self-contained and lightweight with inline SVG attributes.
+- Keep files self-contained and lightweight. Use inline SVG attributes.
 
-## Quality Order
+## Quality Judgment
 
-Prioritize semantic recognition, silhouette, rendered-size legibility, harmony with siblings, then
-decorative detail.
+Prioritize, in order:
 
-Do not force every icon into the same construction style. Avoid internal padding, background
-artwork, tiny low-opacity details, arbitrary color counts, `<text>`, external assets, `<style>`,
-scripts, CSS animation, and unnecessary path complexity.
+1. Semantic recognition
+2. Clear silhouette
+3. Legibility at rendered size
+4. Harmony with sibling icons
+5. Decorative detail
+
+Do not force every icon into the same construction style. A code symbol may work best as one colored
+stroke, while a rocket or warning symbol may benefit from multiple colors.
+
+## Avoid
+
+- Internal padding that makes the actual symbol look small
+- Background artwork that duplicates the card background
+- Tiny low-opacity details that disappear during video rendering
+- Arbitrary color-count requirements
+- `<text>`, external assets, `<style>`, scripts, or CSS animation
+- Overly complex paths that do not improve recognition

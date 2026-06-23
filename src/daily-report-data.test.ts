@@ -8,6 +8,7 @@ import {
   iconPathSchema,
   dailyStorySchema,
   dailyIntroSchema,
+  hasDailyReportProps,
   resolveDailyReport,
 } from "./daily-report-data";
 
@@ -43,10 +44,7 @@ test("imagePathSchema requires the images/ prefix and an image extension", () =>
 test("audioPathSchema requires the audio/ prefix and an audio extension", () => {
   assert.throws(() => audioPathSchema.parse("audio/noext"));
   assert.throws(() => audioPathSchema.parse("audio/clip.txt"));
-  assert.equal(
-    audioPathSchema.parse("audio/scene-1.mp3"),
-    "audio/scene-1.mp3",
-  );
+  assert.equal(audioPathSchema.parse("audio/scene-1.mp3"), "audio/scene-1.mp3");
 });
 
 test("iconPathSchema requires the icons/ prefix and svg/png extension", () => {
@@ -55,11 +53,16 @@ test("iconPathSchema requires the icons/ prefix and svg/png extension", () => {
 });
 
 function validTab(overrides: Record<string, unknown> = {}) {
-  return {id: "tab-1", title: "标题", summary: "摘要", ...overrides};
+  return { id: "tab-1", title: "标题", summary: "摘要", ...overrides };
 }
 
 function validScene(overrides: Record<string, unknown> = {}) {
-  return {id: "scene-1", subtitle: "一段不超 96 字的字幕", ...overrides};
+  return {
+    id: "scene-1",
+    subtitle: "一段不超 96 字的字幕",
+    timing: { startMs: 0, durationMs: 1000 },
+    ...overrides,
+  };
 }
 
 test("dailyStorySchema rejects a story with fewer than 2 tabs", () => {
@@ -86,11 +89,37 @@ test("dailyIntroSchema rejects an intro with fewer than 2 tabs", () => {
   assert.throws(() => dailyIntroSchema.parse(oneTabIntro));
 });
 
+test("dailyStorySchema supports scene-level overlay image scale", () => {
+  const story = {
+    id: "story-1",
+    topTitle: "栏目",
+    bottomTitle: "短标",
+    contentTitle: "完整标题",
+    tabs: [validTab({ id: "tab-1" }), validTab({ id: "tab-2" })],
+    scenes: [
+      validScene({
+        overlayImg: "images/source.png",
+        overlayImgWidth: 602,
+        overlayImgHeight: 789,
+        overlayImgScale: 1.2,
+      }),
+    ],
+  };
+
+  assert.equal(dailyStorySchema.parse(story).scenes[0].overlayImgScale, 1.2);
+  assert.throws(() =>
+    dailyStorySchema.parse({
+      ...story,
+      scenes: [validScene({ overlayImgScale: 2 })],
+    }),
+  );
+});
+
 test("resolveDailyReport parses supplied props without requiring generated data on disk", () => {
   const scene = {
     id: "scene-1",
     subtitle: "一段不超 96 字的字幕",
-    timing: {startMs: 0, durationMs: 1000},
+    timing: { startMs: 0, durationMs: 1000 },
   };
   const report = resolveDailyReport({
     theme: "light",
@@ -100,7 +129,7 @@ test("resolveDailyReport parses supplied props without requiring generated data 
       topTitle: "开场",
       bottomTitle: "开场",
       contentTitle: "今日概览",
-      tabs: [validTab({id: "tab-1"}), validTab({id: "tab-2"})],
+      tabs: [validTab({ id: "tab-1" }), validTab({ id: "tab-2" })],
       scenes: [scene],
     },
     stories: [
@@ -109,7 +138,7 @@ test("resolveDailyReport parses supplied props without requiring generated data 
         topTitle: "栏目",
         bottomTitle: "短标",
         contentTitle: "完整标题",
-        tabs: [validTab({id: "tab-1"}), validTab({id: "tab-2"})],
+        tabs: [validTab({ id: "tab-1" }), validTab({ id: "tab-2" })],
         scenes: [scene],
       },
     ],
@@ -122,6 +151,11 @@ test("resolveDailyReport parses supplied props without requiring generated data 
   });
 
   assert.equal(report.date, "2026-06-23");
+});
+
+test("hasDailyReportProps allows Remotion metadata probes with empty props", () => {
+  assert.equal(hasDailyReportProps({}), false);
+  assert.equal(hasDailyReportProps({ date: "2026-06-23", stories: [] }), true);
 });
 
 test("resolveDailyReport explains how to provide report data", () => {

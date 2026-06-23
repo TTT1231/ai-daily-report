@@ -16,7 +16,11 @@
 
 ## 怎么引用
 
-给 **scene** 加 `overlayImg` 字段（**注意：是 scene 级，不是 story 级、不是 tab 级**）：
+给 **scene** 加 `overlayImg` 字段（**注意：是 scene 级，不是 story 级、不是 tab 级**）。
+
+截图或小图建议同时填 `overlayImgWidth` / `overlayImgHeight`，值是图片文件的**原始像素宽高**，不是想让它显示成多大。渲染层会用这两个值限制小图放大；两个字段必须一起填，错填会被 `bun run check-data-json` 报出来。
+
+如果只有某一张图想再大一点或小一点，在这个 scene 上加 `overlayImgScale`，例如 `1.2`。它是人工微调的基础倍率，只影响当前图片，并会和正常的入场/聚焦动画叠加；不要去改 `SourceOverlay` 里的全局样式，否则后面的所有 overlay 图都会一起变大。
 
 ```jsonc
 {
@@ -29,13 +33,16 @@
     {
       "id": "topic-glm52-scene-1",
       "subtitle": "智谱 AI 发布 GLM 5.2，上下文窗口扩展至 128K。",
-      "overlayImg": "images/glm5.2.png"      // ← 加这一行
+      "overlayImg": "images/glm5.2.png",
+      "overlayImgWidth": 1200,
+      "overlayImgHeight": 800,
+      "overlayImgScale": 1.15
     }
   ]
 }
 ```
 
-值**必须**以 `images/` 开头（不带 `data-scheme/` 前缀），正则校验如此。
+`overlayImg` 值**必须**以 `images/` 开头（不带 `data-scheme/` 前缀），正则校验如此。
 
 ## 多张图片
 
@@ -56,19 +63,20 @@
 
 ## 渲染效果
 
-`src/AiDailyReport.tsx` 的 `SourceOverlay` 组件：scene 有 `overlayImg` 就居中显示这张图（`objectFit: contain`、圆角、阴影），并带「出现/消失 + 聚焦放大」动画；没有就什么都不显示。也就是说图片是**可选**的，不加 `overlayImg` 的 scene 就纯字幕。
+`src/AiDailyReport.tsx` 的 `SourceOverlay` 组件：scene 有 `overlayImg` 就居中显示这张图（`objectFit: contain`、圆角、阴影），并带「出现/消失 + 聚焦放大」动画；`overlayImgScale` 会作为这张图的基础倍率再叠加到动画上。没有 `overlayImg` 就什么都不显示，也就是说图片是**可选**的。
 
 ## 验证
 
 ```bash
-# 1. 校验 schema（包含 overlayImg 的正则）
-bun run check-icons
+# 1. 校验 data.json（overlayImg 路径、资源是否存在、宽高是否匹配）
+bun run check-data-json
 
-# 2. 预览看效果
+# 2. 同步 data-generate.json 后预览看效果
+bun run tts
 bun run dev
 ```
 
-如果 `check-icons` 报 `overlayImg` 不匹配正则，基本就是路径写错了（没带 `images/` 前缀，或用了不支持的格式）。
+如果 `check-data-json` 报 `overlayImg` 不匹配正则，基本就是路径写错了（没带 `images/` 前缀，或用了不支持的格式）。如果报宽高不一致，就按图片文件的真实像素改 `overlayImgWidth` / `overlayImgHeight`。
 
 ## 自动配图（rss 视觉识别）
 
@@ -76,6 +84,8 @@ bun run dev
 
 1. **提取事实**：调 `claude` 多模态识别图片内容，补充到文案。
 2. **自动配图**：判定相关后，把该图下载到 `data-scheme/images/` 并写入对应 scene 的 `overlayImg`（带原始宽高，供 `SourceOverlay` 布局用）。
+
+自动配图不会自动写 `overlayImgScale`；这个字段留给预览后的人工微调。
 
 当前实现的触发条件（`shouldAnalyze`）：默认只挑高分 Story（代码阈值为评分 ≥9）且含远程图片的条目，受 `CLAUDE_VISION_*` 的调用上限/预算控制（默认开，不看正文长短）。不满足条件的 scene 不会自动配图，用上面的手动方式补即可。
 

@@ -208,6 +208,12 @@
           "minimum": 1,
           "description": "可选。overlayImg 的原始像素高度，用于渲染时避免小图被过度放大。"
         },
+        "overlayImgScale": {
+          "type": "number",
+          "minimum": 0.5,
+          "maximum": 1.6,
+          "description": "可选。当前 scene 的图片手动微调倍率，只影响这一张 overlayImg；默认 1，会与入场/聚焦动画叠加。"
+        },
         "audioSrc": {
           "$ref": "#/$defs/audioPath",
           "description": "仅出现在 data-generate.json，由 TTS 写入的旁白音频路径。"

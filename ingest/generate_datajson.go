@@ -22,13 +22,13 @@ type DataJSON struct {
 }
 
 type DataJSONStory struct {
-	ID           string          `json:"id"`
-	TopTitle     string          `json:"topTitle"`
-	BottomTitle  string          `json:"bottomTitle"`
-	ContentTitle string          `json:"contentTitle"`
-	IntroTitle   string          `json:"introTitle,omitempty"`
-	ActiveTab    string          `json:"activeTab,omitempty"`
-	ActiveIntro  bool            `json:"activeIntro,omitempty"`
+	ID               string          `json:"id"`
+	TopTitle         string          `json:"topTitle"`
+	BottomTitle      string          `json:"bottomTitle"`
+	ContentTitle     string          `json:"contentTitle"`
+	IntroTitle       string          `json:"introTitle,omitempty"`
+	ActiveTab        string          `json:"activeTab,omitempty"`
+	ActiveIntro      bool            `json:"activeIntro,omitempty"`
 	Tabs             []DataJSONTab   `json:"tabs"`
 	Scenes           []DataJSONScene `json:"scenes"`
 	sourceGroupIndex int             `json:"-"` // 本 Story 来自 groups 的下标，供 vision-off 候选图下载定位证据来源
@@ -41,11 +41,12 @@ type DataJSONTab struct {
 }
 
 type DataJSONScene struct {
-	ID               string `json:"id"`
-	Subtitle         string `json:"subtitle"`
-	OverlayImg       string `json:"overlayImg,omitempty"`
-	OverlayImgWidth  int    `json:"overlayImgWidth,omitempty"`
-	OverlayImgHeight int    `json:"overlayImgHeight,omitempty"`
+	ID               string  `json:"id"`
+	Subtitle         string  `json:"subtitle"`
+	OverlayImg       string  `json:"overlayImg,omitempty"`
+	OverlayImgWidth  int     `json:"overlayImgWidth,omitempty"`
+	OverlayImgHeight int     `json:"overlayImgHeight,omitempty"`
+	OverlayImgScale  float64 `json:"overlayImgScale,omitempty"`
 }
 
 // defaultDataJSONPath 确定 data.json 输出路径：优先用 REPORT_DATA_PATH 环境变量，否则用项目根目录下的 data-scheme/data.json。

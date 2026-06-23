@@ -179,6 +179,9 @@ function validateOverlayImageDimensions(scene, scenePath, errors) {
     if (scene.overlayImgWidth || scene.overlayImgHeight) {
       errors.push(`${scenePath}.overlayImg: is required when dimensions are set`);
     }
+    if (scene.overlayImgScale !== undefined) {
+      errors.push(`${scenePath}.overlayImg: is required when scale is set`);
+    }
     return;
   }
 

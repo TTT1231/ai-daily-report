@@ -3,6 +3,7 @@
 ## Paths
 
 - Source package: `data-scheme/data-generate.json`
+- Optional raw package for manual stories: `data-scheme/data.json`
 - Icons: `data-scheme/icons/`
 - Icon field format: `icons/{storyId}-{tabId}.svg`
 - Intro uses `intro` as the story ID.
@@ -14,7 +15,7 @@
 - Regenerate an icon when its title, meaning, or report theme changed, the file is missing, or quality
   is inadequate.
 - Update only tab `icon` fields. Do not change unrelated generated data.
-- Do not modify `data-scheme/data.json`.
+- Default to editing `data-generate.json` only. When a story was manually added or replaced in `data.json`, copy the same `icon` fields into that raw story so future `bun run tts` runs preserve the icons.
 - Preserve two-space JSON indentation.
 - Remove icon files that are no longer referenced.
 
