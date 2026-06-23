@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 96" fill="none">
+  <!-- swap/exchange arrows for model swap -->
+  <path d="M20 40Q28 30 36 40" stroke="#D97706" stroke-width="4" fill="none" stroke-linecap="round" stroke-linejoin="round" />
+  <path d="M26 40L32 34L38 40" stroke="#D97706" stroke-width="3" fill="none" stroke-linecap="round" />
+  <path d="M76 56Q68 66 60 56" stroke="#7C3AED" stroke-width="4" fill="none" stroke-linecap="round" stroke-linejoin="round" />
+  <path d="M70 56L64 62L58 56" stroke="#7C3AED" stroke-width="3" fill="none" stroke-linecap="round" />
+  <!-- swapped boxes -->
+  <rect x="18" y="44" width="20" height="16" rx="3" fill="#D97706" opacity="0.6" />
+  <rect x="58" y="32" width="20" height="16" rx="3" fill="#7C3AED" opacity="0.6" />
+  <!-- central node -->
+  <circle cx="48" cy="48" r="10" fill="#1D4ED8" />
+  <path d="M44 46L46 52L52 44L50 46Z" fill="#FBBF24" />
+</svg>

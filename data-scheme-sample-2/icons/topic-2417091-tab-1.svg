@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 96" fill="none">
+  <!-- power off / shutdown for model deprecation -->
+  <circle cx="48" cy="48" r="28" stroke="#E11D48" stroke-width="5" fill="none" />
+  <path d="M48 30V50" stroke="#E11D48" stroke-width="5" stroke-linecap="round" />
+  <!-- power arc -->
+  <path d="M40 44Q44 36 48 30Q52 36 56 44" stroke="#FBBF24" stroke-width="4" stroke-linecap="round" />
+  <!-- X overlay -->
+  <path d="M34 34L62 62" stroke="#E11D48" stroke-width="4" stroke-linecap="round" />
+  <path d="M62 34L34 62" stroke="#E11D48" stroke-width="4" stroke-linecap="round" opacity="0.3" />
+</svg>

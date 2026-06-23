@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 96" fill="none">
+  <!-- clock with reset arrow for quota reset -->
+  <circle cx="48" cy="48" r="28" fill="#1D4ED8" />
+  <circle cx="48" cy="48" r="24" fill="#2563EB" />
+  <!-- clock hands -->
+  <path d="M48 26V48L60 54" stroke="#FBBF24" stroke-width="4" stroke-linecap="round" />
+  <!-- reset arrow around clock -->
+  <path d="M80 38Q84 44 84 52Q84 68 72 74" stroke="#06B6D4" stroke-width="4" fill="none" stroke-linecap="round" />
+  <path d="M72 62L72 76L78 70" stroke="#06B6D4" stroke-width="3" fill="none" stroke-linecap="round" stroke-linejoin="round" />
+  <!-- bell for announcement -->
+  <path d="M28 70Q28 54 32 52Q36 50 36 44H52Q52 50 56 52Q60 54 60 70H28Z" fill="#F59E0B" />
+  <circle cx="44" cy="72" r="3" fill="#D97706" />
+</svg>

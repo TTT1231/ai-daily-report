@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 96" fill="none">
+  <!-- sale tag 50% off -->
+  <path d="M12 24L40 20L84 64L56 84L12 24Z" fill="#E11D48" />
+  <path d="M40 20L84 64L78 70L36 28Z" fill="#F43F5E" />
+  <circle cx="36" cy="36" r="4" fill="#1D4ED8" />
+  <!-- 50% text -->
+  <text x="48" y="60" text-anchor="middle" font-family="system-ui, sans-serif" font-size="18" font-weight="800" fill="#FFFFFF">50</text>
+  <text x="60" y="60" font-family="system-ui, sans-serif" font-size="14" font-weight="700" fill="#FFFFFF">%</text>
+  <!-- clock icon small -->
+  <circle cx="64" cy="26" r="10" fill="#FBBF24" />
+  <path d="M64 22V26L68 30" stroke="#CA8A04" stroke-width="2" stroke-linecap="round" />
+</svg>

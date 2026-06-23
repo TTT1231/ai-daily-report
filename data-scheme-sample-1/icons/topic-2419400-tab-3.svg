@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 96" fill="none">
+  <!-- three diverse professional figures succeeding -->
+  <!-- figure 1 - teal -->
+  <circle cx="26" cy="28" r="7" fill="#0D9488" />
+  <path d="M18 60V46C18 40 34 40 34 46V60" fill="#14B8A6" />
+  <!-- figure 2 - violet -->
+  <circle cx="48" cy="22" r="7" fill="#7C3AED" />
+  <path d="M40 60V40C40 34 56 34 56 40V60" fill="#8B5CF6" />
+  <!-- figure 3 - rose -->
+  <circle cx="70" cy="28" r="7" fill="#E11D48" />
+  <path d="M62 60V46C62 40 78 40 78 46V60" fill="#F43F5E" />
+  <!-- checkmarks above each -->
+  <path d="M20 14L24 18L30 10" stroke="#059669" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" fill="none" />
+  <path d="M42 8L46 12L52 4" stroke="#059669" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" fill="none" />
+  <path d="M64 14L68 18L74 10" stroke="#059669" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" fill="none" />
+</svg>

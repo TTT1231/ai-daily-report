@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 96" fill="none">
+  <!-- locked voting rights - lock on document -->
+  <!-- document -->
+  <rect x="20" y="16" width="48" height="60" rx="4" fill="#1E40AF" />
+  <rect x="20" y="16" width="48" height="14" rx="4" fill="#2563EB" />
+  <line x1="28" y1="24" x2="60" y2="24" stroke="#93C5FD" stroke-width="2" stroke-linecap="round" />
+  <!-- document lines -->
+  <rect x="28" y="38" width="32" height="4" rx="2" fill="#3B82F6" />
+  <rect x="28" y="48" width="24" height="4" rx="2" fill="#3B82F6" />
+  <rect x="28" y="58" width="28" height="4" rx="2" fill="#3B82F6" />
+  <!-- lock -->
+  <rect x="36" y="56" width="16" height="16" rx="3" fill="#DC2626" />
+  <path d="M40 56V48C40 44 48 44 48 48V56" stroke="#DC2626" stroke-width="4" fill="none" stroke-linecap="round" />
+  <circle cx="44" cy="64" r="2" fill="#FCA5A5" />
+  <!-- crossed-out vote symbol -->
+  <path d="M68 30L82 44" stroke="#DC2626" stroke-width="4" stroke-linecap="round" />
+  <rect x="70" y="28" width="10" height="18" rx="2" stroke="#DC2626" stroke-width="3" fill="none" opacity="0.6" />
+</svg>

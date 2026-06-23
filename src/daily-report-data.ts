@@ -155,3 +155,16 @@ export type DailyOutro = z.infer<typeof dailyOutroSchema>;
 export type DailyReport = z.infer<typeof dailyReportSchema>;
 
 export const dailyReport: DailyReport = dailyReportSchema.parse(reportJson);
+
+export const resolveDailyReport = (input: unknown): DailyReport => {
+  if (
+    input &&
+    typeof input === "object" &&
+    "date" in input &&
+    "stories" in input
+  ) {
+    return dailyReportSchema.parse(input);
+  }
+
+  return dailyReport;
+};

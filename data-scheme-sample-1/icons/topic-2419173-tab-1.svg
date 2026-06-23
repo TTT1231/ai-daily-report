@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 96" fill="none">
+  <!-- rocket + code for launch & open source -->
+  <!-- code brackets -->
+  <path d="M24 24L14 48L24 72" stroke="#0891B2" stroke-width="5" fill="none" stroke-linecap="round" stroke-linejoin="round" />
+  <path d="M54 24L64 48L54 72" stroke="#0891B2" stroke-width="5" fill="none" stroke-linecap="round" stroke-linejoin="round" />
+  <!-- rocket -->
+  <path d="M36 52L34 56L30 58L42 70L44 66L42 62" fill="#E11D48" />
+  <path d="M36 52L48 28L56 40L50 44L42 62L36 52Z" fill="#F43F5E" />
+  <circle cx="42" cy="52" r="4" fill="#FBBF24" />
+  <!-- flame -->
+  <path d="M38 62L36 72L40 72L42 62Z" fill="#F59E0B" />
+</svg>

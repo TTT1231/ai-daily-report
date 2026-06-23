@@ -12,8 +12,10 @@ import {
 import {useMemo, type FC} from "react";
 import {
   dailyReport,
+  resolveDailyReport,
   type DailyIntro,
   type DailyOutro,
+  type DailyReport,
   type DailyScene,
   type DailyStory,
   type DailyTab,
@@ -418,13 +420,13 @@ interface Timeline {
   totalFrames: number;
 }
 
-const buildTimeline = (fps: number): Timeline => {
+const buildTimeline = (fps: number, report: DailyReport): Timeline => {
   const scenes: TimelineScene[] = [];
   const storyStarts: number[] = [];
   const stories = [
-    dailyReport.intro,
-    ...dailyReport.stories,
-    dailyReport.outro,
+    report.intro,
+    ...report.stories,
+    report.outro,
   ];
   let cursor = 0;
 
@@ -454,8 +456,10 @@ const buildTimeline = (fps: number): Timeline => {
   return { scenes, storyStarts, totalFrames: cursor };
 };
 
-export const getReportDurationInFrames = (fps: number) =>
-  buildTimeline(fps).totalFrames;
+export const getReportDurationInFrames = (
+  fps: number,
+  report: DailyReport = dailyReport,
+) => buildTimeline(fps, report).totalFrames;
 
 // ── Timeline state lookup ───────────────────────────────────────────────
 
@@ -526,15 +530,6 @@ const getTimelineState = (frame: number, timeline: Timeline) => {
 
 const getStoryDurationMs = (story: TimelineStory) =>
   story.scenes.reduce((total, scene) => total + scene.timing.durationMs, 0);
-
-// 整条时间线与每个 story 的时长都与帧无关，模块加载时算一次即可，渲染层
-// 每帧只复用，不再重复 reduce。
-const timelineStories = [
-  dailyReport.intro,
-  ...dailyReport.stories,
-  dailyReport.outro,
-];
-const storyDurationsMs = timelineStories.map(getStoryDurationMs);
 
 const isIntro = (story: TimelineStory): story is DailyIntro =>
   story.id === "intro";
@@ -1211,14 +1206,27 @@ const SourceOverlay: FC<{
 
 export type AiDailyReportProps = {
   themeOverride?: Theme;
-};
+} & Partial<DailyReport>;
 
-export const AiDailyReport: FC<AiDailyReportProps> = ({ themeOverride }) => {
+export const AiDailyReport: FC<AiDailyReportProps> = (props) => {
   const frame = useCurrentFrame();
   const { fps } = useVideoConfig();
+  const dailyReport = useMemo(() => resolveDailyReport(props), [props]);
+  const {themeOverride} = props;
   const theme = themeOverride ?? dailyReport.theme;
   const palette = themes[theme];
-  const timeline = useMemo(() => buildTimeline(fps), [fps]);
+  const timeline = useMemo(
+    () => buildTimeline(fps, dailyReport),
+    [fps, dailyReport],
+  );
+  const timelineStories = useMemo(
+    () => [dailyReport.intro, ...dailyReport.stories, dailyReport.outro],
+    [dailyReport],
+  );
+  const storyDurationsMs = useMemo(
+    () => timelineStories.map(getStoryDurationMs),
+    [timelineStories],
+  );
   const state = getTimelineState(frame, timeline);
   const {
     story,

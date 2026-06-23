@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 96" fill="none">
+  <!-- state fund special status - shield with star -->
+  <!-- shield -->
+  <path d="M48 16L20 28V46C20 62 32 74 48 80C64 74 76 62 76 46V28L48 16Z" fill="#DC2626" />
+  <path d="M48 20L24 30V46C24 60 34 70 48 76C62 70 72 60 72 46V30L48 20Z" fill="#EF4444" />
+  <!-- star (state emblem) -->
+  <path d="M48 34L51 42L60 42L53 47L56 55L48 50L40 55L43 47L36 42L45 42Z" fill="#FBBF24" />
+  <!-- special marker -->
+  <circle cx="72" cy="26" r="8" fill="#FBBF24" />
+  <path d="M68 26L71 29L75 29L72 31L73 34L70 32L67 34L68 31L65 29L69 29Z" fill="#B45309" />
+</svg>

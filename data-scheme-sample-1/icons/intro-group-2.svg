@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 96" fill="none">
+  <!-- coins stack for quota/pricing -->
+  <ellipse cx="48" cy="22" rx="20" ry="7" fill="#D97706" />
+  <rect x="28" y="22" width="40" height="14" fill="#F59E0B" />
+  <ellipse cx="48" cy="36" rx="20" ry="7" fill="#D97706" />
+  <ellipse cx="48" cy="36" rx="20" ry="7" fill="#F59E0B" opacity="0.6" />
+  <rect x="28" y="36" width="40" height="14" fill="#F59E0B" />
+  <ellipse cx="48" cy="50" rx="20" ry="7" fill="#D97706" />
+  <ellipse cx="48" cy="50" rx="20" ry="7" fill="#FBBF24" opacity="0.5" />
+  <rect x="28" y="50" width="40" height="14" fill="#F59E0B" />
+  <ellipse cx="48" cy="64" rx="20" ry="7" fill="#D97706" />
+  <ellipse cx="48" cy="64" rx="20" ry="7" fill="#FBBF24" opacity="0.3" />
+  <rect x="28" y="64" width="40" height="10" fill="#F59E0B" />
+</svg>

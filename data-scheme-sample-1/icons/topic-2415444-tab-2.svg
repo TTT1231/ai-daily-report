@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 96" fill="none">
+  <!-- magnifying glass for observation -->
+  <circle cx="44" cy="44" r="22" stroke="#1D4ED8" stroke-width="5" fill="none" />
+  <path d="M60 60L78 78" stroke="#1D4ED8" stroke-width="6" stroke-linecap="round" />
+  <!-- eye inside glass -->
+  <ellipse cx="44" cy="42" rx="10" ry="8" fill="#0891B2" />
+  <circle cx="44" cy="42" r="4" fill="#1D4ED8" />
+  <path d="M33 40Q38 34 44 34Q50 34 55 40" stroke="#1D4ED8" stroke-width="2" fill="none" stroke-linecap="round" />
+</svg>

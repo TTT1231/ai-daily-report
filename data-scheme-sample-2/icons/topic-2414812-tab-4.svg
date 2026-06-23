@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 96" fill="none">
+  <!-- multiple investors around central value -->
+  <!-- central coin -->
+  <circle cx="48" cy="48" r="16" fill="#FBBF24" />
+  <circle cx="48" cy="48" r="12" fill="#F59E0B" />
+  <text x="48" y="53" text-anchor="middle" font-family="system-ui, sans-serif" font-size="12" font-weight="800" fill="#92400E">¥</text>
+  <!-- investor figures around -->
+  <!-- top -->
+  <circle cx="48" cy="16" r="7" fill="#7C3AED" />
+  <rect x="44" y="24" width="8" height="10" rx="3" fill="#7C3AED" />
+  <!-- right -->
+  <circle cx="78" cy="38" r="7" fill="#0891B2" />
+  <rect x="74" y="46" width="8" height="10" rx="3" fill="#0891B2" />
+  <!-- bottom -->
+  <circle cx="48" cy="78" r="7" fill="#E11D48" />
+  <rect x="44" y="70" width="8" height="10" rx="3" fill="#E11D48" />
+  <!-- left -->
+  <circle cx="18" cy="38" r="7" fill="#059669" />
+  <rect x="14" y="46" width="8" height="10" rx="3" fill="#059669" />
+  <!-- top-right -->
+  <circle cx="70" cy="22" r="5" fill="#D97706" />
+  <rect x="67" y="28" width="6" height="8" rx="2" fill="#D97706" />
+  <!-- connection lines -->
+  <line x1="48" y1="23" x2="48" y2="32" stroke="#D1D5DB" stroke-width="1.5" />
+  <line x1="72" y1="40" x2="64" y2="42" stroke="#D1D5DB" stroke-width="1.5" />
+  <line x1="48" y1="70" x2="48" y2="64" stroke="#D1D5DB" stroke-width="1.5" />
+  <line x1="24" y1="40" x2="32" y2="42" stroke="#D1D5DB" stroke-width="1.5" />
+</svg>

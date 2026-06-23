@@ -448,7 +448,7 @@
 
         <div class="help-strip">
           <strong>👁️ 图片识别（按需）：</strong>
-          <span><code>CLAUDE_VISION_ENABLED=true</code> 时，Story 评分 ≥9 且含远程图片就会触发预算内识图：<code>rss</code> 调用 <code>claude --dangerously-skip-permissions -p --effort low</code> 识别图片内容，补充事实；判定相关后还会<strong>自动把该图下载到 <code>images/</code> 并写入对应 scene 的 <code>overlayImg</code></strong></span>
+          <span><code>CLAUDE_VISION_ENABLED=true</code> 时，默认优先处理高分且含远程图片的 Story，并在调用上限/预算内识图：<code>rss</code> 调用 <code>claude --dangerously-skip-permissions -p --effort low</code> 识别图片内容，补充事实；判定相关后还会<strong>自动把该图下载到 <code>images/</code> 并写入对应 scene 的 <code>overlayImg</code></strong></span>
           <span><code>CLAUDE_VISION_ENABLED=false</code> 时不识图、不写 <code>overlayImg</code>，但会把高分 Story 的候选图下载到 <code>data-scheme/images/</code>，供你手动判断后填图</span>
           <span>⚠ 自动识图要求 <strong>Claude CLI 的模型支持多模态</strong>，并<strong>配置图像分析 MCP</strong>；不具备时建议关闭 <code>CLAUDE_VISION_ENABLED</code></span>
         </div>
@@ -709,7 +709,8 @@
 <span class="folder">│   ├── images/</span>                         <span class="comment"># Scene overlayImg 图片素材</span>
 <span class="folder">│   ├── icons/</span>                          <span class="comment"># Tabs 图标素材（可选，由 generate-svg 技能产出）</span>
 <span class="folder">│   └── audio/</span>                          <span class="comment"># TTS 生成的音频</span>
-<span class="folder">├── data-scheme-sample/</span>                 <span class="comment"># 最小可运行示例数据，首次使用可复制为 data-scheme/</span>
+<span class="folder">├── data-scheme-sample-1/</span>               <span class="comment"># 完整示例，含 TTS 音频；bun run preview</span>
+<span class="folder">├── data-scheme-sample-2/</span>               <span class="comment"># 无 TTS 示例；bun run preview:notts</span>
 <span class="folder">├── data.schema.json</span>                    <span class="comment"># Raw + Generated 共用的 JSON Schema（data.json 的 $schema）</span>
 <span class="folder">├── video-layout.json</span>                   <span class="comment"># 人工维护的项目级固定布局配置，不随每次日报或视频生成变化</span>
 <span class="folder">├── video-layout.schema.json</span>            <span class="comment"># video-layout.json 的字段说明、取值范围与编辑器提示</span>

@@ -1,0 +1,996 @@
+{
+  "$schema": "../data.schema.json",
+  "theme": "light",
+  "date": "2026-06-17",
+  "stories": [
+    {
+      "id": "topic-2419173",
+      "topTitle": "模型产品",
+      "bottomTitle": "GLM-5.2",
+      "contentTitle": "GLM-5.2 上线 API 并开源，性能评测亮眼",
+      "introTitle": "GLM-5.2 上线 API 并开源，性能评测亮眼",
+      "activeTab": "topic-2419173-tab-2",
+      "activeIntro": true,
+      "tabs": [
+        {
+          "id": "topic-2419173-tab-1",
+          "title": "上线与开源",
+          "summary": "智谱发布全新旗舰模型 `GLM-5.2`，已在火山引擎方舟平台上线 API，同时于 `z.ai` 开源（开源版名称相同）。API 定价为 **输入 8 元 / 百万 tokens，输出 28 元 / 百万 tokens**，支持 **1M 上下文窗口**，长程任务表现突出。",
+          "icon": "icons/topic-2419173-tab-1.svg"
+        },
+        {
+          "id": "topic-2419173-tab-2",
+          "title": "评测排名第二",
+          "summary": "在 **Code Arena** 编程基准排行榜中，`GLM-5.2` 得分 **1595**，排名 **第二**，仅次于 Claude Fable 5（1654），超越多个 Claude 旗舰版本，表现亮眼。",
+          "icon": "icons/topic-2419173-tab-2.svg"
+        },
+        {
+          "id": "topic-2419173-tab-3",
+          "title": "角色扮演与思考强度",
+          "summary": "官方升级了 `GLM-5.2` 的 **角色扮演能力**，并引入 **思考强度** 参数，用户可通过应用或 API 调节模型推理深度，极客风格配置界面。",
+          "icon": "icons/topic-2419173-tab-3.svg"
+        },
+        {
+          "id": "topic-2419173-tab-4",
+          "title": "部署平台一览",
+          "summary": "目前 `GLM-5.2` 已上线 **火山引擎方舟**（尝鲜版）、**z.ai** 和 **魔搭社区**；阿里云暂未上线（推测尚未部署完成）。火山引擎上 `GLM-5.1` 计划于 **6月22日** 下线。",
+          "icon": "icons/topic-2419173-tab-4.svg"
+        }
+      ],
+      "scenes": [
+        {
+          "id": "topic-2419173-scene-1",
+          "subtitle": "GLM-5.2 已在火山引擎上线并同步开源，API 按量计费，支持百万级上下文窗口。",
+          "overlayImg": "images/topic-2419173-de50252f0a.webp",
+          "overlayImgWidth": 2222,
+          "overlayImgHeight": 1820,
+          "audioSrc": "audio/topic-2419173-scene-1.mp3",
+          "timing": {
+            "startMs": 3296,
+            "durationMs": 7508
+          },
+          "tts": {
+            "provider": "minimax",
+            "hash": "1090909c7d01782919c3421db3b7c97bc5746e4c50b5ec508e94fc6e0fea22cb",
+            "model": "speech-2.8-hd",
+            "voiceId": "Chinese_sweet_girl_vv1",
+            "speed": 1.18,
+            "vol": 1,
+            "pitch": 0,
+            "audioLengthMs": 7308,
+            "tailPaddingMs": 200
+          }
+        },
+        {
+          "id": "topic-2419173-scene-2",
+          "subtitle": "GLM-5.2 在 Code Arena 排行榜上获得第二，分数 1595，领先众多海外旗舰模型。",
+          "overlayImg": "images/topic-2419173-e551af32e2.jpg",
+          "overlayImgWidth": 1080,
+          "overlayImgHeight": 1080,
+          "audioSrc": "audio/topic-2419173-scene-2.mp3",
+          "timing": {
+            "startMs": 10804,
+            "durationMs": 8048
+          },
+          "tts": {
+            "provider": "minimax",
+            "hash": "72ee9fe0cbddbfdf59885a5316be19ce15512e650f8b33a2aa268a55909d3099",
+            "model": "speech-2.8-hd",
+            "voiceId": "Chinese_sweet_girl_vv1",
+            "speed": 1.18,
+            "vol": 1,
+            "pitch": 0,
+            "audioLengthMs": 7848,
+            "tailPaddingMs": 200
+          }
+        },
+        {
+          "id": "topic-2419173-scene-3",
+          "subtitle": "GLM-5.2 新增角色扮演优化与可调节思考强度，已在官方应用和 z.ai 上线。",
+          "audioSrc": "audio/topic-2419173-scene-3.mp3",
+          "timing": {
+            "startMs": 18852,
+            "durationMs": 7364
+          },
+          "tts": {
+            "provider": "minimax",
+            "hash": "250250ef793b3e3304ea97ffb6ea1095bc5b1e573d5c1923f4a2b3d10b703036",
+            "model": "speech-2.8-hd",
+            "voiceId": "Chinese_sweet_girl_vv1",
+            "speed": 1.18,
+            "vol": 1,
+            "pitch": 0,
+            "audioLengthMs": 7164,
+            "tailPaddingMs": 200
+          }
+        },
+        {
+          "id": "topic-2419173-scene-4",
+          "subtitle": "GLM-5.2 已登陆火山引擎、z.ai 和魔搭社区，阿里云待上线，GLM-5.1 将于 6 月 22 日下线。",
+          "audioSrc": "audio/topic-2419173-scene-4.mp3",
+          "timing": {
+            "startMs": 26216,
+            "durationMs": 8984
+          },
+          "tts": {
+            "provider": "minimax",
+            "hash": "f8f9757df5947d6b7963d7c1441a4b52ae68ba0e4fef94e11718ff7622e5f606",
+            "model": "speech-2.8-hd",
+            "voiceId": "Chinese_sweet_girl_vv1",
+            "speed": 1.18,
+            "vol": 1,
+            "pitch": 0,
+            "audioLengthMs": 8784,
+            "tailPaddingMs": 200
+          }
+        }
+      ]
+    },
+    {
+      "id": "topic-2415444",
+      "topTitle": "模型产品",
+      "bottomTitle": "DeepSeek 新模型",
+      "contentTitle": "DeepSeek 疑似灰度新模型，出现新思维链形式",
+      "introTitle": "DeepSeek 疑似灰度新模型，出现新思维链形式",
+      "tabs": [
+        {
+          "id": "topic-2415444-tab-1",
+          "title": "灰度测试新模型",
+          "summary": "`DeepSeek` 被观察到疑似正在灰度测试新模型，部分用户反馈出现了 **新的思维链形式**，与现有版本展示方式不同。同时当天伴有服务波动。",
+          "icon": "icons/topic-2415444-tab-1.svg"
+        },
+        {
+          "id": "topic-2415444-tab-2",
+          "title": "待观察与验证",
+          "summary": "目前新模型及思维链变化 **尚未得到官方确认**，服务波动是否与新模型上线有关也需后续验证。建议用户留意后续公告，避免误判当前稳定版本。",
+          "icon": "icons/topic-2415444-tab-2.svg"
+        }
+      ],
+      "scenes": [
+        {
+          "id": "topic-2415444-scene-1",
+          "subtitle": "DeepSeek 疑似灰度新模型，部分用户发现思维链形式变化，服务亦出现波动。",
+          "audioSrc": "audio/topic-2415444-scene-1.mp3",
+          "timing": {
+            "startMs": 35200,
+            "durationMs": 6068
+          },
+          "tts": {
+            "provider": "minimax",
+            "hash": "666beef16a5e831148381d959aa4aa8fafae1ab18437bac8f524be76aa1fa530",
+            "model": "speech-2.8-hd",
+            "voiceId": "Chinese_sweet_girl_vv1",
+            "speed": 1.18,
+            "vol": 1,
+            "pitch": 0,
+            "audioLengthMs": 5868,
+            "tailPaddingMs": 200
+          }
+        },
+        {
+          "id": "topic-2415444-scene-2",
+          "subtitle": "新模型细节与服务波动均待官方说明，用户可关注更新日志以确认变化。",
+          "audioSrc": "audio/topic-2415444-scene-2.mp3",
+          "timing": {
+            "startMs": 41268,
+            "durationMs": 6104
+          },
+          "tts": {
+            "provider": "minimax",
+            "hash": "77ccd4e96b85fb4a2b3a3b5e152bfed8067797129cb408709df12c355b5c6c64",
+            "model": "speech-2.8-hd",
+            "voiceId": "Chinese_sweet_girl_vv1",
+            "speed": 1.18,
+            "vol": 1,
+            "pitch": 0,
+            "audioLengthMs": 5904,
+            "tailPaddingMs": 200
+          }
+        }
+      ]
+    },
+    {
+      "id": "topic-2417091",
+      "topTitle": "模型产品",
+      "bottomTitle": "腾讯云下线",
+      "contentTitle": "腾讯云 DeepSeek-V3.2 将于 7 月 16 日下线",
+      "introTitle": "腾讯云 DeepSeek-V3.2 将于 7 月 16 日下线",
+      "tabs": [
+        {
+          "id": "topic-2417091-tab-1",
+          "title": "模型下线公告",
+          "summary": "腾讯云公告，`DeepSeek-V3.2` 模型将于 **2026 年 7 月 16 日 00:00** 正式下线，届时不再提供接入服务。",
+          "icon": "icons/topic-2417091-tab-1.svg"
+        },
+        {
+          "id": "topic-2417091-tab-2",
+          "title": "官方迁移建议",
+          "summary": "官方推荐用户迁移至能力更优的 `DeepSeek-V4` 系列模型，以保障服务连续性。当前距离下线还有约一年时间，建议尽早规划。",
+          "icon": "icons/topic-2417091-tab-2.svg"
+        }
+      ],
+      "scenes": [
+        {
+          "id": "topic-2417091-scene-1",
+          "subtitle": "腾讯云宣布 DeepSeek-V3.2 模型将于 2026 年 7 月 16 日凌晨下线，用户需在此之前完成迁移。",
+          "audioSrc": "audio/topic-2417091-scene-1.mp3",
+          "timing": {
+            "startMs": 47372,
+            "durationMs": 8588
+          },
+          "tts": {
+            "provider": "minimax",
+            "hash": "8f16bee1fbecef95a0c563738fe120e00046026e765ef8a1e083e4187157f77d",
+            "model": "speech-2.8-hd",
+            "voiceId": "Chinese_sweet_girl_vv1",
+            "speed": 1.18,
+            "vol": 1,
+            "pitch": 0,
+            "audioLengthMs": 8388,
+            "tailPaddingMs": 200
+          }
+        },
+        {
+          "id": "topic-2417091-scene-2",
+          "subtitle": "腾讯云建议用户将业务迁移至 DeepSeek-V4 系列模型，避免服务中断。",
+          "audioSrc": "audio/topic-2417091-scene-2.mp3",
+          "timing": {
+            "startMs": 55960,
+            "durationMs": 5744
+          },
+          "tts": {
+            "provider": "minimax",
+            "hash": "4e9056ef3c9621c87ff57c392d392523f47bff2051137bfb8099f2b5e801d66d",
+            "model": "speech-2.8-hd",
+            "voiceId": "Chinese_sweet_girl_vv1",
+            "speed": 1.18,
+            "vol": 1,
+            "pitch": 0,
+            "audioLengthMs": 5544,
+            "tailPaddingMs": 200
+          }
+        }
+      ]
+    },
+    {
+      "id": "topic-2414609",
+      "topTitle": "模型产品",
+      "bottomTitle": "DeepSeek 故障",
+      "contentTitle": "DeepSeek API/网页出现性能下降，已恢复",
+      "introTitle": "DeepSeek API/网页出现性能下降，已恢复",
+      "tabs": [
+        {
+          "id": "topic-2414609-tab-1",
+          "title": "服务性能下降",
+          "summary": "`DeepSeek` API 和网页版于当日出现性能下降，官方状态页面确认并开始修复。影响用户正常使用。",
+          "icon": "icons/topic-2414609-tab-1.svg"
+        },
+        {
+          "id": "topic-2414609-tab-2",
+          "title": "已恢复",
+          "summary": "官方状态页面显示，`DeepSeek` 服务性能下降问题已恢复，用户可正常使用 API 和网页功能。",
+          "icon": "icons/topic-2414609-tab-2.svg"
+        }
+      ],
+      "scenes": [
+        {
+          "id": "topic-2414609-scene-1",
+          "subtitle": "DeepSeek API 及网页版发生性能下降，官方已确认并启动修复。",
+          "audioSrc": "audio/topic-2414609-scene-1.mp3",
+          "timing": {
+            "startMs": 61704,
+            "durationMs": 5276
+          },
+          "tts": {
+            "provider": "minimax",
+            "hash": "25763855f107aa692a49af74ec51f74a0cd2740f1e8411ef7514fb899a8c8a41",
+            "model": "speech-2.8-hd",
+            "voiceId": "Chinese_sweet_girl_vv1",
+            "speed": 1.18,
+            "vol": 1,
+            "pitch": 0,
+            "audioLengthMs": 5076,
+            "tailPaddingMs": 200
+          }
+        },
+        {
+          "id": "topic-2414609-scene-2",
+          "subtitle": "DeepSeek 服务性能下降问题已修复，API 和网页版恢复正常。",
+          "audioSrc": "audio/topic-2414609-scene-2.mp3",
+          "timing": {
+            "startMs": 66980,
+            "durationMs": 4916
+          },
+          "tts": {
+            "provider": "minimax",
+            "hash": "d6be691f9b535bb03bd4271955b5144457a7f49a026e785f0f276d6129a7d5b9",
+            "model": "speech-2.8-hd",
+            "voiceId": "Chinese_sweet_girl_vv1",
+            "speed": 1.18,
+            "vol": 1,
+            "pitch": 0,
+            "audioLengthMs": 4716,
+            "tailPaddingMs": 200
+          }
+        }
+      ]
+    },
+    {
+      "id": "topic-2414267",
+      "topTitle": "模型产品",
+      "bottomTitle": "网页换模",
+      "contentTitle": "DeepSeek 网页版快速模式疑似更换模型或检查点",
+      "introTitle": "DeepSeek 网页版快速模式疑似更换模型或检查点",
+      "tabs": [
+        {
+          "id": "topic-2414267-tab-1",
+          "title": "疑似模型更换",
+          "summary": "论坛用户反馈 `DeepSeek` 网页版快速模式 **疑似更换了模型或检查点**，具体判断依据是思维链的变化。",
+          "icon": "icons/topic-2414267-tab-1.svg"
+        },
+        {
+          "id": "topic-2414267-tab-2",
+          "title": "思维链差异观察",
+          "summary": "用户注意到当前快速模式的思维链与之前模型不同，但更换的具体细节尚未得到官方确认，需持续关注官方公告。",
+          "icon": "icons/topic-2414267-tab-2.svg"
+        }
+      ],
+      "scenes": [
+        {
+          "id": "topic-2414267-scene-1",
+          "subtitle": "DeepSeek 网页版快速模式被用户发现思维链有变化，怀疑模型或检查点已更换。",
+          "audioSrc": "audio/topic-2414267-scene-1.mp3",
+          "timing": {
+            "startMs": 71896,
+            "durationMs": 6464
+          },
+          "tts": {
+            "provider": "minimax",
+            "hash": "91aad1b62040872cdc37e3c0836cac82b9ed510e2b3c7e6e02ee37c740011f4c",
+            "model": "speech-2.8-hd",
+            "voiceId": "Chinese_sweet_girl_vv1",
+            "speed": 1.18,
+            "vol": 1,
+            "pitch": 0,
+            "audioLengthMs": 6264,
+            "tailPaddingMs": 200
+          }
+        },
+        {
+          "id": "topic-2414267-scene-2",
+          "subtitle": "思维链的变化表明模型可能已调整，但官方尚未确认，用户需等待进一步说明。",
+          "audioSrc": "audio/topic-2414267-scene-2.mp3",
+          "timing": {
+            "startMs": 78360,
+            "durationMs": 6788
+          },
+          "tts": {
+            "provider": "minimax",
+            "hash": "688bc5c2f87c6af137069277138cc24ce48914fc6a24be96eb496189a6836e40",
+            "model": "speech-2.8-hd",
+            "voiceId": "Chinese_sweet_girl_vv1",
+            "speed": 1.18,
+            "vol": 1,
+            "pitch": 0,
+            "audioLengthMs": 6588,
+            "tailPaddingMs": 200
+          }
+        }
+      ]
+    },
+    {
+      "id": "codex-quota-reset",
+      "topTitle": "额度价格",
+      "bottomTitle": "Codex 重置",
+      "contentTitle": "Codex 额度将在 24 小时内重置",
+      "introTitle": "Codex 额度将在 24 小时内重置",
+      "tabs": [
+        {
+          "id": "codex-quota-reset-tab-1",
+          "title": "额度重置公告",
+          "summary": "Codex 负责人 Tibo 公开宣布，将在 **24 小时内** 重置所有用户的 API 额度。目前官方未给出具体触发条件或额外补偿说明。",
+          "icon": "icons/codex-quota-reset-tab-1.svg"
+        },
+        {
+          "id": "codex-quota-reset-tab-2",
+          "title": "用户应对建议",
+          "summary": "额度重置意味着当前剩余额度可能清零，用户应合理安排 API 调用计划，避免在重置前过度消耗。重置后额度恢复正常，对长线使用无负面影响。",
+          "icon": "icons/codex-quota-reset-tab-2.svg"
+        }
+      ],
+      "scenes": [
+        {
+          "id": "codex-quota-reset-scene-1",
+          "subtitle": "Codex 负责人 Tibo 确认 24 小时内重置 API 额度，用户需关注当前配额变化。",
+          "overlayImg": "images/codex-reset.png",
+          "audioSrc": "audio/codex-quota-reset-scene-1.mp3",
+          "timing": {
+            "startMs": 85148,
+            "durationMs": 7328
+          },
+          "tts": {
+            "provider": "minimax",
+            "hash": "aaf37f2f809a5ebe17233d52655778e832c64d1183df8e7a6bdd3931eb013b9e",
+            "model": "speech-2.8-hd",
+            "voiceId": "Chinese_sweet_girl_vv1",
+            "speed": 1.18,
+            "vol": 1,
+            "pitch": 0,
+            "audioLengthMs": 7128,
+            "tailPaddingMs": 200
+          }
+        },
+        {
+          "id": "codex-quota-reset-scene-2",
+          "subtitle": "建议用户在重置前按需使用，重置后 API 调用将恢复正常配额，不影响后续使用。",
+          "audioSrc": "audio/codex-quota-reset-scene-2.mp3",
+          "timing": {
+            "startMs": 92476,
+            "durationMs": 6824
+          },
+          "tts": {
+            "provider": "minimax",
+            "hash": "fea40d8f8a0fbdf01924e1d20c86caf41849601e0a141332cd875f6182eff0bc",
+            "model": "speech-2.8-hd",
+            "voiceId": "Chinese_sweet_girl_vv1",
+            "speed": 1.18,
+            "vol": 1,
+            "pitch": 0,
+            "audioLengthMs": 6624,
+            "tailPaddingMs": 200
+          }
+        }
+      ]
+    },
+    {
+      "id": "topic-2419156",
+      "topTitle": "额度价格",
+      "bottomTitle": "Kimi 额度减半",
+      "contentTitle": "Kimi Work 限时额度消耗减半",
+      "introTitle": "Kimi Work 限时额度消耗减半",
+      "tabs": [
+        {
+          "id": "topic-2419156-tab-1",
+          "title": "限时半价活动",
+          "summary": "月之暗面旗下 `Kimi Work` 推出 **额度消耗减半** 限时活动，活动截止日期为 **2026 年 6 月 30 日**。期间用户调用模型的 token 消耗只计原值的一半。",
+          "icon": "icons/topic-2419156-tab-1.svg"
+        },
+        {
+          "id": "topic-2419156-tab-2",
+          "title": "开发者成本下降",
+          "summary": "活动期间，使用 `Kimi Work` API 的开发者与用户实际支出降低一半，适合高频推理、长时间对话或批量处理场景，显著减少运营成本。",
+          "icon": "icons/topic-2419156-tab-2.svg"
+        }
+      ],
+      "scenes": [
+        {
+          "id": "topic-2419156-scene-1",
+          "subtitle": "Kimi Work 开启限时半价活动，截止 2026 年 6 月 30 日，调用模型消耗减半。",
+          "audioSrc": "audio/topic-2419156-scene-1.mp3",
+          "timing": {
+            "startMs": 99300,
+            "durationMs": 6932
+          },
+          "tts": {
+            "provider": "minimax",
+            "hash": "07a87182447442f86bff41e41c15b51cfa118f5581dd623b9816018798483fbc",
+            "model": "speech-2.8-hd",
+            "voiceId": "Chinese_sweet_girl_vv1",
+            "speed": 1.18,
+            "vol": 1,
+            "pitch": 0,
+            "audioLengthMs": 6732,
+            "tailPaddingMs": 200
+          }
+        },
+        {
+          "id": "topic-2419156-scene-2",
+          "subtitle": "开发者利用半价活动可大幅降低推理成本，适合高频调用场景。",
+          "audioSrc": "audio/topic-2419156-scene-2.mp3",
+          "timing": {
+            "startMs": 106232,
+            "durationMs": 5240
+          },
+          "tts": {
+            "provider": "minimax",
+            "hash": "9c031d434d4e743044396e27b973f5439c3ca0f9a62d5b863a652727a4b9044a",
+            "model": "speech-2.8-hd",
+            "voiceId": "Chinese_sweet_girl_vv1",
+            "speed": 1.18,
+            "vol": 1,
+            "pitch": 0,
+            "audioLengthMs": 5040,
+            "tailPaddingMs": 200
+          }
+        }
+      ]
+    },
+    {
+      "id": "topic-2416032",
+      "topTitle": "额度价格",
+      "bottomTitle": "Anthropic 诉讼",
+      "contentTitle": "Anthropic 遭集体诉讼，指控 Max 系列订阅额度缩水",
+      "introTitle": "Anthropic 遭集体诉讼，指控 Max 系列订阅额度缩水",
+      "activeTab": "topic-2416032-tab-2",
+      "tabs": [
+        {
+          "id": "topic-2416032-tab-1",
+          "title": "集体诉讼发起",
+          "summary": "消费者 Karl Kahn 于 6 月 15 日在加州北区联邦法院对 `Anthropic` 发起集体诉讼，指控其 `Max` 系列高级订阅计划的实际使用额度远低于宣传标准。",
+          "icon": "icons/topic-2416032-tab-1.svg"
+        },
+        {
+          "id": "topic-2416032-tab-2",
+          "title": "宣传与实际差异",
+          "summary": "诉状指出，`Max 5x`（100美元/月）和 `Max 20x`（200美元/月）宣传的调用上限分别为 Pro 的 **5 倍与 20 倍**，但 Anthropic 在 2025 年 7 月的邮件中透露的每周使用预期实际比例严重不符。",
+          "icon": "icons/topic-2416032-tab-2.svg"
+        },
+        {
+          "id": "topic-2416032-tab-3",
+          "title": "用户实际体验",
+          "summary": "原告 Kahn 订阅 200 美元的 `Max 20x` 用于高强度编程，数周内频繁触发每周限制，一次 5 小时连续编码就消耗 **15%** 的每周额度，导致工作频繁中断或需额外付费。",
+          "icon": "icons/topic-2416032-tab-3.svg"
+        },
+        {
+          "id": "topic-2416032-tab-4",
+          "title": "索赔与后续",
+          "summary": "起诉书指控 `Anthropic` 的宣传构成欺诈，要求退还高阶订阅费用并对受影响用户进行赔偿。案件仍在审理中。",
+          "icon": "icons/topic-2416032-tab-4.svg"
+        }
+      ],
+      "scenes": [
+        {
+          "id": "topic-2416032-scene-1",
+          "subtitle": "Anthropic 遭用户集体诉讼，指控 Max 5x 和 Max 20x 订阅计划实际可用额度与宣传严重不符。",
+          "audioSrc": "audio/topic-2416032-scene-1.mp3",
+          "timing": {
+            "startMs": 111472,
+            "durationMs": 8444
+          },
+          "tts": {
+            "provider": "minimax",
+            "hash": "82e961487cb8b42b5f2e3f97fa343cf473b3feeb0d6b95c9cf544346d8bc83fa",
+            "model": "speech-2.8-hd",
+            "voiceId": "Chinese_sweet_girl_vv1",
+            "speed": 1.18,
+            "vol": 1,
+            "pitch": 0,
+            "audioLengthMs": 8244,
+            "tailPaddingMs": 200
+          }
+        },
+        {
+          "id": "topic-2416032-scene-2",
+          "subtitle": "Anthropic 被指 Max 系列宣传的 5 倍与 20 倍调用上限与实际每周使用量预期严重不符。",
+          "audioSrc": "audio/topic-2416032-scene-2.mp3",
+          "timing": {
+            "startMs": 119916,
+            "durationMs": 6644
+          },
+          "tts": {
+            "provider": "minimax",
+            "hash": "8514d2c1a8272bd908ce67b1adaaac69c86f1df9d2b0f3caaea86f4c0a51122a",
+            "model": "speech-2.8-hd",
+            "voiceId": "Chinese_sweet_girl_vv1",
+            "speed": 1.18,
+            "vol": 1,
+            "pitch": 0,
+            "audioLengthMs": 6444,
+            "tailPaddingMs": 200
+          }
+        },
+        {
+          "id": "topic-2416032-scene-3",
+          "subtitle": "原告在 Max 20x 计划下频繁触达使用上限，一次 5 小时编程消耗 15% 周额度，严重影响使用体验。",
+          "audioSrc": "audio/topic-2416032-scene-3.mp3",
+          "timing": {
+            "startMs": 126560,
+            "durationMs": 8408
+          },
+          "tts": {
+            "provider": "minimax",
+            "hash": "b4eb4f9258e8d2c1faada853224784c97179a3e1e8063de471cb3986cc3d124e",
+            "model": "speech-2.8-hd",
+            "voiceId": "Chinese_sweet_girl_vv1",
+            "speed": 1.18,
+            "vol": 1,
+            "pitch": 0,
+            "audioLengthMs": 8208,
+            "tailPaddingMs": 200
+          }
+        },
+        {
+          "id": "topic-2416032-scene-4",
+          "subtitle": "集体诉讼要求 Anthropic 退还 Max 系列订阅费用并赔偿受影响的用户，案件尚待法院审理。",
+          "audioSrc": "audio/topic-2416032-scene-4.mp3",
+          "timing": {
+            "startMs": 134968,
+            "durationMs": 7004
+          },
+          "tts": {
+            "provider": "minimax",
+            "hash": "8084ce4290c121c663457e0af9de14fa781467ea96e726a3e30a988d34acce17",
+            "model": "speech-2.8-hd",
+            "voiceId": "Chinese_sweet_girl_vv1",
+            "speed": 1.18,
+            "vol": 1,
+            "pitch": 0,
+            "audioLengthMs": 6804,
+            "tailPaddingMs": 200
+          }
+        }
+      ]
+    },
+    {
+      "id": "topic-2419400",
+      "topTitle": "行业动态",
+      "bottomTitle": "Anthropic 观点",
+      "contentTitle": "Anthropic：编程 Agent 成败关键在于领域知识",
+      "introTitle": "Anthropic：编程 Agent 成败关键在于领域知识",
+      "activeTab": "topic-2419400-tab-2",
+      "tabs": [
+        {
+          "id": "topic-2419400-tab-1",
+          "title": "研究结论：领域知识决定成败",
+          "summary": "Anthropic 发布基于约 **40 万次** `Claude Code` 会话的研究，发现编程能力不再是关键，**领域专业知识**才是决定任务成功率的首要因素。用户负责 70% 的规划决策（做什么），`Claude` 负责 80% 的执行决策（怎么做）。",
+          "icon": "icons/topic-2419400-tab-1.svg"
+        },
+        {
+          "id": "topic-2419400-tab-2",
+          "title": "专家与新手的效率鸿沟",
+          "summary": "专家级会话中单条指令平均触发 **12 个动作**和 **3200 词**输出，而新手仅触发约 5 个动作和 600 词输出，差距超过 **5 倍**。但中级用户与专家差距不大，表明具备基本领域工作能力即可获得接近专家的效果。",
+          "icon": "icons/topic-2419400-tab-2.svg"
+        },
+        {
+          "id": "topic-2419400-tab-3",
+          "title": "各职业群体成功表现",
+          "summary": "**所有主要职业群体**的成功率与软件工程师差距均在 7 个百分点以内，管理岗位的验证成功率甚至略高于软件工程岗位。专家级会话成功率是新手级的 **两倍以上**，而新手在困难时放弃率高达 19%，远高于其他层级的 5%–7%。",
+          "icon": "icons/topic-2419400-tab-3.svg"
+        },
+        {
+          "id": "topic-2419400-tab-4",
+          "title": "使用模式变化与价值增长",
+          "summary": "七个月内：调试类会话占比从 **33% 降至 19%**，而软件部署运维、数据分析、文档写作类会话占比明显上升。按自由职业市场估算，会话平均任务价值增长了约 **25%**。Anthropic 指出研究具有初步性，无法追踪最终实际使用情况。",
+          "icon": "icons/topic-2419400-tab-4.svg"
+        }
+      ],
+      "scenes": [
+        {
+          "id": "topic-2419400-scene-1",
+          "subtitle": "Anthropic 最新研究指出，在编程 Agent 辅助下，用户的领域专业知识比编程背景更重要，用户做规划、AI 做执行的分工模式已成型。",
+          "audioSrc": "audio/topic-2419400-scene-1.mp3",
+          "timing": {
+            "startMs": 141972,
+            "durationMs": 10820
+          },
+          "tts": {
+            "provider": "minimax",
+            "hash": "8000a769adf673acc99a3b3bb4b3b413e57bab51d9420e4c8050a60ba61dccb2",
+            "model": "speech-2.8-hd",
+            "voiceId": "Chinese_sweet_girl_vv1",
+            "speed": 1.18,
+            "vol": 1,
+            "pitch": 0,
+            "audioLengthMs": 10620,
+            "tailPaddingMs": 200
+          }
+        },
+        {
+          "id": "topic-2419400-scene-2",
+          "subtitle": "研究显示，领域专家使用 Claude Code 的效率是新手五倍以上，但中级用户与专家差距不大，入门门槛实际较低。",
+          "audioSrc": "audio/topic-2419400-scene-2.mp3",
+          "timing": {
+            "startMs": 152792,
+            "durationMs": 8660
+          },
+          "tts": {
+            "provider": "minimax",
+            "hash": "634816a65943004f7515aac7e0435217c37b6b9a63063ed927a81ec0bfd343f4",
+            "model": "speech-2.8-hd",
+            "voiceId": "Chinese_sweet_girl_vv1",
+            "speed": 1.18,
+            "vol": 1,
+            "pitch": 0,
+            "audioLengthMs": 8460,
+            "tailPaddingMs": 200
+          }
+        },
+        {
+          "id": "topic-2419400-scene-3",
+          "subtitle": "管理岗位等非编程职业使用 Claude Code 的验证成功率反而超过软件工程师，说明领域知识比代码能力更关键，新手放弃率较高。",
+          "audioSrc": "audio/topic-2419400-scene-3.mp3",
+          "timing": {
+            "startMs": 161452,
+            "durationMs": 10244
+          },
+          "tts": {
+            "provider": "minimax",
+            "hash": "f60c637fa8d1e246406ab782428050b163419c21663ed5fb085241730bd92212",
+            "model": "speech-2.8-hd",
+            "voiceId": "Chinese_sweet_girl_vv1",
+            "speed": 1.18,
+            "vol": 1,
+            "pitch": 0,
+            "audioLengthMs": 10044,
+            "tailPaddingMs": 200
+          }
+        },
+        {
+          "id": "topic-2419400-scene-4",
+          "subtitle": "用户使用重心从调试转向部署运维、数据分析等更高价值任务，平均单次会话价值七个月内增长约25%，但研究结论仍待验证。",
+          "audioSrc": "audio/topic-2419400-scene-4.mp3",
+          "timing": {
+            "startMs": 171696,
+            "durationMs": 10964
+          },
+          "tts": {
+            "provider": "minimax",
+            "hash": "90f9e0d74b34d09dcab3622dc471cd1a5913770f5033d9724234d6f875d3c7bd",
+            "model": "speech-2.8-hd",
+            "voiceId": "Chinese_sweet_girl_vv1",
+            "speed": 1.18,
+            "vol": 1,
+            "pitch": 0,
+            "audioLengthMs": 10764,
+            "tailPaddingMs": 200
+          }
+        }
+      ]
+    },
+    {
+      "id": "topic-2414812",
+      "topTitle": "行业动态",
+      "bottomTitle": "DeepSeek 融资",
+      "contentTitle": "DeepSeek 完成超 70 亿美元融资，梁文锋或出资 200 亿",
+      "introTitle": "DeepSeek 完成超 70 亿美元融资，梁文锋或出资 200 亿",
+      "activeTab": "topic-2414812-tab-2",
+      "tabs": [
+        {
+          "id": "topic-2414812-tab-1",
+          "title": "中国 AI 最大单轮融资",
+          "summary": "DeepSeek 完成超 **70 亿美元**（约 510 亿元）融资，投后估值接近 **4000 亿元**，创中国 AI 行业单轮融资最高纪录。创始人梁文锋出资约 **200 亿元**，为本轮最大单一出资方；腾讯出资约 100 亿元，宁德时代体系出资约 50 亿元。",
+          "icon": "icons/topic-2414812-tab-1.svg"
+        },
+        {
+          "id": "topic-2414812-tab-2",
+          "title": "非常规交易结构：无投票权",
+          "summary": "外部投资者（国家 AI 产业投资基金除外）只享有经济权益和财务知情权，**没有投票权**，且被锁定 **5 年**不得退出。梁文锋通过其控制的有限合伙企业继续掌握公司控制权。",
+          "icon": "icons/topic-2414812-tab-2.svg"
+        },
+        {
+          "id": "topic-2414812-tab-3",
+          "title": "国家基金特殊地位",
+          "summary": "国家人工智能产业投资基金出资约 **9.8 亿元**，直接注资 DeepSeek，不受股权锁定期约束，并享有公司投票权。其他外部投资者仅获得未来融资的优先投资权。",
+          "icon": "icons/topic-2414812-tab-3.svg"
+        },
+        {
+          "id": "topic-2414812-tab-4",
+          "title": "融资参与方与金额",
+          "summary": "除梁文锋和腾讯外，**京东、网易、IDG 资本**各出资约 30 亿元，**正心谷投资、拾象科技**各出资约 15 亿元，**Monolith 砺思资本**参与出资。所有投资者合计约 75 亿美元。",
+          "icon": "icons/topic-2414812-tab-4.svg"
+        }
+      ],
+      "scenes": [
+        {
+          "id": "topic-2414812-scene-1",
+          "subtitle": "DeepSeek 完成中国 AI 行业最大单轮融资，规模超 70 亿美元，创始人梁文锋个人出资 200 亿元，腾讯、宁德时代等巨头入局。",
+          "audioSrc": "audio/topic-2414812-scene-1.mp3",
+          "timing": {
+            "startMs": 182660,
+            "durationMs": 10388
+          },
+          "tts": {
+            "provider": "minimax",
+            "hash": "4b610d2d5a3c4e359a53ee69c92af95ca37b8fc7130921a5d6f60cdc803d9b44",
+            "model": "speech-2.8-hd",
+            "voiceId": "Chinese_sweet_girl_vv1",
+            "speed": 1.18,
+            "vol": 1,
+            "pitch": 0,
+            "audioLengthMs": 10188,
+            "tailPaddingMs": 200
+          }
+        },
+        {
+          "id": "topic-2414812-scene-2",
+          "subtitle": "本轮融资采用非标准架构，腾讯、京东等投资者无投票权且被锁定五年，梁文锋通过有限合伙保持绝对控制权。",
+          "audioSrc": "audio/topic-2414812-scene-2.mp3",
+          "timing": {
+            "startMs": 193048,
+            "durationMs": 9884
+          },
+          "tts": {
+            "provider": "minimax",
+            "hash": "99082ea2477f430929c7ab5535bd53a500d3de2539513d2b5ecabfb2adf4befd",
+            "model": "speech-2.8-hd",
+            "voiceId": "Chinese_sweet_girl_vv1",
+            "speed": 1.18,
+            "vol": 1,
+            "pitch": 0,
+            "audioLengthMs": 9684,
+            "tailPaddingMs": 200
+          }
+        },
+        {
+          "id": "topic-2414812-scene-3",
+          "subtitle": "国家人工智能产业投资基金获得特殊待遇：不受锁定、直接注资 DeepSeek 并享有投票权，与其他外部投资者形成鲜明对比。",
+          "audioSrc": "audio/topic-2414812-scene-3.mp3",
+          "timing": {
+            "startMs": 202932,
+            "durationMs": 9704
+          },
+          "tts": {
+            "provider": "minimax",
+            "hash": "5fc952ad320fd5d432e5b177522867753261d52bc9d38557b75b7b925f650c26",
+            "model": "speech-2.8-hd",
+            "voiceId": "Chinese_sweet_girl_vv1",
+            "speed": 1.18,
+            "vol": 1,
+            "pitch": 0,
+            "audioLengthMs": 9504,
+            "tailPaddingMs": 200
+          }
+        },
+        {
+          "id": "topic-2414812-scene-4",
+          "subtitle": "京东、网易、IDG 各出资 30 亿，正心谷与拾象各 15 亿，Monolith 砺思等跟投，本轮共有十余家投资方。",
+          "audioSrc": "audio/topic-2414812-scene-4.mp3",
+          "timing": {
+            "startMs": 212636,
+            "durationMs": 9200
+          },
+          "tts": {
+            "provider": "minimax",
+            "hash": "e00167f91587ec4292273396e4fced23d341a1f89de9513653f69460f276673b",
+            "model": "speech-2.8-hd",
+            "voiceId": "Chinese_sweet_girl_vv1",
+            "speed": 1.18,
+            "vol": 1,
+            "pitch": 0,
+            "audioLengthMs": 9000,
+            "tailPaddingMs": 200
+          }
+        }
+      ]
+    },
+    {
+      "id": "topic-2418114",
+      "topTitle": "行业动态",
+      "bottomTitle": "ChatGPT 份额",
+      "contentTitle": "ChatGPT 全球市场份额跌破 50%",
+      "introTitle": "ChatGPT 全球市场份额跌破 50%",
+      "tabs": [
+        {
+          "id": "topic-2418114-tab-1",
+          "title": "ChatGPT 全球份额跌破 50%",
+          "summary": "据 TechCrunch 报道，`ChatGPT` 全球市场份额首次跌破 **50%**，从今年 1 月的 50% 以上降至 **5 月底的 46.4%**。不过仍以 **11 亿**月活用户保持全球最受欢迎 AI 助手地位。",
+          "icon": "icons/topic-2418114-tab-1.svg"
+        },
+        {
+          "id": "topic-2418114-tab-2",
+          "title": "竞争对手分食市场",
+          "summary": "`Google Gemini` 月活达 **6.62 亿**，`Claude` 月活 **2.45 亿**，两者合计份额已接近 ChatGPT。竞争加剧意味着用户选择增多，OpenAI 需加速差异化以保持优势。",
+          "icon": "icons/topic-2418114-tab-2.svg"
+        }
+      ],
+      "scenes": [
+        {
+          "id": "topic-2418114-scene-1",
+          "subtitle": "ChatGPT 全球市场份额从 1 月的 50% 以上降至 5 月底的 46.4%，但仍以 11 亿月活领先全球。",
+          "audioSrc": "audio/topic-2418114-scene-1.mp3",
+          "timing": {
+            "startMs": 221836,
+            "durationMs": 8840
+          },
+          "tts": {
+            "provider": "minimax",
+            "hash": "943295e0a99f8ed5665a116fb4729b89274b90b18d6ec5daefd68c3bcb75328d",
+            "model": "speech-2.8-hd",
+            "voiceId": "Chinese_sweet_girl_vv1",
+            "speed": 1.18,
+            "vol": 1,
+            "pitch": 0,
+            "audioLengthMs": 8640,
+            "tailPaddingMs": 200
+          }
+        },
+        {
+          "id": "topic-2418114-scene-2",
+          "subtitle": "Gemini 与 Claude 月活合计超 9 亿，正在蚕食 ChatGPT 份额，AI 助手市场竞争格局发生明显变化。",
+          "audioSrc": "audio/topic-2418114-scene-2.mp3",
+          "timing": {
+            "startMs": 230676,
+            "durationMs": 8516
+          },
+          "tts": {
+            "provider": "minimax",
+            "hash": "6d5e34fd4a8c1d991000396141b31c85b43c78cc24765a577228da0d06b83fa1",
+            "model": "speech-2.8-hd",
+            "voiceId": "Chinese_sweet_girl_vv1",
+            "speed": 1.18,
+            "vol": 1,
+            "pitch": 0,
+            "audioLengthMs": 8316,
+            "tailPaddingMs": 200
+          }
+        }
+      ]
+    }
+  ],
+  "intro": {
+    "id": "intro",
+    "topTitle": "Intro",
+    "bottomTitle": "Intro",
+    "contentTitle": "2026-06-17 资讯概览",
+    "tabs": [
+      {
+        "id": "intro-group-1",
+        "title": "模型产品",
+        "summary": "GLM-5.2 上线 API 并开源，性能评测亮眼\nDeepSeek 疑似灰度新模型，出现新思维链形式\n腾讯云 DeepSeek-V3.2 将于 7 月 16 日下线\nDeepSeek API/网页出现性能下降，已恢复\nDeepSeek 网页版快速模式疑似更换模型或检查点",
+        "icon": "icons/intro-group-1.svg"
+      },
+      {
+        "id": "intro-group-2",
+        "title": "额度价格",
+        "summary": "Codex 额度将在 24 小时内重置\nKimi Work 限时额度消耗减半\nAnthropic 遭集体诉讼，指控 Max 系列订阅额度缩水",
+        "icon": "icons/intro-group-2.svg"
+      },
+      {
+        "id": "intro-group-3",
+        "title": "行业动态",
+        "summary": "Anthropic：编程 Agent 成败关键在于领域知识\nDeepSeek 完成超 70 亿美元融资，梁文锋或出资 200 亿\nChatGPT 全球市场份额跌破 50%",
+        "icon": "icons/intro-group-3.svg"
+      }
+    ],
+    "activeTab": "intro-group-1",
+    "scenes": [
+      {
+        "id": "intro-greeting",
+        "subtitle": "大家中午好，欢迎收看今天的 AI 日报。",
+        "audioSrc": "audio/intro-greeting.mp3",
+        "timing": {
+          "startMs": 0,
+          "durationMs": 3296
+        },
+        "tts": {
+          "provider": "minimax",
+          "hash": "d863b1102d1a072faa592d79986cbbeb353a4086f699e6dcec61c2ea09fe4a85",
+          "model": "speech-2.8-hd",
+          "voiceId": "Chinese_sweet_girl_vv1",
+          "speed": 1.18,
+          "vol": 1,
+          "pitch": 0,
+          "audioLengthMs": 3096,
+          "tailPaddingMs": 200
+        }
+      }
+    ]
+  },
+  "outro": {
+    "id": "outro",
+    "topTitle": "结语",
+    "bottomTitle": "结语",
+    "scenes": [
+      {
+        "id": "outro-ending",
+        "subtitle": "今天的资讯播送完了，明天见！",
+        "audioSrc": "audio/outro-ending.mp3",
+        "timing": {
+          "startMs": 239192,
+          "durationMs": 2612
+        },
+        "tts": {
+          "provider": "minimax",
+          "hash": "b7341ed5cce5ef0a6d83c601908f19c25139c196371866a5b282435f6a8e3931",
+          "model": "speech-2.8-hd",
+          "voiceId": "Chinese_sweet_girl_vv1",
+          "speed": 1.18,
+          "vol": 1,
+          "pitch": 0,
+          "audioLengthMs": 2412,
+          "tailPaddingMs": 200
+        }
+      }
+    ]
+  }
+}

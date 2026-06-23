@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 96" fill="none">
+  <!-- brain with thinking dial for role-play & thinking intensity -->
+  <!-- brain -->
+  <path d="M48 20C36 20 24 28 24 42C24 52 30 58 36 60V70H48H60V60C66 58 72 52 72 42C72 28 60 20 48 20Z" fill="#A21CAF" />
+  <path d="M36 34Q42 28 48 34Q54 28 60 34" stroke="#E879F9" stroke-width="3" fill="none" stroke-linecap="round" />
+  <!-- dial/slider -->
+  <circle cx="64" cy="64" r="16" fill="#1D4ED8" />
+  <path d="M64 52V56" stroke="#FBBF24" stroke-width="3" stroke-linecap="round" />
+  <path d="M56 58L59 61" stroke="#FBBF24" stroke-width="2.5" stroke-linecap="round" />
+  <path d="M72 58L69 61" stroke="#FBBF24" stroke-width="2.5" stroke-linecap="round" />
+  <circle cx="64" cy="64" r="4" fill="#FBBF24" />
+  <path d="M64 64L68 74" stroke="#FBBF24" stroke-width="3" stroke-linecap="round" />
+</svg>

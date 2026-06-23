@@ -36,6 +36,10 @@ biliup/*.zip
 
 # TTS generated voice assets for the current daily-report package.
 data-scheme-*
+!data-scheme-sample-1/
+!data-scheme-sample-1/**
+!data-scheme-sample-2/
+!data-scheme-sample-2/**
 data-scheme
 daily-dates
 
@@ -43,3 +47,5 @@ daily-dates
 .playwright-*
 linuxdo-rss.exe
 ingest/rss-state.json
+
+.superpowers

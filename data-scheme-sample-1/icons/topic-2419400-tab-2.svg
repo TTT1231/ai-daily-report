@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 96" fill="none">
+  <!-- expert vs novice gap - diverging bars -->
+  <!-- novice bar (short) -->
+  <rect x="16" y="60" width="14" height="16" rx="3" fill="#D97706" />
+  <!-- expert bar (tall) -->
+  <rect x="38" y="20" width="14" height="56" rx="3" fill="#0891B2" />
+  <!-- gap indicator -->
+  <path d="M60 32L76 24" stroke="#DC2626" stroke-width="3" stroke-linecap="round" />
+  <path d="M72 20L74 30L64 28" fill="#DC2626" />
+  <!-- 5x label hint (small bars) -->
+  <rect x="66" y="52" width="6" height="24" rx="2" fill="#F59E0B" opacity="0.6" />
+  <rect x="76" y="44" width="6" height="32" rx="2" fill="#F59E0B" opacity="0.4" />
+  <rect x="86" y="36" width="6" height="40" rx="2" fill="#F59E0B" opacity="0.2" />
+</svg>

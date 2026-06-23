@@ -17,21 +17,22 @@
 # 1. 装依赖（首次）
 bun install
 
-# 2. 准备数据目录（首次可直接复制示例）
-cp -r data-scheme-sample data-scheme
-#    Windows PowerShell: Copy-Item -Recurse data-scheme-sample data-scheme
+# 2. 准备数据目录（可复制完整示例后再改）
+cp -r data-scheme-sample-1 data-scheme
+#    Windows PowerShell: Copy-Item -Recurse data-scheme-sample-1 data-scheme
 
 # 3. 编辑 data-scheme/data.json
 #    务必保证文件顶部的 $schema 指向项目根的 data.schema.json：
 #    "$schema": "../data.schema.json"
 
-# 4. 预览（会自动跑 TTS 生成 data-generate.json + 音频，带 HMR）
+# 4. 预览当前 data-scheme（会自动跑 TTS，带 HMR）
 bun run dev
 ```
 
 后续可选：
 
 - 单独生成 TTS（`dev` 没开时）：`bun run tts`
+- 只看固定示例：`bun run preview`（有 TTS）/ `bun run preview:notts`（无 TTS）
 - 出 Tab 图标：`/generate-svg`（让 agent 跑这个 skill）
 - 加图片：见 [`images.md`](./images.md)。
 - 渲染成 mp4：见 [`render-export.md`](./render-export.md)。

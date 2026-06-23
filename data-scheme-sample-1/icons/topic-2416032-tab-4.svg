@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 96" fill="none">
+  <!-- money bag for claims & compensation -->
+  <path d="M48 16C36 16 28 24 28 34H68C68 24 60 16 48 16Z" fill="#D97706" />
+  <path d="M26 34H70L66 76H30L26 34Z" fill="#F59E0B" />
+  <path d="M26 34L48 44L70 34" fill="#FBBF24" />
+  <!-- $ sign -->
+  <text x="48" y="62" text-anchor="middle" font-family="system-ui, sans-serif" font-size="26" font-weight="800" fill="#92400E">$</text>
+  <!-- tie string -->
+  <path d="M40 34Q48 42 56 34" stroke="#A16207" stroke-width="3" fill="none" stroke-linecap="round" />
+  <!-- coins falling -->
+  <ellipse cx="72" cy="26" rx="6" ry="4" fill="#FBBF24" />
+  <ellipse cx="78" cy="30" rx="5" ry="3" fill="#F59E0B" />
+</svg>

@@ -8,7 +8,8 @@
 
 - `video:render` = `tts` + `remotion render` → **直接渲成 mp4**（`out/AiDailyReport.mp4`）。日常用这个。
 - `build` = `remotion bundle` → 只**打包**（产出 `build/`），不渲染视频。
-- `dev` / `dev:studio` → Remotion Studio **预览**，不导出文件。
+- `dev` / `dev:studio` → 预览当前 `data-scheme/`。
+- `preview` / `preview:notts` → 只看固定示例（完整 TTS / 无 TTS）。
 
 想自定义渲染参数（scale / concurrency 等）就用 Remotion 的裸命令 `remotion render`（`@remotion/cli` 已经是依赖，用 `bunx` 即可，不需要全局装）。
 
@@ -28,7 +29,7 @@ bunx remotion render AiDailyReport out/AiDailyReport.mp4
 - **输出路径**：`video:render` 固定写 `out/AiDailyReport.mp4`；裸命令可自己定（目录会自动创建）。
 - 帧率与 story 间过渡帧取自 `video-timeline.json`（当前 30fps / 18 帧）、宽高取自 `video-layout.json`、时长由 `getReportDurationInFrames(fps)` 按所有 scene 的音频时长**动态**算出来。`video-timeline.json` 是时间线常量的单一事实源——渲染侧（TS）和评论/生成侧（JS）同源读取，改它即两侧同步。
 
-> 不需要传 `--props`：组件直接通过 `staticFile` 读 `data-scheme/`，没有输入 props。
+> 正片渲染不用传 `--props`；`preview` 命令会把示例数据传给 Remotion。
 
 ## 渲染前检查清单
 

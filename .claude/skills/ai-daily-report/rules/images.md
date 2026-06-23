@@ -12,7 +12,7 @@
 
 - `.svg` / `.png` / `.jpg` / `.jpeg` / `.webp`
 
-文件名自己起，建议语义化，如 `glm5.2.png`、`claude-update.png`。`data-scheme-sample/images/` 里有现成示例可参考。
+文件名自己起，建议语义化，如 `glm5.2.png`、`claude-update.png`。可参考 `data-scheme-sample-1/images/`。
 
 ## 怎么引用
 
@@ -77,9 +77,9 @@ bun run dev
 1. **提取事实**：调 `claude` 多模态识别图片内容，补充到文案。
 2. **自动配图**：判定相关后，把该图下载到 `data-scheme/images/` 并写入对应 scene 的 `overlayImg`（带原始宽高，供 `SourceOverlay` 布局用）。
 
-触发条件（`shouldAnalyze`）：Story 评分 ≥9 且含远程图片，受 `CLAUDE_VISION_*` 的调用上限/预算控制（默认开，不看正文长短）。不满足条件的 scene 不会自动配图，用上面的手动方式补即可。
+当前实现的触发条件（`shouldAnalyze`）：默认只挑高分 Story（代码阈值为评分 ≥9）且含远程图片的条目，受 `CLAUDE_VISION_*` 的调用上限/预算控制（默认开，不看正文长短）。不满足条件的 scene 不会自动配图，用上面的手动方式补即可。
 
-`CLAUDE_VISION_ENABLED=false` 时不会调用 Claude 识图，也不会自动写 `overlayImg`。为了方便手动配图，`rss` 会把评分 ≥9 且含远程图的候选图片下载到 `data-scheme/images/`，文件名形如 `scene-1-1.png`、`scene-1-2.jpg`，并在终端打印下载到的文件名。你确认图片合适后，再手动把对应 scene 的 `overlayImg` 填成 `images/scene-1-1.png`。
+`CLAUDE_VISION_ENABLED=false` 时不会调用 Claude 识图，也不会自动写 `overlayImg`。为了方便手动配图，`rss` 会把默认候选范围内的远程图片下载到 `data-scheme/images/`，文件名形如 `scene-1-1.png`、`scene-1-2.jpg`，并在终端打印下载到的文件名。你确认图片合适后，再手动把对应 scene 的 `overlayImg` 填成 `images/scene-1-1.png`。
 
 所以 `overlayImg` 有两个来源：**自动（rss 视觉识别）** 和 **手动（你按上面填）**，两者写入同一个字段、渲染方式完全一样。
 

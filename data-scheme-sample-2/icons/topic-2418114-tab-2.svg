@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 96" fill="none">
+  <!-- competitors eating market share - overlapping arrows -->
+  <!-- central circle (market) -->
+  <circle cx="48" cy="46" r="18" fill="none" stroke="#6B7280" stroke-width="2" stroke-dasharray="4 4" />
+  <!-- competitor 1 (top) -->
+  <path d="M48 26L48 16" stroke="#7C3AED" stroke-width="4" stroke-linecap="round" />
+  <path d="M42 20L48 14L54 20" stroke="#7C3AED" stroke-width="4" fill="none" stroke-linecap="round" stroke-linejoin="round" />
+  <circle cx="48" cy="34" r="6" fill="#7C3AED" opacity="0.3" />
+  <!-- competitor 2 (bottom-left) -->
+  <path d="M36 52L28 64" stroke="#0891B2" stroke-width="4" stroke-linecap="round" />
+  <path d="M34 68L26 70L32 62" fill="#0891B2" />
+  <circle cx="40" cy="50" r="6" fill="#0891B2" opacity="0.3" />
+  <!-- competitor 3 (bottom-right) -->
+  <path d="M60 52L68 64" stroke="#E11D48" stroke-width="4" stroke-linecap="round" />
+  <path d="M62 68L70 70L64 62" fill="#E11D48" />
+  <circle cx="56" cy="50" r="6" fill="#E11D48" opacity="0.3" />
+  <!-- bite marks taken out -->
+  <path d="M36 38A18 18 0 0 1 60 38" stroke="#F59E0B" stroke-width="3" fill="none" stroke-linecap="round" />
+  <path d="M42 34L40 30" stroke="#F59E0B" stroke-width="2" stroke-linecap="round" />
+  <path d="M54 34L56 30" stroke="#F59E0B" stroke-width="2" stroke-linecap="round" />
+</svg>

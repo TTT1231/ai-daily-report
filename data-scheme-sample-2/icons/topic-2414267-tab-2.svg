@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 96" fill="none">
+  <!-- chain links for chain of thought -->
+  <ellipse cx="32" cy="36" rx="14" ry="10" fill="none" stroke="#0891B2" stroke-width="5" />
+  <ellipse cx="58" cy="60" rx="14" ry="10" fill="none" stroke="#06B6D4" stroke-width="5" />
+  <ellipse cx="62" cy="36" rx="14" ry="10" fill="none" stroke="#0891B2" stroke-width="5" />
+  <!-- connecting links -->
+  <path d="M40 44L50 52" stroke="#06B6D4" stroke-width="4" />
+  <path d="M48 28L50 28" stroke="#0891B2" stroke-width="4" />
+</svg>

@@ -25,10 +25,10 @@ description: How to use the ai-daily-report project end-to-end — set it up, ru
   - RSS/AI 总结用：`AI_API_KEY`、`AI_BASE_URL`、`AI_MODEL` 三者均必填（OpenAI 兼容接口；`.env.example` 给了 DeepSeek 示例值）。`bili:meta` 生成 B站 标题/标签也复用这套。
   - 网络受限时可选：小写 `all_proxy`（如 `http://127.0.0.1:7890`）。**仅作用于 `rss` 抓取阶段**（RSS 源抓取 + 该阶段内部的 AI 评分请求）；MiniMax TTS、B站 标题/标签生成与投稿/评论/置顶等 Node 端请求**不**走此代理，始终直连。未配置则直连；配置后上述 `rss` 阶段请求必须走该代理，失败时不会回退直连。不要使用其他代理变量。
   - TTS 旁白用：`TTS_REQUIRE=true` 时需要 `MINIMAX_API_KEY`、`MINIMAX_TTS_MODEL`、`MINIMAX_TTS_VOICE_ID`、`MINIMAX_TTS_SPEED`；不需要旁白或没有 MiniMax Key 时设 `TTS_REQUIRE=false`，会跳过 MiniMax、音频和 ffmpeg 音质检测。
-  - 图片识别用：`CLAUDE_VISION_ENABLED=true` 时，评分 ≥9 且含远程图的 Story 会尝试识图并自动写 `overlayImg`；没有多模态能力或图片识别 MCP 时设为 `false`，流程会下载候选图到 `data-scheme/images/` 供手动配图。
+  - 图片识别用：`CLAUDE_VISION_ENABLED=true` 时，默认优先处理高分且含远程图的 Story；在调用上限/预算内识图，判定相关后才自动写 `overlayImg`。没有多模态能力或图片识别 MCP 时设为 `false`，流程会下载候选图到 `data-scheme/images/` 供手动配图。
   - 语音质量检测用：`REQUIRE_VOICE_QUALITY_FFMPEG=true` 时需要可用的 `ffmpeg`；没装 ffmpeg 但仍要生成旁白时设为 `false`。
 - **运行时**：需要 `bun`、`go`（跑 RSS 采集器）；需要自动识图或生成 Tab 图标时还需要 `claude` CLI。
-- **数据目录** `data-scheme/` 必须存在（自动模式会自己生成；手动模式从 `data-scheme-sample/` 复制）。
+- **数据目录**：正式数据固定用 `data-scheme/`；示例预览用 `data-scheme-sample-1/2`，不会改正式数据。
 - **发布到 B站** 额外需要一次扫码登录（见下方「发布到 B站」），登录态存 `biliup/cookies.json`，不进 `.env`。
 
 ## A. 自动出片（推荐主线）
@@ -63,8 +63,8 @@ bun run video:prepare
 
 生产步骤跑完后：
 
-- **图片自动 + 手动两条路**：`CLAUDE_VISION_ENABLED=true` 时，`rss` 视觉识别会在 Story 评分 ≥9 且含远程图片、且 Claude 判定相关时，自动把该图下载到 `data-scheme/images/` 并写入对应 scene 的 `overlayImg`；`CLAUDE_VISION_ENABLED=false` 时不会写 `overlayImg`，但会下载候选图，方便手动填图。详见下方「把图片放进 data.json」。
-- **预览 / 渲染 / 发布**：`video:prepare` 不再自动开预览。要看画面运行 `bun run dev`（带 HMR + 自动 TTS 同步）；要导出 mp4 运行 `bun run video:render`；要一键发 B站 运行 `bun run all:bili`（详见下方「发布到 B站」）。
+- **图片自动 + 手动两条路**：`CLAUDE_VISION_ENABLED=true` 时，`rss` 视觉识别会默认优先处理高分且含远程图片的 Story；在调用上限/预算内，Claude 判定相关后自动把该图下载到 `data-scheme/images/` 并写入对应 scene 的 `overlayImg`；`CLAUDE_VISION_ENABLED=false` 时不会写 `overlayImg`，但会下载候选图，方便手动填图。详见下方「把图片放进 data.json」。
+- **预览 / 渲染 / 发布**：`bun run preview` 看完整示例，`bun run preview:notts` 看无 TTS 示例；看当前 `data-scheme/` 用 `bun run dev`（HMR + 自动 TTS 同步）。导出用 `bun run video:render`，发 B站 用 `bun run all:bili`。
 
 > 关于 `ingest/rss-state.json`：它存的是上次抓取的快照，用来去重。日常不用手动编辑；如果清空了 `data-scheme/` 或想完全重建，先跑 `bun run reset`，再跑 `bun run video:prepare`。
 
@@ -72,7 +72,7 @@ bun run video:prepare
 
 适合「想完全掌控内容 / 自定义非 RSS 来源 / 自动流程出问题时兜底」：你自己写 `data.json`，不跑 `rss`。
 
-主线很简单：复制示例目录 → 编辑 `data.json` → `bun run dev`（会自动 TTS）或手动 `bun run tts` → `/generate-svg` 出图标。
+主线很简单：参考或复制 `data-scheme-sample-1` → 编辑 `data-scheme/data.json` → `bun run dev`（会自动 TTS）或手动 `bun run tts` → `/generate-svg` 出图标。
 
 完整步骤、必填字段速查、theme 切换：**先读 [`rules/manual-mode.md`](./rules/manual-mode.md)** 再动手。
 

@@ -48,19 +48,20 @@
 
 ## 准备环境
 
-- claude cli
-- bun
-- go
+- Claude CLI
+- Bun
+- Go
 - ffmpeg（按需，用于 TTS 语音质量检测；没有时可设 `REQUIRE_VOICE_QUALITY_FFMPEG=false` 跳过）
 
 ## 快速开始
 
-本项目支持两种生成日报的方式：
+先选你要做什么：
 
-| 方式                     | 谁准备 data.json                       | 适合场景                     |
-| ------------------------ | -------------------------------------- | ---------------------------- |
-| **手写维护**             | 你手动编辑 `data-scheme/data.json`     | 想完全掌控内容，或自定义来源 |
-| **Agent 自动化（推荐）** | `bun run video:prepare` 自动抓取并生成 | 日常批量出片，一条命令搞定   |
+| 目标 | 命令 / 入口 | 说明 |
+| --- | --- | --- |
+| 看效果 | `bun run preview` / `bun run preview:notts` | 不用配置 `.env` |
+| 自动出片 | `bun run video:prepare` | RSS 抓取、总结、TTS、图标一条龙 |
+| 手写内容 | 编辑 `data-scheme/data.json` | 自己控制标题、Tabs、字幕和图片 |
 
 > [!TIP]
 > 本项目用 `minimax` 生成 TTS 旁白，用 `deepseek-v4-flash` 总结 RSS 抓取的内容，用 `claude -p` 识别远程图片并生成对应图标。
@@ -69,60 +70,58 @@
 >
 > RSS 的模型可自由切换；TTS 目前仅适配了 `minimax`，若要换其他 TTS，修改 `scripts/render/generate-tts.mjs` 即可。
 
-### 方式一：Agent 自动化（推荐）
-
-> [!WARNING]
-> **图片：自动 + 手动**：`rss` 视觉识别开启时，会给部分高分 Story（评分 ≥9、含远程图，且 Claude 判定相关）**自动下载并配图**（写入 `overlayImg`）；关闭 `CLAUDE_VISION_ENABLED` 时不会写入 `overlayImg`，但会把候选图下载到 `data-scheme/images/`，方便你手动判断后填写 `overlayImg: "images/xxx"`。仅替换图片不会重新请求旁白。
+### 只看示例
 
 ```bash
-# 1. 填写好 .env：RSS 模型供应商/API Key、TTS Key，以及按需开关
-#    网络受限时可在 .env 配置代理，例如all_proxy=http://127.0.0.1:7890
-#    无多模态/识图能力：CLAUDE_VISION_ENABLED=false
-#    不需要旁白或没有 MiniMax Key：TTS_REQUIRE=false
-#    没装 ffmpeg 但仍要生成旁白：REQUIRE_VOICE_QUALITY_FFMPEG=false
-
-# 2. install
 bun install
 
-# 3. 自动抓取 RSS、生成 data.json、TTS 与图标
+bun run preview       # sample-1：完整 TTS 版本
+bun run preview:notts # sample-2：无 TTS 静音版本
+```
+
+这两个命令只读 `data-scheme-sample-1/2`，不会跑 RSS/TTS，也不会改 `data-scheme/`。
+
+### 方式一：Agent 自动化（推荐）
+
+```bash
+# 1. 配好 .env，然后安装依赖
+bun install
+
+# 2. 生成当期数据、旁白和图标
 bun run video:prepare
 
-# 4（可选）. 自定义图片：自动配图没覆盖的 scene，可在 data.json 填 `overlayImg`，图片放 `data-scheme/images/`
-
-# 5. 预览（HMR）：video:prepare / video:render 默认不开预览，单独起 dev
+# 3. 预览当前 data-scheme
 bun run dev
 
-# 6. 导出 mp4
+# 4. 导出 mp4
 bun run video:render
 ```
+
+常用开关写在 `.env`：无多模态能力设 `CLAUDE_VISION_ENABLED=false`；没有 TTS Key 设 `TTS_REQUIRE=false`；没有 ffmpeg 设 `REQUIRE_VOICE_QUALITY_FFMPEG=false`。
+
+自动配图没覆盖的 scene，可以把图片放进 `data-scheme/images/`，再在 `data.json` 里填 `overlayImg: "images/xxx"`。只换图片不会重新请求 TTS。
 
 > [!WARNING]
 > `ingest/rss-state.json` 保存上一次 RSS 抓取快照，用来判断重复内容。日常不用手动编辑；如果你清空了 `data-scheme/` 或想完全重建，请运行 `bun run reset` 后再执行 `bun run video:prepare`。
 
-### 方式二：手写维护（示例，不推荐）
+### 方式二：手写维护
 
 你手动编辑 `data-scheme/data.json`，自己控制标题、Tabs、字幕与图片引用。
 
 ```bash
-# 1. 安装依赖（需先安装 Bun）
 bun install
 
-# 2. 准备数据目录 data-scheme/（首次可直接复制示例）
-#    确保 data.json 的 $schema 指向项目根目录的 data.schema.json
-#    图片素材放进 data-scheme/images/
-# 下面为示例
-cp -r data-scheme-sample data-scheme
+# 可从完整示例复制一份再改
+cp -r data-scheme-sample-1 data-scheme
 
-# 3. 编辑 data.json
+# 编辑 data-scheme/data.json
 
-# 4. run server
+# 预览当前 data-scheme
 bun run dev
 
-# 可选：通过 skill 生成 Tabs 图标
-#   claude: /generate-svg   codex: /generate-svg
-
-# 单独生成 TTS（dev 未运行或需要手动生成时）
+# 可选：单独生成 TTS / 图标
 bun run tts
+# claude/codex: /generate-svg
 ```
 
 ---
@@ -161,21 +160,20 @@ bun run bili:stick -- --bvid BV1xxxxxxxx --rpid <上一步的rpid>
 /ai-daily-report  <your-problem or your doubt>
 ```
 
-## 了解本项目rss
+## RSS 配置
 
 RSS 采集器完整图文说明见 [`ingest/readme.html`](./ingest/readme.html)。
 
 ## 示例数据
 
-参考项目中[data-scheme-sample](./data-scheme-sample)里面的数据。
+- [`data-scheme-sample-1`](./data-scheme-sample-1)：完整示例，含 TTS 音频。
+- [`data-scheme-sample-2`](./data-scheme-sample-2)：无 TTS 示例，适合没有 TTS 服务时预览。
 
-## 可视化了解本项目
+## 可视化文档
 
-如果你想深入了解本项目可以参考[html可视化文档](./.claude/claude.html)
+想看更完整的结构说明，可参考 [HTML 可视化文档](./.claude/claude.html)。
 
 ## 注意事项
 
 > [!WARNING]
 > 请确保你能够正常访问 `linux.do`。网络受限时，只需在项目根目录 `.env` 配置小写 `all_proxy`，需科学上网环境。例如 `all_proxy=http://127.0.0.1:7890`。
->
-> 如果你没有 TTS Key，设 `TTS_REQUIRE=false` 跳过 MiniMax 旁白；如果没有 ffmpeg，设 `REQUIRE_VOICE_QUALITY_FFMPEG=false` 跳过音质检测；如果没有多模态能力或识图 MCP，设 `CLAUDE_VISION_ENABLED=false`，流程会保留候选图供手动配图。

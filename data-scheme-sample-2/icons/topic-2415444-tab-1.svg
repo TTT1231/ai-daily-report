@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 96" fill="none">
+  <!-- flask for canary testing -->
+  <path d="M44 16V40" stroke="#0891B2" stroke-width="4" stroke-linecap="round" />
+  <path d="M52 16V40" stroke="#0891B2" stroke-width="4" stroke-linecap="round" />
+  <path d="M42 42L32 50Q24 58 34 72Q38 76 48 76Q58 76 62 72Q72 58 64 50L54 42H42Z" fill="#06B6D4" />
+  <!-- liquid -->
+  <path d="M36 62Q42 70 48 70Q54 70 60 62" fill="#67E8F9" opacity="0.7" />
+  <!-- bubbles -->
+  <circle cx="42" cy="56" r="3" fill="#A5F3FC" opacity="0.6" />
+  <circle cx="52" cy="60" r="2" fill="#A5F3FC" opacity="0.6" />
+  <!-- rim -->
+  <ellipse cx="48" cy="42" rx="12" ry="4" fill="#0891B2" />
+</svg>
