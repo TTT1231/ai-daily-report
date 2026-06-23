@@ -18,6 +18,7 @@
   },
   "devDependencies": {
     "@remotion/eslint-config-flat": "4.0.475",
+    "@types/node": "25.x",
     "@types/react": "19.2.7",
     "@types/web": "0.0.166",
     "ajv": "^8.20.0",
@@ -59,7 +60,9 @@
     "publish:bili": "bun run video:render && bun run render:cover && bun run comment:generate && bun run bili:meta && bun run bili:full",
     "all:bili": "bun run video:prepare && bun run publish:bili",
     "upgrade": "remotion upgrade",
-    "test": "node --test scripts/lib/*.test.mjs scripts/publish/bili/*.test.mjs",
+    "test": "bun run test:node && bun run test:src",
+    "test:node": "node --test scripts/lib/*.test.mjs scripts/publish/bili/*.test.mjs",
+    "test:src": "bun test src",
     "lint": "eslint src scripts && tsc"
   },
   "sideEffects": [
