@@ -1,6 +1,10 @@
 package main
 
 import (
+	"bytes"
+	"image"
+	"image/color"
+	"image/png"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -12,6 +16,21 @@ import (
 
 func imgItem(link, desc string) Item {
 	return Item{Link: link, Description: desc}
+}
+
+func solidPNG(t *testing.T, width, height int) []byte {
+	t.Helper()
+	img := image.NewRGBA(image.Rect(0, 0, width, height))
+	for y := 0; y < height; y++ {
+		for x := 0; x < width; x++ {
+			img.Set(x, y, color.RGBA{R: 30, G: 120, B: 220, A: 255})
+		}
+	}
+	var buf bytes.Buffer
+	if err := png.Encode(&buf, img); err != nil {
+		t.Fatal(err)
+	}
+	return buf.Bytes()
 }
 
 // buildReport builds a DataJSON whose stories are already in final (post-compaction)
@@ -71,6 +90,25 @@ func TestPlanManualCandidates_PerSceneCapAndNumbering(t *testing.T) {
 	}
 }
 
+func TestPlanManualCandidates_DeduplicatesImageURLsAcrossScenes(t *testing.T) {
+	groups := []NewsGroup{
+		{Score: 10, Tabs: []StoryTab{
+			{EvidenceIndexes: []int{1}},
+			{EvidenceIndexes: []int{1}},
+		}},
+	}
+	items := []Item{
+		imgItem("https://src/1", `<img src="https://cdn/reused.png">`),
+	}
+	got := planManualCandidates(buildReport(groups), groups, items, 2)
+	want := []plannedManualImage{
+		{SceneNum: 1, Candidate: 1, ImageURL: "https://cdn/reused.png", RefererLink: "https://src/1"},
+	}
+	if !reflect.DeepEqual(got, want) {
+		t.Errorf("planManualCandidates() = %#v, want %#v", got, want)
+	}
+}
+
 func TestPlanManualCandidates_FollowsFinalStoryOrder(t *testing.T) {
 	// Two groups; report.Stories is in reversed order (simulating compaction reordering).
 	groups := []NewsGroup{
@@ -98,7 +136,7 @@ func TestPlanManualCandidates_FollowsFinalStoryOrder(t *testing.T) {
 
 func TestDownloadManualCandidateImages_WritesSceneFiles(t *testing.T) {
 	t.Setenv("all_proxy", "")
-	png := onePixelPNG()
+	png := solidPNG(t, 320, 180)
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "image/png")
 		w.Write(png)
@@ -125,6 +163,43 @@ func TestDownloadManualCandidateImages_WritesSceneFiles(t *testing.T) {
 		t.Errorf("scene-1-1.png bytes = %d, want %d", len(got), len(png))
 	}
 }
+
+func TestDownloadManualCandidateImages_SkipsDuplicateBytesAndDecorativeSquares(t *testing.T) {
+	t.Setenv("all_proxy", "")
+	t.Setenv("CLAUDE_VISION_MAX_IMAGES_PER_SOURCE", "3")
+	large := solidPNG(t, 320, 180)
+	logo := solidPNG(t, 192, 192)
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "image/png")
+		if r.URL.Path == "/logo.png" {
+			w.Write(logo)
+			return
+		}
+		w.Write(large)
+	}))
+	defer srv.Close()
+
+	groups := []NewsGroup{
+		{Score: 9, Tabs: []StoryTab{{EvidenceIndexes: []int{1}}}},
+	}
+	items := []Item{
+		imgItem("https://src/1", `<img src="`+srv.URL+`/a.png"><img src="`+srv.URL+`/b.png"><img src="`+srv.URL+`/logo.png">`),
+	}
+	report := buildReport(groups)
+	root := t.TempDir()
+
+	if err := downloadManualCandidateImages(newHTTPClient(defaultFeedRequestTimeout, false, false), report, groups, items, root); err != nil {
+		t.Fatalf("downloadManualCandidateImages() error: %v", err)
+	}
+	entries, err := os.ReadDir(filepath.Join(root, "data-scheme", "images"))
+	if err != nil {
+		t.Fatalf("read images dir: %v", err)
+	}
+	if len(entries) != 1 || entries[0].Name() != "scene-1-1.png" {
+		t.Fatalf("written images = %#v, want only scene-1-1.png", entries)
+	}
+}
+
 func TestGenerateDataJSON_VisionOffDoesNotAttachAndTriggersNoDownload(t *testing.T) {
 	t.Setenv("CLAUDE_VISION_ENABLED", "false")
 	// No remote images in descriptions -> plan is empty -> no files written anywhere.

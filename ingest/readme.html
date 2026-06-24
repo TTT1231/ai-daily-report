@@ -175,7 +175,7 @@
             </a>
             <a class="file-row" href="#state">
               <code>rss-state.json</code>
-              <span>上一轮完整抓取记录，用于跨次运行去重</span>
+              <span>最近一次完整抓取记录，用于补选与失败来源保留</span>
               <span class="pill generated">自动生成</span>
             </a>
           </div>
@@ -376,7 +376,7 @@
             </li>
             <li>
               <span>03</span>
-              <div><strong>去重与兴趣筛选</strong><code>state.go → ranking.go</code></div>
+              <div><strong>快照与兴趣筛选</strong><code>state.go → ranking.go</code></div>
             </li>
             <li>
               <span>04</span>
@@ -406,13 +406,13 @@
             <div class="state-main">
               <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M4 7c0-2 3.6-4 8-4s8 2 8 4-3.6 4-8 4-8-2-8-4Z" /><path d="M4 7v5c0 2 3.6 4 8 4s8-2 8-4V7M4 12v5c0 2 3.6 4 8 4s8-2 8-4v-5" /></svg>
               <div>
-                <strong>保存上一轮完整抓取记录</strong>
-                <p>用于避免每次运行都重复处理最近 24 小时内容，无需人工维护。</p>
+                <strong>保存最近一次完整抓取记录</strong>
+                <p>用于人工补选新闻和来源失败时保留上次状态；评分仍会处理最近时间窗口内的全部条目。</p>
               </div>
             </div>
             <div class="state-facts">
-              <div><strong>删除后</strong><span>下一次运行会把最近 24 小时内容视为新增，并自动重建。</span></div>
-              <div><strong>来源失败时</strong><span>保留该来源上一次运行状态，避免恢复后误判为新增。</span></div>
+              <div><strong>删除后</strong><span>只会丢弃快照；下一次运行会重新抓取并自动重建。</span></div>
+              <div><strong>来源失败时</strong><span>保留该来源上一次运行状态，避免短暂故障清空快照。</span></div>
               <div><strong>跨栏目时</strong><span>LinuxDo 同一 Topic 只处理一次。</span></div>
             </div>
           </div>
@@ -434,7 +434,7 @@
 ├── linuxdo_adapter.go      # LinuxDo 分页与 Topic ID
 ├── rss2.go                 # 通用 RSS 2.0 下载与解析
 ├── vpnproxy.go             # 可选 all_proxy，配置后强制使用
-├── state.go                # 与上一次运行状态比较
+├── state.go                # 快照读写与失败来源保留
 ├── ranking.go              # 本地评分与组合排除规则
 ├── grouping.go             # 合并相似新闻
 ├── story_tabs.go           # 生成视频 Tabs 和字幕

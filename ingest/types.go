@@ -8,7 +8,7 @@ type AppConfig struct {
 	Sources     []RSS2Source      // 启用的 RSS 2.0 来源。
 	Preferences PreferencesConfig // 用户兴趣画像与筛选阈值。
 	Lookback    time.Duration     // 抓取内容的时间回溯窗口。
-	StatePath   string            // 上一次抓取快照的写入路径。
+	StatePath   string            // 最近一次抓取快照的写入路径。
 }
 
 // AIConfig 描述调用 OpenAI 兼容 chat/completions 接口所需的凭据与参数。
@@ -70,11 +70,12 @@ type ChatChoice struct {
 
 // ScoredItem 是经过评分的一条候选，包含模型分数、理由与代码层关键词保底分。
 type ScoredItem struct {
-	Index        int    `json:"index"`  // 对应原始 items 列表中的 1 基序号。
-	Title        string `json:"title"`  // 候选标题。
-	Score        int    `json:"score"`  // 综合分数（满分 10）。
-	Reason       string `json:"reason"` // 入选理由。
-	KeywordScore int    `json:"-"`      // 关键词规则给出的保底分，不写入 JSON。
+	Index        int       `json:"index"`  // 对应原始 items 列表中的 1 基序号。
+	Title        string    `json:"title"`  // 候选标题。
+	Score        int       `json:"score"`  // 综合分数（满分 10）。
+	Reason       string    `json:"reason"` // 入选理由。
+	KeywordScore int       `json:"-"`      // 关键词规则给出的保底分，不写入 JSON。
+	PublishedAt  time.Time `json:"-"`      // 发布时间，用于同分时"新内容优先"的稳定 tie-break，不写入 JSON。
 }
 
 // NewsGroup 是聚类后的一个 Story（视频主题），由若干来源与不重复要点组成。

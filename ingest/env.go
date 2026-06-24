@@ -95,7 +95,7 @@ func loadProjectEnv() error {
 			continue
 		}
 		key = strings.TrimSpace(key)
-		value = strings.Trim(strings.TrimSpace(value), `"'`)
+		value = cleanProjectEnvValue(value)
 		_, exactKeyExists := lookupExactEnv(key)
 		if key == "all_proxy" && !exactKeyExists {
 			// Windows environment keys are case-insensitive and may retain the
@@ -108,6 +108,53 @@ func loadProjectEnv() error {
 		}
 	}
 	return scanner.Err()
+}
+
+func cleanProjectEnvValue(value string) string {
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return ""
+	}
+	if index := unquotedInlineCommentIndex(value); index >= 0 {
+		value = strings.TrimSpace(value[:index])
+	}
+	if len(value) >= 2 {
+		quote := value[0]
+		if (quote == '"' || quote == '\'') && value[len(value)-1] == quote {
+			return value[1 : len(value)-1]
+		}
+	}
+	return strings.Trim(strings.TrimSpace(value), `"'`)
+}
+
+func unquotedInlineCommentIndex(value string) int {
+	var quote byte
+	escaped := false
+	for index := 0; index < len(value); index++ {
+		character := value[index]
+		if escaped {
+			escaped = false
+			continue
+		}
+		if character == '\\' {
+			escaped = true
+			continue
+		}
+		if quote != 0 {
+			if character == quote {
+				quote = 0
+			}
+			continue
+		}
+		if character == '"' || character == '\'' {
+			quote = character
+			continue
+		}
+		if character == '#' && (index == 0 || value[index-1] == ' ' || value[index-1] == '\t') {
+			return index
+		}
+	}
+	return -1
 }
 
 // lookupExactEnv reads an environment variable with case-sensitive key matching.

@@ -7,7 +7,7 @@ import "time"
 // 而是控制抓取窗口、AI 输出规模与视频文案长度的内部调参点。
 const (
 	rssLookback               = 24 * time.Hour             // 固定抓取最近 24 小时内的内容。
-	rssStateRelativePath      = "ingest/rss-state.json"    // 固定保存上一次抓取快照的位置。
+	rssStateRelativePath      = "ingest/rss-state.json"    // 固定保存最近一次抓取快照的位置。
 	defaultSourcesPath        = "ingest/sources.jsonc"     // 默认 RSS 来源配置。
 	defaultPreferencesPath    = "ingest/preferences.jsonc" // 默认用户兴趣画像配置。
 	defaultRequestTimeout     = 90 * time.Second           // 调用 AI 模型 chat/completions 接口的默认超时。

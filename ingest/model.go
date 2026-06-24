@@ -44,6 +44,12 @@ func analyzeWithModel(ai AIConfig, preferences PreferencesConfig, items []Item) 
 		return nil, err
 	}
 	scored = normalizeScoredItems(preferences, scored)
+	// 模型 JSON 不返回发布时间，从 items 回填，供评分阶段做"新内容优先"的稳定 tie-break。
+	for i := range scored {
+		if idx := scored[i].Index; idx >= 1 && idx <= len(items) {
+			scored[i].PublishedAt = items[idx-1].PublishedAt
+		}
+	}
 	return applyKeywordWeights(preferences, scored, items), nil
 }
 

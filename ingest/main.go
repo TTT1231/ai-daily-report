@@ -41,7 +41,7 @@ func run() int {
 	}
 	fmt.Printf("   完成：时间窗口内共 %d 条\n\n", len(fetchedItems))
 
-	fmt.Println("[2/6] 对比上一次抓取快照")
+	fmt.Println("[2/6] 加载最近一次抓取快照")
 	state, err := loadRSSState(config.StatePath)
 	if err != nil {
 		fmt.Printf("失败：无法读取上一次 RSS 快照：%v\n", err)
@@ -56,17 +56,10 @@ func run() int {
 		fmt.Printf("提示：成功抓取的来源在最近 %s内没有内容，本次结束。\n", formatDuration(config.Lookback))
 		return 0
 	}
-	items := filterUnseenItems(fetchedItems, state)
-	fmt.Printf("   完成：新增 %d 条，重复 %d 条\n\n",
-		len(items), len(fetchedItems)-len(items))
-	if len(items) == 0 {
-		if err := saveRSSState(config.StatePath, nextState); err != nil {
-			fmt.Printf("失败：无法保存本次 RSS 快照：%v\n", err)
-			return 1
-		}
-		fmt.Println("提示：没有相对上一次抓取的新内容，无需生成 data.json。")
-		return 0
-	}
+	// 评分对最近 24 小时窗口内的全部条目进行（不再按抓取快照预过滤）：这样昨天未入选的
+	// 高价值条目今天仍能参与竞争，避免"见过但没发布"的好新闻凭空消失；新鲜度由评分阶段的稳定
+	// tie-break（同分时新内容优先）保证，抓取快照仍由 rss-state.json 记录、用于来源失败保留等语义。
+	items := fetchedItems
 
 	fmt.Printf("[3/6] AI 兴趣筛选（%s）\n", config.AI.Model)
 	scored, err := analyzeWithModel(config.AI, config.Preferences, items)
@@ -79,10 +72,10 @@ func run() int {
 			fmt.Printf("失败：无法保存本次 RSS 快照：%v\n", err)
 			return 1
 		}
-		fmt.Println("提示：新内容中没有符合兴趣规则的新闻，本次结束。")
+		fmt.Println("提示：没有符合兴趣规则的新闻，本次结束。")
 		return 0
 	}
-	fmt.Printf("   完成：从 %d 条新增内容中保留 %d 条候选\n\n", len(items), len(scored))
+	fmt.Printf("   完成：从 %d 条内容中保留 %d 条候选\n\n", len(items), len(scored))
 
 	fmt.Println("[4/6] 合并相似新闻")
 	groups, err := groupSimilarNews(config.AI, scored, items)
@@ -113,8 +106,8 @@ func run() int {
 		return 1
 	}
 	fmt.Printf("   完成：本次完整 RSS 快照已保存至 %s\n", config.StatePath)
-	fmt.Printf("\n全部完成：抓取 %d 条，新增 %d 条，生成 %d 个新闻主题。\n",
-		len(fetchedItems), len(items), len(groups))
+	fmt.Printf("\n全部完成：抓取 %d 条，生成 %d 个新闻主题。\n",
+		len(fetchedItems), len(groups))
 	return 0
 }
 

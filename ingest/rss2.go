@@ -18,6 +18,9 @@ type httpError struct {
 	retryAfter time.Duration
 }
 
+// maxFeedBytes 限制单个 RSS 响应体的最大字节数，避免恶意/损坏的 feed 返回超大 body 拖垮内存。
+const maxFeedBytes int64 = 10 * 1024 * 1024
+
 func (e *httpError) Error() string { return e.message }
 
 type rss2Document struct {
@@ -134,7 +137,10 @@ func parseRSS2(body []byte, source RSS2Source) ([]Item, error) {
 	rawItems := document.Channel.Items
 	items := make([]Item, 0, len(rawItems))
 	for _, raw := range rawItems {
-		publishedAt, _ := parseFeedTime(raw.PubDate)
+		publishedAt, pubErr := parseFeedTime(raw.PubDate)
+		if pubErr != nil && strings.TrimSpace(raw.PubDate) != "" {
+			fmt.Printf("   ⚠️  警告：来源 %s 的条目时间 %q 无法解析，已跳过该条目\n", source.ID, raw.PubDate)
+		}
 		item := normalizeRSS2Item(Item{
 			ID:          strings.TrimSpace(raw.GUID),
 			SourceID:    source.ID,
@@ -228,9 +234,15 @@ func doGet(client *http.Client, rawURL string) ([]byte, error) {
 	case resp.StatusCode != http.StatusOK:
 		return nil, &httpError{message: fmt.Sprintf("HTTP 状态码: %d", resp.StatusCode), retryable: false}
 	}
-	body, err := io.ReadAll(resp.Body)
+	if resp.ContentLength > maxFeedBytes {
+		return nil, &httpError{message: fmt.Sprintf("订阅体过大: Content-Length %d 超过 %d 字节", resp.ContentLength, maxFeedBytes), retryable: false}
+	}
+	body, err := io.ReadAll(io.LimitReader(resp.Body, maxFeedBytes+1))
 	if err != nil {
 		return nil, fmt.Errorf("读取响应体失败: %w", err)
+	}
+	if int64(len(body)) > maxFeedBytes {
+		return nil, &httpError{message: fmt.Sprintf("订阅体过大: 超过 %d 字节上限", maxFeedBytes), retryable: false}
 	}
 	return body, nil
 }

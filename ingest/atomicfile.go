@@ -18,6 +18,9 @@ func writeFileAtomic(path string, data []byte, dirPerm, filePerm os.FileMode) er
 		return fmt.Errorf("写入临时文件失败: %w", err)
 	}
 	if err := os.Rename(tmpPath, path); err != nil {
+		// Rename 失败时清理残留临时文件：Windows 上目标被编辑器/杀软占用时常失败，
+		// 不清理会留下永久的 *.tmp（测试也已承认 stale temp 的存在）。
+		_ = os.Remove(tmpPath)
 		return fmt.Errorf("提交文件失败: %w", err)
 	}
 	return nil

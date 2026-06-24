@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"sort"
 	"strings"
+	"time"
 )
 
 // groupSimilarNews 让模型把候选新闻聚类去重，整理成最多 maxGroups 个适合视频展示的 Story（含要点与来源序号）。
@@ -42,19 +43,38 @@ func groupSimilarNews(ai AIConfig, scored []ScoredItem, items []Item) ([]NewsGro
 候选新闻：
 %s`, len(scored), groupLimit, maxGroupHighlights, strings.Join(candidates, "\n"))
 
-	content, err := requestModel(ai, []ChatMessage{
+	messages := []ChatMessage{
 		{Role: "system", Content: newsGroupingSystemPrompt},
 		{Role: "user", Content: prompt},
-	})
-	if err != nil {
-		return nil, err
 	}
 
+	// 对瞬时失败（限流/5xx/网络）和模型返回坏 JSON 都退避重试，与评分路径 recoverScoredItems
+	// 的容错意图对齐：单次抖动不再直接整段丢弃聚类成果、回退到本地启发式。
+	const maxAttempts = 3
 	var groups []NewsGroup
-	if err := json.Unmarshal([]byte(extractJSON(content)), &groups); err != nil {
-		return nil, fmt.Errorf("解析聚类 JSON 失败: %w\n原始内容: %s", err, content)
+	for attempt := 1; attempt <= maxAttempts; attempt++ {
+		content, err := requestModel(ai, messages)
+		if err != nil {
+			if attempt == maxAttempts {
+				return nil, err
+			}
+			wait := time.Duration(attempt) * 5 * time.Second
+			fmt.Printf("   ⚠️  警告：聚类请求第 %d 次失败，等待 %v 后重试: %v\n", attempt, wait, err)
+			time.Sleep(wait)
+			continue
+		}
+		if err := json.Unmarshal([]byte(extractJSON(content)), &groups); err != nil {
+			if attempt == maxAttempts {
+				return nil, fmt.Errorf("解析聚类 JSON 失败: %w\n原始内容: %s", err, content)
+			}
+			wait := time.Duration(attempt) * 5 * time.Second
+			fmt.Printf("   ⚠️  警告：聚类 JSON 第 %d 次解析失败，等待 %v 后重试\n", attempt, wait)
+			time.Sleep(wait)
+			continue
+		}
+		return normalizeGroups(groups, scored, items), nil
 	}
-	return normalizeGroups(groups, scored, items), nil
+	return nil, fmt.Errorf("聚类重试 %d 次仍未成功", maxAttempts)
 }
 
 // normalizeGroups 校正模型聚类结果：拆分被错误合并的来源、去重序号与要点、补全缺失字段、

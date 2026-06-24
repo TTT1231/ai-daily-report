@@ -120,13 +120,35 @@ func withFallbackStoryTabs(groups []NewsGroup) []NewsGroup {
 	return groups
 }
 
+// fallbackSummaryFloor 是保底 Tab 摘要的兜底句，长度大于 minTabSummaryRunes，
+// 用于在 Story 标题/理由过短时把摘要补到最小字数以上，避免保底 Tab 被 normalize 丢弃。
+const fallbackSummaryFloor = "当前信息以来源原始内容为准，使用前请结合官方公告或实际产品页面核对，避免将未确认细节视为最终规则。"
+
+// fallbackOverviewSummary 生成“事件概览”保底 Tab 的摘要：优先用标题+理由，过短时拼接兜底句，
+// 确保至少满足 minTabSummaryRunes 字。否则当标题与理由都偏短（例如 “GLM。更新”）时，该保底 Tab
+// 会被 tabRejectionReason 丢弃，只剩“后续观察”一个 Tab，凑不齐 minStoryTabs(2)，
+// 最终在 generateDataJSON 触发整期 fatal 中止、丢失全部数据。
+func fallbackOverviewSummary(group NewsGroup) string {
+	composed := strings.TrimSpace(fmt.Sprintf("%s。%s", strings.TrimSpace(group.Title), strings.TrimSpace(group.Reason)))
+	if utf8.RuneCountInString(composed) >= minTabSummaryRunes {
+		return composed
+	}
+	if composed == "" {
+		return fallbackSummaryFloor
+	}
+	if !strings.HasSuffix(composed, "。") {
+		composed += "。"
+	}
+	return composed + fallbackSummaryFloor
+}
+
 // fallbackStoryTabs 生成两个保底 Tab（“事件概览”+“后续观察”），用于模型结果不足时的确定性补齐。
 func fallbackStoryTabs(group NewsGroup) []StoryTab {
 	evidence := append([]int(nil), group.SourceIndexes...)
 	return []StoryTab{
 		{
 			Title:           "事件概览",
-			Summary:         fmt.Sprintf("%s。%s", group.Title, group.Reason),
+			Summary:         fallbackOverviewSummary(group),
 			Subtitle:        fallbackSubtitleFromText(group.Title),
 			Kind:            "fact",
 			EvidenceIndexes: evidence,

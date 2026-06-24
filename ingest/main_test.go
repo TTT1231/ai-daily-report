@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 	"unicode/utf8"
 )
 
@@ -302,6 +303,28 @@ func TestNormalizeScoredItemsUsesPreferenceThresholds(t *testing.T) {
 	})
 	if len(got) != 1 || got[0].Index != 3 {
 		t.Fatalf("normalizeScoredItems() = %#v", got)
+	}
+}
+
+func TestApplyKeywordWeightsPrefersNewerItemOnTie(t *testing.T) {
+	// 同分同关键词分时，新发布的条目应排在前面（稳定 tie-break），
+	// 避免昨天的剩余条目挤掉今天的新内容（RSS 重构最小版的核心保证）。
+	preferences := testPreferences(t)
+	preferences.Thresholds.MinimumScore = 7
+	preferences.Thresholds.MaximumCandidates = 10
+	preferences.Signals.PriorityKeywords = []string{"alpha"}
+	older := time.Date(2026, 6, 23, 9, 0, 0, 0, time.UTC)
+	newer := time.Date(2026, 6, 24, 9, 0, 0, 0, time.UTC)
+	items := []Item{
+		{ID: "old", SourceID: "s", Title: "alpha 旧", PublishedAt: older},
+		{ID: "new", SourceID: "s", Title: "alpha 新", PublishedAt: newer},
+	}
+	scored := applyKeywordWeights(preferences, nil, items)
+	if len(scored) != 2 {
+		t.Fatalf("expected 2 scored items, got %d (%#v)", len(scored), scored)
+	}
+	if scored[0].Index != 2 {
+		t.Fatalf("expected newer item (index 2) first on tie, got index %d (%#v)", scored[0].Index, scored)
 	}
 }
 
@@ -642,6 +665,62 @@ func TestExtractRemoteImageURLsFallsBackToSrc(t *testing.T) {
 	}
 }
 
+func TestExtractRemoteImageURLsIgnoresOneboxPreviewImages(t *testing.T) {
+	description := `<aside class="onebox allowlistedgeneric" data-onebox-src="https://docs.qoder.com/zh/events/offpeakrate">
+  <header class="source">
+    <img src="https://cdn3.ldstatic.com/original/4X/d/c/1/dc142bbe095a26f3c48f9c0379ce528c7eed1247.png" class="site-icon" width="192" height="192">
+  </header>
+  <article class="onebox-body">
+    <div class="aspect-image"><img src="https://cdn3.ldstatic.com/optimized/4X/f/2/8/f28c8be8051f83590c002c867f56e81c3451a4a3_2_690x362.png" class="thumbnail" width="690" height="362"></div>
+  </article>
+</aside>`
+	if got := extractRemoteImageURLs(description); len(got) != 0 {
+		t.Fatalf("extractRemoteImageURLs() should ignore onebox images, got %#v", got)
+	}
+}
+
+func TestExtractRemoteImageURLsIgnoresDivOnebox(t *testing.T) {
+	// Discourse 也用 <div class="onebox"> 包装（不仅 <aside>），站点图标同样要被剔除。
+	description := `<div class="onebox">
+  <header class="source"><img src="https://cdn3.ldstatic.com/original/4X/d/c/1/dc142bbe.png" class="site-icon" width="192" height="192"></header>
+</div>`
+	if got := extractRemoteImageURLs(description); len(got) != 0 {
+		t.Fatalf("extractRemoteImageURLs() should ignore div-based onebox images, got %#v", got)
+	}
+}
+
+func TestExtractRemoteImageURLsIgnoresUnclosedOnebox(t *testing.T) {
+	// 论坛 RSS 描述可能被截断，onebox 开标签未闭合：剥到字符串末尾，站点图标不漏入候选。
+	description := `<aside class="onebox"><img src="https://cdn3.ldstatic.com/original/4X/d/c/1/dc142bbe.png" class="site-icon" width="192" height="192">`
+	if got := extractRemoteImageURLs(description); len(got) != 0 {
+		t.Fatalf("extractRemoteImageURLs() should ignore unclosed onebox images, got %#v", got)
+	}
+}
+
+func TestExtractRemoteImageURLsKeepsArticleImageAlongsideOnebox(t *testing.T) {
+	// onebox 被剥掉的同时，正文里的真实配图必须保留（防止误剥真图）。
+	description := `<p>正文截图：<img src="https://example.com/article/evidence.png"></p>
+<aside class="onebox"><img src="https://cdn3.ldstatic.com/original/4X/logo.png" class="site-icon"></aside>`
+	got := extractRemoteImageURLs(description)
+	if len(got) != 1 || got[0] != "https://example.com/article/evidence.png" {
+		t.Fatalf("extractRemoteImageURLs() should keep the article image and drop only the onebox image, got %#v", got)
+	}
+}
+
+func TestBuildClaudeVisionArgsUsesMCPAllowlist(t *testing.T) {
+	args := buildClaudeVisionArgs("prompt", &VisionAnalyzer{maxBudgetUSD: "0.01"})
+	joined := strings.Join(args, "\x00")
+	if strings.Contains(joined, "dangerously") {
+		t.Fatalf("Claude vision args must not bypass permissions: %#v", args)
+	}
+	if !strings.Contains(joined, "--allowedTools\x00mcp__*\x00WebFetch") {
+		t.Fatalf("Claude vision args should allow MCP tools and WebFetch, got %#v", args)
+	}
+	if strings.Contains(joined, "\x00Bash") || strings.Contains(joined, "\x00Write") || strings.Contains(joined, "\x00Edit") {
+		t.Fatalf("Claude vision args should not allow shell or file edits, got %#v", args)
+	}
+}
+
 func TestFormatVisionMaterial(t *testing.T) {
 	got := formatVisionMaterial([]VisionResult{{
 		Relevant:  true,
@@ -655,7 +734,7 @@ func TestFormatVisionMaterial(t *testing.T) {
 	}
 }
 
-func TestVisionAnalyzerShouldAnalyzeOnlyHighPriorityImageSource(t *testing.T) {
+func TestVisionAnalyzerShouldAnalyzeReportWorthyImageSource(t *testing.T) {
 	analyzer := &VisionAnalyzer{enabled: true, maxCalls: 4}
 	shortItem := Item{
 		Title:       "Anthropic 禁用两款模型",
@@ -665,15 +744,16 @@ func TestVisionAnalyzerShouldAnalyzeOnlyHighPriorityImageSource(t *testing.T) {
 		Title:       "Anthropic 禁用两款模型",
 		Description: `<p>` + strings.Repeat("正文较长。", 200) + `</p><img src="https://cdn.example.com/image.png">`,
 	}
-	// 高分 + 有远程图片就识别，不看正文长短
-	if !analyzer.shouldAnalyze(shortItem, NewsGroup{Score: 9}) {
-		t.Fatal("short item shouldAnalyze() = false, want true")
+	// 进入日报的 Story（分数 >= visionMinStoryScore，即日报入选线 7）只要有远程图就识别，不看正文长短
+	if !analyzer.shouldAnalyze(shortItem, NewsGroup{Score: 7}) {
+		t.Fatal("report-worthy short item shouldAnalyze() = false, want true")
 	}
 	if !analyzer.shouldAnalyze(longItem, NewsGroup{Score: 9}) {
 		t.Fatal("long item shouldAnalyze() = false, want true (text length no longer gates)")
 	}
-	if analyzer.shouldAnalyze(shortItem, NewsGroup{Score: 8}) {
-		t.Fatal("shouldAnalyze() accepted low-priority source")
+	// 低于日报入选线的 Story 不识别（门槛仍保留过滤作用）
+	if analyzer.shouldAnalyze(shortItem, NewsGroup{Score: 6}) {
+		t.Fatal("shouldAnalyze() accepted below-threshold source")
 	}
 }
 

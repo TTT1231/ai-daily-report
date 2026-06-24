@@ -1,6 +1,7 @@
 package main
 
 import (
+	"crypto/sha256"
 	"fmt"
 	"net/http"
 	"strings"
@@ -22,6 +23,7 @@ func planManualCandidates(report DataJSON, groups []NewsGroup, items []Item, max
 	}
 	var plans []plannedManualImage
 	sceneNum := 0
+	seenURLs := make(map[string]bool)
 	for _, story := range report.Stories {
 		groupIndex := story.sourceGroupIndex
 		eligible := groupIndex >= 0 && groupIndex < len(groups) && groups[groupIndex].Score >= 9
@@ -35,7 +37,6 @@ func planManualCandidates(report DataJSON, groups []NewsGroup, items []Item, max
 				continue
 			}
 			tab := group.Tabs[scIdx]
-			seen := make(map[string]bool)
 			cand := 0
 			for _, index := range tab.EvidenceIndexes {
 				if index < 1 || index > len(items) {
@@ -43,10 +44,10 @@ func planManualCandidates(report DataJSON, groups []NewsGroup, items []Item, max
 				}
 				item := items[index-1]
 				for _, u := range extractRemoteImageURLs(item.Description) {
-					if seen[u] || cand >= maxImages {
+					if seenURLs[u] || cand >= maxImages {
 						continue
 					}
-					seen[u] = true
+					seenURLs[u] = true
 					cand++
 					plans = append(plans, plannedManualImage{
 						SceneNum:    sceneNum,
@@ -70,10 +71,25 @@ func downloadManualCandidateImages(client *http.Client, report DataJSON, groups 
 		return nil
 	}
 	var names []string
+	seenHashes := make(map[[32]byte]string)
 	for _, p := range plans {
 		data, extension, err := fetchOverlayImage(client, p.ImageURL, p.RefererLink)
 		if err != nil {
 			fmt.Printf("   ⚠️  警告：候选图 scene-%d-%d 下载失败，跳过：%v\n", p.SceneNum, p.Candidate, err)
+			continue
+		}
+		hash := sha256.Sum256(data)
+		if previous, exists := seenHashes[hash]; exists {
+			fmt.Printf("   ⚠️  警告：候选图 scene-%d-%d 与 %s 内容重复，跳过\n", p.SceneNum, p.Candidate, previous)
+			continue
+		}
+		width, height := decodeOverlayImageDimensions(data)
+		if width <= 0 || height <= 0 {
+			fmt.Printf("   ⚠️  警告：候选图 scene-%d-%d 无法解码尺寸，跳过\n", p.SceneNum, p.Candidate)
+			continue
+		}
+		if isLikelyDecorativeCandidateImage(width, height) {
+			fmt.Printf("   ⚠️  警告：候选图 scene-%d-%d 疑似头像、Logo 或小图标（%dx%d），跳过\n", p.SceneNum, p.Candidate, width, height)
 			continue
 		}
 		filename := fmt.Sprintf("scene-%d-%d%s", p.SceneNum, p.Candidate, extension)
@@ -81,10 +97,21 @@ func downloadManualCandidateImages(client *http.Client, report DataJSON, groups 
 			fmt.Printf("   ⚠️  警告：候选图 %s 写入失败，跳过：%v\n", filename, err)
 			continue
 		}
+		seenHashes[hash] = filename
 		names = append(names, filename)
 	}
 	if len(names) > 0 {
 		fmt.Printf("   下载候选图：%s\n", strings.Join(names, "、"))
 	}
 	return nil
+}
+
+func isLikelyDecorativeCandidateImage(width, height int) bool {
+	minSide := min(width, height)
+	maxSide := max(width, height)
+	if maxSide <= 0 {
+		return true
+	}
+	squareish := maxSide*100 <= minSide*125
+	return squareish && maxSide <= 256
 }

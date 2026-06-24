@@ -32,6 +32,10 @@ func downloadVisionOverlayImage(imageURL string, item Item) (downloadedOverlayIm
 	if err != nil {
 		return downloadedOverlayImage{}, err
 	}
+	width, height := decodeOverlayImageDimensions(data)
+	if isLikelyDecorativeCandidateImage(width, height) {
+		return downloadedOverlayImage{}, fmt.Errorf("图片疑似头像、Logo 或小图标（%dx%d），跳过该 overlay", width, height)
+	}
 	root, err := projectRoot()
 	if err != nil {
 		return downloadedOverlayImage{}, err
@@ -88,8 +92,13 @@ func fetchOverlayImage(client *http.Client, imageURL, refererLink string) ([]byt
 }
 
 // saveOverlayImage 把字节写入 <rootDir>/data-scheme/images/<filename>（按需建目录），
-// 解码尺寸后返回相对路径（images/<filename>）与宽高。
+// 解码尺寸后返回相对路径（images/<filename>）与宽高。无法解码出正尺寸时拒绝写盘，
+// 避免把 0×0 的 overlay 写进 data.json 导致渲染层除零或异常缩放。
 func saveOverlayImage(data []byte, filename, rootDir string) (downloadedOverlayImage, error) {
+	width, height := decodeOverlayImageDimensions(data)
+	if width <= 0 || height <= 0 {
+		return downloadedOverlayImage{}, fmt.Errorf("无法解码图片尺寸（可能为不支持的格式或损坏图），跳过该 overlay")
+	}
 	relativePath := "images/" + filename
 	absolutePath := filepath.Join(rootDir, "data-scheme", filepath.FromSlash(relativePath))
 	if err := os.MkdirAll(filepath.Dir(absolutePath), 0o755); err != nil {
@@ -98,7 +107,6 @@ func saveOverlayImage(data []byte, filename, rootDir string) (downloadedOverlayI
 	if err := os.WriteFile(absolutePath, data, 0o644); err != nil {
 		return downloadedOverlayImage{}, fmt.Errorf("写入图片失败: %w", err)
 	}
-	width, height := decodeOverlayImageDimensions(data)
 	return downloadedOverlayImage{Path: relativePath, Width: width, Height: height}, nil
 }
 

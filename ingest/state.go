@@ -20,7 +20,7 @@ type StateItem struct {
 	Link     string `json:"link,omitempty"`
 }
 
-// loadRSSState 读取上一次抓取快照；文件不存在时返回空状态。
+// loadRSSState 读取最近一次抓取快照；文件不存在时返回空状态。
 func loadRSSState(path string) (RSSState, error) {
 	state := RSSState{Items: make(map[string]StateItem)}
 	data, err := os.ReadFile(path)
@@ -40,6 +40,7 @@ func loadRSSState(path string) (RSSState, error) {
 }
 
 // filterUnseenItems 返回本次抓取中未出现在上一次快照里的条目。
+// 主流程已不再用它做跨次预过滤；保留给快照语义测试和调试场景使用。
 func filterUnseenItems(items []Item, state RSSState) []Item {
 	unseen := make([]Item, 0, len(items))
 	for _, item := range items {
@@ -51,7 +52,7 @@ func filterUnseenItems(items []Item, state RSSState) []Item {
 	return unseen
 }
 
-// snapshotRSSState 用本次完整抓取结果创建下一次比较使用的快照。
+// snapshotRSSState 用本次完整抓取结果创建下一次运行可复用的快照。
 func snapshotRSSState(items []Item) RSSState {
 	state := RSSState{Items: make(map[string]StateItem, len(items))}
 	for _, item := range items {
@@ -81,8 +82,8 @@ func mergeRSSState(items []Item, previous RSSState, failures map[string]error) R
 	return next
 }
 
-// saveRSSState 原子地覆盖写入上一次抓取快照：先写同目录临时文件再改名，
-// 避免进程中途被杀导致 rss-state.json 写成半截而丢失全部去重历史。
+// saveRSSState 原子地覆盖写入最近一次抓取快照：先写同目录临时文件再改名，
+// 避免进程中途被杀导致 rss-state.json 写成半截而丢失快照内容。
 func saveRSSState(path string, state RSSState) error {
 	data, err := json.MarshalIndent(state, "", "  ")
 	if err != nil {

@@ -30,7 +30,7 @@ func applyKeywordWeights(preferences PreferencesConfig, scored []ScoredItem, ite
 		}
 		current, exists := byIndex[index]
 		if !exists {
-			current = ScoredItem{Index: index, Title: item.Title, Score: keywordScore, Reason: reason}
+			current = ScoredItem{Index: index, Title: item.Title, Score: keywordScore, Reason: reason, PublishedAt: item.PublishedAt}
 		} else if keywordScore > current.Score {
 			current.Score = keywordScore
 			current.Reason = reason
@@ -46,10 +46,19 @@ func applyKeywordWeights(preferences PreferencesConfig, scored []ScoredItem, ite
 		}
 	}
 	sort.SliceStable(result, func(i, j int) bool {
-		if result[i].Score == result[j].Score {
-			return result[i].KeywordScore > result[j].KeywordScore
+		a, b := result[i], result[j]
+		if a.Score != b.Score {
+			return a.Score > b.Score
 		}
-		return result[i].Score > result[j].Score
+		if a.KeywordScore != b.KeywordScore {
+			return a.KeywordScore > b.KeywordScore
+		}
+		// 同分同关键词分时，新发布的优先（避免昨天的剩余条目挤掉今天的新内容）；
+		// 仍同时间则按原始输入序号稳定排序，保证完全确定、不引入非确定排序。
+		if !a.PublishedAt.Equal(b.PublishedAt) {
+			return a.PublishedAt.After(b.PublishedAt)
+		}
+		return a.Index < b.Index
 	})
 	if len(result) > preferences.Thresholds.MaximumCandidates {
 		result = result[:preferences.Thresholds.MaximumCandidates]
