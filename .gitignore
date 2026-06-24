@@ -20,7 +20,7 @@ node_modules
 .claude/skills/remotion-best-practices
 .claude/*.local.md
 .agents/skills/remotion-best-practices
-bun.lock
+# bun.lock 纳入版本控制以保证依赖树可复现（与 node_modules/dist/build 仍忽略）。
 build
 .env*
 !.env.example
