@@ -34,7 +34,9 @@ const visionJSONSchema = `{"type":"object","properties":{"relevant":{"type":"boo
 
 // 视觉识别只需要读取远程图片内容：优先支持图像分析 MCP，同时允许 Claude
 // 用只读 WebFetch 读取图片 URL；不需要也不允许 Bash/Write/Edit。
-var claudeVisionAllowedTools = []string{"mcp__*", "WebFetch"}
+// 注意：claude 的 allow 规则不允许裸 "mcp__*" 通配（会直接报错 exit 1），必须写成
+// mcp__<具名服务器>__*；这里用项目配置的图像分析 MCP 服务器 zai-mcp-server。
+var claudeVisionAllowedTools = []string{"mcp__zai-mcp-server__*", "WebFetch"}
 
 type VisionResult struct {
 	Relevant    bool     `json:"relevant"`

@@ -713,8 +713,15 @@ func TestBuildClaudeVisionArgsUsesMCPAllowlist(t *testing.T) {
 	if strings.Contains(joined, "dangerously") {
 		t.Fatalf("Claude vision args must not bypass permissions: %#v", args)
 	}
-	if !strings.Contains(joined, "--allowedTools\x00mcp__*\x00WebFetch") {
-		t.Fatalf("Claude vision args should allow MCP tools and WebFetch, got %#v", args)
+	// claude 的 allow 规则禁止裸 "mcp__*"（会 exit 1），必须用具名服务器 mcp__<server>__*。
+	if strings.Contains(joined, "\x00mcp__*\x00") {
+		t.Fatalf("Claude vision args must use a scoped mcp__<server>__* rule, not the bare invalid mcp__*: %#v", args)
+	}
+	if !strings.Contains(joined, "mcp__") || !strings.Contains(joined, "__*") {
+		t.Fatalf("Claude vision args should allow a scoped MCP server (mcp__<server>__*), got %#v", args)
+	}
+	if !strings.Contains(joined, "WebFetch") {
+		t.Fatalf("Claude vision args should allow WebFetch, got %#v", args)
 	}
 	if strings.Contains(joined, "\x00Bash") || strings.Contains(joined, "\x00Write") || strings.Contains(joined, "\x00Edit") {
 		t.Fatalf("Claude vision args should not allow shell or file edits, got %#v", args)
