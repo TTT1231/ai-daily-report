@@ -89,9 +89,12 @@ function flatten(dir) {
   return subdirs[0].name;
 }
 
+// cookie 提升到模块级：download-bili 失败时（biliup/ 可能已被清空）可在 catch 中还原登录态，
+// 避免升级失败静默丢失 cookies.json、用户被迫重新扫码登录。
+let cookie = null;
+
 async function main() {
   // 1. 备份现有 cookie（任意层级）
-  let cookie = null;
   const ck = findCookie(BILIUP_DIR);
   if (ck) {
     cookie = readFileSync(ck, "utf8");
@@ -158,6 +161,17 @@ async function main() {
 
 main().catch((e) => {
   warn(e.message || String(e));
+  // biliup/ 可能已被清空；把备份的登录态还原回去，避免升级失败导致 cookies.json 丢失、
+  // 用户被迫重新扫码。还原本身也 best-effort，绝不掩盖原始错误。
+  if (cookie != null) {
+    try {
+      mkdirSync(BILIUP_DIR, { recursive: true });
+      writeFileSync(join(BILIUP_DIR, "cookies.json"), cookie, "utf8");
+      log("已还原登录态 → biliup/cookies.json");
+    } catch (restoreErr) {
+      warn("登录态还原失败（需重新扫码登录）：" + restoreErr.message);
+    }
+  }
   warn("biliup 本次未更新（不影响 install）。可稍后 `bun run download-bili` 重试。");
   process.exit(0); // best-effort：绝不搞坏 bun install
 });

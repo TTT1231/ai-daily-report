@@ -25,11 +25,13 @@
 import { readFileSync, existsSync } from "node:fs";
 import { resolve } from "node:path";
 import { spawn } from "node:child_process";
-import { dataDir } from "../../lib/paths.mjs";
+import { dataDir, rootDir } from "../../lib/paths.mjs";
 import { resolveOid, postComment, pinComment } from "./bili-api.mjs";
 import { ensureBiliup } from "./ensure-biliup.mjs";
 
-const ROOT = process.cwd();
+// 用 paths.mjs 的 rootDir 而非 process.cwd()：其余脚本统一用 rootDir 锚定项目根，
+// 用 cwd 会在从子目录/异常 cwd 运行时把所有路径解析到错误位置。
+const ROOT = rootDir;
 const NO_COMMENT = process.argv.includes("--no-comment");
 const DRY_RUN = process.argv.includes("--dry-run");
 
@@ -49,7 +51,10 @@ function runCapture(cmd, args, opts = {}) {
     };
     child.stdout.on("data", fwd);
     child.stderr.on("data", fwd);
-    child.on("exit", (code) => res({ code, out }));
+    // 用 close 而非 exit：exit 在 stdio 流关闭前触发，biliup 在退出最后一刻吐出的含 bvid
+    // 那一行可能还没被 stdout "data" 累积进 out，导致 match 不到 bvid、误判"投稿疑似成功"
+    // 并跳过评论/置顶（视频已发、评论静默丢失）。close 在所有流结束后才触发。
+    child.on("close", (code) => res({ code, out }));
     child.on("error", (err) => res({ code: 1, out: out + String(err) }));
   });
 }
@@ -147,7 +152,10 @@ if (!existsSync(commentsPath)) {
 
 // ── 1.5) 等审核 ───────────────────────────────────────────────────────
 // 视频刚发布需先过审核才能评论，否则评论接口会失败。等 commentDelaySec（默认 180s=3 分钟）。
-const delaySec = Number(config.commentDelaySec ?? 180);
+// commentDelaySec 必须是有限数字：写成 "3min" 之类时 Number() 得 NaN，NaN > 0 为 false，
+// 会跳过审核等待直接发评论，导致评论接口几乎必失败。非法值回退默认 180s。
+const parsedDelay = Number(config.commentDelaySec ?? 180);
+const delaySec = Number.isFinite(parsedDelay) ? parsedDelay : 180;
 if (delaySec > 0) {
   console.log(`\n⏳ 等 ${delaySec}s 再评论（视频需先通过审核）…`);
   let remain = delaySec;
@@ -160,30 +168,35 @@ if (delaySec > 0) {
   process.stdout.write("\r  等待完成，开始评论。        \n");
 }
 
-// ── 2) 发评论 ─────────────────────────────────────────────────────────
-// 直接复用 ./bili-api.mjs（已内置重试），不再 spawn 子进程并抓 stdout。
-console.log("\n===== 2/3 发表评论 =====");
-const message = readFileSync(commentsPath, "utf-8").trim();
-if (!message) {
-  console.warn(`\n⚠️  ${commentsPath} 为空，跳过评论/置顶（视频已发布）。`);
-  process.exit(0);
-}
-const oid = await resolveOid({ bvid });
+// ── 2/3 发评论 + 3/3 置顶 ────────────────────────────────────────────
+// 视频已发布，整个评论/置顶流程包在一个 try/catch 里：resolveOid / 读 comments / 发评论 /
+// 置顶任一异常都只警告并给出 bvid 与恢复命令、exit 0，绝不以裸栈 + 非零退出码收场——
+// 此时副作用已发生（视频已上线），最该给的是清晰、可恢复的错误信息。
+let oid;
 let rpid;
 try {
+  // 直接复用 ./bili-api.mjs（已内置重试），不再 spawn 子进程并抓 stdout。
+  console.log("\n===== 2/3 发表评论 =====");
+  const message = readFileSync(commentsPath, "utf-8").trim();
+  if (!message) {
+    console.warn(`\n⚠️  ${commentsPath} 为空，跳过评论/置顶（视频已发布）。`);
+    process.exit(0);
+  }
+  oid = await resolveOid({ bvid });
   rpid = await postComment(oid, message);
+  console.log(`\n✅ 评论已发 · rpid=${rpid}`);
+
+  console.log("\n===== 3/3 置顶评论 =====");
+  await pinComment(oid, rpid);
+  console.log(`\n🎉 全部完成 · ${bvid}（视频 + 评论 + 置顶）`);
 } catch (err) {
-  console.warn(`\n⚠️  发评论失败：${err.message}（视频 ${bvid} 已发布，可手动补评论）。`);
+  console.warn(`\n⚠️  评论/置顶流程异常：${err?.message || err}`);
+  if (rpid) {
+    console.warn(
+      `   视频 ${bvid} 已发布，评论 rpid=${rpid} 已发。可手动置顶：bun run bili:stick -- --bvid ${bvid} --rpid ${rpid}`,
+    );
+  } else {
+    console.warn(`   视频 ${bvid} 已发布。可手动补评论/置顶（bvid=${bvid}）。`);
+  }
   process.exit(0); // 视频已发，不算整体失败
 }
-console.log(`\n✅ 评论已发 · rpid=${rpid}`);
-
-// ── 3) 置顶 ───────────────────────────────────────────────────────────
-console.log("\n===== 3/3 置顶评论 =====");
-try {
-  await pinComment(oid, rpid);
-} catch (err) {
-  console.warn(`\n⚠️  置顶失败：${err.message}（视频 ${bvid} 已发布、评论 rpid=${rpid} 已发，可手动置顶）。`);
-  process.exit(0);
-}
-console.log(`\n🎉 全部完成 · ${bvid}（视频 + 评论 + 置顶）`);

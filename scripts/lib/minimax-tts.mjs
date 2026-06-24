@@ -11,6 +11,7 @@ export function createMinimaxClient({
   requestIntervalMs = 2200,
   maxRetries = 5,
   rateLimitRetryMs = 60000,
+  timeoutMs = 60000,
   fetch = globalThis.fetch,
 }) {
   let lastRequestStartedAt = 0;
@@ -37,6 +38,9 @@ export function createMinimaxClient({
             Authorization: `Bearer ${apiKey}`,
             "Content-Type": "application/json",
           },
+          // 防止 MiniMax 连接挂起导致整条 TTS 管线无限阻塞（只能 Ctrl+C 中断事务）。
+          // 超时会抛出 AbortError/TimeoutError，被下方网络错误分支按 maxRetries 重试。
+          signal: globalThis.AbortSignal.timeout(timeoutMs),
           body: JSON.stringify({
             model,
             text,

@@ -22,6 +22,8 @@ let syncQueued = false;
 let syncTimer = null;
 let shuttingDown = false;
 let inputWatchers = [];
+const maxConsecutiveFailures = 3;
+let consecutiveFailures = 0;
 
 function runBunScript(name) {
   const child = spawn(bunCommand, ["run", name], {
@@ -59,15 +61,25 @@ function runSync(reason) {
   syncProcess.once("close", (code) => {
     syncProcess = null;
     if (code === 0) {
+      consecutiveFailures = 0;
       console.log("✅ data-generate.json 已更新；未变化的旁白已从缓存复用。");
       startStudio();
     } else {
+      consecutiveFailures += 1;
       console.error("❌ 自动同步失败。修正 data.json 或环境配置后再次保存即可重试。");
     }
 
     if (syncQueued && !shuttingDown) {
       syncQueued = false;
-      runSync("同步期间检测到新的数据变化");
+      // 连续失败时停止自动重跑：对持续坏掉的 data.json 反复跑完整 TTS 会烧 MiniMax 配额，
+      // 用户应先修正数据/配置再手动保存触发一次新的同步。
+      if (consecutiveFailures >= maxConsecutiveFailures) {
+        console.error(
+          `⛔ 已连续失败 ${consecutiveFailures} 次自动同步，暂停自动重试。修正 data.json 或 .env 后保存一次即可重新触发。`,
+        );
+      } else {
+        runSync("同步期间检测到新的数据变化");
+      }
     }
   });
 }

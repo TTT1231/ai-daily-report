@@ -5,6 +5,7 @@
   "repository": {},
   "license": "UNLICENSED",
   "private": true,
+  "packageManager": "bun@1.3.12",
   "dependencies": {
     "@remotion/cli": "4.0.475",
     "@remotion/tailwind-v4": "4.0.475",
@@ -38,7 +39,7 @@
     "tts:dry-run": "node --env-file-if-exists=.env scripts/render/generate-tts.mjs --dry-run",
     "tts:force": "node --env-file-if-exists=.env scripts/render/generate-tts.mjs --force",
     "comment:generate": "node scripts/publish/bili/generate-comment.mjs",
-    "generate-svg": "claude --dangerously-skip-permissions -p --effort low \"/generate-svg\"",
+    "generate-svg": "claude --allowedTools Read Glob Grep \"Write(data-scheme/icons/**)\" \"Edit(data-scheme/icons/**)\" \"Edit(data-scheme/data-generate.json)\" \"Edit(data-scheme/data.json)\" \"Bash(mkdir -p data-scheme/icons)\" \"Bash(bun run check-icons)\" \"Bash(bun run lint)\" \"Bash(bun run comment:generate)\" -p --effort low \"/generate-svg\"",
     "video:prepare": "node scripts/render/prepare-video.mjs",
     "reset": "node scripts/archive/reset.mjs",
     "archive": "node scripts/archive/archive.mjs",
