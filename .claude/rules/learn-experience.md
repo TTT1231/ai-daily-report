@@ -80,3 +80,42 @@
   - 任何「保底/兜底」生成的结构体，其字段必须独立满足下游所有硬性校验（字数、非空、枚举值），不能假设上游传入的标题/理由够长。
   - 流水线末步的 fatal 校验（如 `len(tabs) < min`）要确保上游有真正能达到下限的兜底，否则 fatal 会把整期数据全赔进去；评估末步是否改为「降级生成 + 警告」而非 fatal。
   - 给「字数/数量下限」类约束补针对边界输入（空、极短）的回归测试，这类问题 tsc/vet 抓不到。
+
+---
+
+## Windows 下 Remotion Studio 持有音频句柄时，TTS 事务「整目录重命名 audio/」撞 EPERM，重试 ~4.5s 后让整次 dev 同步 abort（~40% 间歇性 HMR 失败真凶）
+
+- **Tags**: `#runtime` `#environment` `#windows` `#third-party-library` `#remotion` `#tricky-issue`
+- **Trigger Context**: Windows（实测 Win10 19045 + Node 24.15）；`bun run dev` 已拉起 Remotion Studio 且正在播放/拖动某个 scene 音频时，用户编辑 `data.json` 触发 `bun run tts` → commit。
+- **Symptoms**: dev 终端打印 `❌ 自动同步失败`，tts 非零退出，`data-generate.json` 不更新（Studio 停在旧画面）；连续 3 次后 dev 暂停自动重试，用户必须 Ctrl+C 重启。**间歇性约 40%**——取决于浏览器 HTTP Range 请求与 commit 第一步 rename 瞬间是否重叠。`tsc`/`eslint`/普通单测全过，仅运行时 + 跨进程句柄才暴露。
+- **Root Cause**:
+  1. 旧 `createGeneratedOutputTransaction.commit()`（`scripts/lib/generated-output.mjs`）第一步 `renameWithRetry(audioDir, backupAudioDir)` 重命名**整个 `audio/` 目录**。Windows 内核规定：**目录里含有「打开的文件句柄」时，该目录不能被重命名**。
+  2. Remotion Studio 的静态服务用 `createReadStream({start,end}).pipe(res)`（`@remotion/studio-server/.../serve-static.js`）按 HTTP Range 请求服务音频，响应期间持有该 mp3 的读句柄 fd；`<Audio src={staticFile(...)}>`（`src/AiDailyReport.tsx`）对每个旁白 scene 都挂载。Studio 常驻后，任何 in-flight/backpressured Range 请求都会在 commit 瞬间持有 fd。
+  3. 命中即 `EPERM`，`renameWithRetry` 按 `100×(n+1)ms` 重试 10 次（实测 ~4.5s）后仍 EPERM → throw → `generate-tts.mjs` catch → `transaction.abort()` → tts 非零退出 → dev `❌ 自动同步失败`。
+- **Verified Solution**（已落地于 `scripts/lib/generated-output.mjs` + 回归测试 `scripts/lib/generated-output.test.mjs`）：
+  把「整目录重命名（staging↔audio↔backup）」改成**逐文件操作**。实测（持读句柄时）：`writeFile` 覆盖 ✅、`writeFile` 新增 ✅、`unlink` 删除 ✅；只有「rename 目录」和「rename 覆盖被占用文件」会 EPERM——这两样本实现都不再做。
+  ```js
+  // commit 不再 rename(audio/)：逐文件写入 → 原子发布 manifest → best-effort 清孤儿
+  async commit() {
+    try {
+      for (const [sceneId, audio] of generatedAudio) {
+        await writeFile(resolve(audioDir, `${sceneId}.mp3`), audio); // 持句柄可写
+      }
+      if (stagedReportWritten) {
+        await renameWithRetry(stagedGeneratedPath, generatedPath); // 单文件 rename，安全
+      }
+      const currentIds = new Set([...generatedAudio.keys(), ...reusedIds]);
+      for (const entry of await readdir(audioDir).catch(() => [])) {
+        if (!entry.endsWith(".mp3") || currentIds.has(entry.slice(0, -4))) continue;
+        await unlink(resolve(audioDir, entry)).catch(() => {}); // 孤儿清理，失败忽略
+      }
+    } finally {
+      await releaseLock();
+    }
+  }
+  ```
+  安全顺序：先写音频 → 再发布 manifest（Studio 仅在它 mtime 变化时 reload）→ 最后清孤儿。崩溃最坏只留下「manifest 与音频一致，或仅多出无害孤儿」；缺失/不匹配音频对 Remotion 也只 warn 不崩。回归测试 `commit succeeds while a reader holds an open handle...` 锁定契约（旧实现 4571ms 抛 EPERM，新实现 19ms 通过），并经真实 `bun run tts`（31 scene 全 reuse、不调 MiniMax）在 `data-scheme/` 上验证 data-generate.json 与修前完全一致、无残留 staging/lock。
+- **Prevention Recommendations**:
+  - Windows 上避免「重命名含打开文件的目录」或「rename 覆盖被占用文件」；改用 `writeFile` 原地覆盖 / `unlink`（Node 以 `FILE_SHARE_WRITE | FILE_SHARE_DELETE` 打开，持句柄可写可删）。
+  - 凡是被另一个长驻进程（Studio / 编辑器 / Defender 实时扫描）会打开的资源目录，提交/发布都走「逐文件 + 单文件原子 rename 指针」，不要整目录 rename。
+  - 这类「静态全过、运行时 + 跨进程句柄才暴露」的坑，必须有能「持句柄复现」的回归测试，tsc/eslint 抓不到。

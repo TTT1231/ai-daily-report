@@ -1,9 +1,10 @@
-import {existsSync, watch} from "node:fs";
+import {existsSync, readFileSync, watch} from "node:fs";
 import {spawn} from "node:child_process";
 import {extname} from "node:path";
 import {clearTimeout, setTimeout} from "node:timers";
-import {dataDir, generatedDataPath, rootDir} from "../lib/paths.mjs";
+import {dataDir, generatedDataPath, rawDataPath, rootDir} from "../lib/paths.mjs";
 import {terminateProcessTree} from "../lib/process-tree.mjs";
+import {collectMissingImageAssets} from "../lib/asset-check.mjs";
 
 if (process.env.AI_DAILY_REPORT_RUN_ALL === "1") {
   throw new Error(
@@ -20,6 +21,7 @@ let syncProcess = null;
 let studioProcess = null;
 let syncQueued = false;
 let syncTimer = null;
+let assetCheckTimer = null;
 let shuttingDown = false;
 let inputWatchers = [];
 const maxConsecutiveFailures = 3;
@@ -89,6 +91,78 @@ function scheduleSync(reason) {
   syncTimer = setTimeout(() => runSync(reason), debounceMs);
 }
 
+function readReportSafe(path) {
+  try {
+    return {ok: true, report: JSON.parse(readFileSync(path, "utf8"))};
+  } catch (error) {
+    return {ok: false, error};
+  }
+}
+
+// 图片被删/改后，检查 raw + generated 里是否出现悬空的 overlayImg/icon 引用。
+// tts 用 checkAssets:false、图片变化也不触发 tts，否则死引用会一直留在
+// data-generate.json，让 Remotion <Img> cancelRender 且永不自愈。这里只做诊断、
+// 不静默改 data.json：精确告诉用户哪条引用悬空、怎么修（删字段后保存触发 tts 自愈）。
+function runImageAssetCheck({silentWhenClean = false} = {}) {
+  const missing = [];
+
+  // data.json 读失败（手改拼错/半写入）不能静默：否则 readReportSafe→null→"无缺失"，
+  // 再被 silentWhenClean 当成"没问题"吞掉，用户既看不到 asset 提示，也得不到
+  // "data.json 解析失败"的任何线索。这里强制报一行。
+  const raw = readReportSafe(rawDataPath);
+  if (!raw.ok) {
+    console.error(
+      `⚠️ 无法读取 data.json（${raw.error.code ?? raw.error.message}），图片引用检查已跳过。请确认 data-scheme/data.json 语法正确。`,
+    );
+    return;
+  }
+  for (const m of collectMissingImageAssets(raw.report, dataDir)) {
+    missing.push({...m, source: "data.json"});
+  }
+
+  // data-generate.json 是生成文件、可能正被 tts 重命名中，读失败属正常瞬态；
+  // 且 overlayImg 已由上面的 raw 覆盖，icons 缺失下次 tts 会重建。静默跳过即可。
+  if (existsSync(generatedDataPath)) {
+    const generated = readReportSafe(generatedDataPath);
+    if (generated.ok) {
+      for (const m of collectMissingImageAssets(generated.report, dataDir)) {
+        missing.push({...m, source: "data-generate.json"});
+      }
+    }
+  }
+  // overlayImg 同时存在于 raw 和 generated，按 ref+owner 去重（保留 raw 来源）。
+  const seen = new Set();
+  const deduped = missing.filter((m) => {
+    const key = `${m.ref}|${m.owner}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+
+  if (deduped.length === 0) {
+    if (!silentWhenClean) {
+      console.log("✅ 图片引用完整，交由 Remotion Studio 刷新。");
+    }
+    return;
+  }
+  console.error(
+    `⚠️ 发现 ${deduped.length} 处悬空的图片引用（Remotion <Img> 会 cancelRender）：`,
+  );
+  for (const m of deduped) {
+    console.error(`  - ${m.ref}  → ${m.owner}（来自 ${m.source}）`);
+  }
+  console.error(
+    "👉 修复：从 data-scheme/data.json 删除对应的 overlayImg 字段后保存（会自动重跑 TTS 自愈），或把图片放回 images/。",
+  );
+}
+
+const assetCheckDebounceMs = 400;
+function scheduleImageAssetCheck(changedName) {
+  console.log(`🖼 图片素材已变化：${changedName}；检查 overlayImg/icon 引用是否悬空...`);
+  clearTimeout(assetCheckTimer);
+  assetCheckTimer = setTimeout(() => runImageAssetCheck(), assetCheckDebounceMs);
+}
+
 function watchInputs() {
   const watchers = [];
 
@@ -102,7 +176,7 @@ function watchInputs() {
         return;
       }
       if (imageExtensions.has(extname(name).toLowerCase())) {
-        console.log(`🖼 图片素材已变化：${name}；交由 Remotion Studio 刷新，不运行 TTS。`);
+        scheduleImageAssetCheck(name);
       }
     }),
   );
@@ -134,6 +208,7 @@ function shutdown(exitCode = 0) {
   if (shuttingDown) return;
   shuttingDown = true;
   clearTimeout(syncTimer);
+  clearTimeout(assetCheckTimer);
   for (const watcher of inputWatchers) watcher.close();
   inputWatchers = [];
   terminateProcessTree(syncProcess);
@@ -157,6 +232,7 @@ console.log(
   "👀 开发监听已启动：data.json、数据与布局 Schema、video-layout.json、.env 和图片素材。",
 );
 console.log("   数据 / Schema / 布局 / .env 变化会自动运行 TTS；图片变化不会触发 TTS。");
+runImageAssetCheck({silentWhenClean: true});
 if (existsSync(generatedDataPath)) {
   startStudio();
 }
