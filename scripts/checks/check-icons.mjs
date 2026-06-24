@@ -50,7 +50,7 @@ const svgCache = new Map();
 
 for (const {tab, jsonPath} of allTabs) {
   if (tab.icon === undefined) {
-    warn(jsonPath, `missing "icon" field — icon not generated yet`);
+    fail(jsonPath, `missing "icon" field — icon generation did not finish`);
     continue;
   }
 
@@ -139,13 +139,10 @@ if (errors.length > 0) {
   process.exit(1);
 }
 
-const iconCount = allTabs.filter((t) => t.tab.icon !== undefined).length;
 const totalTabs = allTabs.length;
 
 if (totalTabs === 0) {
   console.log("No tabs found — nothing to validate.");
-} else if (iconCount === totalTabs) {
-  console.log(`Icon validation passed: ${iconCount}/${totalTabs} tabs have icons.`);
 } else {
-  console.log(`Icon validation passed with warnings: ${iconCount}/${totalTabs} tabs have icons (${totalTabs - iconCount} missing).`);
+  console.log(`Icon validation passed: ${totalTabs}/${totalTabs} tabs have icons.`);
 }

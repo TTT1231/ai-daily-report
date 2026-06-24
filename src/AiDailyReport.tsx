@@ -172,63 +172,120 @@ const OVERLAY_MAX_UPSCALE = 2.25;
 const OVERLAY_SMALL_MAX_WIDTH = 980;
 const OVERLAY_SMALL_MAX_HEIGHT = 560;
 const OVERLAY_SMALL_MAX_UPSCALE = 3.6;
-const SUBTITLE_MAX_VISUAL_UNITS = 36;
+const SUBTITLE_MAX_VISUAL_UNITS = 44;
 const SUBTITLE_FONT_SIZE = 36;
+const SUBTITLE_TOKEN_PATTERN =
+  /[A-Za-z][A-Za-z0-9]*(?:\s+\d+(?:\.\d+)+)(?:\s+[A-Za-z][A-Za-z0-9-]*)+|[A-Za-z0-9]+(?:[._:/+-][A-Za-z0-9]+)+(?:[A-Za-z%]*)?|[A-Za-z0-9]+(?:[A-Za-z%]*)?|\s+|./gu;
+const SUBTITLE_TRAILING_PUNCTUATION_PATTERN = /^[，。！？；,!?;]$/u;
 
 const msToFrames = (milliseconds: number, fps: number) =>
   Math.round((milliseconds / 1000) * fps);
 
 // Keep voiceover continuous while presenting long captions as timed single lines.
-const subtitleVisualUnits = (text: string) =>
+export const subtitleVisualUnits = (text: string) =>
   [...text].reduce((total, character) => {
     if (/\s/.test(character)) return total + 0.32;
     if ((character.codePointAt(0) ?? 0) <= 0xff) return total + 0.56;
     return total + 1;
   }, 0);
 
+// splitOversizedToken 把单个超过字幕宽度预算的 token（如极长型号/版本串、长 URL）按视觉单位
+// 边界硬切成多条 ≤ 预算的片段。仅在 token 本身超预算时作为兜底：此情形下「不拆 token」会让整条
+// cue 超 SUBTITLE_MAX_VISUAL_UNITS，而渲染容器 nowrap 且无 overflow 规则会被裁剪丢内容，拆开至少能完整显示。
+const splitOversizedToken = (token: string) => {
+  const pieces: string[] = [];
+  let piece = "";
+  let units = 0;
+  for (const character of token) {
+    const characterUnits = subtitleVisualUnits(character);
+    if (units + characterUnits > SUBTITLE_MAX_VISUAL_UNITS && piece) {
+      pieces.push(piece);
+      piece = "";
+      units = 0;
+    }
+    piece += character;
+    units += characterUnits;
+  }
+  if (piece) pieces.push(piece);
+  return pieces;
+};
+
 const hardSplitSubtitleSegment = (segment: string) => {
   const chunks: string[] = [];
   let chunk = "";
   let units = 0;
 
-  for (const character of segment) {
-    const characterUnits = subtitleVisualUnits(character);
-    if (chunk && units + characterUnits > SUBTITLE_MAX_VISUAL_UNITS) {
-      chunks.push(chunk.trim());
-      chunk = "";
-      units = 0;
+  for (const token of segment.match(SUBTITLE_TOKEN_PATTERN) ?? [segment]) {
+    const tokenUnits = subtitleVisualUnits(token);
+    // 单个 token 本身就超过预算：先 flush 已累积的 chunk，再把该 token 硬切后逐段入列，
+    // 保证没有任何 chunk 超过预算（旧逻辑因 `chunk &&` 守卫在首 token 时短路，会整条吐出超预算）。
+    if (tokenUnits > SUBTITLE_MAX_VISUAL_UNITS) {
+      if (chunk.trim()) {
+        chunks.push(chunk.trim());
+        chunk = "";
+        units = 0;
+      }
+      for (const piece of splitOversizedToken(token)) chunks.push(piece);
+      continue;
     }
-    chunk += character;
-    units += characterUnits;
+    if (chunk && units + tokenUnits > SUBTITLE_MAX_VISUAL_UNITS) {
+      if (SUBTITLE_TRAILING_PUNCTUATION_PATTERN.test(token)) {
+        const characters = [...chunk.trimEnd()];
+        const lastCharacter = characters.pop() ?? "";
+        const head = characters.join("").trim();
+        if (head) chunks.push(head);
+        chunk = `${lastCharacter}${token}`;
+        units = subtitleVisualUnits(chunk);
+        continue;
+      }
+      chunks.push(chunk.trim());
+      chunk = token.trimStart();
+      units = subtitleVisualUnits(chunk);
+      continue;
+    }
+    chunk += token;
+    units += tokenUnits;
   }
 
   if (chunk.trim()) chunks.push(chunk.trim());
   return chunks;
 };
 
-const splitSubtitleCues = (subtitle: string) => {
+export const splitSubtitlePieces = (subtitle: string) => {
+  const pieces: string[] = [];
+  let piece = "";
+
+  for (const token of subtitle.match(SUBTITLE_TOKEN_PATTERN) ?? [subtitle]) {
+    piece += token;
+    if (SUBTITLE_TRAILING_PUNCTUATION_PATTERN.test(token) && piece.trim()) {
+      pieces.push(piece);
+      piece = "";
+    }
+  }
+
+  if (piece.trim()) pieces.push(piece);
+  return pieces;
+};
+
+export const splitSubtitleCues = (subtitle: string) => {
   const normalized = subtitle.trim().replace(/\s+/g, " ");
   if (subtitleVisualUnits(normalized) <= SUBTITLE_MAX_VISUAL_UNITS) {
     return [normalized];
   }
 
-  const segments = normalized.match(
-    /[^，。！？；：,.!?;:]+[，。！？；：,.!?;:]?/g,
-  ) ?? [normalized];
+  const pieces = splitSubtitlePieces(normalized).reduce<string[]>(
+    (chunks, piece) => chunks.concat(hardSplitSubtitleSegment(piece)),
+    [],
+  );
   const cues: string[] = [];
   let cue = "";
 
-  const splitSegments = segments.reduce<string[]>(
-    (chunks, segment) => chunks.concat(hardSplitSubtitleSegment(segment)),
-    [],
-  );
-
-  for (const segment of splitSegments) {
-    if (cue && subtitleVisualUnits(cue + segment) > SUBTITLE_MAX_VISUAL_UNITS) {
+  for (const piece of pieces) {
+    if (cue && subtitleVisualUnits(cue + piece) > SUBTITLE_MAX_VISUAL_UNITS) {
       cues.push(cue.trim());
       cue = "";
     }
-    cue += segment;
+    cue += piece;
   }
 
   if (cue.trim()) cues.push(cue.trim());
