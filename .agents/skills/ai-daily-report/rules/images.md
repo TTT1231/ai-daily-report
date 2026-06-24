@@ -80,14 +80,14 @@ bun run dev
 
 ## 自动配图（rss 视觉识别）
 
-自动模式（`bun run video:prepare`）下，`CLAUDE_VISION_ENABLED=true` 时，`ingest/vision.go` 会对高分 Story 的远程图片同时做两件事：
+自动模式（`bun run video:prepare`）下，`CLAUDE_VISION_ENABLED=true` 时，`ingest/vision.go` 会对达到日报入选线（Score ≥7）且含远程图的 Story 做视觉识别和自动配图。Story 按分数降序处理，分数高的先消耗预算；总量仍由 `CLAUDE_VISION_MAX_CALLS`、`CLAUDE_VISION_MAX_IMAGES_PER_SOURCE` 和 `CLAUDE_VISION_MAX_BUDGET_USD` 封顶。
 
-1. **提取事实**：调 `claude` 多模态识别图片内容，补充到文案。
-2. **自动配图**：判定相关后，把该图下载到 `data-scheme/images/` 并写入对应 scene 的 `overlayImg`（带原始宽高，供 `SourceOverlay` 布局用）。
+1. **提取事实**：调 `claude` 识别图片内容，补充到文案。Claude 子进程只允许 `mcp__*` 和 `WebFetch`，不放行 `Bash`、`Write`、`Edit`。
+2. **自动配图**：用聚类后的 Story 标题、重要性和要点做相关性判断。证据图、示意图、数据/评测图、产品截图、官方物料都算相关；纯表情包、头像、签名装饰图、与 Story 无关的截图会被判不相关。相关后，把该图下载到 `data-scheme/images/` 并写入对应 scene 的 `overlayImg`（带原始宽高，供 `SourceOverlay` 布局用）。
 
 自动配图不会自动写 `overlayImgScale`；这个字段留给预览后的人工微调。
 
-当前实现的触发条件（`shouldAnalyze`）：默认只挑高分 Story（代码阈值为评分 ≥9）且含远程图片的条目，受 `CLAUDE_VISION_*` 的调用上限/预算控制（默认开，不看正文长短）。不满足条件的 scene 不会自动配图，用上面的手动方式补即可。
+当前实现的触发条件（`shouldAnalyze`）：视觉开关启用、Story 分数 ≥ `visionMinStoryScore`（当前为 7，等于默认日报入选线）、未超调用上限且条目含远程图片；不看正文长短。不满足条件的 scene 不会自动配图，用上面的手动方式补即可。
 
 `CLAUDE_VISION_ENABLED=false` 时不会调用 Claude 识图，也不会自动写 `overlayImg`。为了方便手动配图，`rss` 会把默认候选范围内的远程图片下载到 `data-scheme/images/`，文件名形如 `scene-1-1.png`、`scene-1-2.jpg`，并在终端打印下载到的文件名。你确认图片合适后，再手动把对应 scene 的 `overlayImg` 填成 `images/scene-1-1.png`。
 

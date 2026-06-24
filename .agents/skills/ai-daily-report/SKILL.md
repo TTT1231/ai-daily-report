@@ -9,6 +9,16 @@ description: How to use the ai-daily-report project end-to-end — set it up, ru
 
 本 skill 是项目的总入口指南，README 的 FAQ 里说的「遇到难题可直接用本项目提供的 skill」就是指它。它和另外两个 skill 配合：`generate-svg`（出 Tab 图标）与 `remotion-best-practices`（改 Remotion 组件时的通用规范），那两个由它们各自的触发条件处理，这里不重复。
 
+## 常见用法速查
+
+用户问「`/ai-daily-report` 这个 skill 怎么用」时，先按下面三种入口解释，不要一上来只讲完全手动模式：
+
+1. **自动出片**：用户想一条命令生成当天日报，就让他配置 `.env` 后运行 `bun run video:prepare`。这会自动抓 RSS、筛选、生成 `data.json`、TTS 和 Tab 图标。
+2. **RSS 补选**：用户已经跑过 `bun run video:prepare`，但觉得自动筛选太少，就让他从 `ingest/rss-state.json` 复制多条想补进视频的记录，直接贴给 `/ai-daily-report`。agent 按 [`rules/rss-pick-mode.md`](./rules/rss-pick-mode.md) 解析这些记录，按 `.env` 里的视觉/TTS 开关补图和生成语音，追加到当前 `data-scheme/data.json`，再跑校验、TTS 和图标生成。
+3. **完全手动**：用户不想用 RSS，或要做特别篇，才让他自己维护 `data-scheme/data.json`。agent 按 [`rules/manual-mode.md`](./rules/manual-mode.md) 协助。
+
+最常见的日常用法是：**先自动出片，再按需 RSS 补选**。长期偏好才改 `ingest/preferences.jsonc`；当天临时想加的新闻不要要求用户维护关键词，直接走 RSS 补选。
+
 ## 行为约定（重要）
 
 这个 skill 触发后，遵循「**先讲解、再代执行**」：
@@ -25,7 +35,7 @@ description: How to use the ai-daily-report project end-to-end — set it up, ru
   - RSS/AI 总结用：`AI_API_KEY`、`AI_BASE_URL`、`AI_MODEL` 三者均必填（OpenAI 兼容接口；`.env.example` 给了 DeepSeek 示例值）。`bili:meta` 生成 B站 标题/标签也复用这套。
   - 网络受限时可选：小写 `all_proxy`（如 `http://127.0.0.1:7890`）。**仅作用于 `rss` 抓取阶段**（RSS 源抓取 + 该阶段内部的 AI 评分请求）；MiniMax TTS、B站 标题/标签生成与投稿/评论/置顶等 Node 端请求**不**走此代理，始终直连。未配置则直连；配置后上述 `rss` 阶段请求必须走该代理，失败时不会回退直连。不要使用其他代理变量。
   - TTS 旁白用：`TTS_REQUIRE=true` 时需要 `MINIMAX_API_KEY`、`MINIMAX_TTS_MODEL`、`MINIMAX_TTS_VOICE_ID`、`MINIMAX_TTS_SPEED`；不需要旁白或没有 MiniMax Key 时设 `TTS_REQUIRE=false`，会跳过 MiniMax、音频和 ffmpeg 音质检测。
-  - 图片识别用：`CLAUDE_VISION_ENABLED=true` 时，默认优先处理高分且含远程图的 Story；在调用上限/预算内识图，判定相关后才自动写 `overlayImg`。没有多模态能力或图片识别 MCP 时设为 `false`，流程会下载候选图到 `data-scheme/images/` 供手动配图。
+  - 图片识别用：`CLAUDE_VISION_ENABLED=true` 时，默认处理达到日报入选线（Score ≥7）且含远程图的 Story；分数高的 Story 会先消耗调用预算，总量由 `CLAUDE_VISION_MAX_CALLS` 封顶。识图会使用 Story 标题、重要性和要点做相关性判断，相关才自动写 `overlayImg`。没有多模态、远程读取或图像分析 MCP 能力时设为 `false`，流程会下载候选图到 `data-scheme/images/` 供手动配图。
   - 语音质量检测用：`REQUIRE_VOICE_QUALITY_FFMPEG=true` 时需要可用的 `ffmpeg`；没装 ffmpeg 但仍要生成旁白时设为 `false`。
 - **运行时**：需要 `bun`、`go`（跑 RSS 采集器）；需要自动识图或生成 Tab 图标时还需要 `claude` CLI。
 - **数据目录**：正式数据固定用 `data-scheme/`；示例预览用 `data-scheme-sample-1/2`，不会改正式数据。
@@ -65,10 +75,10 @@ bun run video:prepare
 
 生产步骤跑完后：
 
-- **图片自动 + 手动两条路**：`CLAUDE_VISION_ENABLED=true` 时，`rss` 视觉识别会默认优先处理高分且含远程图片的 Story；在调用上限/预算内，Claude 判定相关后自动把该图下载到 `data-scheme/images/` 并写入对应 scene 的 `overlayImg`；`CLAUDE_VISION_ENABLED=false` 时不会写 `overlayImg`，但会下载候选图，方便手动填图。详见下方「把图片放进 data.json」。
+- **图片自动 + 手动两条路**：`CLAUDE_VISION_ENABLED=true` 时，`rss` 视觉识别会处理达到日报入选线（Score ≥7）且含远程图片的 Story；在调用上限/预算内，Claude 会结合 Story 上下文判定相关，相关后自动把该图下载到 `data-scheme/images/` 并写入对应 scene 的 `overlayImg`；`CLAUDE_VISION_ENABLED=false` 时不会写 `overlayImg`，但会下载候选图，方便手动填图。详见下方「把图片放进 data.json」。
 - **预览 / 渲染 / 发布**：`bun run preview` 看完整示例，`bun run preview:notts` 看无 TTS 示例；看当前 `data-scheme/` 用 `bun run dev`（HMR + 自动 TTS 同步）。导出用 `bun run video:render`，发 B站 用 `bun run all:bili`。
 
-> 关于 `ingest/rss-state.json`：它存的是上次抓取的快照，用来去重。日常不用手动编辑；如果清空了 `data-scheme/` 或想完全重建，先跑 `bun run reset`，再跑 `bun run video:prepare`。
+> 关于 `ingest/rss-state.json`：它存的是最近一次完整抓取快照，用于来源失败时保留上次状态，也方便从抓取结果里人工补选新闻；当前采集器会对最近时间窗口内的全部条目重新评分，不再用它做跨次预过滤。日常不用手动编辑；如果想丢弃当前数据与快照后完全重建，先跑 `bun run reset`，再跑 `bun run video:prepare`。
 
 ## B. 手动模式
 
@@ -77,6 +87,27 @@ bun run video:prepare
 主线很简单：参考或复制 `data-scheme-sample-1` → 编辑 `data-scheme/data.json` → `bun run dev`（会自动 TTS）或手动 `bun run tts` → `/generate-svg` 出图标。
 
 完整步骤、必填字段速查、theme 切换：**先读 [`rules/manual-mode.md`](./rules/manual-mode.md)** 再动手。
+
+## C. RSS 补选模式
+
+适合「已经跑完 `bun run video:prepare`，但自动筛选出来的新闻太少，用户从 `ingest/rss-state.json` 里挑了几条想补进本期视频」。
+
+这是**半自动补选**，不是完全手写：用户直接把一段 `rss-state.json` 条目贴给 `/ai-daily-report`，例如：
+
+```jsonc
+"c320d6cc...": {
+  "sourceId": "linuxdo-news",
+  "title": "Google Workspace CLI 项目作者被解雇",
+  "link": "https://linux.do/t/topic/2463889"
+},
+"e554f218...": {
+  "sourceId": "linuxdo-news",
+  "title": "豆包新版变化真蛮多的...",
+  "link": "https://linux.do/t/topic/2461423"
+}
+```
+
+这时不要让用户逐条跑命令，也不要要求用户改 `preferences.jsonc`。按 [`rules/rss-pick-mode.md`](./rules/rss-pick-mode.md) 执行：解析用户粘贴的多条 RSS 记录 → 对照当前 `data-scheme/data.json` 去重 → 按 `.env` 的视觉开关补图/写 `overlayImg` → 生成并追加对应 Story → 校验 → 重新生成 TTS 与图标。
 
 ## 换 TTS 模型 / 供应商
 
@@ -91,7 +122,7 @@ bun run video:prepare
 
 一句话结论：**把图片丢进 `data-scheme/images/`，给对应的 scene 加 `"overlayImg": "images/文件名"`；截图或小图建议同时填原始像素 `"overlayImgWidth"` / `"overlayImgHeight"`，避免渲染时被过度放大。**
 
-- 自动模式（`bun run video:prepare`）下，`rss` 视觉识别开启时会给部分高分 Story **自动下载并配图**（写入 `overlayImg`）；视觉关闭时只下载候选图，不写 `overlayImg`。下面讲的是没被自动配上、或手动模式下你自己加图时怎么做。
+- 自动模式（`bun run video:prepare`）下，`rss` 视觉识别开启时会给达到日报入选线（Score ≥7）且含远程图的 Story **自动下载并配图**（写入 `overlayImg`）；视觉关闭时只下载候选图，不写 `overlayImg`。下面讲的是没被自动配上、或手动模式下你自己加图时怎么做。
 - 图片是 **scene 级**的（不是 story 级、不是 tab 级），一张图配一句旁白。
 - 允许格式：`.svg .png .jpg/.jpeg .webp`。
 - `overlayImgWidth` / `overlayImgHeight` 填图片文件的**原始像素宽高**，两个字段要一起填；错填会被 `bun run check-data-json` 报出来。
@@ -156,6 +187,7 @@ bun run biliup:prepare                              # 一键备好 biliup 工具
 | 想做的事             | 读哪个                                               |
 | -------------------- | ---------------------------------------------------- |
 | 手写 / 完全手动出片  | [`rules/manual-mode.md`](./rules/manual-mode.md)     |
+| 从 RSS 抓取结果补选新闻 | [`rules/rss-pick-mode.md`](./rules/rss-pick-mode.md) |
 | 换 TTS 模型或供应商  | [`rules/tts-customize.md`](./rules/tts-customize.md) |
 | 给日报加图片       | [`rules/images.md`](./rules/images.md)               |
 | 把视频渲染导出成 mp4 | [`rules/render-export.md`](./rules/render-export.md) |

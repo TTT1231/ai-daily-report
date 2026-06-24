@@ -420,7 +420,7 @@
             <div>
               <strong>配置 AI Key + Claude CLI</strong
               ><span
-                ><code>.env</code> 的 <code>AI_API_KEY</code> 喂给 rss 分析模型；generate-svg 步骤会执行 <code>claude --dangerously-skip-permissions -p --effort low "/generate-svg"</code>（<code>--effort low</code> 降低思考强度以加速图标生成）生成 Tabs 图标，需先装好 Claude CLI。</span
+                ><code>.env</code> 的 <code>AI_API_KEY</code> 喂给 rss 分析模型；generate-svg 步骤会执行 <code>claude --allowedTools … -p --effort low "/generate-svg"</code>（用精确 allowlist 仅放行 <code>data-scheme/icons</code> 写入、<code>data-scheme</code> 下 icon 字段编辑与只读/校验类命令，避免读取来自 RSS 的不可信标题时被提示注入；<code>--effort low</code> 降低思考强度以加速图标生成）生成 Tabs 图标，需先装好 Claude CLI。</span
               >
             </div>
           </article>
@@ -430,7 +430,7 @@
           <strong>📡 抓取来源：</strong>
           <span><code>rss</code> 按 <code>ingest/sources.jsonc</code> 从启用的 RSS 2.0 来源抓取 <strong>最近 24 小时</strong> 内容；新增 LinuxDo 栏目只需复制来源对象并修改 ID、名称和 URL</span>
           <span>经 AI 评分筛选与聚类，最多保留约 15 个 Story（视频主题）</span>
-          <span>每次运行会基于 <code>ingest/rss-state.json</code> 自动去重；LinuxDo 同一 Topic 跨栏目只处理一次，单个来源失败时会保留它的上一次运行状态</span>
+          <span>每次运行会对最近时间窗口内的全部条目重新评分；LinuxDo 同一 Topic 跨栏目只处理一次，<code>ingest/rss-state.json</code> 作为最近抓取快照供补选和失败来源保留使用</span>
         </div>
 
         <div class="help-strip">
@@ -448,9 +448,9 @@
 
         <div class="help-strip">
           <strong>👁️ 图片识别（按需）：</strong>
-          <span><code>CLAUDE_VISION_ENABLED=true</code> 时，默认优先处理高分且含远程图片的 Story，并在调用上限/预算内识图：<code>rss</code> 调用 <code>claude --dangerously-skip-permissions -p --effort low</code> 识别图片内容，补充事实；判定相关后还会<strong>自动把该图下载到 <code>images/</code> 并写入对应 scene 的 <code>overlayImg</code></strong></span>
-          <span><code>CLAUDE_VISION_ENABLED=false</code> 时不识图、不写 <code>overlayImg</code>，但会把高分 Story 的候选图下载到 <code>data-scheme/images/</code>，供你手动判断后填图</span>
-          <span>⚠ 自动识图要求 <strong>Claude CLI 的模型支持多模态</strong>，并<strong>配置图像分析 MCP</strong>；不具备时建议关闭 <code>CLAUDE_VISION_ENABLED</code></span>
+          <span><code>CLAUDE_VISION_ENABLED=true</code> 时，默认处理达到日报入选线（Score ≥7）且含远程图片的 Story，分数高的 Story 优先消耗调用预算；<code>rss</code> 调用 <code>claude --allowedTools mcp__* WebFetch -p --effort low</code>，只允许图像分析类 MCP 或只读远程抓取能力、不放行 shell 或文件编辑；判定相关后还会<strong>自动把该图下载到 <code>images/</code> 并写入对应 scene 的 <code>overlayImg</code></strong></span>
+          <span><code>CLAUDE_VISION_ENABLED=false</code> 时不识图、不写 <code>overlayImg</code>，但会把默认高分候选范围内的远程图下载到 <code>data-scheme/images/</code>，供你手动判断后填图</span>
+          <span>⚠ 自动识图要求 <strong>Claude CLI 的模型支持多模态或只读远程读取能力</strong>，或<strong>配置图像分析 MCP</strong>；不具备时建议关闭 <code>CLAUDE_VISION_ENABLED</code></span>
         </div>
 
         <div class="steps">
@@ -522,7 +522,7 @@
 
         <div class="help-strip">
           <strong>🖼️ 图片：自动 + 手动：</strong>
-          <span><code>rss</code> 视觉识别开启时会给部分高分 Story <strong>自动下载并配图</strong>（写入 <code>overlayImg</code>）；关闭时只下载候选图，不写 <code>overlayImg</code>。手动配图时填 <code>overlayImg: "images/xxx"</code>，截图或小图建议同时填真实像素 <code>overlayImgWidth</code> / <code>overlayImgHeight</code>；手动微调单张图大小用 <code>overlayImgScale</code>，会叠加正常聚焦动画</span>
+          <span><code>rss</code> 视觉识别开启时会给达到日报入选线（Score ≥7）的 Story <strong>自动下载并配图</strong>（写入 <code>overlayImg</code>）；关闭时只下载候选图，不写 <code>overlayImg</code>。手动配图时填 <code>overlayImg: "images/xxx"</code>，截图或小图建议同时填真实像素 <code>overlayImgWidth</code> / <code>overlayImgHeight</code>；手动微调单张图大小用 <code>overlayImgScale</code>，会叠加正常聚焦动画</span>
           <span>仅替换图片不会重新请求旁白</span>
         </div>
       </div>
@@ -745,7 +745,7 @@
 <span class="folder">├── ingest/</span>                             <span class="comment"># Go 编写的多来源 RSS 采集器</span>
 <span class="folder">│   ├── sources.jsonc</span>                  <span class="comment"># 人工维护：RSS 来源、启用状态和分页参数</span>
 <span class="folder">│   ├── preferences.jsonc</span>              <span class="comment"># 人工维护：重点实体、兴趣信号、不喜欢内容和筛选阈值</span>
-<span class="folder">│   └── rss-state.json</span>                 <span class="comment"># 自动生成：上一次抓取快照，不要人工修改</span>
+<span class="folder">│   └── rss-state.json</span>                 <span class="comment"># 自动生成：最近抓取快照，可供补选，不要人工修改</span>
 <span class="folder">├── biliup/</span>                             <span class="comment"># biliup-rs 工具 + 登录态 cookies.json（首次跑 bili 命令时按需下载，已 gitignore）</span>
 <span class="folder">├── daily-dates/</span>                        <span class="comment"># archive.mjs 按日期归档的历史日报数据包</span>
 <span class="folder">├── remotion.config.ts</span>                  <span class="comment"># Remotion 配置（JPEG、publicDir、Tailwind）</span>
@@ -1088,8 +1088,8 @@
 
           <div class="help-strip">
             <strong>运行状态：</strong>
-            <span><code>ingest/rss-state.json</code> 不是用户配置，而是采集器自动生成的“上一轮抓取记录”，用于避免每次运行都重复处理最近 24 小时内容</span>
-            <span>无需维护；删除它会让下一次运行把最近 24 小时内容全部视为新增，并自动生成一份新状态</span>
+            <span><code>ingest/rss-state.json</code> 不是用户配置，而是采集器自动生成的“最近一次完整抓取记录”，用于人工补选新闻和来源失败时保留上次状态</span>
+            <span>无需维护；删除它只会丢弃这份快照，下一次运行仍会对最近时间窗口内的全部条目重新评分并自动生成新状态</span>
           </div>
         </div>
       </div>
@@ -1254,9 +1254,9 @@ bun run bili:stick    # 单独置顶</pre>
               <div class="rule-indicator dont"></div>
               <div class="rule-content">
                 <div class="rule-text">
-                  不要人工修改 ingest/rss-state.json
+                  不要把 ingest/rss-state.json 当偏好配置修改
                 </div>
-                <div class="rule-code">它不是用户配置；删除后下一次运行会自动重建</div>
+                <div class="rule-code">它是最近抓取快照；补选可复制条目，偏好请改 preferences.jsonc</div>
               </div>
             </div>
             <div class="rule-item">

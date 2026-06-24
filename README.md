@@ -13,7 +13,7 @@
 [![Remotion](https://img.shields.io/badge/Remotion-4.0.475-6A5ACD?style=flat-square&logo=remotion&logoColor=white)](https://remotion.dev)
 [![React](https://img.shields.io/badge/React-19-20232A?style=flat-square&logo=react&logoColor=61DAFB)](https://react.dev)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.9-3178C6?style=flat-square&logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
-[![Go](https://img.shields.io/badge/Go-1.26+-00ADD8?style=flat-square&logo=go&logoColor=white)](https://go.dev/)
+[![Go](https://img.shields.io/badge/Go-1.21+-00ADD8?style=flat-square&logo=go&logoColor=white)](https://go.dev/)
 [![Bun](https://img.shields.io/badge/Bun-Runtime-14151A?style=flat-square&logo=bun&logoColor=white)](https://bun.sh/)
 [![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-4.0-06B6D4?style=flat-square&logo=tailwindcss&logoColor=white)](https://tailwindcss.com/)
 
@@ -61,12 +61,13 @@
 | --- | --- | --- |
 | 看效果 | `bun run preview` / `bun run preview:notts` | 不用配置 `.env` |
 | 自动出片 | `bun run video:prepare` | RSS 抓取、总结、TTS、图标一条龙 |
+| 自动后补选 | `/ai-daily-report` + 粘贴 `rss-state.json` 条目 | 已自动出片后人工追加少量新闻 |
 | 手写内容 | 编辑 `data-scheme/data.json` | 自己控制标题、Tabs、字幕和图片 |
 
 > [!TIP]
 > 本项目用 `minimax` 生成 TTS 旁白，用 `deepseek-v4-flash` 总结 RSS 抓取的内容，用 `claude -p` 识别远程图片并生成对应图标。
 >
-> 图片识别依赖 claude 的多模态能力或图片识别类 mcp。
+> 图片识别依赖 Claude CLI 的多模态/远程读取能力，或图像分析类 MCP；RSS 视觉步骤只放行 `mcp__*` 与 `WebFetch`，不放行 shell 或文件编辑。
 >
 > RSS 的模型可自由切换；TTS 目前仅适配了 `minimax`，若要换其他 TTS，需要同步改 TTS 生成代码与 schema。
 
@@ -107,12 +108,12 @@ bun run dev
 bun run video:render
 ```
 
-常用开关写在 `.env`：无多模态能力设 `CLAUDE_VISION_ENABLED=false`；没有 TTS Key 设 `TTS_REQUIRE=false`；没有 ffmpeg 设 `REQUIRE_VOICE_QUALITY_FFMPEG=false`。
+常用开关写在 `.env`：无多模态、远程读取或图像分析 MCP 能力时设 `CLAUDE_VISION_ENABLED=false`；没有 TTS Key 设 `TTS_REQUIRE=false`；没有 ffmpeg 设 `REQUIRE_VOICE_QUALITY_FFMPEG=false`。
 
 自动配图没覆盖的 scene，可以把图片放进 `data-scheme/images/`，再在 `data.json` 里填 `overlayImg: "images/xxx"`。截图或小图建议同时填原始像素 `overlayImgWidth` / `overlayImgHeight`；只想手动微调某一张图大小时，用当前 scene 的 `overlayImgScale`，不要改全局样式。只换图片不会重新请求 TTS。
 
 > [!WARNING]
-> `ingest/rss-state.json` 保存上一次 RSS 抓取快照，用来判断重复内容。日常不用手动编辑；如果你清空了 `data-scheme/` 或想完全重建，请运行 `bun run reset` 后再执行 `bun run video:prepare`。
+> `ingest/rss-state.json` 保存最近一次完整 RSS 抓取快照，用于来源失败时保留上次状态，也方便从抓取结果里人工补选新闻。当前采集器会对最近时间窗口内的全部条目重新评分，不再用它做跨次预过滤。日常不用手动编辑；如果想丢弃当前数据与快照后完全重建，请运行 `bun run reset` 后再执行 `bun run video:prepare`。
 
 ### 方式二：手写维护
 
