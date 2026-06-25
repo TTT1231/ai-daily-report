@@ -177,6 +177,8 @@ function watchInputs() {
       }
       if (imageExtensions.has(extname(name).toLowerCase())) {
         scheduleImageAssetCheck(name);
+        // 图片变化也让 tts 跑一次（音频走缓存复用、不调 MiniMax），以便构建按新文件重算 overlay 尺寸。
+        scheduleSync("图片素材已变化（重算 overlay 尺寸）");
       }
     }),
   );
@@ -231,7 +233,7 @@ inputWatchers = watchInputs();
 console.log(
   "👀 开发监听已启动：data.json、数据与布局 Schema、video-layout.json、.env 和图片素材。",
 );
-console.log("   数据 / Schema / 布局 / .env 变化会自动运行 TTS；图片变化不会触发 TTS。");
+console.log("   数据 / Schema / 布局 / .env 变化会自动运行 TTS；图片变化也会触发一次 TTS 同步（音频缓存复用、不调 MiniMax）以重算 overlay 尺寸。");
 runImageAssetCheck({silentWhenClean: true});
 if (existsSync(generatedDataPath)) {
   startStudio();
