@@ -47,5 +47,6 @@ daily-dates
 .playwright-*
 linuxdo-rss.exe
 ingest/rss-state.json
+ingest/rss-state.html
 
 .superpowers

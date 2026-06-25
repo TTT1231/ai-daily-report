@@ -29,6 +29,10 @@ bun run video:prepare
 
 这不是完全手动模式。不要让用户从零写 `data.json`，也不要要求用户逐条执行命令。
 
+> **挑条目更省事**：手动翻 `rss-state.json` 很累。跑 `bun run rss:vision-pick` 会生成一个按 `sourceId` 分类的网页并自动打开浏览器——
+> 已进本期 `data.json` 的条目会带绿标（默认不勾，避免重复补选），勾选后一键「复制选中为 JSONC」，粘回对话即可进入下面的补选流程。
+> 实现见 `scripts/rss-pick/`。
+
 ## 环境变量一致性
 
 RSS 补选模式必须尽量保持和 `bun run video:prepare` 一致的环境变量语义：

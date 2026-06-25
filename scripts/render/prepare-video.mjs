@@ -3,6 +3,7 @@ import { existsSync } from "node:fs";
 import { createInterface } from "node:readline";
 import { clearInterval, setInterval } from "node:timers";
 import ora from "ora";
+import { GENERATE_SVG_ALLOWED_TOOLS } from "../lib/claude-allowlist.mjs";
 import { rawDataPath, rootDir } from "../lib/paths.mjs";
 import { terminateProcessTree } from "../lib/process-tree.mjs";
 import { classifyStepOutcome } from "../lib/step-outcome.mjs";
@@ -10,23 +11,6 @@ import { classifyStepOutcome } from "../lib/step-outcome.mjs";
 const bunCommand = process.platform === "win32" ? "bun.exe" : "bun";
 const claudeCommand = process.platform === "win32" ? "claude.exe" : "claude";
 const productionEnv = { ...process.env, AI_DAILY_REPORT_RUN_ALL: "1" };
-
-// generate-svg 的精确权限 allowlist：读取来自 RSS 的不可信标题时，只放行 data-scheme 图标写入、
-// icon 字段编辑与只读/校验类命令，避免被提示注入后写任意文件或跑未授权 bash。
-// 与 package.json 的 generate-svg 脚本保持一致（那里是 shell 字符串形态）。
-const GENERATE_SVG_ALLOWED_TOOLS = [
-  "Read",
-  "Glob",
-  "Grep",
-  "Write(data-scheme/icons/**)",
-  "Edit(data-scheme/icons/**)",
-  "Edit(data-scheme/data-generate.json)",
-  "Edit(data-scheme/data.json)",
-  "Bash(mkdir -p data-scheme/icons)",
-  "Bash(bun run check-icons)",
-  "Bash(bun run lint)",
-  "Bash(bun run comment:generate)",
-];
 
 const productionSteps = [
   {

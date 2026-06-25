@@ -79,6 +79,9 @@ func normalizeStoryTabsWithReasons(group NewsGroup, tabs []StoryTab) ([]StoryTab
 // tabRejectionReason 返回 Tab 内容层面的失败原因；通过校验返回空串。
 // 失败原因可被反馈给模型用于定向修正，因此只描述内容问题，不描述序号/去重等程序性校验。
 // 注意：subtitle 校验失败不在此列——原行为是退到 fallbackTabSubtitle 兜底，不丢弃 Tab。
+// “空信息免责 Tab”（只有“需以官方为准/尚未公开/待确认”等话术、没有任何具体信息）不在这里
+// 用代码拦截——那只会偷偷丢掉、模型并不知道错在哪。它由 storyTabsSystemPrompt 作为硬性质量
+// 底线明确告知模型，从生成源头避免。
 func tabRejectionReason(tab StoryTab) string {
 	switch {
 	case tab.Title == "":
@@ -122,11 +125,12 @@ func withFallbackStoryTabs(groups []NewsGroup) []NewsGroup {
 
 // fallbackSummaryFloor 是保底 Tab 摘要的兜底句，长度大于 minTabSummaryRunes，
 // 用于在 Story 标题/理由过短时把摘要补到最小字数以上，避免保底 Tab 被 normalize 丢弃。
-const fallbackSummaryFloor = "当前信息以来源原始内容为准，使用前请结合官方公告或实际产品页面核对，避免将未确认细节视为最终规则。"
+// 措辞只如实说明“本期来源信息较少”，不再用“请以官方公告为准”这类把观众推回官方的免责话术。
+const fallbackSummaryFloor = "本期该主题捕获到的来源信息较少，更多细节有待后续来源补充。"
 
 // fallbackOverviewSummary 生成“事件概览”保底 Tab 的摘要：优先用标题+理由，过短时拼接兜底句，
 // 确保至少满足 minTabSummaryRunes 字。否则当标题与理由都偏短（例如 “GLM。更新”）时，该保底 Tab
-// 会被 tabRejectionReason 丢弃，只剩“后续观察”一个 Tab，凑不齐 minStoryTabs(2)，
+// 会被 tabRejectionReason 丢弃，只剩一个保底 Tab，凑不齐 minStoryTabs(2)，
 // 最终在 generateDataJSON 触发整期 fatal 中止、丢失全部数据。
 func fallbackOverviewSummary(group NewsGroup) string {
 	composed := strings.TrimSpace(fmt.Sprintf("%s。%s", strings.TrimSpace(group.Title), strings.TrimSpace(group.Reason)))
@@ -142,9 +146,17 @@ func fallbackOverviewSummary(group NewsGroup) string {
 	return composed + fallbackSummaryFloor
 }
 
-// fallbackStoryTabs 生成两个保底 Tab（“事件概览”+“后续观察”），用于模型结果不足时的确定性补齐。
+// fallbackStoryTabs 生成两个保底 Tab（“事件概览”+“用户影响”），用于模型结果不足时的确定性补齐。
+// 第二个 Tab 复用 Story 自身的关注理由（Reason）走“用户影响”角度，让观众知道这条新闻为什么重要；
+// 不再用“需以官方说明为准 / 待正式公告确认”这类没有实际信息、把观众推回官方的免责话术凑数。
 func fallbackStoryTabs(group NewsGroup) []StoryTab {
 	evidence := append([]int(nil), group.SourceIndexes...)
+	impactSummary := strings.TrimSpace(group.Reason)
+	if impactSummary == "" {
+		impactSummary = fallbackSummaryFloor
+	} else if utf8.RuneCountInString(impactSummary) < minTabSummaryRunes && !strings.HasSuffix(impactSummary, "。") {
+		impactSummary += "。" + fallbackSummaryFloor
+	}
 	return []StoryTab{
 		{
 			Title:           "事件概览",
@@ -154,10 +166,10 @@ func fallbackStoryTabs(group NewsGroup) []StoryTab {
 			EvidenceIndexes: evidence,
 		},
 		{
-			Title:           "后续观察",
-			Summary:         "当前信息仍需结合后续正式公告与实际上线范围继续确认，使用前不宜将未确认内容视为最终规则。",
-			Subtitle:        "具体细节仍需等待后续正式公告确认。",
-			Kind:            "watch",
+			Title:           "用户影响",
+			Summary:         impactSummary,
+			Subtitle:        fallbackSubtitleFromText(impactSummary),
+			Kind:            "impact",
 			EvidenceIndexes: evidence,
 		},
 	}

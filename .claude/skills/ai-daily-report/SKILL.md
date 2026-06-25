@@ -14,10 +14,11 @@ description: How to use the ai-daily-report project end-to-end — set it up, ru
 用户问「`/ai-daily-report` 这个 skill 怎么用」时，先按下面三种入口解释，不要一上来只讲完全手动模式：
 
 1. **自动出片**：用户想一条命令生成当天日报，就让他配置 `.env` 后运行 `bun run video:prepare`。这会自动抓 RSS、筛选、生成 `data.json`、TTS 和 Tab 图标。
-2. **RSS 补选**：用户已经跑过 `bun run video:prepare`，但觉得自动筛选太少，就让他从 `ingest/rss-state.json` 复制多条想补进视频的记录，直接贴给 `/ai-daily-report`。agent 按 [`rules/rss-pick-mode.md`](./rules/rss-pick-mode.md) 解析这些记录，按 `.env` 里的视觉/TTS 开关补图和生成语音，追加到当前 `data-scheme/data.json`，再跑校验、TTS 和图标生成。
-3. **完全手动**：用户不想用 RSS，或要做特别篇，才让他自己维护 `data-scheme/data.json`。agent 按 [`rules/manual-mode.md`](./rules/manual-mode.md) 协助。
+2. **审核删除**：用户跑完 `bun run video:prepare` 后审核，发现某条 story 不想要，直接说「删掉 topic-XXX」。agent 按 [`rules/review-remove-mode.md`](./rules/review-remove-mode.md) 从 `data-scheme/data.json` 干净地移除该 story、清理孤儿 icon、重跑 TTS 让 audio 和 `data-generate.json` 自愈，再跑校验。
+3. **RSS 补选**：用户已经跑过 `bun run video:prepare`，但觉得自动筛选太少，就让他从 `ingest/rss-state.json` 复制多条想补进视频的记录，直接贴给 `/ai-daily-report`。agent 按 [`rules/rss-pick-mode.md`](./rules/rss-pick-mode.md) 解析这些记录，按 `.env` 里的视觉/TTS 开关补图和生成语音，追加到当前 `data-scheme/data.json`，再跑校验、TTS 和图标生成。
+4. **完全手动**：用户不想用 RSS，或要做特别篇，才让他自己维护 `data-scheme/data.json`。agent 按 [`rules/manual-mode.md`](./rules/manual-mode.md) 协助。
 
-最常见的日常用法是：**先自动出片，再按需 RSS 补选**。长期偏好才改 `ingest/preferences.jsonc`；当天临时想加的新闻不要要求用户维护关键词，直接走 RSS 补选。
+最常见的日常用法是：**先自动出片，再按需审核删减 / RSS 补选**（删除走 `review-remove-mode.md`，追加走 `rss-pick-mode.md`，两者方向相反）。长期偏好才改 `ingest/preferences.jsonc`；当天临时想加的新闻不要要求用户维护关键词，直接走 RSS 补选。
 
 ## 行为约定（重要）
 
@@ -187,6 +188,7 @@ bun run biliup:prepare                              # 一键备好 biliup 工具
 | 想做的事             | 读哪个                                               |
 | -------------------- | ---------------------------------------------------- |
 | 手写 / 完全手动出片  | [`rules/manual-mode.md`](./rules/manual-mode.md)     |
+| 审核删除已生成的 story | [`rules/review-remove-mode.md`](./rules/review-remove-mode.md) |
 | 从 RSS 抓取结果补选新闻 | [`rules/rss-pick-mode.md`](./rules/rss-pick-mode.md) |
 | 换 TTS 模型或供应商  | [`rules/tts-customize.md`](./rules/tts-customize.md) |
 | 给日报加图片       | [`rules/images.md`](./rules/images.md)               |
