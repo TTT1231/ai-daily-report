@@ -65,9 +65,7 @@ bun run dev
           "id": "my-story-scene-1",
           "subtitle": "智谱 AI 发布 GLM 5.2，上下文扩展至 128K。"  // 1 ~ 96 字，TTS 的输入文案
           // "overlayImg": "images/glm5.2.png", // 可选，详见 images.md
-          // "overlayImgWidth": 1200,           // 可选：图片原始像素宽
-          // "overlayImgHeight": 800,           // 可选：图片原始像素高
-          // "overlayImgScale": 1.15            // 可选：只调这一张图的显示倍率
+          // "overlayImgScale": 1.15            // 可选：只调这一张图的显示倍率（overlayImgWidth/Height 由构建自动写）
         }
       ]
     }
@@ -80,7 +78,7 @@ bun run dev
 - `tabs`：**最少 2 张，最多 6 张**。
 - `contentTitle`：**≤ 42 字**。
 - `subtitle`：**1 ~ 96 字**，建议 28~96，是 TTS 实际念的文案。
-- `overlayImgWidth` / `overlayImgHeight`：填图片文件真实像素，两个字段要一起填；`overlayImgScale` 手动微调当前 scene 的基础倍率，会叠加正常的聚焦动画。
+- `overlayImgWidth` / `overlayImgHeight`：构建期按图片文件真实像素自动写入 `data-generate.json`，无需手填；`overlayImgScale` 手动微调当前 scene 的基础倍率，会叠加正常的聚焦动画。
 - `id`：只能小写字母/数字/`-`/`.`，**必须以小写字母或数字开头**。
 - 顶部导航（`topTitle`）和底部导航（`bottomTitle`）的总展示宽度有上限，超了 schema 校验会报。宁可短一点。
 - 顶层可选 `introContent` / `outroContent` 自定义开场/结尾旁白，不给就用默认问候/结语。

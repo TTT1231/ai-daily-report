@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- Changed: overlay 图片尺寸（overlayImgWidth/Height）改为构建期按图片真实像素自动写入 data-generate.json，data.json 无需再手填；dev 换图也会自动重算尺寸（音频缓存复用、不调 MiniMax）
+
 ## 0.5.0
 
 - Added: ingest 对近 24h 全量条目重新评分，加入视觉相关性评分与图片去重

@@ -18,7 +18,7 @@
 
 给 **scene** 加 `overlayImg` 字段（**注意：是 scene 级，不是 story 级、不是 tab 级**）。
 
-截图或小图建议同时填 `overlayImgWidth` / `overlayImgHeight`，值是图片文件的**原始像素宽高**，不是想让它显示成多大。渲染层会用这两个值限制小图放大；两个字段必须一起填，错填会被 `bun run check-data-json` 报出来。
+`overlayImgWidth` / `overlayImgHeight` 由构建按图片文件**真实像素**自动写入 `data-generate.json`，**无需手填**；值是原始像素，不是想让它显示成多大，渲染层用它们限制小图放大。raw 里写了只当提示、会被构建按文件真相覆盖；两个字段要么都不填、要么一起填（只填一个会被 `bun run check-data-json` 报出来）。
 
 如果只有某一张图想再大一点或小一点，在这个 scene 上加 `overlayImgScale`，例如 `1.2`。它是人工微调的基础倍率，只影响当前图片，并会和正常的入场/聚焦动画叠加；不要去改 `SourceOverlay` 里的全局样式，否则后面的所有 overlay 图都会一起变大。
 
@@ -34,8 +34,6 @@
       "id": "topic-glm52-scene-1",
       "subtitle": "智谱 AI 发布 GLM 5.2，上下文窗口扩展至 128K。",
       "overlayImg": "images/glm5.2.png",
-      "overlayImgWidth": 1200,
-      "overlayImgHeight": 800,
       "overlayImgScale": 1.15
     }
   ]
@@ -55,11 +53,11 @@
 ]
 ```
 
-## 关键行为：改图片不会重算 TTS
+## 关键行为：改图片会触发一次缓存复用的 TTS 同步
 
-`scripts/render/dev.mjs` 的监听逻辑里，**只有** `data.json` / schema / `video-layout.json` / `video-timeline.json` / `.env` 变化才会重新跑 TTS；图片文件变化只会让 Remotion Studio 刷新画面、**不调 API、不花钱**。
+`scripts/render/dev.mjs` 的监听逻辑里，`data.json` / schema / `video-layout.json` / `video-timeline.json` / `.env` 变化会重新跑 TTS；图片文件变化也会触发一次 TTS 同步，**但音频走缓存复用、不调 MiniMax、不花钱**——目的是让构建按新文件重算 overlay 尺寸。字幕没变，所以旁白不会重生成。
 
-所以日常迭代图片很安全：改完保存，预览自己就更新了。
+日常迭代图片很安全：加图、换图保存后，尺寸自动重算、预览自己就更新了。
 
 ## 渲染效果
 
@@ -76,7 +74,7 @@ bun run tts
 bun run dev
 ```
 
-如果 `check-data-json` 报 `overlayImg` 不匹配正则，基本就是路径写错了（没带 `images/` 前缀，或用了不支持的格式）。如果报宽高不一致，就按图片文件的真实像素改 `overlayImgWidth` / `overlayImgHeight`。
+如果 `check-data-json` 报 `overlayImg` 不匹配正则，基本就是路径写错了（没带 `images/` 前缀，或用了不支持的格式）。`overlayImgWidth` / `overlayImgHeight` 由构建按文件真实像素自动写入，无需手动对齐；若 raw 里只填了其中一个，会被报“必须一起填”。
 
 ## 自动配图（rss 视觉识别）
 

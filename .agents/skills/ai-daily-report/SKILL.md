@@ -14,10 +14,11 @@ description: How to use the ai-daily-report project end-to-end — set it up, ru
 用户问「`/ai-daily-report` 这个 skill 怎么用」时，先按下面三种入口解释，不要一上来只讲完全手动模式：
 
 1. **自动出片**：用户想一条命令生成当天日报，就让他配置 `.env` 后运行 `bun run video:prepare`。这会自动抓 RSS、筛选、生成 `data.json`、TTS 和 Tab 图标。
-2. **RSS 补选**：用户已经跑过 `bun run video:prepare`，但觉得自动筛选太少，就让他从 `ingest/rss-state.json` 复制多条想补进视频的记录，直接贴给 `/ai-daily-report`。agent 按 [`rules/rss-pick-mode.md`](./rules/rss-pick-mode.md) 解析这些记录，按 `.env` 里的视觉/TTS 开关补图和生成语音，追加到当前 `data-scheme/data.json`，再跑校验、TTS 和图标生成。
-3. **完全手动**：用户不想用 RSS，或要做特别篇，才让他自己维护 `data-scheme/data.json`。agent 按 [`rules/manual-mode.md`](./rules/manual-mode.md) 协助。
+2. **审核删除**：用户跑完 `bun run video:prepare` 后审核，发现某条 story 不想要，直接说「删掉 topic-XXX」。agent 按 [`rules/review-remove-mode.md`](./rules/review-remove-mode.md) 从 `data-scheme/data.json` 干净地移除该 story、清理孤儿 icon、重跑 TTS 让 audio 和 `data-generate.json` 自愈，再跑校验。
+3. **RSS 补选**：用户已经跑过 `bun run video:prepare`，但觉得自动筛选太少，就让他从 `ingest/rss-state.json` 复制多条想补进视频的记录，直接贴给 `/ai-daily-report`。agent 按 [`rules/rss-pick-mode.md`](./rules/rss-pick-mode.md) 解析这些记录，按 `.env` 里的视觉/TTS 开关补图和生成语音，追加到当前 `data-scheme/data.json`，再跑校验、TTS 和图标生成。
+4. **完全手动**：用户不想用 RSS，或要做特别篇，才让他自己维护 `data-scheme/data.json`。agent 按 [`rules/manual-mode.md`](./rules/manual-mode.md) 协助。
 
-最常见的日常用法是：**先自动出片，再按需 RSS 补选**。长期偏好才改 `ingest/preferences.jsonc`；当天临时想加的新闻不要要求用户维护关键词，直接走 RSS 补选。
+最常见的日常用法是：**先自动出片，再按需审核删减 / RSS 补选**（删除走 `review-remove-mode.md`，追加走 `rss-pick-mode.md`，两者方向相反）。长期偏好才改 `ingest/preferences.jsonc`；当天临时想加的新闻不要要求用户维护关键词，直接走 RSS 补选。
 
 ## 行为约定（重要）
 
@@ -120,15 +121,15 @@ bun run video:prepare
 
 ## 把图片放进 data.json
 
-一句话结论：**把图片丢进 `data-scheme/images/`，给对应的 scene 加 `"overlayImg": "images/文件名"`；截图或小图建议同时填原始像素 `"overlayImgWidth"` / `"overlayImgHeight"`，避免渲染时被过度放大。**
+一句话结论：**把图片丢进 `data-scheme/images/`，给对应的 scene 加 `"overlayImg": "images/文件名"`；`"overlayImgWidth"` / `"overlayImgHeight"` 由构建按文件真实像素自动写入 `data-generate.json`，无需手填。**
 
 - 自动模式（`bun run video:prepare`）下，`rss` 视觉识别开启时会给达到日报入选线（Score ≥7）且含远程图的 Story **自动下载并配图**（写入 `overlayImg`）；视觉关闭时只下载候选图，不写 `overlayImg`。下面讲的是没被自动配上、或手动模式下你自己加图时怎么做。
 - 图片是 **scene 级**的（不是 story 级、不是 tab 级），一张图配一句旁白。
 - 允许格式：`.svg .png .jpg/.jpeg .webp`。
-- `overlayImgWidth` / `overlayImgHeight` 填图片文件的**原始像素宽高**，两个字段要一起填；错填会被 `bun run check-data-json` 报出来。
+- `overlayImgWidth` / `overlayImgHeight` 构建期按图片文件真实像素自动写入 `data-generate.json`，**无需手填**；raw 里写了也只当提示，会被构建按文件真相覆盖。两个字段要么都不填、要么一起填（只填一个会被 `bun run check-data-json` 报出来）。
 - 只想让某一张图更大/更小，用当前 scene 的 `overlayImgScale`（如 `1.2`）手动微调基础倍率；它会和正常的入场/聚焦动画叠加，不要改 Remotion 组件里的全局样式。
 - 多张图 = 给同一个 story 写多个 scene，依次播放。
-- 改图片**不会**重新请求 TTS（`scripts/render/dev.mjs` 故意如此），想只刷新预览直接保存即可。
+- 改图片会触发一次 TTS 同步以重算 overlay 尺寸，但音频走缓存复用、**不调 MiniMax、不花钱**（`scripts/render/dev.mjs`）；字幕没变，旁白不会重生成。
 
 完整规则、命名、验证方法：**先读 [`rules/images.md`](./rules/images.md)** 再动手。
 
@@ -187,6 +188,7 @@ bun run biliup:prepare                              # 一键备好 biliup 工具
 | 想做的事             | 读哪个                                               |
 | -------------------- | ---------------------------------------------------- |
 | 手写 / 完全手动出片  | [`rules/manual-mode.md`](./rules/manual-mode.md)     |
+| 审核删除已生成的 story | [`rules/review-remove-mode.md`](./rules/review-remove-mode.md) |
 | 从 RSS 抓取结果补选新闻 | [`rules/rss-pick-mode.md`](./rules/rss-pick-mode.md) |
 | 换 TTS 模型或供应商  | [`rules/tts-customize.md`](./rules/tts-customize.md) |
 | 给日报加图片       | [`rules/images.md`](./rules/images.md)               |

@@ -29,6 +29,10 @@ bun run video:prepare
 
 这不是完全手动模式。不要让用户从零写 `data.json`，也不要要求用户逐条执行命令。
 
+> **挑条目更省事**：手动翻 `rss-state.json` 很累。跑 `bun run rss:vision-pick` 会生成一个按 `sourceId` 分类的网页并自动打开浏览器——
+> 已进本期 `data.json` 的条目会带绿标（默认不勾，避免重复补选），勾选后一键「复制选中为 JSONC」，粘回对话即可进入下面的补选流程。
+> 实现见 `scripts/rss-pick/`。
+
 ## 环境变量一致性
 
 RSS 补选模式必须尽量保持和 `bun run video:prepare` 一致的环境变量语义：
@@ -36,7 +40,7 @@ RSS 补选模式必须尽量保持和 `bun run video:prepare` 一致的环境变
 - **TTS**：追加 `data-scheme/data.json` 后必须跑 `bun run tts`。该命令已经在 `package.json` 中带 `node --env-file-if-exists=.env`，所以会继续受 `TTS_REQUIRE`、`MINIMAX_API_KEY`、`MINIMAX_TTS_MODEL`、`MINIMAX_TTS_VOICE_ID`、`MINIMAX_TTS_SPEED`、`REQUIRE_VOICE_QUALITY_FFMPEG` 等变量控制。不要手写 `audioSrc`、`timing` 或 `tts`。
 - **Tab 图标**：TTS 后跑 `bun run generate-svg`，让图标继续按现有 `generate-svg` skill 生成，不手写 icon。
 - **视觉/配图**：RSS 补选不能退化成纯文字追加。处理用户补选条目时，agent 必须读取 `.env` 中的 `CLAUDE_VISION_ENABLED`：
-  - `CLAUDE_VISION_ENABLED=true` 或未设置：对补选条目的 Linux.do 页面/RSS 内容提取远程图片，按自动模式的原则做识图与相关性判断；相关才下载到 `data-scheme/images/` 并写入对应 scene 的 `overlayImg`、`overlayImgWidth`、`overlayImgHeight`。
+  - `CLAUDE_VISION_ENABLED=true` 或未设置：对补选条目的 Linux.do 页面/RSS 内容提取远程图片，按自动模式的原则做识图与相关性判断；相关才下载到 `data-scheme/images/` 并写入对应 scene 的 `overlayImg`（尺寸 `overlayImgWidth`/`overlayImgHeight` 由构建按文件重算，可写可不写）。
   - `CLAUDE_VISION_ENABLED=false`：不自动写 `overlayImg`；如能提取候选图，可下载到 `data-scheme/images/` 供后续人工确认，并在最终说明中列出。
   - 视觉处理失败、页面无图或图片不相关时，仍可追加文字 Story，但必须在最终说明中说明“未写入 overlayImg”的原因。
 

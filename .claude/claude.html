@@ -522,8 +522,8 @@
 
         <div class="help-strip">
           <strong>🖼️ 图片：自动 + 手动：</strong>
-          <span><code>rss</code> 视觉识别开启时会给达到日报入选线（Score ≥7）的 Story <strong>自动下载并配图</strong>（写入 <code>overlayImg</code>）；关闭时只下载候选图，不写 <code>overlayImg</code>。手动配图时填 <code>overlayImg: "images/xxx"</code>，截图或小图建议同时填真实像素 <code>overlayImgWidth</code> / <code>overlayImgHeight</code>；手动微调单张图大小用 <code>overlayImgScale</code>，会叠加正常聚焦动画</span>
-          <span>仅替换图片不会重新请求旁白</span>
+          <span><code>rss</code> 视觉识别开启时会给达到日报入选线（Score ≥7）的 Story <strong>自动下载并配图</strong>（写入 <code>overlayImg</code>）；关闭时只下载候选图，不写 <code>overlayImg</code>。手动配图时填 <code>overlayImg: "images/xxx"</code>，<code>overlayImgWidth</code> / <code>overlayImgHeight</code> 由构建按文件真实像素自动写入、无需手填；手动微调单张图大小用 <code>overlayImgScale</code>，会叠加正常聚焦动画</span>
+          <span>仅替换图片会触发一次缓存复用的旁白同步以重算尺寸（不调 MiniMax）</span>
         </div>
       </div>
     </section>

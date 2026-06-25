@@ -110,7 +110,7 @@ bun run video:render
 
 常用开关写在 `.env`：无多模态、远程读取或图像分析 MCP 能力时设 `CLAUDE_VISION_ENABLED=false`；没有 TTS Key 设 `TTS_REQUIRE=false`；没有 ffmpeg 设 `REQUIRE_VOICE_QUALITY_FFMPEG=false`。
 
-自动配图没覆盖的 scene，可以把图片放进 `data-scheme/images/`，再在 `data.json` 里填 `overlayImg: "images/xxx"`。截图或小图建议同时填原始像素 `overlayImgWidth` / `overlayImgHeight`；只想手动微调某一张图大小时，用当前 scene 的 `overlayImgScale`，不要改全局样式。只换图片不会重新请求 TTS。
+自动配图没覆盖的 scene，可以把图片放进 `data-scheme/images/`，再在 `data.json` 里填 `overlayImg: "images/xxx"`。`overlayImgWidth` / `overlayImgHeight` 由构建按图片真实像素自动写入 `data-generate.json`，无需手填；只想手动微调某一张图大小时，用当前 scene 的 `overlayImgScale`，不要改全局样式。换图片会触发一次 TTS 同步（音频走缓存复用、不调 MiniMax）以重算尺寸。
 
 > [!WARNING]
 > `ingest/rss-state.json` 保存最近一次完整 RSS 抓取快照，用于来源失败时保留上次状态，也方便从抓取结果里人工补选新闻。当前采集器会对最近时间窗口内的全部条目重新评分，不再用它做跨次预过滤。日常不用手动编辑；如果想丢弃当前数据与快照后完全重建，请运行 `bun run reset` 后再执行 `bun run video:prepare`。
@@ -135,7 +135,7 @@ bun run tts
 # claude/codex: /generate-svg
 ```
 
-图片字段速记：`overlayImg` 填 `images/文件名`；`overlayImgWidth` / `overlayImgHeight` 填图片真实像素；`overlayImgScale` 手动调当前 scene 的基础显示倍率，会叠加正常的聚焦动画。改完先 `bun run check-data-json`，再 `bun run tts`。
+图片字段速记：`overlayImg` 填 `images/文件名`；`overlayImgWidth` / `overlayImgHeight` 构建期按文件真实像素自动写入 `data-generate.json`，不用手填；`overlayImgScale` 手动调当前 scene 的基础显示倍率，会叠加正常的聚焦动画。改完跑 `bun run tts` 即可。
 
 ---
 
