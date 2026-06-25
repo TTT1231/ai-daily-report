@@ -280,7 +280,7 @@
     },
     "imagePath": {
       "type": "string",
-      "pattern": "^images/.+\\.(svg|png|jpe?g|webp)$",
+      "pattern": "^images/.+\\.(svg|png|jpe?g|webp|gif|avif)$",
       "description": "当前日报数据包中 images/ 目录下的图片路径。"
     },
     "audioPath": {

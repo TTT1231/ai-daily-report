@@ -119,7 +119,8 @@ if (!config.ttsEnabled) {
 
 if (!dryRun && !apiKey) {
   console.error("MINIMAX_API_KEY is required. Set it in the environment, then run bun run tts.");
-  process.exit(1);
+  // 退出码 2 = 发生在调用 MiniMax 之前的配置/数据错误，不消耗配额；dev 据此不计入"连续失败"锁。
+  process.exit(2);
 }
 
 const transaction = dryRun
@@ -138,7 +139,7 @@ try {
 } catch (error) {
   await transaction?.abort();
   console.error(error.message);
-  process.exit(1);
+  process.exit(2);
 }
 
 const rawValidation = validateReport(rawReport, {
@@ -147,9 +148,11 @@ const rawValidation = validateReport(rawReport, {
 });
 if (rawValidation.errors.length > 0) {
   await transaction?.abort();
-  throw new Error(
+  console.error(
     `Raw report is invalid:\n- ${rawValidation.errors.join("\n- ")}\n\n👉 请按上方错误修改 data-scheme/data.json 后重试 \`bun run tts\`。`,
   );
+  // 退出码 2 = data.json 校验失败，发生在调用 MiniMax 之前，不消耗配额；dev 据此不计入"连续失败"锁。
+  process.exit(2);
 }
 
 const report = buildGeneratedReport(rawReport, previousReport);
@@ -203,15 +206,9 @@ try {
       ? resolve(dataDir, "audio", `${scene.id}.mp3`)
       : transaction.existingAudioPath(scene.id);
     let reusable = isReusable(scene, cachedScene, hash, existingAudioPath);
-    if (reusable) {
-      const issues = await getAudioQualityIssues(existingAudioPath);
-      if (issues.length > 0) {
-        reusable = false;
-        console.warn(
-          `- ${scene.id}: cached audio contains ${formatAudioQualityIssues(issues)}; regenerating`,
-        );
-      }
-    }
+    // 复用音频不再重跑 ffmpeg 音质检：该片段首次生成时已由 synthesizeChecked 检过，
+    // 哈希命中即证明是同一段已验证音频。每次保存都按 scene 数重跑 ffmpeg（约 0.14s/scene）
+    // 是 dev 同步 10s+ 的主因；怀疑缓存损坏时用 `bun run tts:force` 强制重生成并复检。
 
     if (dryRun) {
       console.log(

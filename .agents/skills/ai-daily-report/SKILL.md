@@ -77,7 +77,7 @@ bun run video:prepare
 生产步骤跑完后：
 
 - **图片自动 + 手动两条路**：`CLAUDE_VISION_ENABLED=true` 时，`rss` 视觉识别会处理达到日报入选线（Score ≥7）且含远程图片的 Story；在调用上限/预算内，Claude 会结合 Story 上下文判定相关，相关后自动把该图下载到 `data-scheme/images/` 并写入对应 scene 的 `overlayImg`；`CLAUDE_VISION_ENABLED=false` 时不会写 `overlayImg`，但会下载候选图，方便手动填图。详见下方「把图片放进 data.json」。
-- **预览 / 渲染 / 发布**：`bun run preview` 看完整示例，`bun run preview:notts` 看无 TTS 示例；看当前 `data-scheme/` 用 `bun run dev`（HMR + 自动 TTS 同步）。导出用 `bun run video:render`，发 B站 用 `bun run all:bili`。
+- **预览 / 渲染 / 发布**：`bun run preview` 看完整示例，`bun run preview:notts` 看无 TTS 示例；看当前 `data-scheme/` 用 `bun run dev`（HMR 只同步 data → TTS 并刷新 Studio，**不含 Tab 图标**——新增/改 tab 后图标缺失需单独 `bun run generate-svg`）。导出用 `bun run video:render`，发 B站 用 `bun run all:bili`。
 
 > 关于 `ingest/rss-state.json`：它存的是最近一次完整抓取快照，用于来源失败时保留上次状态，也方便从抓取结果里人工补选新闻；当前采集器会对最近时间窗口内的全部条目重新评分，不再用它做跨次预过滤。日常不用手动编辑；如果想丢弃当前数据与快照后完全重建，先跑 `bun run reset`，再跑 `bun run video:prepare`。
 
@@ -125,7 +125,7 @@ bun run video:prepare
 
 - 自动模式（`bun run video:prepare`）下，`rss` 视觉识别开启时会给达到日报入选线（Score ≥7）且含远程图的 Story **自动下载并配图**（写入 `overlayImg`）；视觉关闭时只下载候选图，不写 `overlayImg`。下面讲的是没被自动配上、或手动模式下你自己加图时怎么做。
 - 图片是 **scene 级**的（不是 story 级、不是 tab 级），一张图配一句旁白。
-- 允许格式：`.svg .png .jpg/.jpeg .webp`。
+- 允许格式：`.svg .png .jpg/.jpeg .webp .gif .avif`。
 - `overlayImgWidth` / `overlayImgHeight` 构建期按图片文件真实像素自动写入 `data-generate.json`，**无需手填**；raw 里写了也只当提示，会被构建按文件真相覆盖。两个字段要么都不填、要么一起填（只填一个会被 `bun run check-data-json` 报出来）。
 - 只想让某一张图更大/更小，用当前 scene 的 `overlayImgScale`（如 `1.2`）手动微调基础倍率；它会和正常的入场/聚焦动画叠加，不要改 Remotion 组件里的全局样式。
 - 多张图 = 给同一个 story 写多个 scene，依次播放。

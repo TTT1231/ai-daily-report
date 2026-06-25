@@ -66,6 +66,12 @@ function runSync(reason) {
       consecutiveFailures = 0;
       console.log("✅ data-generate.json 已更新；未变化的旁白已从缓存复用。");
       startStudio();
+    } else if (code === 2) {
+      // 退出码 2 = tts 在调用 MiniMax 之前就失败（data.json 校验/JSON 语法/缺 API Key）。
+      // 这种失败不消耗 MiniMax 配额，因此不计入"连续失败"锁：改好 data.json 保存即自动重试。
+      console.error(
+        "⚠️ data.json 校验或配置失败（未调用 MiniMax，不消耗配额）。按上方错误修正后保存即可自动重试。",
+      );
     } else {
       consecutiveFailures += 1;
       console.error("❌ 自动同步失败。修正 data.json 或环境配置后再次保存即可重试。");

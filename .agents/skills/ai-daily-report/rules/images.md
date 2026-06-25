@@ -8,9 +8,9 @@
 
 ## 允许的格式
 
-来自 `data.schema.json` 的 `imagePath` 正则 `^images/.+\.(svg|png|jpe?g|webp)$`：
+来自 `data.schema.json` 的 `imagePath` 正则 `^images/.+\.(svg|png|jpe?g|webp|gif|avif)$`：
 
-- `.svg` / `.png` / `.jpg` / `.jpeg` / `.webp`
+- `.svg` / `.png` / `.jpg` / `.jpeg` / `.webp` / `.gif` / `.avif`
 
 文件名自己起，建议语义化，如 `glm5.2.png`、`claude-update.png`。可参考 `data-scheme-sample-1/images/`。
 

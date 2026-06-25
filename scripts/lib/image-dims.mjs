@@ -102,6 +102,29 @@ function readWebpDimensions(buffer) {
   return null;
 }
 
+// readGifDimensions 解析 GIF87a/GIF89a 的逻辑屏幕描述符：宽高为偏移 6/8 处的小端 uint16。
+function readGifDimensions(buffer) {
+  if (buffer.length < 10) return null;
+  const signature = buffer.toString("ascii", 0, 6);
+  if (signature !== "GIF87a" && signature !== "GIF89a") return null;
+  return {width: buffer.readUInt16LE(6), height: buffer.readUInt16LE(8)};
+}
+
+// readAvifDimensions 解析 AVIF/HEIF（ISO BMFF）的画面尺寸：宽高存在 ispe
+// (ImageSpatialExtentsProperty) FullBox 里，布局为
+// [4 size][4 "ispe"][4 版本/标志][4 width 大端][4 height 大端]。这里定位首个 ispe 读取；
+// 对单图 AVIF（overlay 常见形态）可靠，极少数"缩略图属性排在主图之前"的多图 AVIF 可能读到缩略图尺寸。
+function readAvifDimensions(buffer) {
+  if (buffer.length < 16) return null;
+  if (buffer.toString("ascii", 4, 8) !== "ftyp") return null;
+  const index = buffer.indexOf(Buffer.from("ispe", "ascii"), 8);
+  if (index < 0 || index + 16 > buffer.length) return null;
+  const width = buffer.readUInt32BE(index + 8);
+  const height = buffer.readUInt32BE(index + 12);
+  if (width <= 0 || height <= 0) return null;
+  return {width, height};
+}
+
 function numberAttribute(svg, name) {
   const match = svg.match(new RegExp(`\\s${name}=["']([0-9.]+)(?:px)?["']`, "i"));
   if (!match) return null;
@@ -136,6 +159,8 @@ export function readImageDimensions(assetPath, dataDir) {
     readPngDimensions(buffer) ??
     readJpegDimensions(buffer) ??
     readWebpDimensions(buffer) ??
+    readGifDimensions(buffer) ??
+    readAvifDimensions(buffer) ??
     readSvgDimensions(buffer)
   );
 }

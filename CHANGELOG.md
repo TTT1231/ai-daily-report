@@ -1,7 +1,10 @@
 # Changelog
 
-## Unreleased
+## 0.6.0
 
+- Changed: `bun run dev` 每次保存不再对缓存音频重跑 ffmpeg 音质检，同步耗时从约 10s 降到 1-2s
+- Added: overlay 图片支持 GIF / AVIF 格式（schema 放行，构建期读取真实像素尺寸）
+- Fixed: 编辑 data.json 中途保存触发校验失败时不再被"连续失败"锁死，修正后保存即自动恢复
 - Changed: overlay 图片尺寸（overlayImgWidth/Height）改为构建期按图片真实像素自动写入 data-generate.json，data.json 无需再手填；dev 换图也会自动重算尺寸（音频缓存复用、不调 MiniMax）
 
 ## 0.5.0
