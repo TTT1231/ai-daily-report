@@ -371,6 +371,40 @@ func TestGenerateDataJSON(t *testing.T) {
 	}
 }
 
+func TestGenerateDataJSONStripsTrailingQuestionMarksFromDisplayTitles(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "data.json")
+	groups := []NewsGroup{{
+		Title:         "OpenAI 发布首款自研 LLM 推理芯片 Jalapeño？？",
+		Reason:        "论坛标题带问号时，视频标题应更像日报标题",
+		SourceIndexes: []int{1},
+		Highlights:    []NewsHighlight{{Index: 1, Point: "芯片发布"}},
+		Tabs: []StoryTab{
+			{Title: "事件概览", Summary: "OpenAI 发布自研芯片 Jalapeño。", Subtitle: "OpenAI 发布自研芯片 Jalapeño，面向大模型推理场景。"},
+			{Title: "用户影响", Summary: "自研芯片可能影响推理成本。", Subtitle: "自研芯片未来可能影响推理成本和相关服务价格。"},
+		},
+	}}
+	items := []Item{{Title: "OpenAI 发布首款自研 LLM 推理芯片 Jalapeño？？", Link: "https://linux.do/t/topic/2468202"}}
+
+	if err := generateDataJSON(path, groups, items); err != nil {
+		t.Fatalf("generateDataJSON() error = %v", err)
+	}
+	data, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var report DataJSON
+	if err := json.Unmarshal(data, &report); err != nil {
+		t.Fatal(err)
+	}
+	got := report.Stories[0]
+	if got.ContentTitle != "OpenAI 发布首款自研 LLM 推理芯片 Jalapeño" {
+		t.Fatalf("ContentTitle = %q", got.ContentTitle)
+	}
+	if got.IntroTitle != "OpenAI 发布首款自研 LLM 推理芯片 Jalapeño" {
+		t.Fatalf("IntroTitle = %q", got.IntroTitle)
+	}
+}
+
 func TestGenerateDataJSONAssignsOverlayImagesByEvidence(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "data.json")
 	groups := []NewsGroup{{
@@ -1162,6 +1196,30 @@ func TestNormalizeSceneSubtitleAllowsColumnNameInNaturalSentence(t *testing.T) {
 	}
 }
 
+func TestNormalizeSceneSubtitleAllowsConcreteFactWithUncertainty(t *testing.T) {
+	for _, input := range []string{
+		"GLM-5.2 已开启 Max 用户小范围内测，具体参数仍待公布。",
+		"消息显示新模型可能即将公布，当前前端代码已经出现 5.6-preview 标识。",
+		"OpenAI 已调整 Business 权益，关键变化已经列出，具体规则可查看官方文档。",
+	} {
+		if got := normalizeSceneSubtitle(input); got != input {
+			t.Fatalf("normalizeSceneSubtitle(%q) = %q, want unchanged", input, got)
+		}
+	}
+}
+
+func TestNormalizeSceneSubtitleRejectsStandaloneUncertainty(t *testing.T) {
+	for _, input := range []string{
+		"OpenAI 尚未公布替代方案或过渡安排，生效日期和补偿措施有待官方明确。",
+		"对于用户反映的 20 倍扣费问题，官方尚未直接回应，仅确认 Google Play 订阅服务故障，后续需等待进一步说明。",
+		"服务中断原因及恢复时间尚未公布，用户需留意 Codex 状态更新或 OpenAI 官方说明。",
+	} {
+		if got := normalizeSceneSubtitle(input); got != "" {
+			t.Fatalf("normalizeSceneSubtitle(%q) = %q, want empty", input, got)
+		}
+	}
+}
+
 func TestTabRejectionReason(t *testing.T) {
 	// 空标题。
 	if got := tabRejectionReason(StoryTab{Title: "", Summary: "这是一段足够长的摘要内容用于通过字数校验。"}); got == "" {
@@ -1171,6 +1229,25 @@ func TestTabRejectionReason(t *testing.T) {
 	if got := tabRejectionReason(StoryTab{Title: "事件概览", Summary: "太短"}); got == "" {
 		t.Fatalf("tabRejectionReason() for short summary should not be empty")
 	}
+	// 单独讲未知或等待官方确认，应拒绝。
+	for _, tab := range []StoryTab{
+		{
+			Title:   "官方尚未公布替代方案",
+			Summary: "OpenAI 未说明是否会为 Business 用户提供其他功能补偿，或是否有过渡期。具体替代方案和生效日期仍需官方进一步确认。",
+		},
+		{
+			Title:   "20 倍扣费待核实",
+			Summary: "用户反馈的 20 倍异常扣费问题尚未获得 OpenAI 明确说明，当前仅确认 Play 订阅不可用，具体扣费原因和金额仍需官方进一步回应。",
+		},
+		{
+			Title:   "后续观察：谈判结果与模型上线",
+			Summary: "需关注 Tom Brown 能否推动谈判进展，以及 Fable 5 模型的具体可用时间，目前官方尚未给出明确时间表。",
+		},
+	} {
+		if got := tabRejectionReason(tab); got == "" {
+			t.Fatalf("tabRejectionReason() for low-information uncertainty tab should not be empty: %#v", tab)
+		}
+	}
 	// 合格返回空串。
 	got := tabRejectionReason(StoryTab{
 		Title:   "事件概览",
@@ -1178,6 +1255,27 @@ func TestTabRejectionReason(t *testing.T) {
 	})
 	if got != "" {
 		t.Fatalf("tabRejectionReason() for valid tab = %q, want empty", got)
+	}
+	got = tabRejectionReason(StoryTab{
+		Title:   "Business 方案取消 Codex 席位",
+		Summary: "OpenAI 更新文档，ChatGPT Business 方案将不再提供 Codex 席位，现有 Business 用户可能失去该功能，具体影响尚未明确。",
+	})
+	if got != "" {
+		t.Fatalf("tabRejectionReason() rejected concrete tab with uncertainty qualifier: %q", got)
+	}
+	got = tabRejectionReason(StoryTab{
+		Title:   "GLM-5.2 内测启动",
+		Summary: "GLM-5.2 已开启 Max 用户小范围内测，具体参数仍待公布；这会影响高频用户是否提前准备迁移或测试。",
+	})
+	if got != "" {
+		t.Fatalf("tabRejectionReason() rejected concrete tab with pending details: %q", got)
+	}
+	got = tabRejectionReason(StoryTab{
+		Title:   "后续观察：Issue #123",
+		Summary: "需关注 Issue #123 的修复状态；官方文档已列出当前规则，具体执行时间尚未给出明确时间表。",
+	})
+	if got != "" {
+		t.Fatalf("tabRejectionReason() rejected concrete watch tab with anchor: %q", got)
 	}
 }
 

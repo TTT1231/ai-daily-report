@@ -1,5 +1,6 @@
 import {readFileSync} from "node:fs";
 import {resolve} from "node:path";
+import {Lunar} from "lunar-javascript";
 import {dataDir as defaultDataDir} from "./paths.mjs";
 import {readImageDimensions} from "./image-dims.mjs";
 
@@ -16,7 +17,37 @@ function getGreeting(hour) {
   return "晚上好";
 }
 
-function buildIntro(report, hour) {
+const weekdays = [
+  "星期日",
+  "星期一",
+  "星期二",
+  "星期三",
+  "星期四",
+  "星期五",
+  "星期六",
+];
+
+function parseReportDate(date) {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(date ?? "");
+  if (!match) return null;
+  const [, year, month, day] = match;
+  const reportDate = new Date(Number(year), Number(month) - 1, Number(day));
+  if (
+    reportDate.getFullYear() !== Number(year) ||
+    reportDate.getMonth() !== Number(month) - 1 ||
+    reportDate.getDate() !== Number(day)
+  ) {
+    return null;
+  }
+  return reportDate;
+}
+
+function formatLunarDateWithWeekday(date) {
+  const lunar = Lunar.fromDate(date);
+  return `农历${lunar.getMonthInChinese()}月${lunar.getDayInChinese()}，${weekdays[date.getDay()]}`;
+}
+
+function buildIntro(report, now) {
   const groups = new Map();
   let activeTitle;
 
@@ -32,6 +63,7 @@ function buildIntro(report, hour) {
     title,
     summary: contentTitles.join("\n"),
   }));
+  const dateText = formatLunarDateWithWeekday(parseReportDate(report.date) ?? now);
 
   return {
     id: "intro",
@@ -47,7 +79,7 @@ function buildIntro(report, hour) {
         id: "intro-greeting",
         subtitle:
           report.introContent ??
-          `大家${getGreeting(hour)}，欢迎收看今天的 AI 日报。`,
+          `大家${getGreeting(now.getHours())}，今天是${dateText}，欢迎收看今天的 AI 日报。`,
       },
     ],
   };
@@ -100,18 +132,22 @@ export function buildGeneratedReport(
   const report = JSON.parse(JSON.stringify(rawReport));
   report.theme ??=
     now.getHours() >= 6 && now.getHours() < 18 ? "light" : "dark";
-  report.intro = buildIntro(report, now.getHours());
+  report.intro = buildIntro(report, now);
   report.outro = buildOutro(report);
   restoreIcons(report, previousReport);
   applyOverlayDimensions(report, dataDir);
   return report;
 }
 
-// 构建期按 overlayImg 文件真实像素写入 overlayImgWidth/Height（文件即真相，覆盖 raw 旧值）。
-// 文件缺失/不可解码 → 不写尺寸、不删 overlayImg；overlayImgScale 不在此触碰（约束 1/4）。
+// 构建期按 overlayImg 文件真实像素写入 overlayImgWidth/Height。
+// raw 里的宽高只是提示；生成态先清旧值，再以文件为准。
 function applyOverlayDimensions(report, dataDir) {
   for (const scene of collectTimelineScenes(report)) {
-    if (!scene.overlayImg) continue;
+    delete scene.overlayImgWidth;
+    delete scene.overlayImgHeight;
+    if (!scene.overlayImg) {
+      continue;
+    }
     const dims = readImageDimensions(scene.overlayImg, dataDir);
     if (dims) {
       scene.overlayImgWidth = dims.width;

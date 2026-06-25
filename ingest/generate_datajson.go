@@ -80,12 +80,13 @@ func generateDataJSON(path string, groups []NewsGroup, items []Item) error {
 			return fmt.Errorf("Story %q 只有 %d 个 Tabs，至少需要 %d 个", group.Title, len(group.Tabs), minStoryTabs)
 		}
 		storyID := uniqueStoryID(storyID(group, items), usedIDs)
+		displayTitle := cleanDisplayTitle(group.Title)
 		story := DataJSONStory{
 			ID:               storyID,
 			TopTitle:         storyCategory(group),
 			BottomTitle:      navigationTitle(group),
-			ContentTitle:     truncateRunes(group.Title, maxContentTitleRunes),
-			IntroTitle:       strings.TrimSpace(group.Title),
+			ContentTitle:     truncateRunes(displayTitle, maxContentTitleRunes),
+			IntroTitle:       displayTitle,
 			ActiveIntro:      i == 0,
 			sourceGroupIndex: i,
 		}
@@ -146,6 +147,15 @@ func generateDataJSON(path string, groups []NewsGroup, items []Item) error {
 	}
 
 	return nil
+}
+
+func cleanDisplayTitle(title string) string {
+	title = strings.TrimSpace(title)
+	cleaned := strings.TrimRight(title, " \t\r\n?？")
+	if cleaned == "" {
+		return title
+	}
+	return cleaned
 }
 
 func compactStoriesByTopTitle(stories []DataJSONStory) []DataJSONStory {

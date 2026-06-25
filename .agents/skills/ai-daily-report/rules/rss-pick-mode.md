@@ -46,6 +46,38 @@ RSS 补选模式必须尽量保持和 `bun run video:prepare` 一致的环境变
 
 视觉补选时不要让用户自己找图。agent 应主动处理：读取补选链接、提取候选图、过滤 onebox 预览图/头像/Logo/小图标/重复图，以及 LinuxDo 常见但不适合作为新闻配图的表情包、反应图、签名装饰图、引用别人帖子带入的无关图。必要时用 Claude 视觉或可用图像能力，结合补选 Story 的主题、重要性和要点判断是否相关。不要因为用户是人工补选就跳过自动识图。
 
+### Linux.do 内容与图片获取（已验证，全程走 all_proxy）
+
+linux.do 是 Discourse。主站网页和 `/t/topic/{id}.json` 有 Cloudflare JS challenge，**curl / WebFetch / Playwright 直连都过不去**（表现为"连接被关闭""SSL 失败""拿到 Just a moment 页"）——**这是 CF 防护，不是网络阻断，不要误判放弃**。正确姿势：全程走 `.env` 的 `all_proxy`，优先用 RSS 端点。`bun run video:prepare` 能成功就是靠 `all_proxy`。
+
+1. **抓正文+图用 `.rss` 端点**（不走 JS challenge，curl+代理秒级拿到；topicId 取自用户贴的 `link`）：
+   ```bash
+   ALL_PROXY="$(grep -E '^all_proxy=' .env | cut -d= -f2-)" \
+     curl -sL --max-time 15 -H "User-Agent: ai-daily-report-rss/1.0" \
+     "https://linux.do/t/topic/{topicId}.rss"
+   ```
+   每个 `<item>` 的 `<description>` 是 cooked HTML，含 `<img>` 和正文。拿到的是真实内容，不是 challenge 页。
+
+2. **别用 Playwright 抓单帖**——启动慢、易触发 CF 限流，是最后手段。`.rss`+curl 快几个数量级。WebFetch 也不走代理、过不了 CF，不要用它抓 linux.do。
+
+3. **提取候选图、排除噪声**：取 `cdn3.ldstatic.com` 的图；排除 `/images/emoji/`、头像、Logo、`<300px` 小图、细长 banner（如 1035×121）、签名/反应图。拿全尺寸：把 `optimized/4X/{a}/{b}/{c}/{sha}_2_{W}x{H}.ext` 改写成 `original/4X/{a}/{b}/{c}/{sha}.ext`（去 `_2_WxH`，`optimized`→`original`）。`upload://xxx` 是 Discourse 内部引用，转成 `https://linux.do/uploads/short-url/xxx.ext` 重定向到真实 CDN。
+
+4. **下载图片**（CDN 走代理 + Referer 防盗链，带重试；参考 `ingest/image_assets.go` 的 `downloadVisionOverlayImage`）：
+   ```bash
+   ALL_PROXY="$(grep -E '^all_proxy=' .env | cut -d= -f2-)" \
+     curl -sL --max-time 25 --retry 3 \
+     -H "User-Agent: ai-daily-report-rss/1.0" \
+     -H "Referer: https://linux.do/t/topic/{topicId}" \
+     "{imageUrl}" -o "data-scheme/images/topic-{id}-{hash8}.{ext}"
+   ```
+   下完用 `file` 校验是完整横图（首次请求可能截断，靠 `--retry` 兜底；不要把截断的坏图配上去）。
+
+5. **限速**：`.rss` 不要短时间连发（8 条连发会触发 CF challenge），每条间隔 4-8 秒。
+
+6. **相关性判断**仍按上方 `CLAUDE_VISION_ENABLED` 的逻辑。用户明确说"不分析图片"时，可只按尺寸（横图、≥600px）和帖子上下文筛选，但要在最终说明里告知跳过了视觉确认。
+
+若按上述走 `all_proxy` + `.rss` 仍抓不到（代理真的不可用），只能明确说明依据来自 RSS state 标题、已有快照或用户提供内容，**不要基于标题硬编正文**。
+
 ## 工作方式
 
 一句话：**用户负责贴想补选的 RSS 条目，agent 负责把这些条目转成当前日报里的 Story。**

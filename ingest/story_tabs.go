@@ -158,7 +158,7 @@ func buildStoryTabsPrompt(batch []storyTabMaterial, feedbacks map[int][]string) 
     "tabs": [
       {
         "title": "简短 Tab 标题",
-        "summary": "至少二十个汉字的完整内容，主动使用粗体与行内代码 Markdown 突出重点",
+        "summary": "至少二十个汉字的完整内容；模型/产品/API/错误码用行内代码，数字/日期/价格/关键结论用粗体",
         "subtitle": "28至96个汉字的完整新闻口播，包含主体、事件及范围或结果，禁止提到卡片或详细内容",
         "kind": "fact、impact 或 watch",
         "evidence_indexes": [支撑该 Tab 的来源序号]

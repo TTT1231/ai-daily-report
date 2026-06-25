@@ -66,10 +66,10 @@
 ## 验证
 
 ```bash
-# 1. 校验 data.json（overlayImg 路径、资源是否存在、宽高是否匹配）
+# 1. 校验 data.json（overlayImg 路径、资源是否存在、宽高字段是否成对）
 bun run check-data-json
 
-# 2. 同步 data-generate.json 后预览看效果
+# 2. 同步 data-generate.json（构建期写入真实宽高）后预览看效果
 bun run tts
 bun run dev
 ```
@@ -82,6 +82,8 @@ bun run dev
 
 1. **提取事实**：调 `claude` 识别图片内容，补充到文案。Claude 子进程只允许 `mcp__*` 和 `WebFetch`，不放行 `Bash`、`Write`、`Edit`。
 2. **自动配图**：用聚类后的 Story 标题、重要性和要点做相关性判断。证据图、示意图、数据/评测图、产品截图、官方物料都算相关；纯表情包、头像、签名装饰图、与 Story 无关的截图会被判不相关。相关后，把该图下载到 `data-scheme/images/` 并写入对应 scene 的 `overlayImg`（带原始宽高，供 `SourceOverlay` 布局用）。
+
+远程图下载遇到网络错误、HTTP 429 或 5xx 会短暂重试；404、格式不支持、图片过大或疑似头像/Logo 这类永久性问题会直接跳过，不中断整期日报生成。
 
 自动配图不会自动写 `overlayImgScale`；这个字段留给预览后的人工微调。
 

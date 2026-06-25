@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"crypto/sha256"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"image"
 	_ "image/jpeg"
@@ -16,9 +17,13 @@ import (
 	"path"
 	"path/filepath"
 	"strings"
+	"time"
 )
 
 const maxOverlayImageBytes int64 = 5 * 1024 * 1024
+const maxOverlayImageDownloadAttempts = 3
+
+var overlayImageRetrySleep = time.Sleep
 
 type downloadedOverlayImage struct {
 	Path   string
@@ -48,6 +53,30 @@ func downloadVisionOverlayImage(imageURL string, item Item) (downloadedOverlayIm
 // 测试传放行 loopback 的 newHTTPClient(defaultFeedRequestTimeout,false,false)（SSRF 防护会拦 127.0.0.1，httptest 需要放行）。
 // refererLink 非空时作为 Referer 发送，用于绕过部分图床的防盗链。
 func fetchOverlayImage(client *http.Client, imageURL, refererLink string) ([]byte, string, error) {
+	var lastErr error
+	for attempt := 1; attempt <= maxOverlayImageDownloadAttempts; attempt++ {
+		data, extension, err := fetchOverlayImageOnce(client, imageURL, refererLink)
+		if err == nil {
+			return data, extension, nil
+		}
+		lastErr = err
+
+		var he *httpError
+		retryable := errors.As(err, &he) && he.retryable
+		if !retryable || attempt == maxOverlayImageDownloadAttempts {
+			break
+		}
+		wait := he.retryAfter
+		if wait <= 0 {
+			wait = time.Duration(attempt*2) * time.Second
+		}
+		fmt.Printf("   图片下载重试：第 %d 次失败，等待 %v 后继续\n", attempt, wait)
+		overlayImageRetrySleep(wait)
+	}
+	return nil, "", lastErr
+}
+
+func fetchOverlayImageOnce(client *http.Client, imageURL, refererLink string) ([]byte, string, error) {
 	request, err := http.NewRequest(http.MethodGet, imageURL, nil)
 	if err != nil {
 		return nil, "", fmt.Errorf("创建图片请求失败: %w", err)
@@ -59,10 +88,23 @@ func fetchOverlayImage(client *http.Client, imageURL, refererLink string) ([]byt
 
 	response, err := client.Do(request)
 	if err != nil {
-		return nil, "", fmt.Errorf("下载图片失败: %w", err)
+		return nil, "", &httpError{message: "下载图片失败: " + err.Error(), retryable: true}
 	}
 	defer response.Body.Close()
-	if response.StatusCode != http.StatusOK {
+	switch {
+	case response.StatusCode == http.StatusTooManyRequests:
+		return nil, "", &httpError{
+			message:    "下载图片 HTTP 429 限流",
+			retryable:  true,
+			retryAfter: parseRetryAfter(response),
+		}
+	case response.StatusCode >= 500:
+		return nil, "", &httpError{
+			message:    fmt.Sprintf("下载图片 HTTP 状态码: %d", response.StatusCode),
+			retryable:  true,
+			retryAfter: parseRetryAfter(response),
+		}
+	case response.StatusCode != http.StatusOK:
 		return nil, "", fmt.Errorf("下载图片 HTTP 状态码: %d", response.StatusCode)
 	}
 	contentType := mediaType(response.Header.Get("Content-Type"))
@@ -83,7 +125,7 @@ func fetchOverlayImage(client *http.Client, imageURL, refererLink string) ([]byt
 
 	data, err := io.ReadAll(io.LimitReader(response.Body, maxOverlayImageBytes+1))
 	if err != nil {
-		return nil, "", fmt.Errorf("读取图片失败: %w", err)
+		return nil, "", &httpError{message: "读取图片失败: " + err.Error(), retryable: true}
 	}
 	if int64(len(data)) > maxOverlayImageBytes {
 		return nil, "", fmt.Errorf("图片超过 %d bytes", maxOverlayImageBytes)

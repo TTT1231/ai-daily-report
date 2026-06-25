@@ -1,11 +1,15 @@
 package main
 
 import (
+	"bytes"
+	"errors"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 )
 
 // onePixelPNG is a valid 1x1 transparent PNG used to exercise the download path.
@@ -43,6 +47,49 @@ func TestFetchOverlayImage(t *testing.T) {
 	if gotReferer != "https://example.com/topic/1" {
 		t.Errorf("Referer = %q, want the source link", gotReferer)
 	}
+}
+
+func TestFetchOverlayImageRetriesTransientNetworkFailure(t *testing.T) {
+	oldSleep := overlayImageRetrySleep
+	overlayImageRetrySleep = func(time.Duration) {}
+	t.Cleanup(func() { overlayImageRetrySleep = oldSleep })
+
+	attempts := 0
+	client := &http.Client{
+		Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+			attempts++
+			if attempts == 1 {
+				return nil, errors.New("net/http: TLS handshake timeout")
+			}
+			return &http.Response{
+				StatusCode:    http.StatusOK,
+				Header:        http.Header{"Content-Type": []string{"image/png"}},
+				Body:          io.NopCloser(bytes.NewReader(onePixelPNG())),
+				ContentLength: int64(len(onePixelPNG())),
+				Request:       req,
+			}, nil
+		}),
+	}
+
+	data, ext, err := fetchOverlayImage(client, "https://cdn.example.com/a.png", "")
+	if err != nil {
+		t.Fatalf("fetchOverlayImage() error: %v", err)
+	}
+	if attempts != 2 {
+		t.Fatalf("attempts = %d, want 2", attempts)
+	}
+	if ext != ".png" {
+		t.Errorf("extension = %q, want .png", ext)
+	}
+	if len(data) == 0 {
+		t.Error("data is empty")
+	}
+}
+
+type roundTripFunc func(*http.Request) (*http.Response, error)
+
+func (fn roundTripFunc) RoundTrip(req *http.Request) (*http.Response, error) {
+	return fn(req)
 }
 
 func TestSaveOverlayImage(t *testing.T) {

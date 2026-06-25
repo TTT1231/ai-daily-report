@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"regexp"
 	"strings"
 	"unicode/utf8"
 )
@@ -9,6 +10,12 @@ import (
 // 本文件是 story_tabs.go 的文本校验与兜底部分：负责校正模型返回的 Tab 内容、
 // 校验/降级口播字幕，并在模型结果不足时生成保底 Tab。它不涉及批次编排、
 // 重试或模型调用（见 story_tabs.go）。
+
+var (
+	tabSummaryCodeCandidatePattern = regexp.MustCompile(`(?i)(ChatGPT(?:\s+(?:Business|Plus|Pro|Team|Enterprise))?|Google Play(?: Store)?|Service Unavailable|AWS(?: Bedrock)?|Hacker News|AlphaWave Semi|Cross-region inference|Claude(?:\s+(?:Code|Design|Fable|Mythos|Opus))?(?:\s*\d+(?:\.\d+)?)?|GPT[-\s]?\d+(?:\.\d+)?(?:[-\s][A-Za-z0-9]+)*|Qwen[A-Za-z0-9.-]*|GLM[-A-Za-z0-9.]*|Gemini(?:[-\s][A-Za-z0-9.]+)*|OpenAI|Anthropic|Codex|DeepSeek|Kimi|Kiro|Qoder|Tabbit|Jalapeño|Broadcom|Celestica|Tomahawk|MiniMax[A-Za-z0-9.-]*|FFmpeg|CVE-\d+-\d+|PixelSmash|MagicYUV|MCP|API|VLC|Jellyfin|Kodi|Nextcloud|OBS|Slack|GitHub|Serverless|Web|Pro|PLUS)`)
+	tabSummaryBoldCandidatePattern = regexp.MustCompile(`(\d{4}\s*年\s*\d{1,2}\s*月\s*\d{1,2}\s*日(?:之前|之后|起|前|后)?|\d+(?:\.\d+)?\s*(?:美元|元|土币|土耳其里拉|TB|GB|MB|K|%|折|倍|x|个|天|小时|分钟|月|年)|降低推理成本|推理成本|全栈平台|服务不可用|服务中断|无法(?:正常)?使用|不可用|停止(?:新购|续费|升级)?|不再提供|支持(?:原生)?多模态|多模态能力|切换至\s*Web\s*订阅|按需调节模型推理程度|周期性或触发性问题|灰色渠道风险|封禁|误封|降价|涨价|折扣|上线|恢复|开源)`)
+	tabSummaryBoldSpanPattern      = regexp.MustCompile(`\*\*[^*]+\*\*`)
+)
 
 // normalizeStoryTabs 校正模型返回的 Tabs：丢弃标题空、摘要过短或无有效证据的项，补全 kind，去重并截断到上限。
 func normalizeStoryTabs(group NewsGroup, tabs []StoryTab) []StoryTab {
@@ -39,6 +46,7 @@ func normalizeStoryTabsWithReasons(group NewsGroup, tabs []StoryTab) ([]StoryTab
 			rejected = append(rejected, rejectedTab{Tab: tab, Reason: reason})
 			continue
 		}
+		tab.Summary = enrichTabSummaryMarkdown(tab.Summary)
 
 		tab.Subtitle = normalizeSceneSubtitle(tab.Subtitle)
 		tab.subtitleFallback = tab.Subtitle == ""
@@ -79,17 +87,89 @@ func normalizeStoryTabsWithReasons(group NewsGroup, tabs []StoryTab) ([]StoryTab
 // tabRejectionReason 返回 Tab 内容层面的失败原因；通过校验返回空串。
 // 失败原因可被反馈给模型用于定向修正，因此只描述内容问题，不描述序号/去重等程序性校验。
 // 注意：subtitle 校验失败不在此列——原行为是退到 fallbackTabSubtitle 兜底，不丢弃 Tab。
-// “空信息免责 Tab”（只有“需以官方为准/尚未公开/待确认”等话术、没有任何具体信息）不在这里
-// 用代码拦截——那只会偷偷丢掉、模型并不知道错在哪。它由 storyTabsSystemPrompt 作为硬性质量
-// 底线明确告知模型，从生成源头避免。
 func tabRejectionReason(tab StoryTab) string {
 	switch {
 	case tab.Title == "":
 		return "Tab 标题为空"
 	case utf8.RuneCountInString(tab.Summary) < minTabSummaryRunes:
 		return fmt.Sprintf("summary 仅 %d 字，不足 %d 字下限", utf8.RuneCountInString(tab.Summary), minTabSummaryRunes)
+	case isLowInformationUncertainty(tab.Title, tab.Summary):
+		return "空信息不确定性 Tab：不要把“等待官方确认/尚未公布”单独做成内容，请改为具体事实或用户影响"
 	}
 	return ""
+}
+
+// enrichTabSummaryMarkdown 轻量补齐 Tab 摘要里的受限 Markdown：
+// 生成模型有时会稳定加粗，但漏掉模型/产品/错误码的行内代码标记。
+// 这里只补第一个明显候选，避免把 summary 变成满屏装饰。
+func enrichTabSummaryMarkdown(summary string) string {
+	summary = addInlineCodeIfMissing(summary)
+	summary = addBoldIfMissing(summary)
+	return summary
+}
+
+func addInlineCodeIfMissing(summary string) string {
+	if strings.Contains(summary, "`") {
+		return summary
+	}
+	enriched := wrapFirstMarkdownCandidate(summary, tabSummaryCodeCandidatePattern, "`", "`")
+	if enriched != summary {
+		return enriched
+	}
+	return splitBoldSpanForInlineCode(summary)
+}
+
+func addBoldIfMissing(summary string) string {
+	if strings.Contains(summary, "**") {
+		return summary
+	}
+	return wrapFirstMarkdownCandidate(summary, tabSummaryBoldCandidatePattern, "**", "**")
+}
+
+func wrapFirstMarkdownCandidate(summary string, pattern *regexp.Regexp, prefix, suffix string) string {
+	for _, loc := range pattern.FindAllStringIndex(summary, -1) {
+		if len(loc) != 2 || loc[0] >= loc[1] {
+			continue
+		}
+		if isInsideSummaryMarkdown(summary, loc[0]) || isInsideSummaryMarkdown(summary, loc[1]-1) {
+			continue
+		}
+		return summary[:loc[0]] + prefix + summary[loc[0]:loc[1]] + suffix + summary[loc[1]:]
+	}
+	return summary
+}
+
+func isInsideSummaryMarkdown(summary string, index int) bool {
+	if index <= 0 {
+		return false
+	}
+	before := summary[:index]
+	return strings.Count(before, "`")%2 == 1 || strings.Count(before, "**")%2 == 1
+}
+
+func splitBoldSpanForInlineCode(summary string) string {
+	for _, span := range tabSummaryBoldSpanPattern.FindAllStringIndex(summary, -1) {
+		contentStart, contentEnd := span[0]+2, span[1]-2
+		content := summary[contentStart:contentEnd]
+		loc := tabSummaryCodeCandidatePattern.FindStringIndex(content)
+		if len(loc) != 2 || loc[0] >= loc[1] {
+			continue
+		}
+		candidate := strings.TrimSpace(content[loc[0]:loc[1]])
+		if candidate == "" {
+			continue
+		}
+		var parts []string
+		if before := strings.TrimSpace(content[:loc[0]]); before != "" {
+			parts = append(parts, "**"+before+"**")
+		}
+		parts = append(parts, "`"+candidate+"`")
+		if after := strings.TrimSpace(content[loc[1]:]); after != "" {
+			parts = append(parts, "**"+after+"**")
+		}
+		return summary[:span[0]] + strings.Join(parts, " ") + summary[span[1]:]
+	}
+	return summary
 }
 
 // containsEquivalentTab 判断候选 Tab 是否与已有任一 Tab 内容等价（按规范化标题+摘要比较），用于补齐时去重。
@@ -128,22 +208,26 @@ func withFallbackStoryTabs(groups []NewsGroup) []NewsGroup {
 // 措辞只如实说明“本期来源信息较少”，不再用“请以官方公告为准”这类把观众推回官方的免责话术。
 const fallbackSummaryFloor = "本期该主题捕获到的来源信息较少，更多细节有待后续来源补充。"
 
+func withSummaryFloor(summary string) string {
+	if utf8.RuneCountInString(summary) >= minTabSummaryRunes {
+		return summary
+	}
+	if summary == "" {
+		return fallbackSummaryFloor
+	}
+	if !strings.HasSuffix(summary, "。") {
+		summary += "。"
+	}
+	return summary + fallbackSummaryFloor
+}
+
 // fallbackOverviewSummary 生成“事件概览”保底 Tab 的摘要：优先用标题+理由，过短时拼接兜底句，
 // 确保至少满足 minTabSummaryRunes 字。否则当标题与理由都偏短（例如 “GLM。更新”）时，该保底 Tab
 // 会被 tabRejectionReason 丢弃，只剩一个保底 Tab，凑不齐 minStoryTabs(2)，
 // 最终在 generateDataJSON 触发整期 fatal 中止、丢失全部数据。
 func fallbackOverviewSummary(group NewsGroup) string {
 	composed := strings.TrimSpace(fmt.Sprintf("%s。%s", strings.TrimSpace(group.Title), strings.TrimSpace(group.Reason)))
-	if utf8.RuneCountInString(composed) >= minTabSummaryRunes {
-		return composed
-	}
-	if composed == "" {
-		return fallbackSummaryFloor
-	}
-	if !strings.HasSuffix(composed, "。") {
-		composed += "。"
-	}
-	return composed + fallbackSummaryFloor
+	return withSummaryFloor(composed)
 }
 
 // fallbackStoryTabs 生成两个保底 Tab（“事件概览”+“用户影响”），用于模型结果不足时的确定性补齐。
@@ -151,12 +235,7 @@ func fallbackOverviewSummary(group NewsGroup) string {
 // 不再用“需以官方说明为准 / 待正式公告确认”这类没有实际信息、把观众推回官方的免责话术凑数。
 func fallbackStoryTabs(group NewsGroup) []StoryTab {
 	evidence := append([]int(nil), group.SourceIndexes...)
-	impactSummary := strings.TrimSpace(group.Reason)
-	if impactSummary == "" {
-		impactSummary = fallbackSummaryFloor
-	} else if utf8.RuneCountInString(impactSummary) < minTabSummaryRunes && !strings.HasSuffix(impactSummary, "。") {
-		impactSummary += "。" + fallbackSummaryFloor
-	}
+	impactSummary := withSummaryFloor(strings.TrimSpace(group.Reason))
 	return []StoryTab{
 		{
 			Title:           "事件概览",
@@ -203,7 +282,57 @@ func normalizeSceneSubtitle(value string) string {
 	if startsWithIncompleteCause(value) {
 		return ""
 	}
+	if isLowInformationUncertainty("", value) {
+		return ""
+	}
 	return value
+}
+
+// isLowInformationUncertainty 拦截“单独讲未知”的卡片或口播。
+// 不确定性可以作为具体事实的限定词，但不能独立占一个 Tab/scene。
+func isLowInformationUncertainty(title, body string) bool {
+	title = strings.TrimSpace(title)
+	body = strings.TrimSpace(body)
+	text := strings.TrimSpace(title + "。" + body)
+	if text == "。" {
+		return false
+	}
+
+	if containsAny(title,
+		"待确认", "待核实", "待观察", "服务恢复时间",
+		"官方尚未", "官方未", "尚未公布", "未公布", "未说明", "未回应",
+		"替代方案", "补偿措施", "生效日期",
+	) && containsAny(body,
+		"未说明", "尚未", "未公布", "未明确", "进一步确认", "进一步回应", "有待官方", "等待", "需关注", "需留意",
+	) {
+		return true
+	}
+	if strings.Contains(title, "后续观察") &&
+		containsAny(body, "需关注", "需留意", "尚未给出明确时间表", "仍待确认") &&
+		!hasSpecificWatchAnchor(body) {
+		return true
+	}
+
+	if containsAny(text,
+		"尚未公布替代",
+		"未发布官方说明",
+		"恢复时间均不明确",
+		"恢复时间尚未公布",
+		"后续需等待进一步说明",
+		"等待后续通知",
+		"有待官方明确",
+	) {
+		return true
+	}
+
+	return strings.Contains(text, "能否") && containsAny(text, "待确认", "待观察")
+}
+
+func hasSpecificWatchAnchor(text string) bool {
+	return containsAny(text,
+		"Issue", "issue", "#", "工单", "编号", "状态页", "文档", "入口",
+		"日期", "价格", "额度", "版本", "规则",
+	)
 }
 
 // startsWithColumnLabel 判断字幕是否只是栏目名，或以“栏目名：”等标签形式开头。

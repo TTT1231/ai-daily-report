@@ -119,3 +119,46 @@
   - Windows 上避免「重命名含打开文件的目录」或「rename 覆盖被占用文件」；改用 `writeFile` 原地覆盖 / `unlink`（Node 以 `FILE_SHARE_WRITE | FILE_SHARE_DELETE` 打开，持句柄可写可删）。
   - 凡是被另一个长驻进程（Studio / 编辑器 / Defender 实时扫描）会打开的资源目录，提交/发布都走「逐文件 + 单文件原子 rename 指针」，不要整目录 rename。
   - 这类「静态全过、运行时 + 跨进程句柄才暴露」的坑，必须有能「持句柄复现」的回归测试，tsc/eslint 抓不到。
+
+---
+
+## linux.do 抓内容/配图被 Cloudflare JS challenge 挡，误判成「网络阻断」放弃 —— 正解是 `.rss` 端点 + `all_proxy`，别用 Playwright/WebFetch
+
+- **Tags**: `#environment` `#configuration` `#tricky-issue` `#network`
+- **Trigger Context**: 用 `ai-daily-report` skill 的 RSS 补选模式（用户贴一条 `{"link": "https://linux.do/t/topic/{id}"}` 要求补进日报并配图），或任何 agent 想从 linux.do 单帖抓正文/图片时；Windows + 项目 `.env` 已配 `all_proxy=http://127.0.0.1:7890`，且 `bun run video:prepare` 本身能成功。
+- **Symptoms**:
+  - `curl` 访问主站网页或 `/t/topic/{id}.json`：SSL `exit 35`、超时 `exit 28`、`http code=000`，或返回 `<title>Just a moment...</title>` 的 Cloudflare challenge HTML 页（拿不到真实内容）。
+  - Playwright 导航报 `net::ERR_CONNECTION_CLOSED`（前 1~2 次可能侥幸通过，同 IP 高频访问后被 CF 拒）。
+  - WebFetch 报 `Unable to verify if domain linux.do is safe to fetch`。
+  - 连续 2 分钟探测主站 `http=000` → 容易得出「linux.do 主站被网络阻断」的错误结论而放弃。
+  - 图片下载 `exit 28` 拿到截断的坏图（如只下到 67KB，实际完整 97KB），误以为「下载路径不通」。
+- **Root Cause**:
+  1. linux.do（Discourse）主站网页和 `/t/topic/{id}.json` 在 Cloudflare 后，对非浏览器/可疑 UA 返回 JS challenge，curl/WebFetch 不执行 JS 过不去；Playwright 能过但同 IP 高频会被限流。**这是 CF 防护的正常行为，不是网络阻断、不是 GFW**。
+  2. 关键：Discourse 的 **`/t/topic/{id}.rss` 端点不走 JS challenge**，`curl + all_proxy` 秒级返回完整 RSS XML（`<item><description>` 是 cooked HTML，含正文和 `<img>`）。项目 RSS 采集器（`ingest/`）一直靠 `.rss` + `all_proxy` 工作，这才是 `bun run video:prepare` 能成功的真相。
+  3. 错误叠加：① 没走 `all_proxy`（curl/WebFetch/Playwright 都默认不走 `.env` 的代理变量，直连被挡）；② 上 Playwright 抓单帖（慢、易限流，是最后手段不是首选）；③ 把 CF 的 `http=000` 误判成「网络阻断」；④ 图片下载没加 `--retry`，首次截断就判「路径不通」。
+- **Verified Solution**（实测通过，已沉淀进 `.claude/skills/ai-daily-report/rules/rss-pick-mode.md`「Linux.do 内容与图片获取」小节）：
+  ```bash
+  # 1) 抓正文+图：用 .rss 端点（不走 CF challenge），必须带 .env 的 all_proxy
+  ALL_PROXY="$(grep -E '^all_proxy=' .env | cut -d= -f2-)" \
+    curl -sL --max-time 15 -H "User-Agent: ai-daily-report-rss/1.0" \
+    "https://linux.do/t/topic/{topicId}.rss"
+  # 返回 RSS XML；<description> 含 cooked HTML + <img>，是真实内容不是 challenge 页
+
+  # 2) 图 URL 拿全尺寸：optimized/.../{sha}_2_{W}x{H}.ext → original/.../{sha}.ext
+  #    排除 /images/emoji/、头像、Logo、<300px 小图、细长 banner
+
+  # 3) 下载图片：CDN 走代理 + Referer 防盗链 + 重试（首次可能截断）
+  ALL_PROXY="$(grep -E '^all_proxy=' .env | cut -d= -f2-)" \
+    curl -sL --max-time 25 --retry 3 \
+    -H "User-Agent: ai-daily-report-rss/1.0" \
+    -H "Referer: https://linux.do/t/topic/{topicId}" \
+    "{imageUrl}" -o "data-scheme/images/topic-{id}-{hash8}.{ext}"
+  # 下完用 file 命令校验是完整横图
+  ```
+  实测：`.rss` 秒级 200；CDN 图（`cdn3.ldstatic.com`）三种姿势（`all_proxy`+Referer / 直连+`-k`）都 `http=200` 完整字节；但 8 条 `.rss` 连发会触发 CF challenge，需每条间隔 4-8 秒。
+- **Prevention Recommendations**:
+  - **CF challenge ≠ 网络阻断**：拿到 "Just a moment" 页 / `ERR_CONNECTION_CLOSED` / `http=000` 时，先按 CF 防护排查，别下「网络阻断」结论。
+  - 抓 Discourse 站（linux.do 等）内容，**优先用 `.rss` / feed 端点**，别上 Playwright 或 `.json`。
+  - 复用项目已有网络姿势：抓 RSS 看 `ingest/`，下图片看 `ingest/image_assets.go` 的 `downloadVisionOverlayImage`（`all_proxy` + Referer + 重试 + 尺寸校验全做好），别从零用 Playwright 摸索。
+  - 项目配了 `all_proxy` 时，所有外部站请求都要**显式带上**（curl `ALL_PROXY=`、WebFetch 默认不读 `.env`）。
+  - 下载二进制资源加 `--retry`，并用 `file` 校验完整性，别把截断文件当成功产物配进 `data.json`。

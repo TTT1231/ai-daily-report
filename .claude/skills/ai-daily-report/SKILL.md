@@ -34,7 +34,7 @@ description: How to use the ai-daily-report project end-to-end — set it up, ru
 
 - **环境变量** `.env`（参考 `.env.example`）：
   - RSS/AI 总结用：`AI_API_KEY`、`AI_BASE_URL`、`AI_MODEL` 三者均必填（OpenAI 兼容接口；`.env.example` 给了 DeepSeek 示例值）。`bili:meta` 生成 B站 标题/标签也复用这套。
-  - 网络受限时可选：小写 `all_proxy`（如 `http://127.0.0.1:7890`）。**仅作用于 `rss` 抓取阶段**（RSS 源抓取 + 该阶段内部的 AI 评分请求）；MiniMax TTS、B站 标题/标签生成与投稿/评论/置顶等 Node 端请求**不**走此代理，始终直连。未配置则直连；配置后上述 `rss` 阶段请求必须走该代理，失败时不会回退直连。不要使用其他代理变量。
+  - 网络受限时可选：小写 `all_proxy`（如 `http://127.0.0.1:7890`）。**仅作用于 `rss` 抓取阶段**（RSS 源抓取 + 该阶段内部的 AI 评分请求）；MiniMax TTS、B站 标题/标签生成与投稿/评论/置顶等 Node 端请求**不**走此代理，始终直连。未配置则直连；配置后上述 `rss` 阶段请求必须走该代理，失败时不会回退直连。不要使用其他代理变量。注意：Claude/WebFetch/Fetch 这类 agent 工具不会自动读取项目 `.env`，人工补选 Linux.do 页面时如果 WebFetch 失败，应改用本地命令或项目脚本显式读取 `all_proxy` 后抓取，不能直接退化为只看标题生成。
   - TTS 旁白用：`TTS_REQUIRE=true` 时需要 `MINIMAX_API_KEY`、`MINIMAX_TTS_MODEL`、`MINIMAX_TTS_VOICE_ID`、`MINIMAX_TTS_SPEED`；不需要旁白或没有 MiniMax Key 时设 `TTS_REQUIRE=false`，会跳过 MiniMax、音频和 ffmpeg 音质检测。
   - 图片识别用：`CLAUDE_VISION_ENABLED=true` 时，默认处理达到日报入选线（Score ≥7）且含远程图的 Story；分数高的 Story 会先消耗调用预算，总量由 `CLAUDE_VISION_MAX_CALLS` 封顶。识图会使用 Story 标题、重要性和要点做相关性判断，相关才自动写 `overlayImg`。没有多模态、远程读取或图像分析 MCP 能力时设为 `false`，流程会下载候选图到 `data-scheme/images/` 供手动配图。
   - 语音质量检测用：`REQUIRE_VOICE_QUALITY_FFMPEG=true` 时需要可用的 `ffmpeg`；没装 ffmpeg 但仍要生成旁白时设为 `false`。
@@ -72,7 +72,7 @@ bun run video:prepare
 | `tts`             | 给每个 scene 生成 MiniMax 旁白，算时间线            | `data-scheme/data-generate.json` + `audio/*.mp3` |
 | `generate-svg`    | 调 `claude -p /generate-svg` 给 tabs 出图标         | `data-scheme/icons/*.svg`                        |
 
-`rss` 步骤会读取项目根目录 `.env` 中可选的小写 `all_proxy`。没有配置时跳过代理并直连；配置后 RSS 抓取与 AI 模型请求都会强制使用该代理，代理无效或不可用时直接报错。它不会读取 `HTTP_PROXY`、`HTTPS_PROXY`、`ALL_PROXY` 等其他代理变量，也不会自动探测本地代理端口。
+`rss` 步骤会读取项目根目录 `.env` 中可选的小写 `all_proxy`。没有配置时跳过代理并直连；配置后 RSS 抓取与 AI 模型请求都会强制使用该代理，代理无效或不可用时直接报错。它不会读取 `HTTP_PROXY`、`HTTPS_PROXY`、`ALL_PROXY` 等其他代理变量，也不会自动探测本地代理端口。这个代理规则只描述项目命令本身；agent 的 WebFetch/Fetch 不会因为 `.env` 里有 `all_proxy` 就自动走代理。
 
 生产步骤跑完后：
 

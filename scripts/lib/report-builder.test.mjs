@@ -76,6 +76,23 @@ test("buildVideoStoryStartMs aligns with [intro, ...stories, outro] and starts i
 
 const overlaySampleDir = resolve(import.meta.dirname, "../../data-scheme-sample-1");
 
+test("buildGeneratedReport default intro says lunar date and weekday", () => {
+  const gen = buildGeneratedReport(
+    {
+      $schema: "../data.schema.json",
+      date: "2026-06-24",
+      stories: [],
+    },
+    undefined,
+    new Date(2026, 5, 24, 20),
+  );
+
+  assert.equal(
+    gen.intro.scenes[0].subtitle,
+    "大家晚上好，今天是农历五月初十，星期三，欢迎收看今天的 AI 日报。",
+  );
+});
+
 function rawReportWithOverlay(overlayImg, sceneExtra = {}) {
   return {
     $schema: "../data.schema.json",
@@ -126,6 +143,22 @@ test("buildGeneratedReport overwrites stale raw dims with file truth", () => {
 test("buildGeneratedReport keeps overlayImg but writes no dims when file missing", () => {
   const gen = buildGeneratedReport(
     rawReportWithOverlay("images/does-not-exist.png"),
+    undefined,
+    new Date(2026, 5, 25, 10),
+    overlaySampleDir,
+  );
+  const scene = gen.stories[0].scenes[0];
+  assert.equal(scene.overlayImg, "images/does-not-exist.png");
+  assert.equal(scene.overlayImgWidth, undefined);
+  assert.equal(scene.overlayImgHeight, undefined);
+});
+
+test("buildGeneratedReport clears stale raw dims when file missing", () => {
+  const gen = buildGeneratedReport(
+    rawReportWithOverlay("images/does-not-exist.png", {
+      overlayImgWidth: 999,
+      overlayImgHeight: 888,
+    }),
     undefined,
     new Date(2026, 5, 25, 10),
     overlaySampleDir,

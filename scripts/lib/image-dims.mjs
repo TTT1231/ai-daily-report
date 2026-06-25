@@ -80,8 +80,8 @@ function readWebpDimensions(buffer) {
       buffer[start + 5] === 0x2a
     ) {
       return {
-        width: buffer.readUInt16BE(start + 6) & 0x3fff,
-        height: buffer.readUInt16BE(start + 8) & 0x3fff,
+        width: buffer.readUInt16LE(start + 6) & 0x3fff,
+        height: buffer.readUInt16LE(start + 8) & 0x3fff,
       };
     }
     if (chunk === "VP8L" && size >= 5 && buffer[start] === 0x2f) {
