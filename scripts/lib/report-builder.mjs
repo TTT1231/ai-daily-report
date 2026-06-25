@@ -1,5 +1,7 @@
 import {readFileSync} from "node:fs";
 import {resolve} from "node:path";
+import {dataDir as defaultDataDir} from "./paths.mjs";
+import {readImageDimensions} from "./image-dims.mjs";
 
 // 时间线常量的单一事实源是 video-timeline.json（与 src/AiDailyReport.tsx 渲染侧同源读取）。
 // 改这里即两侧同步，避免此前硬编码常量在 JS/TS 两处各自维护导致的评论与画面错位。
@@ -93,6 +95,7 @@ export function buildGeneratedReport(
   rawReport,
   previousReport,
   now = new Date(),
+  dataDir = defaultDataDir,
 ) {
   const report = JSON.parse(JSON.stringify(rawReport));
   report.theme ??=
@@ -100,7 +103,21 @@ export function buildGeneratedReport(
   report.intro = buildIntro(report, now.getHours());
   report.outro = buildOutro(report);
   restoreIcons(report, previousReport);
+  applyOverlayDimensions(report, dataDir);
   return report;
+}
+
+// 构建期按 overlayImg 文件真实像素写入 overlayImgWidth/Height（文件即真相，覆盖 raw 旧值）。
+// 文件缺失/不可解码 → 不写尺寸、不删 overlayImg；overlayImgScale 不在此触碰（约束 1/4）。
+function applyOverlayDimensions(report, dataDir) {
+  for (const scene of collectTimelineScenes(report)) {
+    if (!scene.overlayImg) continue;
+    const dims = readImageDimensions(scene.overlayImg, dataDir);
+    if (dims) {
+      scene.overlayImgWidth = dims.width;
+      scene.overlayImgHeight = dims.height;
+    }
+  }
 }
 
 export function collectTimelineScenes(report) {

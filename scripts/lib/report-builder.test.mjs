@@ -3,10 +3,12 @@ import assert from "node:assert/strict";
 import {readFileSync} from "node:fs";
 import {resolve} from "node:path";
 import {
+  buildGeneratedReport,
   buildVideoStoryStartMs,
   STORY_TRANSITION_FRAMES,
   VIDEO_FPS,
 } from "./report-builder.mjs";
+import {readImageDimensions} from "./image-dims.mjs";
 
 const videoTimeline = JSON.parse(
   readFileSync(resolve(import.meta.dirname, "../../video-timeline.json"), "utf8"),
@@ -70,4 +72,77 @@ test("buildVideoStoryStartMs aligns with [intro, ...stories, outro] and starts i
   // generate-tts writes starts[index] onto timelineStories[index].videoStartMs,
   // so data.stories[i] (timelineStories[i+1]) reads starts[i+1].
   assert.ok(starts[1] > 0, "first story starts after intro + transition");
+});
+
+const overlaySampleDir = resolve(import.meta.dirname, "../../data-scheme-sample-1");
+
+function rawReportWithOverlay(overlayImg, sceneExtra = {}) {
+  return {
+    $schema: "../data.schema.json",
+    date: "2026-06-25",
+    stories: [
+      {
+        id: "s1",
+        topTitle: "测试",
+        bottomTitle: "T",
+        contentTitle: "测试标题内容",
+        tabs: [
+          {id: "s1-t1", title: "A", summary: "第一张卡片摘要内容。"},
+          {id: "s1-t2", title: "B", summary: "第二张卡片摘要内容。"},
+        ],
+        scenes: [
+          {id: "s1-scene-1", subtitle: "一句足够长的测试旁白文案用于校验。", overlayImg, ...sceneExtra},
+        ],
+      },
+    ],
+  };
+}
+
+test("buildGeneratedReport writes overlay dims from the real image file", () => {
+  const gen = buildGeneratedReport(
+    rawReportWithOverlay("images/codex-reset.png"),
+    undefined,
+    new Date(2026, 5, 25, 10),
+    overlaySampleDir,
+  );
+  const scene = gen.stories[0].scenes[0];
+  const expected = readImageDimensions("images/codex-reset.png", overlaySampleDir);
+  assert.equal(scene.overlayImgWidth, expected.width);
+  assert.equal(scene.overlayImgHeight, expected.height);
+});
+
+test("buildGeneratedReport overwrites stale raw dims with file truth", () => {
+  const raw = rawReportWithOverlay("images/codex-reset.png", {
+    overlayImgWidth: 1158,
+    overlayImgHeight: 1146,
+  });
+  const gen = buildGeneratedReport(raw, undefined, new Date(2026, 5, 25, 10), overlaySampleDir);
+  const scene = gen.stories[0].scenes[0];
+  const expected = readImageDimensions("images/codex-reset.png", overlaySampleDir);
+  assert.equal(scene.overlayImgWidth, expected.width);
+  assert.equal(scene.overlayImgHeight, expected.height);
+});
+
+test("buildGeneratedReport keeps overlayImg but writes no dims when file missing", () => {
+  const gen = buildGeneratedReport(
+    rawReportWithOverlay("images/does-not-exist.png"),
+    undefined,
+    new Date(2026, 5, 25, 10),
+    overlaySampleDir,
+  );
+  const scene = gen.stories[0].scenes[0];
+  assert.equal(scene.overlayImg, "images/does-not-exist.png");
+  assert.equal(scene.overlayImgWidth, undefined);
+  assert.equal(scene.overlayImgHeight, undefined);
+});
+
+test("buildGeneratedReport preserves overlayImgScale and leaves scenes without overlayImg alone", () => {
+  const raw = rawReportWithOverlay("images/codex-reset.png", {overlayImgScale: 1.2});
+  raw.stories[0].scenes.push({id: "s1-scene-2", subtitle: "另一句测试旁白文案内容。"});
+  const gen = buildGeneratedReport(raw, undefined, new Date(2026, 5, 25, 10), overlaySampleDir);
+  const s1 = gen.stories[0].scenes[0];
+  assert.equal(s1.overlayImgScale, 1.2);
+  const s2 = gen.stories[0].scenes[1];
+  assert.equal(s2.overlayImg, undefined);
+  assert.equal(s2.overlayImgWidth, undefined);
 });
