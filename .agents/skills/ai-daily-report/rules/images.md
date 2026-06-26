@@ -12,7 +12,7 @@
 
 - `.svg` / `.png` / `.jpg` / `.jpeg` / `.webp` / `.gif` / `.avif`
 
-文件名自己起，建议语义化，如 `glm5.2.png`、`claude-update.png`。可参考 `data-scheme-sample-1/images/`。
+文件名自己起，建议语义化，如 `glm5.2.png`、`claude-update.png`。可参考 `demo/data-scheme-sample-1/images/`。
 
 ## 怎么引用
 
@@ -63,6 +63,8 @@
 
 `src/AiDailyReport.tsx` 的 `SourceOverlay` 组件：scene 有 `overlayImg` 就居中显示这张图（`objectFit: contain`、圆角、阴影），并带「出现/消失 + 聚焦放大」动画；`overlayImgScale` 会作为这张图的基础倍率再叠加到动画上。没有 `overlayImg` 就什么都不显示，也就是说图片是**可选**的。
 
+渲染层会按真实宽高把 overlay 分成三类：常规图、小图、高窄截图。小图继续限制在较小高度，避免低清素材被过度放大；高窄截图（如推文长截图、手机截图，宽高比很窄且面积足够）会走专门的 portrait 高度上限，比小图更大，但低于常规图高度，避免聚焦动画顶到标题或压到底部字幕。遇到“竖向截图太小”时，先确认 `data-generate.json` 里的真实宽高和分类，再决定是否需要 `overlayImgScale`，不要直接改全局上限。
+
 ## 验证
 
 ```bash
@@ -75,6 +77,8 @@ bun run dev
 ```
 
 如果 `check-data-json` 报 `overlayImg` 不匹配正则，基本就是路径写错了（没带 `images/` 前缀，或用了不支持的格式）。`overlayImgWidth` / `overlayImgHeight` 由构建按文件真实像素自动写入，无需手动对齐；若 raw 里只填了其中一个，会被报“必须一起填”。
+
+改过 `SourceOverlay` 尺寸公式时，还要跑 `bun test src/overlay-animation.test.ts`，并用 `bunx remotion still AiDailyReport ... --props=data-scheme/data-generate.json --public-dir=data-scheme` 截代表帧检查高窄、常规、宽图和小图。
 
 ## 自动配图（rss 视觉识别）
 

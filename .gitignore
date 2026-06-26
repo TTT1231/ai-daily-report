@@ -35,11 +35,7 @@ biliup/cookies.json
 biliup/*.zip
 
 # TTS generated voice assets for the current daily-report package.
-data-scheme-*
-!data-scheme-sample-1/
-!data-scheme-sample-1/**
-!data-scheme-sample-2/
-!data-scheme-sample-2/**
+/data-scheme-*
 data-scheme
 daily-dates
 

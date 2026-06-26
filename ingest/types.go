@@ -26,6 +26,7 @@ type RSS2Source struct {
 	MaxPages         int                            // 最多翻页数。
 	PageStart        int                            // 起始页码。
 	PageDelaySeconds int                            // 翻页之间的延迟秒数。
+	Proxy            bool                           // 该来源是否强制走 .env 的 all_proxy 抓取（linux.do 等 Cloudflare 防护源需 true；默认 false 直连）。
 	PageURL          func(page int) (string, error) // 来源适配器提供的分页地址生成器。
 	AdaptItem        func(Item) Item                // 来源适配器提供的条目标准化扩展。
 }

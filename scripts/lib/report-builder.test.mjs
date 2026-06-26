@@ -11,7 +11,7 @@ import {
 import {readImageDimensions} from "./image-dims.mjs";
 
 const videoTimeline = JSON.parse(
-  readFileSync(resolve(import.meta.dirname, "../../video-timeline.json"), "utf8"),
+  readFileSync(resolve(import.meta.dirname, "../../config/video-timeline.json"), "utf8"),
 );
 
 // 评论时间戳必须落在播放器真实渲染 story 的那一帧。成片在相邻 story 之间插入
@@ -74,12 +74,12 @@ test("buildVideoStoryStartMs aligns with [intro, ...stories, outro] and starts i
   assert.ok(starts[1] > 0, "first story starts after intro + transition");
 });
 
-const overlaySampleDir = resolve(import.meta.dirname, "../../data-scheme-sample-1");
+const overlaySampleDir = resolve(import.meta.dirname, "../../demo/data-scheme-sample-1");
 
 test("buildGeneratedReport default intro says lunar date and weekday", () => {
   const gen = buildGeneratedReport(
     {
-      $schema: "../data.schema.json",
+      $schema: "../config/data.schema.json",
       date: "2026-06-24",
       stories: [],
     },
@@ -95,7 +95,7 @@ test("buildGeneratedReport default intro says lunar date and weekday", () => {
 
 function rawReportWithOverlay(overlayImg, sceneExtra = {}) {
   return {
-    $schema: "../data.schema.json",
+    $schema: "../config/data.schema.json",
     date: "2026-06-25",
     stories: [
       {

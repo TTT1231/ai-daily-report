@@ -192,14 +192,14 @@ function watchInputs() {
   watchers.push(
     watch(rootDir, (eventType, filename) => {
       if (eventType !== "change" && eventType !== "rename") return;
-      const name = filename?.toString();
+      const name = (filename?.toString() ?? "").replace(/\\/g, "/");
       if (
         [
-          "data.schema.json",
-          "video-layout.json",
-          "video-layout.schema.json",
-          "video-timeline.json",
-          "video-timeline.schema.json",
+          "config/data.schema.json",
+          "config/video-layout.json",
+          "config/video-layout.schema.json",
+          "config/video-timeline.json",
+          "config/video-timeline.schema.json",
         ].includes(name)
       ) {
         scheduleSync(`${name} 已变化`);

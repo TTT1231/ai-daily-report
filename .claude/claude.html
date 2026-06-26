@@ -13,7 +13,7 @@
     <link rel="stylesheet" href="claude.css" />
   </head>
   <body>
-    <a class="skip-link" href="#quickstart">跳到快速开始</a>
+    <a class="skip-link" href="#directory">跳到项目目录</a>
     <!-- Navigation -->
     <nav class="nav">
       <div class="nav-brand">
@@ -24,7 +24,6 @@
         </div>
       </div>
       <div class="nav-actions">
-        <a class="nav-btn primary" href="#quickstart">第一次使用</a>
         <button
           class="nav-btn"
           onclick="window.scrollTo({ top: 0, behavior: 'smooth' })"
@@ -44,635 +43,14 @@
       </div>
     </nav>
 
-    <!-- Hero Section -->
+    <!-- Hero -->
     <section class="hero">
-      <div class="hero-badge">
-        <svg
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="2"
-        >
-          <path
-            d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"
-          />
-          <polyline points="14,2 14,8 20,8" />
-        </svg>
-        从零开始 · 项目使用指南
-      </div>
       <h1>AI 日报 <span class="highlight">Remotion 视频</span> 项目</h1>
-      <p class="hero-desc">
-        不需要先理解全部代码。支持手写维护或 Agent 一键自动化两种方式，
-        准备好日报内容、生成旁白，即可在 Remotion Studio 里预览视频。
-      </p>
-      <div class="hero-actions">
-        <a class="hero-action primary" href="#quickstart">
-          <svg
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-          >
-            <path d="M5 12h14M13 6l6 6-6 6" />
-          </svg>
-          选择生成方式
-        </a>
-        <a class="hero-action" href="#automation">
-          <svg
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-          >
-            <rect x="3" y="11" width="18" height="10" rx="2" />
-            <circle cx="12" cy="5" r="2" />
-            <path d="M12 7v4M8 16h.01M16 16h.01" />
-          </svg>
-          Agent 一键自动化
-        </a>
-        <a class="hero-action" href="#responsibility">先看哪些文件能改</a>
-      </div>
-      <div class="hero-stats">
-        <div class="stat">
-          <div class="stat-value">2</div>
-          <div class="stat-label">日报生成方式</div>
-        </div>
-        <div class="stat">
-          <div class="stat-value">1</div>
-          <div class="stat-label">人工维护数据源</div>
-        </div>
-        <div class="stat">
-          <div class="stat-value">3</div>
-          <div class="stat-label">日常核心命令</div>
-        </div>
-      </div>
-    </section>
-
-    <!-- Beginner Quick Start -->
-    <section class="onboarding" id="quickstart">
-      <div class="onboarding-heading">
-        <div>
-          <span class="kicker">第一次使用看这里</span>
-          <h2>选择你的日报生成方式</h2>
-          <p>
-            所有命令都在项目根目录 <code>ai-daily-report/</code> 中运行。两种方式都能产出完整视频：<strong>手写维护</strong>由你编辑
-            <code>data.json</code>；<strong>Agent 自动化</strong>用 <code>bun run video:prepare</code> 一键抓取、配音、生成图标。
-          </p>
-        </div>
-        <div class="success-card">
-          <svg
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-          >
-            <path d="M20 6 9 17l-5-5" />
-          </svg>
-          <div>
-            <strong>怎样算成功？</strong>
-            <span>浏览器打开 Remotion Studio，并能播放带旁白的 AI 日报。</span>
-          </div>
-        </div>
-      </div>
-
-      <div class="mode-switcher" aria-label="两种生成方式">
-        <a class="mode-card" href="#manual">
-          <div class="mode-icon">
-            <svg
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2"
-            >
-              <path d="M12 20h9" />
-              <path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z" />
-            </svg>
-          </div>
-          <div class="mode-info">
-            <strong>✍ 手写维护</strong>
-            <span>手动编辑 data.json，4 步跑通视频</span>
-          </div>
-          <span class="mode-arrow">→</span>
-        </a>
-        <a class="mode-card featured" href="#automation">
-          <div class="mode-icon">
-            <svg
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2"
-            >
-              <rect x="3" y="11" width="18" height="10" rx="2" />
-              <circle cx="12" cy="5" r="2" />
-              <path d="M12 7v4M8 16h.01M16 16h.01" />
-            </svg>
-          </div>
-          <div class="mode-info">
-            <strong>🤖 Agent 自动化</strong>
-            <span>bun run video:prepare 一键完成抓取→配音→图标</span>
-          </div>
-          <span class="mode-arrow">→</span>
-        </a>
-      </div>
-
-      <div id="manual" class="mode-block">
-        <div class="mode-title manual">
-          <div class="mode-title-icon">
-            <svg
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2"
-            >
-              <path d="M12 20h9" />
-              <path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z" />
-            </svg>
-          </div>
-          <div class="mode-title-text">
-            <strong>方式一：手写维护</strong>
-            <span>你手动编辑 data-scheme/data.json，图片放进 images/</span>
-          </div>
-        </div>
-
-      <div class="prep-grid" aria-label="开始前准备">
-        <article class="prep-card">
-          <div class="prep-icon">
-            <svg
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2"
-            >
-              <path d="M4 17l6-6-6-6" />
-              <path d="M12 19h8" />
-            </svg>
-          </div>
-          <div>
-            <strong>安装 Bun</strong
-            ><span>终端运行 <code>bun --version</code> 能看到版本号。</span>
-          </div>
-        </article>
-        <article class="prep-card">
-          <div class="prep-icon">
-            <svg
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2"
-            >
-              <path
-                d="M12 15v2m-6 4h12a2 2 0 0 0 2-2v-8a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2Zm2-12V7a4 4 0 0 1 8 0v2"
-              />
-            </svg>
-          </div>
-          <div>
-            <strong>准备 API Key</strong
-            ><span
-              >用于生成 MiniMax TTS 旁白，写入根目录的 <code>.env</code>。</span
-            >
-          </div>
-        </article>
-        <article class="prep-card">
-          <div class="prep-icon">
-            <svg
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2"
-            >
-              <path
-                d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"
-              />
-              <path d="M14 2v6h6" />
-            </svg>
-          </div>
-          <div>
-            <strong>准备日报内容</strong
-            ><span
-              >只编辑 <code>data-scheme/data.json</code>，图片放进
-              <code>images/</code>。</span
-            >
-          </div>
-        </article>
-      </div>
-
-      <div class="steps">
-        <article class="step-card">
-          <div class="step-number">01</div>
-          <div class="step-copy">
-            <span class="step-label">只需首次执行</span>
-            <h3>安装项目依赖</h3>
-            <p>
-              打开终端，进入 <code>ai-daily-report</code> 项目根目录后运行。
-            </p>
-            <div class="copy-command">
-              <code>bun install</code
-              ><button
-                type="button"
-                data-copy="bun install"
-                aria-label="复制 bun install"
-              >
-                复制
-              </button>
-            </div>
-          </div>
-        </article>
-        <article class="step-card">
-          <div class="step-number">02</div>
-          <div class="step-copy">
-            <span class="step-label">每期日报需要</span>
-            <h3>填写内容</h3>
-            <p>
-              编辑 <code>data-scheme/data.json</code>。不要手动添加
-              <code>audioSrc</code>、<code>timing</code> 或 <code>tts</code>。
-            </p>
-          </div>
-        </article>
-        <article class="step-card">
-          <div class="step-number">03</div>
-          <div class="step-copy">
-            <span class="step-label">会调用 MiniMax</span>
-            <h3>生成旁白与时间线</h3>
-            <p>
-              脚本会生成音频，并自动写入不能手改的
-              <code>data-generate.json</code>。
-            </p>
-            <div class="copy-command">
-              <code>bun run tts</code
-              ><button
-                type="button"
-                data-copy="bun run tts"
-                aria-label="复制 TTS 命令"
-              >
-                复制
-              </button>
-            </div>
-          </div>
-        </article>
-        <article class="step-card">
-          <div class="step-number">04</div>
-          <div class="step-copy">
-            <span class="step-label">看到画面就成功</span>
-            <h3>启动并预览视频</h3>
-            <p>
-              <code>dev</code> 会自动监听 data.json、Schema 与 .env，增量生成
-              TTS 并刷新 Studio，无需手动重启。
-            </p>
-            <div class="copy-command">
-              <code>bun run dev</code
-              ><button
-                type="button"
-                data-copy="bun run dev"
-                aria-label="复制启动命令"
-              >
-                复制
-              </button>
-            </div>
-          </div>
-        </article>
-      </div>
-
-      <div class="help-strip">
-        <strong>卡住时先检查：</strong>
-        <span><code>bun --version</code> 是否正常</span>
-        <span><code>TTS_REQUIRE=true</code> 时 <code>.env</code> 是否有 <code>MINIMAX_API_KEY</code></span>
-        <span>TTS 默认用 ffmpeg 做音质检；没装 ffmpeg 时设 <code>REQUIRE_VOICE_QUALITY_FFMPEG=false</code> 跳过</span>
-        <span>命令是否在项目根目录运行</span>
-      </div>
-      </div>
-
-      <div id="automation" class="mode-block">
-        <div class="mode-title automation">
-          <div class="mode-title-icon">
-            <svg
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2"
-            >
-              <rect x="3" y="11" width="18" height="10" rx="2" />
-              <circle cx="12" cy="5" r="2" />
-              <path d="M12 7v4M8 16h.01M16 16h.01" />
-            </svg>
-          </div>
-          <div class="mode-title-text">
-            <strong>方式二：Agent 自动化</strong>
-            <span
-              >准备环境与 Key，<code>bun run video:prepare</code> 自动抓取、配音、生成图标</span
-            >
-          </div>
-        </div>
-
-        <div class="prep-grid" aria-label="开始前准备">
-          <article class="prep-card">
-            <div class="prep-icon">
-              <svg
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="2"
-              >
-                <path d="M4 17l6-6-6-6" />
-                <path d="M12 19h8" />
-              </svg>
-            </div>
-            <div>
-              <strong>安装 Bun + Go</strong
-              ><span
-                >TTS 脚本用 Bun，<code>ingest/</code> 采集器用 Go，<code>bun --version</code> 与
-                <code>go version</code> 都要正常。</span
-              >
-            </div>
-          </article>
-          <article class="prep-card">
-            <div class="prep-icon">
-              <svg
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="2"
-              >
-                <path
-                  d="M12 15v2m-6 4h12a2 2 0 0 0 2-2v-8a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2Zm2-12V7a4 4 0 0 1 8 0v2"
-                />
-              </svg>
-            </div>
-            <div>
-              <strong>配置 MiniMax Key</strong
-              ><span
-                ><code>TTS_REQUIRE=true</code> 时用于生成 TTS 旁白，写入根目录 <code>.env</code> 的
-                <code>MINIMAX_API_KEY</code>；不需要旁白时设 <code>TTS_REQUIRE=false</code>。</span
-              >
-            </div>
-          </article>
-          <article class="prep-card">
-            <div class="prep-icon">
-              <svg
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="2"
-              >
-                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-                <path d="M14 2v6h6" />
-              </svg>
-            </div>
-            <div>
-              <strong>配置 AI Key + Claude CLI</strong
-              ><span
-                ><code>.env</code> 的 <code>AI_API_KEY</code> 喂给 rss 分析模型；generate-svg 步骤会执行 <code>claude --allowedTools … -p --effort low "/generate-svg"</code>（用精确 allowlist 仅放行 <code>data-scheme/icons</code> 写入、<code>data-scheme</code> 下 icon 字段编辑与只读/校验类命令，避免读取来自 RSS 的不可信标题时被提示注入；<code>--effort low</code> 降低思考强度以加速图标生成）生成 Tabs 图标，需先装好 Claude CLI。</span
-              >
-            </div>
-          </article>
-        </div>
-
-        <div class="help-strip">
-          <strong>📡 抓取来源：</strong>
-          <span><code>rss</code> 按 <code>ingest/sources.jsonc</code> 从启用的 RSS 2.0 来源抓取 <strong>最近 24 小时</strong> 内容；新增 LinuxDo 栏目只需复制来源对象并修改 ID、名称和 URL</span>
-          <span>经 AI 评分筛选与聚类，最多保留约 15 个 Story（视频主题）</span>
-          <span>每次运行会对最近时间窗口内的全部条目重新评分；LinuxDo 同一 Topic 跨栏目只处理一次，<code>ingest/rss-state.json</code> 作为最近抓取快照供补选和失败来源保留使用</span>
-        </div>
-
-        <div class="help-strip">
-          <strong>网络代理（可选）：</strong>
-          <span><strong>仅作用于 <code>rss</code> 抓取阶段</strong>（RSS 源抓取 + 该阶段内部的 AI 评分请求）；MiniMax TTS、B站 标题/标签生成与投稿/评论/置顶等 Node 端请求<strong>不</strong>走此代理，始终直连。网络受限时在项目根目录 <code>.env</code> 配置小写 <code>all_proxy=http://127.0.0.1:7890</code>；未配置时 <code>rss</code> 阶段请求直接连接</span>
-          <span>一旦配置 <code>all_proxy</code>，上述 <code>rss</code> 阶段请求必须使用该代理，代理无效或不可用时会报错，不会静默回退直连</span>
-          <span>不会读取 <code>HTTP_PROXY</code>、<code>HTTPS_PROXY</code>、<code>ALL_PROXY</code> 等其他代理变量，也不会自动探测本地代理端口</span>
-        </div>
-
-        <div class="help-strip">
-          <strong>🎯 兴趣偏好：</strong>
-          <span><code>ingest/preferences.jsonc</code> 集中维护重点实体、兴趣信号、不喜欢的内容和评分阈值，文件内包含字段注释</span>
-          <span>AI 评分 Prompt 与本地关键词保底规则共享同一份兴趣画像，修改偏好无需同步修改 Go 关键词或评分 Prompt</span>
-        </div>
-
-        <div class="help-strip">
-          <strong>👁️ 图片识别（按需）：</strong>
-          <span><code>CLAUDE_VISION_ENABLED=true</code> 时，默认处理达到日报入选线（Score ≥7）且含远程图片的 Story，分数高的 Story 优先消耗调用预算；<code>rss</code> 调用 <code>claude --allowedTools mcp__* WebFetch -p --effort low</code>，只允许图像分析类 MCP 或只读远程抓取能力、不放行 shell 或文件编辑；判定相关后还会<strong>自动把该图下载到 <code>images/</code> 并写入对应 scene 的 <code>overlayImg</code></strong></span>
-          <span><code>CLAUDE_VISION_ENABLED=false</code> 时不识图、不写 <code>overlayImg</code>，但会把默认高分候选范围内的远程图下载到 <code>data-scheme/images/</code>，供你手动判断后填图</span>
-          <span>⚠ 自动识图要求 <strong>Claude CLI 的模型支持多模态或只读远程读取能力</strong>，或<strong>配置图像分析 MCP</strong>；不具备时建议关闭 <code>CLAUDE_VISION_ENABLED</code></span>
-        </div>
-
-        <div class="steps">
-          <article class="step-card agent">
-            <div class="step-number">01</div>
-            <div class="step-copy">
-              <span class="step-label">一条命令全自动</span>
-              <h3>抓取 + 配音 + 图标</h3>
-              <p>
-                依次自动执行 <code>archive:rotate</code>（归档）→
-                <code>rss</code>（抓取并生成 data.json，按需调用 Claude 视觉识别图片并自动配图）→
-                <code>check-data-json</code>（校验 Raw 数据）→
-                <code>tts</code>（音频与时间线）→
-                <code>generate-svg</code>（Claude CLI 生成 Tabs 图标）。<strong>跑完即结束，不再自动开预览</strong>（要看画面单独 <code>bun run dev</code>）。清空 <code>data-scheme/</code> 后想完全重建，先跑 <code>bun run reset</code> 再 <code>bun run video:prepare</code>。
-              </p>
-              <div class="copy-command">
-                <code>bun run video:prepare</code
-                ><button
-                  type="button"
-                  data-copy="bun run video:prepare"
-                  aria-label="复制 video:prepare 命令"
-                >
-                  复制
-                </button>
-              </div>
-            </div>
-          </article>
-          <article class="step-card agent">
-            <div class="step-number">02</div>
-            <div class="step-copy">
-              <span class="step-label">看到画面就成功</span>
-              <h3>预览或渲染视频</h3>
-              <p>
-                <code>video:prepare</code> 不再自动开预览。要看画面运行 <code>dev</code>（自动监听 data.json 并增量更新 TTS）；要导出 mp4 运行 <code>video:render</code>。
-              </p>
-              <div class="copy-command">
-                <code>bun run dev</code
-                ><button
-                  type="button"
-                  data-copy="bun run dev"
-                  aria-label="复制预览命令"
-                >
-                  复制
-                </button>
-              </div>
-            </div>
-          </article>
-          <article class="step-card agent">
-            <div class="step-number">03</div>
-            <div class="step-copy">
-              <span class="step-label">一键发布到 B站</span>
-              <h3>投稿 + 评论 + 置顶</h3>
-              <p>
-                <code>all:bili</code> 从零到发布一条龙：<code>video:prepare</code> → <code>video:render</code> → 渲封面 → LLM 生成标题/标签 → biliup 投稿 → 等审核 → 发评论 → 置顶。数据已备好只想发 B站时用 <code>publish:bili</code>。首次需 <code>biliup login</code> 扫码登录（详见 <a href="#bili-publish">B站发布</a>）。
-              </p>
-              <div class="copy-command">
-                <code>bun run all:bili</code
-                ><button
-                  type="button"
-                  data-copy="bun run all:bili"
-                  aria-label="复制 all:bili 命令"
-                >
-                  复制
-                </button>
-              </div>
-            </div>
-          </article>
-        </div>
-
-        <div class="help-strip">
-          <strong>🖼️ 图片：自动 + 手动：</strong>
-          <span><code>rss</code> 视觉识别开启时会给达到日报入选线（Score ≥7）的 Story <strong>自动下载并配图</strong>（写入 <code>overlayImg</code>）；关闭时只下载候选图，不写 <code>overlayImg</code>。手动配图时填 <code>overlayImg: "images/xxx"</code>，<code>overlayImgWidth</code> / <code>overlayImgHeight</code> 由构建按文件真实像素自动写入、无需手填；手动微调单张图大小用 <code>overlayImgScale</code>，会叠加正常聚焦动画</span>
-          <span>仅替换图片会触发一次缓存复用的旁白同步以重算尺寸（不调 MiniMax）</span>
-        </div>
-      </div>
-    </section>
-
-    <!-- Table of Contents -->
-    <section class="toc">
-      <div class="toc-header">
-        <svg
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="2"
-        >
-          <line x1="8" y1="6" x2="21" y2="6" />
-          <line x1="8" y1="12" x2="21" y2="12" />
-          <line x1="8" y1="18" x2="21" y2="18" />
-          <line x1="3" y1="6" x2="3.01" y2="6" />
-          <line x1="3" y1="12" x2="3.01" y2="12" />
-          <line x1="3" y1="18" x2="3.01" y2="18" />
-        </svg>
-        <h2 class="toc-title">文档目录</h2>
-      </div>
-      <div class="toc-grid">
-        <a href="#quickstart" class="toc-card featured">
-          <div class="toc-card-icon">
-            <svg
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2"
-            >
-              <path d="M5 12h14M13 6l6 6-6 6" />
-            </svg>
-          </div>
-          <h3>两种生成方式</h3>
-          <p>手写维护 4 步 与 Agent 自动化一键流程</p>
-        </a>
-        <a href="#automation" class="toc-card featured">
-          <div class="toc-card-icon">
-            <svg
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2"
-            >
-              <rect x="3" y="11" width="18" height="10" rx="2" />
-              <circle cx="12" cy="5" r="2" />
-              <path d="M12 7v4M8 16h.01M16 16h.01" />
-            </svg>
-          </div>
-          <h3>Agent 自动化</h3>
-          <p>bun run video:prepare：抓取 → 配音 → 图标 一键完成</p>
-        </a>
-        <a href="#directory" class="toc-card">
-          <div class="toc-card-icon">
-            <svg
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2"
-            >
-              <path
-                d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"
-              />
-            </svg>
-          </div>
-          <h3>项目目录</h3>
-          <p>项目文件结构与源码组织</p>
-        </a>
-        <a href="#dataflow" class="toc-card">
-          <div class="toc-card-icon">
-            <svg
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2"
-            >
-              <polyline points="22,12 18,12 15,21 9,3 6,12 2,12" />
-            </svg>
-          </div>
-          <h3>数据流</h3>
-          <p>从人工编辑到视频渲染的完整流程</p>
-        </a>
-        <a href="#rss-customization" class="toc-card featured">
-          <div class="toc-card-icon">
-            <svg
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2"
-            >
-              <path d="M4 11a9 9 0 0 1 9 9" />
-              <path d="M4 4a16 16 0 0 1 16 16" />
-              <circle cx="5" cy="19" r="1" />
-            </svg>
-          </div>
-          <h3>自定义 RSS 与偏好</h3>
-          <p>添加 LinuxDo 栏目、关注实体、加分词和不喜欢内容</p>
-        </a>
-        <a href="#bili-publish" class="toc-card featured">
-          <div class="toc-card-icon">
-            <svg
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2"
-            >
-              <path d="M22 2 11 13" />
-              <path d="M22 2 15 22l-4-9-9-4 20-6z" />
-            </svg>
-          </div>
-          <h3>发布到 B站</h3>
-          <p>投稿 + 评论 + 置顶 一键自动化</p>
-        </a>
-        <a href="#responsibility" class="toc-card">
-          <div class="toc-card-icon">
-            <svg
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2"
-            >
-              <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
-            </svg>
-          </div>
-          <h3>文件职责</h3>
-          <p>各数据文件的职责划分与维护规则</p>
-        </a>
-        <a href="#timeline" class="toc-card">
-          <div class="toc-card-icon">
-            <svg
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2"
-            >
-              <circle cx="12" cy="12" r="10" />
-              <polyline points="12,6 12,12 16,14" />
-            </svg>
-          </div>
-          <h3>时间线规则</h3>
-          <p>TTS 时间线计算与场景时长管理</p>
-        </a>
-      </div>
     </section>
 
     <!-- Main Content -->
     <main class="content">
-      <!-- Section 1: 项目目录 -->
+      <!-- Section: 项目目录 -->
       <div id="directory" class="section">
         <div class="section-header">
           <div class="section-icon">
@@ -709,14 +87,20 @@
 <span class="folder">│   ├── images/</span>                         <span class="comment"># Scene overlayImg 图片素材</span>
 <span class="folder">│   ├── icons/</span>                          <span class="comment"># Tabs 图标素材（可选，由 generate-svg 技能产出）</span>
 <span class="folder">│   └── audio/</span>                          <span class="comment"># TTS 生成的音频</span>
-<span class="folder">├── data-scheme-sample-1/</span>               <span class="comment"># 完整示例，含 TTS 音频；bun run preview</span>
-<span class="folder">├── data-scheme-sample-2/</span>               <span class="comment"># 无 TTS 示例；bun run preview:notts</span>
-<span class="folder">├── data.schema.json</span>                    <span class="comment"># Raw + Generated 共用的 JSON Schema（data.json 的 $schema）</span>
-<span class="folder">├── video-layout.json</span>                   <span class="comment"># 人工维护的项目级固定布局配置，不随每次日报或视频生成变化</span>
-<span class="folder">├── video-layout.schema.json</span>            <span class="comment"># video-layout.json 的字段说明、取值范围与编辑器提示</span>
-<span class="folder">├── video-timeline.json</span>                  <span class="comment"># 视频时间线常量（fps / story 间过渡帧），渲染侧与评论侧同源读取的单一事实源</span>
-<span class="folder">├── video-timeline.schema.json</span>           <span class="comment"># video-timeline.json 的字段说明与校验</span>
-<span class="folder">├── bilibili.config.json</span>                <span class="comment"># B站投稿固定配置：分区 tid / 自制 / 创作声明 / 封面帧 / 评论前等待</span>
+<span class="folder">├── config/</span>                              <span class="comment"># 项目级配置与 Schema（被 src / ingest / scripts 三侧引用）</span>
+<span class="folder">│   ├── data.schema.json</span>                <span class="comment"># Raw + Generated 共用的 JSON Schema（data.json 的 $schema）</span>
+<span class="folder">│   ├── video-layout.json</span>               <span class="comment"># 人工维护的项目级固定布局配置，不随每次日报或视频生成变化</span>
+<span class="folder">│   ├── video-layout.schema.json</span>        <span class="comment"># video-layout.json 的字段说明、取值范围与编辑器提示</span>
+<span class="folder">│   ├── video-timeline.json</span>              <span class="comment"># 视频时间线常量（fps / story 间过渡帧），渲染侧与评论侧同源读取的单一事实源</span>
+<span class="folder">│   ├── video-timeline.schema.json</span>       <span class="comment"># video-timeline.json 的字段说明与校验</span>
+<span class="folder">│   └── bilibili.config.json</span>            <span class="comment"># B站投稿固定配置：分区 tid / 自制 / 创作声明 / 封面帧 / 评论前等待</span>
+<span class="folder">├── demo/</span>                               <span class="comment"># 演示素材、示例数据与可视化导览</span>
+<span class="folder">│   ├── data-scheme-sample-1/</span>          <span class="comment"># 完整示例，含 TTS 音频；bun run preview</span>
+<span class="folder">│   ├── data-scheme-sample-2/</span>          <span class="comment"># 无 TTS 示例；bun run preview:notts</span>
+<span class="folder">│   ├── overview.html</span>                  <span class="comment"># 可视化导览（给用户看）</span>
+<span class="folder">│   ├── demo-light.png</span>                  <span class="comment"># 亮色主题演示截图</span>
+<span class="folder">│   ├── demo-dark.png</span>                   <span class="comment"># 暗色主题演示截图</span>
+<span class="folder">│   └── demo-video.mp4</span>                  <span class="comment"># 完整视频演示</span>
 <span class="folder">├── scripts/</span>
 <span class="folder">│   ├── checks/</span>                         <span class="comment"># 数据与资源校验</span>
 <span class="folder">│   │   ├── check-data-json.mjs</span>         <span class="comment"># 数据校验脚本（Raw 内容 / Generated 渲染就绪）</span>
@@ -741,7 +125,7 @@
 <span class="folder">│       ├── report-validation.mjs</span>       <span class="comment"># JSON Schema 与跨字段业务校验</span>
 <span class="folder">│       ├── report-builder.mjs</span>          <span class="comment"># 构建 Intro / Outro、主题与图标恢复</span>
 <span class="folder">│       ├── minimax-tts.mjs</span>             <span class="comment"># MiniMax TTS API 客户端</span>
-<span class="folder">│       └── generated-output.mjs</span>        <span class="comment"># 音频与 Generated JSON 的事务提交和恢复</span>
+<span class="folder">│       └── generated-output.mjs</span>        <span class="comment"># 音频与 Generated JSON 事务提交与恢复</span>
 <span class="folder">├── ingest/</span>                             <span class="comment"># Go 编写的多来源 RSS 采集器</span>
 <span class="folder">│   ├── sources.jsonc</span>                  <span class="comment"># 人工维护：RSS 来源、启用状态和分页参数</span>
 <span class="folder">│   ├── preferences.jsonc</span>              <span class="comment"># 人工维护：重点实体、兴趣信号、不喜欢内容和筛选阈值</span>
@@ -755,8 +139,8 @@
         </div>
       </div>
 
-      <!-- Section 2: 数据流 -->
-      <div id="dataflow" class="section">
+      <!-- Section: 处理流程 -->
+      <div id="process" class="section">
         <div class="section-header">
           <div class="section-icon">
             <svg
@@ -769,399 +153,60 @@
             </svg>
           </div>
           <div class="section-info">
-            <h2>数据流</h2>
-            <p>先看日报生成主线，再展开 TTS 内部细节</p>
+            <h2>处理流程</h2>
+            <p>跑哪些命令、每个命令做什么</p>
           </div>
         </div>
         <div class="section-body">
-          <div class="pipeline-intro">
-            <div>
-              <span class="pipeline-kicker">先看主线</span>
-              <h3>一份日报怎样变成视频？</h3>
-              <p>
-                你只维护 Raw 数据；脚本负责校验、生成旁白与时间线，Remotion
-                最终只读取 Generated 数据。
-              </p>
-            </div>
-            <div class="pipeline-legend">
-              <span><i class="legend-dot human"></i>人工维护</span>
-              <span><i class="legend-dot system"></i>脚本处理</span>
-              <span><i class="legend-dot output"></i>生成结果</span>
-            </div>
-          </div>
-
-          <div class="pipeline-overview" aria-label="日报生成主流程">
-            <article class="pipeline-card human">
-              <span class="pipeline-number">01</span
-              ><span class="pipeline-role">你来维护</span>
-              <h4>准备日报内容</h4>
-              <code>data-scheme/data.json</code>
-              <p>
-                可由 <code>bun run video:prepare</code> 一键抓取（rss）并配音（tts）、生成图标；也可手动编辑标题、Tabs、字幕与图片引用。
-              </p>
-            </article>
-            <div class="pipeline-connector"><span>校验</span>→</div>
-            <article class="pipeline-card system">
-              <span class="pipeline-number">02</span
-              ><span class="pipeline-role">脚本把关</span>
-              <h4>检查 Raw 数据</h4>
-              <code>bun run check-data-json</code>
-              <p>检查 Schema、重复 ID、引用关系和素材路径。</p>
-            </article>
-            <div class="pipeline-connector"><span>生成</span>→</div>
-            <article class="pipeline-card system emphasis">
-              <span class="pipeline-number">03</span
-              ><span class="pipeline-role">核心处理</span>
-              <h4>生成旁白与时间线</h4>
-              <code>bun run tts</code>
-              <p>复用或生成音频，计算连续时间线，并安全提交结果。</p>
-            </article>
-            <div class="pipeline-connector"><span>读取</span>→</div>
-            <article class="pipeline-card output">
-              <span class="pipeline-number">04</span
-              ><span class="pipeline-role">最终产物</span>
-              <h4>预览与渲染</h4>
-              <code>data-generate.json + audio/</code>
-              <p>通过渲染校验后，作为 props 交给 Remotion Studio 和 Render 使用。</p>
-            </article>
-          </div>
-
-          <div class="pipeline-detail-heading">
-            <div>
-              <span class="pipeline-kicker">再看细节</span>
-              <h3><code>bun run tts</code> 内部做了什么？</h3>
-            </div>
-            <p>
-              <code>generate-tts.mjs</code> 安排顺序，<code>scripts/lib</code>
-              中的模块各做一件事。
-            </p>
-          </div>
-
-          <div class="tts-workflow">
-            <div class="tts-stages">
-              <article class="tts-stage">
-                <span class="tts-stage-number">1</span>
-                <div>
-                  <strong>读取并校验</strong>
-                  <p>
-                    <code>paths.mjs</code> 读取新旧数据，<code
-                      >report-validation.mjs</code
-                    >
-                    检查数据契约。
-                  </p>
-                </div>
-              </article>
-              <article class="tts-stage">
-                <span class="tts-stage-number">2</span>
-                <div>
-                  <strong>构建 Generated 报表</strong>
-                  <p>
-                    <code>report-builder.mjs</code>
-                    创建主题、Intro、Outro，并恢复已有图标。
-                  </p>
-                </div>
-              </article>
-              <article class="tts-stage">
-                <span class="tts-stage-number">3</span>
-                <div>
-                  <strong>逐个处理 Scene</strong>
-                  <p>
-                    根据字幕和 TTS 参数计算哈希，决定复用旧音频还是调用
-                    MiniMax。
-                  </p>
-                </div>
-              </article>
-              <article class="tts-stage">
-                <span class="tts-stage-number">4</span>
-                <div>
-                  <strong>计算时间线</strong>
-                  <p>
-                    按播放顺序写入 <code>audioSrc</code>、<code>timing</code> 和
-                    <code>tts</code> 元数据。
-                  </p>
-                </div>
-              </article>
-              <article class="tts-stage">
-                <span class="tts-stage-number">5</span>
-                <div>
-                  <strong>事务提交</strong>
-                  <p>
-                    <code>generated-output.mjs</code>
-                    暂存完整结果，确认成功后才替换正式文件。
-                  </p>
-                </div>
-              </article>
-            </div>
-            <aside class="tts-decisions">
-              <div class="decision-card">
-                <span class="decision-title">Scene 音频怎么决定？</span>
-                <div class="decision-question">哈希和旧音频都没变？</div>
-                <div class="decision-path reuse">
-                  <strong>是：复用</strong
-                  ><span>不请求 MiniMax，直接使用旧音频时长</span>
-                </div>
-                <div class="decision-path generate">
-                  <strong>否：重新生成</strong
-                  ><span
-                    ><code>minimax-tts.mjs</code> 返回 MP3 与
-                    audioLengthMs</span
-                  >
-                </div>
+          <div class="timeline-rules">
+            <div class="timeline-rule">
+              <div class="timeline-number">01</div>
+              <div class="timeline-content">
+                <h4><code>bun run video:prepare</code></h4>
+                <p>
+                  一键全流程：归档上期 → 抓取 RSS 生成 data.json → 校验 → 生成旁白 → 生成 Tab 图标。日常出一期日报跑这一条就够，跑完不自动开预览。
+                </p>
               </div>
-              <div class="decision-card safety">
-                <span class="decision-title">为什么不会写坏旧数据？</span>
-                <div class="decision-path success">
-                  <strong>全部成功</strong
-                  ><span
-                    >一起提交 <code>audio/</code> 和
-                    <code>data-generate.json</code></span
-                  >
-                </div>
-                <div class="decision-path rollback">
-                  <strong>失败或异常中断</strong
-                  ><span>恢复旧音频和旧 Generated 数据，避免新旧混合</span>
-                </div>
+            </div>
+            <div class="timeline-rule">
+              <div class="timeline-number">02</div>
+              <div class="timeline-content">
+                <h4><code>bun run dev</code></h4>
+                <p>
+                  打开预览。监听 data.json 与图片变化，自动增量生成旁白并刷新画面；想看当前 data-scheme 的效果跑这条。
+                </p>
               </div>
-            </aside>
+            </div>
+            <div class="timeline-rule">
+              <div class="timeline-number">03</div>
+              <div class="timeline-content">
+                <h4><code>bun run video:render</code></h4>
+                <p>把当前 data-scheme 渲染导出成 mp4。</p>
+              </div>
+            </div>
+            <div class="timeline-rule">
+              <div class="timeline-number">04</div>
+              <div class="timeline-content">
+                <h4><code>bun run all:bili</code></h4>
+                <p>
+                  一键发布到 B站：video:prepare → video:render → 生成标题/标签 → 投稿 → 等审核 → 发评论 → 置顶。首次需 biliup 扫码登录。
+                </p>
+              </div>
+            </div>
+            <div class="timeline-rule">
+              <div class="timeline-number">05</div>
+              <div class="timeline-content">
+                <h4>单独跑某一步</h4>
+                <p>
+                  <code>bun run rss</code>（只抓取生成 data.json）、<code>bun run tts</code>（只生成旁白和时间线）、<code>bun run generate-svg</code>（只生成 Tab 图标）、<code>bun run check-data-json</code>（只校验）、<code>bun run reset</code>（清空 data-scheme 后完全重建）。
+                </p>
+              </div>
+            </div>
           </div>
         </div>
       </div>
 
-      <!-- Section 3: 自定义 RSS 与偏好 -->
-      <div id="rss-customization" class="section">
-        <div class="section-header">
-          <div class="section-icon">
-            <svg
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2"
-            >
-              <path d="M4 11a9 9 0 0 1 9 9" />
-              <path d="M4 4a16 16 0 0 1 16 16" />
-              <circle cx="5" cy="19" r="1" />
-            </svg>
-          </div>
-          <div class="section-info">
-            <h2>自定义 RSS 与兴趣偏好</h2>
-            <p>日常只编辑两个带注释的 JSONC 文件，不需要修改 Go 代码</p>
-          </div>
-        </div>
-        <div class="section-body">
-          <div class="pipeline-intro">
-            <div>
-              <span class="pipeline-kicker">两个维护入口</span>
-              <h3>想改什么，就改对应文件</h3>
-              <p>
-                <code>sources.jsonc</code> 决定从哪里抓；
-                <code>preferences.jsonc</code> 决定哪些内容值得进入日报。
-              </p>
-            </div>
-            <div class="pipeline-legend">
-              <span><i class="legend-dot human"></i>人工维护 JSONC</span>
-              <span><i class="legend-dot system"></i>采集器自动读取</span>
-            </div>
-          </div>
-
-          <div class="steps">
-            <article class="step-card agent">
-              <div class="step-number">01</div>
-              <div class="step-copy">
-                <span class="step-label">添加自己的 LinuxDo RSS</span>
-                <h3>编辑 <code>ingest/sources.jsonc</code></h3>
-                <p>
-                  复制现有 LinuxDo 来源对象，给它一个不重复的 <code>id</code>，
-                  再修改名称和 RSS 地址。同一 LinuxDo Topic 出现在多个栏目时会自动去重。
-                </p>
-                <div class="code-block">
-                  <pre>{
-  "id": "linuxdo-my-category",
-  "name": "Linux.do 我的关注栏目",
-  "adapter": "linuxdo",
-  "url": "https://linux.do/c/example/123.rss",
-  "enabled": true,
-  "maxPages": 2,
-  "pageStart": 0,
-  "pageDelaySeconds": 10
-}</pre>
-                </div>
-              </div>
-            </article>
-
-            <article class="step-card agent">
-              <div class="step-number">02</div>
-              <div class="step-copy">
-                <span class="step-label">添加重点关注品牌或产品</span>
-                <h3>编辑 <code>priorityEntities</code></h3>
-                <p>
-                  <code>name</code> 用于告诉 AI 这是谁；<code>aliases</code>
-                  是标题中可能出现的写法。标题命中实体后会通过本地兴趣门槛，
-                  再命中重点变化词时会得到 9 分保底。
-                </p>
-                <div class="code-block">
-                  <pre>{
-  "name": "Google Gemini",
-  "aliases": ["google gemini", "gemini", "谷歌双子座"]
-}</pre>
-                </div>
-              </div>
-            </article>
-
-            <article class="step-card agent">
-              <div class="step-number">03</div>
-              <div class="step-copy">
-                <span class="step-label">添加加分关键词</span>
-                <h3>编辑 <code>signals</code></h3>
-                <p>
-                  任意标题命中后都要直接加分的词，放进 <code>priorityKeywords</code>，
-                  会获得 9 分本地保底。<code>importantChanges</code> 用于重点实体的发布、
-                  开源、价格等变化词；<code>majorPolicy</code> 和 <code>riskEvents</code>
-                  分别用于国家级 AI 政策与风险情报。
-                </p>
-                <div class="code-block">
-                  <pre>"priorityKeywords": [
-  "mcp",
-  "你自己的直接加分词"
-]</pre>
-                </div>
-              </div>
-            </article>
-
-            <article class="step-card agent">
-              <div class="step-number">04</div>
-              <div class="step-copy">
-                <span class="step-label">添加不喜欢的内容</span>
-                <h3>编辑 <code>dislikes</code> 与 <code>guidance.notInterested</code></h3>
-                <p>
-                  任意标题命中后都不要的词放进 <code>dislikes.hardExclude</code>。
-                  营销和无产品影响的地缘内容可分别维护在 <code>marketing</code> 与
-                  <code>geopolitics</code>；难以用单个词描述的偏好写进
-                  <code>guidance.notInterested</code>，交给 AI 理解。
-                </p>
-                <div class="code-block">
-                  <pre>"hardExclude": [
-  "招聘",
-  "你明确不想看的词"
-]</pre>
-                </div>
-              </div>
-            </article>
-
-            <article class="step-card agent">
-              <div class="step-number">05</div>
-              <div class="step-copy">
-                <span class="step-label">调整筛选宽松程度</span>
-                <h3>编辑 <code>thresholds</code></h3>
-                <p>
-                  <code>minimumScore</code> 越高，日报越精简；默认 7 分。
-                  <code>maximumCandidates</code> 控制聚类前最多保留多少条候选。
-                </p>
-                <div class="code-block">
-                  <pre>"thresholds": {
-  "minimumScore": 7,
-  "maximumCandidates": 30
-}</pre>
-                </div>
-              </div>
-            </article>
-
-            <article class="step-card agent">
-              <div class="step-number">06</div>
-              <div class="step-copy">
-                <span class="step-label">让修改生效</span>
-                <h3>运行 RSS 采集器</h3>
-                <p>
-                  保存 JSONC 后运行 <code>bun run rss</code>。程序会先校验配置；
-                  字段缺失、空关键词、重复来源 ID、无效 URL 或无效
-                  <code>all_proxy</code> 会直接报错。
-                </p>
-                <div class="copy-command">
-                  <code>bun run rss</code
-                  ><button type="button" data-copy="bun run rss" aria-label="复制 RSS 命令">
-                    复制
-                  </button>
-                </div>
-              </div>
-            </article>
-          </div>
-
-          <div class="help-strip">
-            <strong>运行状态：</strong>
-            <span><code>ingest/rss-state.json</code> 不是用户配置，而是采集器自动生成的“最近一次完整抓取记录”，用于人工补选新闻和来源失败时保留上次状态</span>
-            <span>无需维护；删除它只会丢弃这份快照，下一次运行仍会对最近时间窗口内的全部条目重新评分并自动生成新状态</span>
-          </div>
-        </div>
-      </div>
-
-      <!-- Section: B站发布 -->
-      <div id="bili-publish" class="section">
-        <div class="section-header">
-          <div class="section-icon">
-            <svg
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2"
-            >
-              <path d="M22 2 11 13" />
-              <path d="M22 2 15 22l-4-9-9-4 20-6z" />
-            </svg>
-          </div>
-          <div class="section-info">
-            <h2>发布到 B站</h2>
-            <p>投稿 + 评论 + 置顶，一条龙自动化（纯 HTTP，无浏览器）</p>
-          </div>
-        </div>
-        <div class="section-body">
-          <div class="pipeline-intro">
-            <div>
-              <span class="pipeline-kicker">两种粒度</span>
-              <h3>把当期成片发到 B站</h3>
-              <p>
-                <code>all:bili</code> 从零到发布；<code>publish:bili</code> 在数据已备好时只走发布段。投稿用社区维护的
-                <code>biliup-rs</code>，评论/置顶用本项目封装的 web API。
-              </p>
-            </div>
-          </div>
-
-          <div class="help-strip">
-            <strong>首次（一次性）：</strong>
-            <span>首次跑 <code>bili:upload</code> / <code>bili:comment</code> / <code>bili:stick</code> 时，<code>ensure-biliup</code> 自动下载 <code>biliup-rs</code> 到 <code>biliup/</code>（跨平台、平铺、已 gitignore）；<code>bun install</code> 不再联网下载，不发 B 站就零副作用。也可主动 <code>bun run biliup:prepare</code> 一步备齐（下载+登录+清理）</span>
-            <span>缺登录态时自动拉起扫码：<code>./biliup/biliup.exe -u biliup/cookies.json login</code>（非交互终端则提示该命令手动跑）；登录态存 <code>biliup/cookies.json</code>（评论/置顶也直接读它，<strong>不进 .env</strong>）</span>
-          </div>
-
-          <div class="code-block">
-            <pre># 一条龙（从抓取到发布）
-bun run all:bili      # video:prepare → video:render → 渲封面 → comment:generate → bili:meta → bili:full
-
-# 数据已备好，只发 B站
-bun run publish:bili  # video:render → 渲封面 → comment:generate → bili:meta → bili:full
-
-# 拆开单步
-bun run bili:meta     # LLM 生成标题/标签 → data-scheme/bilibili-meta.json
-bun run bili:upload   # 纯投稿（只发视频，命令已带 --no-comment）
-bun run bili:full    # 投稿 → 等 3 分钟审核 → 发评论 → 置顶（全套）
-bun run bili:comment  # 单独发评论
-bun run bili:stick    # 单独置顶</pre>
-          </div>
-
-          <div class="help-strip">
-            <strong>每期会变 vs 固定：</strong>
-            <span>标题前缀 + 标签 → <code>bili:meta</code> 用 LLM 生成（手机短视频风、抓重点、适度夸张），存 <code>bilibili-meta.json</code>，可手改再审</span>
-            <span>标题 = <code>前缀【AI日报 - MM - DD】</code>，≤80 字（中文/字母/符号每个算 1）；标签 ≤10 个；评论正文来自 <code>comments.txt</code></span>
-            <span>分区(tid 231 计算机技术) / 自制 / 创作声明(AI 标识) / 封面帧 / 评论前等待 → 固定在 <code>bilibili.config.json</code></span>
-          </div>
-
-          <div class="help-strip">
-            <strong>注意：</strong>
-            <span><code>bili:full</code> 会<strong>真实发布</strong>稿件 + 评论 + 置顶到你的 B站 号；<code>bili:upload</code> 只投稿、默认带 <code>--no-comment</code> 不发评论/置顶，适合测试稿（发完去创作中心删）</span>
-            <span>评论/置顶失败只警告、不回滚已发视频（视频已发布，可手动补）；评论/置顶对瞬时失败带指数回退重试</span>
-            <span>升级 biliup：<code>bun run download-bili</code>，会自动保留 <code>cookies.json</code> 登录态</span>
-          </div>
-        </div>
-      </div>
-
-      <!-- Section 4: 文件职责 -->
+      <!-- Section: 文件职责 -->
       <div id="responsibility" class="section">
         <div class="section-header">
           <div class="section-icon">
@@ -1197,6 +242,42 @@ bun run bili:stick    # 单独置顶</pre>
                   不要人工修改 data-scheme/data-generate.json
                 </div>
                 <div class="rule-code">它会在执行 TTS 时被重新生成</div>
+
+                <div class="callout">
+                  <svg
+                    class="callout-icon"
+                    width="18"
+                    height="18"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                  >
+                    <circle cx="12" cy="12" r="10" />
+                    <line x1="12" y1="8" x2="12" y2="12" />
+                    <circle cx="12" cy="16" r="0.5" fill="currentColor" />
+                  </svg>
+                  <div class="callout-body">
+                    <strong>注意：<code>bun run tts</code> 不只生成音频</strong>
+                    <p>
+                      命令名容易让人以为它只管"文字转语音"。实际上它是
+                      <code>data-generate.json</code> 的<strong>唯一写手</strong>，做两件事：
+                    </p>
+                    <p>
+                      ① <strong>装配 generated 数据</strong>（<code>report-builder.mjs</code>，不碰音频）：定
+                      <code>theme</code>、构建 <code>intro/outro</code>、从旧数据恢复 <code>icon</code>、按图片真实像素写入
+                      <code>overlayImgWidth/Height</code>；
+                    </p>
+                    <p>
+                      ② <strong>生成音频与时间线</strong>（<code>minimax-tts.mjs</code>）：调 MiniMax、写
+                      <code>audioSrc</code> / <code>timing</code> / <code>tts</code>、算 <code>videoStartMs</code>。
+                    </p>
+                    <p>
+                      两步在同一个原子事务里写入，所以"图片尺寸"虽然不是音频生成的事，却由
+                      <code>tts</code> 触发——换图后重跑 <code>tts</code>（哈希不变走缓存、不花钱）即可重算尺寸。
+                    </p>
+                  </div>
+                </div>
               </div>
             </div>
             <div class="rule-item">
@@ -1234,7 +315,7 @@ bun run bili:stick    # 单独置顶</pre>
                   ingest/sources.jsonc 是人工维护的 RSS 来源入口
                 </div>
                 <div class="rule-code">
-                  新增 LinuxDo 栏目时复制已有来源对象；同一 Topic 会跨栏目自动去重
+                  新增 LinuxDo 栏目时复制已有来源对象；同一 Topic 会跨栏目自动去重；每个来源的 proxy 字段决定抓取时是否走 all_proxy
                 </div>
               </div>
             </div>
@@ -1273,7 +354,7 @@ bun run bili:stick    # 单独置顶</pre>
         </div>
       </div>
 
-      <!-- Section 5: 时间线规则 -->
+      <!-- Section: 时间线规则 -->
       <div id="timeline" class="section">
         <div class="section-header">
           <div class="section-icon">
@@ -1378,33 +459,6 @@ bun run bili:stick    # 单独置顶</pre>
 
       document.querySelectorAll(".section").forEach((section) => {
         observer.observe(section);
-      });
-
-      document.querySelectorAll("[data-copy]").forEach((button) => {
-        button.addEventListener("click", async () => {
-          const originalText = button.textContent;
-          try {
-            if (navigator.clipboard?.writeText) {
-              await navigator.clipboard.writeText(button.dataset.copy);
-            } else {
-              const input = document.createElement("textarea");
-              input.value = button.dataset.copy;
-              input.setAttribute("readonly", "");
-              input.style.position = "fixed";
-              input.style.opacity = "0";
-              document.body.appendChild(input);
-              input.select();
-              document.execCommand("copy");
-              input.remove();
-            }
-            button.textContent = "已复制";
-          } catch {
-            button.textContent = "复制失败";
-          }
-          window.setTimeout(() => {
-            button.textContent = originalText;
-          }, 1600);
-        });
       });
 
       // Reduced motion support

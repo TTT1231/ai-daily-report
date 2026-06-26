@@ -7,9 +7,9 @@ import {
   type TabLayoutPreviewProps,
 } from "./AiDailyReport";
 import { hasDailyReportProps, resolveDailyReport } from "./daily-report-data";
-import videoLayout from "../video-layout.json";
+import videoLayout from "../config/video-layout.json";
 // fps 与时间线常量共用同一事实源，避免 Root.tsx 的帧率与渲染/评论时间线漂移。
-import videoTimeline from "../video-timeline.json";
+import videoTimeline from "../config/video-timeline.json";
 
 // Remotion may probe metadata once with empty props before applying --props.
 // Keep the static Composition duration high enough for frame-range validation;

@@ -39,7 +39,7 @@ import {
 } from "./layout-config";
 // 时间线常量的单一事实源是 video-timeline.json（与 scripts/lib/report-builder.mjs
 // 评论/生成侧同源读取），改配置即两侧同步，避免此前硬编码常量漂移导致评论与画面错位。
-import videoTimeline from "../video-timeline.json";
+import videoTimeline from "../config/video-timeline.json";
 import { previewTabs } from "./tab-layout-preview-fixture";
 import clickSound from "./sound/click-sound.mp3";
 
@@ -172,6 +172,7 @@ const OVERLAY_MAX_UPSCALE = 2.25;
 const OVERLAY_SMALL_MAX_WIDTH = 980;
 const OVERLAY_SMALL_MAX_HEIGHT = 560;
 const OVERLAY_SMALL_MAX_UPSCALE = 3.6;
+const OVERLAY_PORTRAIT_MAX_HEIGHT = 680;
 const SUBTITLE_MAX_VISUAL_UNITS = 44;
 const SUBTITLE_FONT_SIZE = 36;
 const SUBTITLE_TOKEN_PATTERN =
@@ -452,22 +453,33 @@ export const getOverlayAnimation = (
   return { reveal, hide, opacity: reveal * hide, scale };
 };
 
-const getOverlayImageLayout = (scene: DailyScene) => {
+export const getOverlayImageLayout = (scene: DailyScene) => {
   const width = scene.overlayImgWidth;
   const height = scene.overlayImgHeight;
   if (!width || !height) return null;
 
+  const tallNarrow =
+    width / height < 0.85 &&
+    height >= OVERLAY_SMALL_HEIGHT &&
+    width * height >= OVERLAY_SMALL_AREA;
   const small =
-    width < OVERLAY_SMALL_WIDTH ||
-    height < OVERLAY_SMALL_HEIGHT ||
-    width * height < OVERLAY_SMALL_AREA;
+    !tallNarrow &&
+    (width < OVERLAY_SMALL_WIDTH ||
+      height < OVERLAY_SMALL_HEIGHT ||
+      width * height < OVERLAY_SMALL_AREA);
   const maxWidth = small ? OVERLAY_SMALL_MAX_WIDTH : OVERLAY_MAX_WIDTH;
-  const maxHeight = small ? OVERLAY_SMALL_MAX_HEIGHT : OVERLAY_MAX_HEIGHT;
+  const maxHeight = small
+    ? OVERLAY_SMALL_MAX_HEIGHT
+    : tallNarrow
+      ? OVERLAY_PORTRAIT_MAX_HEIGHT
+      : OVERLAY_MAX_HEIGHT;
   const maxUpscale = small ? OVERLAY_SMALL_MAX_UPSCALE : OVERLAY_MAX_UPSCALE;
   const scale = Math.min(maxUpscale, maxWidth / width, maxHeight / height);
   return {
     width: Math.round(width * scale),
     height: Math.round(height * scale),
+    maxWidth,
+    maxHeight,
     small,
   };
 };
@@ -1254,13 +1266,8 @@ const SourceOverlay: FC<{
             width: imageLayout?.width ?? "auto",
             height: imageLayout?.height ?? "auto",
 
-            maxWidth: imageLayout?.small
-              ? OVERLAY_SMALL_MAX_WIDTH
-              : OVERLAY_MAX_WIDTH,
-
-            maxHeight: imageLayout?.small
-              ? OVERLAY_SMALL_MAX_HEIGHT
-              : OVERLAY_MAX_HEIGHT,
+            maxWidth: imageLayout?.maxWidth ?? OVERLAY_MAX_WIDTH,
+            maxHeight: imageLayout?.maxHeight ?? OVERLAY_MAX_HEIGHT,
 
             display: "block",
             objectFit: "contain",

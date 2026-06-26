@@ -174,14 +174,14 @@ func lookupExactEnvFrom(environ []string, name string) (string, bool) {
 }
 
 // projectRoot 定位 ai-daily-report 项目根目录：
-// 依次检查当前目录及其父目录是否存在 data.schema.json 标志文件。
+// 依次检查当前目录及其父目录是否存在 config/data.schema.json 标志文件。
 func projectRoot() (string, error) {
 	current, err := os.Getwd()
 	if err != nil {
 		return "", fmt.Errorf("获取当前目录失败: %w", err)
 	}
 	for _, candidate := range []string{current, filepath.Dir(current)} {
-		if _, err := os.Stat(filepath.Join(candidate, "data.schema.json")); err == nil {
+		if _, err := os.Stat(filepath.Join(candidate, "config", "data.schema.json")); err == nil {
 			return candidate, nil
 		}
 	}

@@ -60,8 +60,8 @@ export function validateReport(report, {renderMode = false, checkAssets = true} 
   const errors = [...structureErrors];
   const fail = (path, message) => errors.push(`${path}: ${message}`);
 
-  if (report.$schema !== "../data.schema.json") {
-    fail("$schema", 'must equal "../data.schema.json"');
+  if (report.$schema !== "../config/data.schema.json") {
+    fail("$schema", 'must equal "../config/data.schema.json"');
   }
   if (structureErrors.length > 0) return {errors, totalDurationMs: 0};
   if (renderMode && !report.intro) fail("intro", "is required before rendering");

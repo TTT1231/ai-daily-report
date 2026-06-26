@@ -6,7 +6,7 @@ import {join} from "node:path";
 import {resolve} from "node:path";
 import {readImageDimensions} from "./image-dims.mjs";
 
-const sampleDir = resolve(import.meta.dirname, "../../data-scheme-sample-1");
+const sampleDir = resolve(import.meta.dirname, "../../demo/data-scheme-sample-1");
 
 test("readImageDimensions reads real PNG/WebP/JPEG fixtures", () => {
   const png = readImageDimensions("images/codex-reset.png", sampleDir);

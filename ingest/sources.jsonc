@@ -26,6 +26,12 @@
       // enabled: 是否启用该来源。临时停用时改为 false，无需删除配置。
       "enabled": true,
 
+      // proxy: 该来源抓取是否强制走 .env 的 all_proxy。linux.do 在 Cloudflare 后面，
+      //   直连必败，必须设 true；直连可达的来源（如国内 RSS）设 false 或省略，避免被代理
+      //   抖动拖累。注意：标 true 但 .env 未配 all_proxy（或配置无效）会在抓取时直接报错，
+      //   不静默回退直连。
+      "proxy": true,
+
       // maxPages: 最多抓取页数。普通 rss2 适配器必须设置为 1。
       "maxPages": 2,
 

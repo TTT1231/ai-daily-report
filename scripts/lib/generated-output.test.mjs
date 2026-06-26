@@ -21,7 +21,7 @@ test("commit succeeds while a reader holds an open handle on a reused audio file
   const tx = await createGeneratedOutputTransaction(dataDir);
   await tx.stageExistingAudio("scene-1");
   await tx.stageGeneratedAudio("scene-2", Buffer.alloc(2048, 2));
-  await tx.stageReport({$schema: "../data.schema.json", date: "2026-01-01", stories: []});
+  await tx.stageReport({$schema: "../config/data.schema.json", date: "2026-01-01", stories: []});
 
   // 模拟 Studio 持有 scene-1.mp3 的 in-flight 读句柄
   const handle = await open(join(audioDir, "scene-1.mp3"), "r");
@@ -50,7 +50,7 @@ test("commit writes generated audio and atomically publishes the manifest", asyn
   const tx = await createGeneratedOutputTransaction(dataDir);
   const bytes = Buffer.from("new-audio-bytes");
   await tx.stageGeneratedAudio("scene-1", bytes);
-  await tx.stageReport({$schema: "../data.schema.json", date: "2026-02-02", stories: []});
+  await tx.stageReport({$schema: "../config/data.schema.json", date: "2026-02-02", stories: []});
   await tx.commit();
 
   const written = await readFile(join(audioDir, "scene-1.mp3"));
@@ -74,7 +74,7 @@ test("commit removes orphaned audio for scenes no longer present", async () => {
 
   const tx = await createGeneratedOutputTransaction(dataDir);
   await tx.stageExistingAudio("scene-keep"); // 本轮仅保留这一个
-  await tx.stageReport({$schema: "../data.schema.json", date: "2026-03-03", stories: []});
+  await tx.stageReport({$schema: "../config/data.schema.json", date: "2026-03-03", stories: []});
   await tx.commit();
 
   assert.ok(existsSync(join(audioDir, "scene-keep.mp3")), "保留的音频还在");
@@ -92,7 +92,7 @@ test("abort does not publish manifest or remove existing audio", async () => {
 
   const tx = await createGeneratedOutputTransaction(dataDir);
   await tx.stageGeneratedAudio("scene-2", Buffer.alloc(32, 2));
-  await tx.stageReport({$schema: "../data.schema.json", date: "2026-04-04", stories: []});
+  await tx.stageReport({$schema: "../config/data.schema.json", date: "2026-04-04", stories: []});
   await tx.abort();
 
   assert.ok(!existsSync(join(dataDir, "data-generate.json")), "abort 不发布 manifest");

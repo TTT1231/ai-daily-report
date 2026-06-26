@@ -32,13 +32,13 @@ MINIMAX_TTS_SPEED=1.18                  # 0.5 ~ 2
 | 文件 | 改什么 |
 | --- | --- |
 | `scripts/lib/minimax-tts.mjs` | HTTP 客户端。这里发的是 MiniMax 专属请求体（`voice_setting`、`audio_setting`、`output_format: "hex"`、`base_resp.status_code`、`extra_info.audio_length`）。新供应商的请求/响应结构多半不一样，要么改这个文件，要么新写一个 `scripts/lib/<provider>-tts.mjs` 并在 `render/generate-tts.mjs` 里换 `createMinimaxClient` 的导入。 |
-| `scripts/render/generate-tts.mjs` | 1) `config` 里读你的新 env（key/endpoint/model/voice/speed 等）。2) `getSceneHash`（第 67~82 行）里把 `provider: "minimax"` 改成新名字、把参与 hash 的字段对齐。3) 写回 `scene.tts` 的 `provider`（第 222 行）也改。4) `vol`/`pitch` 若新供应商要支持，从硬编码改成 env。 |
-| `data.schema.json` | `ttsMetadata.provider`（第 239~242 行）现在是 `const: "minimax"`，改成你的供应商名，或改成 `enum` / `type: "string"` 放开。 |
+| `scripts/render/generate-tts.mjs` | 1) `config` 里读你的新 env（key/endpoint/model/voice/speed 等）。2) `getSceneHash` 里把 `provider: "minimax"` 改成新名字、把参与 hash 的字段对齐。3) 写回 `scene.tts` 的 `provider` 也改。4) `vol`/`pitch` 若新供应商要支持，从硬编码改成 env。 |
+| `data.schema.json` | `ttsMetadata.provider` 现在是 `const: "minimax"`，改成你的供应商名，或改成 `enum` / `type: "string"` 放开。 |
 | `.env` | 加新供应商的 key/endpoint/voice 等，替换掉 `MINIMAX_*`。 |
 
 ## 缓存说明（为什么换供应商不用 `--force`）
 
-`getSceneHash` 对 `provider + endpoint + model + voiceId + speed + vol + pitch + text` 算 SHA-256（见 `generate-tts.mjs:67`）。只要这些变了，hash 就变，旧的缓存音频会被判为不可复用自动重生。所以：
+`getSceneHash` 对 `provider + endpoint + model + voiceId + speed + vol + pitch + text` 算 SHA-256（见 `generate-tts.mjs` 的 `getSceneHash`）。只要这些变了，hash 就变，旧的缓存音频会被判为不可复用自动重生。所以：
 
 - 换模型/音色/语速/供应商 → hash 变 → 自动重生，**不用** `--force`。
 - `--force` 适合「啥都没变但我怀疑音频有问题想全部重做」的场景。

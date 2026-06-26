@@ -2,7 +2,7 @@ import {readFileSync} from "node:fs";
 import {resolve} from "node:path";
 
 const videoLayout = JSON.parse(
-  readFileSync(resolve(import.meta.dirname, "../../video-layout.json"), "utf8"),
+  readFileSync(resolve(import.meta.dirname, "../../config/video-layout.json"), "utf8"),
 );
 const navigation = videoLayout.navigation;
 

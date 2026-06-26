@@ -18,12 +18,12 @@
 bun install
 
 # 2. 准备数据目录（可复制完整示例后再改）
-cp -r data-scheme-sample-1 data-scheme
-#    Windows PowerShell: Copy-Item -Recurse data-scheme-sample-1 data-scheme
+cp -r demo/data-scheme-sample-1 data-scheme
+#    Windows PowerShell: Copy-Item -Recurse demo/data-scheme-sample-1 data-scheme
 
 # 3. 编辑 data-scheme/data.json
-#    务必保证文件顶部的 $schema 指向项目根的 data.schema.json：
-#    "$schema": "../data.schema.json"
+#    务必保证文件顶部的 $schema 指向 config/ 下的 data.schema.json：
+#    "$schema": "../config/data.schema.json"
 
 # 4. 预览当前 data-scheme（会自动跑 TTS，带 HMR）
 bun run dev
@@ -43,7 +43,7 @@ bun run dev
 
 ```jsonc
 {
-  "$schema": "../data.schema.json",
+  "$schema": "../config/data.schema.json",
   "theme": "light",                      // 可选：light / dark，缺省按小时自动选
   "date": "2026-06-15",                  // 必填：YYYY-MM-DD
   "stories": [

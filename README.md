@@ -6,7 +6,7 @@
 
 从 RSS 内容采集、AI 筛选，到 TTS 旁白与视频生成，一条流水线完成每日内容生产。
 
-[快速开始](#快速开始) · [RSS 配置](./ingest/readme.html) · [可视化文档](./.claude/claude.html)
+[使用导览](./demo/overview.html) · [RSS 配置](./ingest/readme.html) · [项目结构与流程](./.claude/claude.html)
 
 <br />
 
@@ -17,9 +17,13 @@
 [![Bun](https://img.shields.io/badge/Bun-Runtime-14151A?style=flat-square&logo=bun&logoColor=white)](https://bun.sh/)
 [![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-4.0-06B6D4?style=flat-square&logo=tailwindcss&logoColor=white)](https://tailwindcss.com/)
 
-**TTS 旁白** · **亮色 / 暗色双主题** · **多卡片布局** · **完整数据流水线**
-
 </div>
+
+## 这是什么
+
+一个把每天的 AI 新闻自动做成**带旁白视频**的项目：RSS 抓取 → AI 筛选 → TTS 配音 → 渲染成片，一条流水线。还能一键发布到 B 站。
+
+不想读文档？先看 [可视化使用导览](./demo/overview.html)，30 秒就能跑起来。
 
 ## 演示效果
 
@@ -29,168 +33,93 @@
     <th align="center">暗色主题</th>
   </tr>
   <tr>
-    <td>
-      <a href="./demo-video.mp4">
-        <img src="./demo-light.png" alt="AI Daily Report 亮色主题演示" />
-      </a>
-    </td>
-    <td>
-      <a href="./demo-video.mp4">
-        <img src="./demo-dark.png" alt="AI Daily Report 暗色主题演示" />
-      </a>
-    </td>
+    <td><a href="./demo/demo-video.mp4"><img src="./demo/demo-light.png" alt="亮色主题演示" /></a></td>
+    <td><a href="./demo/demo-video.mp4"><img src="./demo/demo-dark.png" alt="暗色主题演示" /></a></td>
   </tr>
 </table>
 
-<p align="center">
-  <a href="./demo-video.mp4"><strong>▶ 查看完整视频演示</strong></a>
-</p>
-
-## 准备环境
-
-- Claude CLI
-- Bun
-- Go
-- ffmpeg（按需，用于 TTS 语音质量检测；没有时可设 `REQUIRE_VOICE_QUALITY_FFMPEG=false` 跳过）
+<p align="center"><a href="./demo/demo-video.mp4"><strong>▶ 查看完整视频演示</strong></a></p>
 
 ## 快速开始
 
-先选你要做什么：
-
-| 目标       | 命令 / 入口                                     | 说明                            |
-| ---------- | ----------------------------------------------- | ------------------------------- |
-| 看效果     | `bun run preview` / `bun run preview:notts`     | 不用配置 `.env`                 |
-| 自动出片   | `bun run video:prepare`                         | RSS 抓取、总结、TTS、图标一条龙 |
-| 自动后补选 | `/ai-daily-report` + 粘贴 `rss-state.json` 条目 | 已自动出片后人工追加少量新闻    |
-| 手写内容   | 编辑 `data-scheme/data.json`                    | 自己控制标题、Tabs、字幕和图片  |
-
-> [!TIP]
-> 本项目用 `minimax` 生成 TTS 旁白，用 `deepseek-v4-flash` 总结 RSS 抓取的内容，用 `claude -p` 识别远程图片并生成对应图标。
->
-> 图片识别依赖 Claude CLI 的多模态/远程读取能力，或图像分析类 MCP；RSS 视觉步骤只放行 `mcp__*` 与 `WebFetch`，不放行 shell 或文件编辑。
->
-> RSS 的模型可自由切换；TTS 目前仅适配了 `minimax`，若要换其他 TTS，需要同步改 TTS 生成代码与 schema。
-
-### 预览效果
+**最快的方式：装好依赖，用示例数据预览，不用配置任何 Key。**
 
 ```bash
 bun install
-
-bun run preview       # sample-1：完整 TTS 版本
-bun run preview:notts # sample-2：无 TTS 静音版本
+bun run preview        # 带旁白的完整示例
+bun run preview:notts  # 无旁白的静音示例
 ```
 
-| 命令                                   | 数据 props                                | 静态资源目录           | 是否需要 `data-scheme/` |
-| -------------------------------------- | ----------------------------------------- | ---------------------- | ----------------------- |
-| `bun run preview`                      | `data-scheme-sample-1/data-generate.json` | `data-scheme-sample-1` | 否                      |
-| `bun run preview:notts`                | `data-scheme-sample-2/data-generate.json` | `data-scheme-sample-2` | 否                      |
-| `bun run dev` / `bun run video:render` | `data-scheme/data-generate.json`          | `data-scheme`          | 是                      |
+看到画面了，说明项目跑起来了。然后再按下面的方式真正出片。
 
-> [!NOTE]
-> 预览命令不会跑真实的`RSS/TTS`也不会改`data-scheme/`
+## 怎么出片
 
-### 方式一：Agent 自动化（推荐）
+### 方式一：一键自动（推荐）
+
+配好 `.env`（见下）后，一条命令完成抓取、配音、生成图标：
 
 ```bash
-# 1. 配好 .env，然后安装依赖
-bun install
+bun run video:prepare   # 抓取 + 配音 + 图标
+bun run dev             # 预览当前数据
+bun run video:render    # 导出 mp4
+```
 
-# 2. 生成当期数据、旁白和图标
-bun run video:prepare
+### 方式二：手写内容
 
-# 3. 预览当前 data-scheme
+自己控制标题、配图、字幕：从示例复制一份再改。
+
+```bash
+cp -r demo/data-scheme-sample-1 data-scheme
+# 编辑 data-scheme/data.json，图片放进 data-scheme/images/
 bun run dev
-
-# 4. 导出 mp4
-bun run video:render
 ```
 
-常用开关写在 `.env`：无多模态、远程读取或图像分析 MCP 能力时设 `CLAUDE_VISION_ENABLED=false`；没有 TTS Key 设 `TTS_REQUIRE=false`；没有 ffmpeg 设 `REQUIRE_VOICE_QUALITY_FFMPEG=false`。
+## 准备环境
 
-自动配图没覆盖的 scene，可以把图片放进 `data-scheme/images/`，再在 `data.json` 里填 `overlayImg: "images/xxx"`。`overlayImgWidth` / `overlayImgHeight` 由构建按图片真实像素自动写入 `data-generate.json`，无需手填；只想手动微调某一张图大小时，用当前 scene 的 `overlayImgScale`，不要改全局样式。换图片会触发一次 TTS 同步（音频走缓存复用、不调 MiniMax）以重算尺寸。
+- **Bun · Go · Claude CLI** — 自动出片必需
+- **ffmpeg** — 可选，用于 TTS 音质检；没有时设 `REQUIRE_VOICE_QUALITY_FFMPEG=false` 跳过
+
+在项目根目录创建 `.env`（参考 `.env.example`）：
+
+| 变量 | 作用 | 没有怎么办 |
+| ---- | ---- | ---------- |
+| `AI_API_KEY` | RSS 内容总结 | 自动出片必需 |
+| `MINIMAX_API_KEY` | TTS 旁白 | 设 `TTS_REQUIRE=false` 关闭 |
+| `CLAUDE_VISION_ENABLED` | 自动识图配图 | 设 `false` 关闭，只下载候选图供手填 |
 
 > [!WARNING]
-> `ingest/rss-state.json` 保存最近一次完整 RSS 抓取快照，用于来源失败时保留上次状态，也方便从抓取结果里人工补选新闻。当前采集器会对最近时间窗口内的全部条目重新评分，不再用它做跨次预过滤。日常不用手动编辑；如果想丢弃当前数据与快照后完全重建，请运行 `bun run reset` 后再执行 `bun run video:prepare`。
+> 抓取 `linux.do` 需要能访问它（在 Cloudflare 后面）。网络受限时在根目录 `.env` 配小写 `all_proxy`（科学上网环境），如 `all_proxy=http://127.0.0.1:7890`。
 
-### 方式二：手写维护
+## 发布到 B 站
 
-你手动编辑 `data-scheme/data.json`，自己控制标题、Tabs、字幕与图片引用。
-
-```bash
-bun install
-
-# 可从完整示例复制一份再改
-cp -r data-scheme-sample-1 data-scheme
-
-# 编辑 data-scheme/data.json
-
-# 预览当前 data-scheme
-bun run dev
-
-# 可选：单独生成 TTS / 图标
-bun run tts
-# claude/codex: /generate-svg
-```
-
-图片字段速记：`overlayImg` 填 `images/文件名`；`overlayImgWidth` / `overlayImgHeight` 构建期按文件真实像素自动写入 `data-generate.json`，不用手填；`overlayImgScale` 手动调当前 scene 的基础显示倍率，会叠加正常的聚焦动画。改完跑 `bun run tts` 即可。
-
----
-
-## B 站评论 + 置顶
-
-视频上传到 B 站后，可一键自动发送带时间戳的评论并置顶（方案：直接调用 web API，无需浏览器）。拆成两个独立命令：
+数据备好后，一条命令从成片到发布（投稿 → 等 → 发评论 → 置顶）：
 
 ```bash
-# 0.（可选）先生成评论正文（带时间戳的章节索引）到 data-scheme/comments.txt
-bun run comment:generate         # 或 bun run comment:generate --copy 复制到剪贴板
-
-# 1. 发评论（不置顶）
-bun run bili:comment -- --bvid BV1xxxxxxxx --from-file data-scheme/comments.txt
-#   或直接传正文：
-bun run bili:comment -- --bvid BV1xxxxxxxx --message "今日日报：..."
-#   → 输出 rpid，用于下一步置顶
-
-# 2. 置顶（必须传 --rpid，来自上一步的输出）
-bun run bili:stick -- --bvid BV1xxxxxxxx --rpid <上一步的rpid>
+bun run all:bili       # 从抓取到发布一条龙
+bun run publish:bili   # 数据已备好，只走发布段
 ```
 
-> [!NOTE]
->
-> - 凭据从 `biliup/cookies.json` 读取（由 `biliup login` 扫码登录生成，已 gitignore，**不进 `.env`**）。置顶需要 UP 主权限，必须用该视频 UP 主的账号。
-> - `--bvid` 即视频 BV 号（URL 里 `BV...` 那段），脚本会自动换成评论接口需要的 oid；也可用 `--oid <aid>` 直接传内部 id。
-> - 置顶内部带等待+重试，应对评论刚发出未索引时的 `-404`。
+> 首次需用 `biliup login` 扫码登录（凭据存 `biliup/cookies.json`，不进 `.env`）。详细拆分命令见 [使用导览](./demo/overview.html)。
 
----
+## 卡住了？
 
-## FAQ
-
-如果你在使用本项目中遇到了难题可直接用本项目提供的`skill`
+直接用项目自带的 skill 提问：
 
 ```
-/ai-daily-report  <your-problem or your doubt>
+/ai-daily-report <你的问题>
 ```
 
-## RSS 配置
+## 想深入
 
-RSS 采集器完整图文说明见 [`ingest/readme.html`](./ingest/readme.html)。
-
-## 示例数据
-
-- [`data-scheme-sample-1`](./data-scheme-sample-1)：完整示例，含 TTS 音频。
-- [`data-scheme-sample-2`](./data-scheme-sample-2)：无 TTS 示例，适合没有 TTS 服务时预览。
-
-## 可视化文档
-
-想看更完整的结构说明，可参考 [HTML 可视化文档](./.claude/claude.html)。
-
-## 注意事项
-
-> [!WARNING]
-> 请确保你能够正常访问 `linux.do`。网络受限时，只需在项目根目录 `.env` 配置小写 `all_proxy`，需科学上网环境。例如 `all_proxy=http://127.0.0.1:7890`。
+| 文档 | 内容 |
+| ---- | ---- |
+| [可视化使用导览](./demo/overview.html) | 图文版使用指南，最直观 |
+| [项目结构与流程](./.claude/claude.html) | 目录组织、数据流、文件职责、时间线规则 |
+| [RSS 配置](./ingest/readme.html) | 添加来源、兴趣偏好、筛选阈值 |
 
 ## 🐛 Bug / 使用问题
 
-如果你在使用本项目时遇到 Bug，或有任何使用上的问题，欢迎提交 [Issue](https://github.com/TTT1231/ai-daily-report/issues)。
+遇到 Bug 或使用问题，欢迎提 [Issue](https://github.com/TTT1231/ai-daily-report/issues)。
 
 ## ⭐ 支持一下
 

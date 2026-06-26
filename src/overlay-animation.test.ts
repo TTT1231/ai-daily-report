@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import {getOverlayAnimation} from "./AiDailyReport";
+import {getOverlayAnimation, getOverlayImageLayout} from "./AiDailyReport";
 import type {DailyScene} from "./daily-report-data";
 
 // 这些时长曾经让 interpolate() 抛出
@@ -44,6 +44,30 @@ test("getOverlayAnimation returns zero opacity when the scene has no overlay ima
   const scene = overlayScene({overlayImg: undefined});
   const result = getOverlayAnimation(scene, 0, 60);
   assert.equal(result.opacity, 0);
+});
+
+test("getOverlayImageLayout does not shrink tall screenshots as small assets", () => {
+  const scene = overlayScene({overlayImgWidth: 607, overlayImgHeight: 864});
+  const result = getOverlayImageLayout(scene);
+  assert.deepEqual(result, {width: 478, height: 680, maxWidth: 1640, maxHeight: 680, small: false});
+});
+
+test("getOverlayImageLayout caps phone-like screenshots below the main overlay height", () => {
+  const scene = overlayScene({overlayImgWidth: 720, overlayImgHeight: 1280});
+  const result = getOverlayImageLayout(scene);
+  assert.deepEqual(result, {width: 383, height: 680, maxWidth: 1640, maxHeight: 680, small: false});
+});
+
+test("getOverlayImageLayout still protects genuinely small images", () => {
+  const scene = overlayScene({overlayImgWidth: 550, overlayImgHeight: 412});
+  const result = getOverlayImageLayout(scene);
+  assert.deepEqual(result, {width: 748, height: 560, maxWidth: 980, maxHeight: 560, small: true});
+});
+
+test("getOverlayImageLayout keeps medium non-portrait images on the small path", () => {
+  const scene = overlayScene({overlayImgWidth: 620, overlayImgHeight: 450});
+  const result = getOverlayImageLayout(scene);
+  assert.deepEqual(result, {width: 772, height: 560, maxWidth: 980, maxHeight: 560, small: true});
 });
 
 test("getOverlayAnimation reveals, holds, then hides on a long scene", () => {

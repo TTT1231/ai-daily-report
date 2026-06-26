@@ -1,6 +1,6 @@
 {
   "explorer.fileNesting.patterns": {
-    "package.json": "bun.lock, .gitignore, README.md, LICENSE*,demo-light.png,demo-dark.png,demo-video.mp4,remotion.config.ts,tsconfig.json,bilibili.config.json",
+    "package.json": "bun.lock, .gitignore, README.md, LICENSE*, remotion.config.ts, tsconfig.json",
     ".env": ".env.*",
     "data.schema.json": "video-layout.schema.json,video-timeline.schema.json",
     "video-layout.json": "video-timeline.json"

@@ -42,7 +42,7 @@ func loadNavigationLayout() (navigationLayoutConfig, error) {
 	if err != nil {
 		return navigationLayoutConfig{}, err
 	}
-	data, err := os.ReadFile(filepath.Join(root, "video-layout.json"))
+	data, err := os.ReadFile(filepath.Join(root, "config", "video-layout.json"))
 	if err != nil {
 		return navigationLayoutConfig{}, fmt.Errorf("读取 video-layout.json 失败: %w", err)
 	}

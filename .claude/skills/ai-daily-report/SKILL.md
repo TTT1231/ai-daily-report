@@ -34,12 +34,12 @@ description: How to use the ai-daily-report project end-to-end — set it up, ru
 
 - **环境变量** `.env`（参考 `.env.example`）：
   - RSS/AI 总结用：`AI_API_KEY`、`AI_BASE_URL`、`AI_MODEL` 三者均必填（OpenAI 兼容接口；`.env.example` 给了 DeepSeek 示例值）。`bili:meta` 生成 B站 标题/标签也复用这套。
-  - 网络受限时可选：小写 `all_proxy`（如 `http://127.0.0.1:7890`）。**仅作用于 `rss` 抓取阶段**（RSS 源抓取 + 该阶段内部的 AI 评分请求）；MiniMax TTS、B站 标题/标签生成与投稿/评论/置顶等 Node 端请求**不**走此代理，始终直连。未配置则直连；配置后上述 `rss` 阶段请求必须走该代理，失败时不会回退直连。不要使用其他代理变量。注意：Claude/WebFetch/Fetch 这类 agent 工具不会自动读取项目 `.env`，人工补选 Linux.do 页面时如果 WebFetch 失败，应改用本地命令或项目脚本显式读取 `all_proxy` 后抓取，不能直接退化为只看标题生成。
+  - 网络受限时可选：小写 `all_proxy`（如 `http://127.0.0.1:7890`）。**按来源决定**是否走代理——`ingest/sources.jsonc` 里标了 `"proxy": true` 的来源（如 linux.do，在 Cloudflare 后面）抓取时走 `all_proxy`，其他来源直连；AI 评分请求仍受 `all_proxy` 控制（配置后即走）。MiniMax TTS、B站 标题/标签生成与投稿/评论/置顶等 Node 端请求**不**走此代理，始终直连。标了 `proxy: true` 的来源若 `.env` 未配 `all_proxy` 或配置无效，抓取时直接报错，不静默回退直连。不要使用其他代理变量。注意：Claude/WebFetch/Fetch 这类 agent 工具不会自动读取项目 `.env`，人工补选 Linux.do 页面时如果 WebFetch 失败，应改用本地命令或项目脚本显式读取 `all_proxy` 后抓取，不能直接退化为只看标题生成。
   - TTS 旁白用：`TTS_REQUIRE=true` 时需要 `MINIMAX_API_KEY`、`MINIMAX_TTS_MODEL`、`MINIMAX_TTS_VOICE_ID`、`MINIMAX_TTS_SPEED`；不需要旁白或没有 MiniMax Key 时设 `TTS_REQUIRE=false`，会跳过 MiniMax、音频和 ffmpeg 音质检测。
   - 图片识别用：`CLAUDE_VISION_ENABLED=true` 时，默认处理达到日报入选线（Score ≥7）且含远程图的 Story；分数高的 Story 会先消耗调用预算，总量由 `CLAUDE_VISION_MAX_CALLS` 封顶。识图会使用 Story 标题、重要性和要点做相关性判断，相关才自动写 `overlayImg`。没有多模态、远程读取或图像分析 MCP 能力时设为 `false`，流程会下载候选图到 `data-scheme/images/` 供手动配图。
   - 语音质量检测用：`REQUIRE_VOICE_QUALITY_FFMPEG=true` 时需要可用的 `ffmpeg`；没装 ffmpeg 但仍要生成旁白时设为 `false`。
 - **运行时**：需要 `bun`、`go`（跑 RSS 采集器）；需要自动识图或生成 Tab 图标时还需要 `claude` CLI。
-- **数据目录**：正式数据固定用 `data-scheme/`；示例预览用 `data-scheme-sample-1/2`，不会改正式数据。
+- **数据目录**：正式数据固定用 `data-scheme/`；示例预览用 `demo/data-scheme-sample-1/2`，不会改正式数据。
   - `bun run preview` / `preview:notts` 只读 sample 目录；即使 `data-scheme/` 为空也应该能启动。
   - `bun run dev` / `video:render` 读取正式 `data-scheme/data-generate.json`，由 `tts` 生成。
 - **发布到 B站** 额外需要一次扫码登录（见下方「发布到 B站」），登录态存 `biliup/cookies.json`，不进 `.env`。
@@ -72,7 +72,7 @@ bun run video:prepare
 | `tts`             | 给每个 scene 生成 MiniMax 旁白，算时间线            | `data-scheme/data-generate.json` + `audio/*.mp3` |
 | `generate-svg`    | 调 `claude -p /generate-svg` 给 tabs 出图标         | `data-scheme/icons/*.svg`                        |
 
-`rss` 步骤会读取项目根目录 `.env` 中可选的小写 `all_proxy`。没有配置时跳过代理并直连；配置后 RSS 抓取与 AI 模型请求都会强制使用该代理，代理无效或不可用时直接报错。它不会读取 `HTTP_PROXY`、`HTTPS_PROXY`、`ALL_PROXY` 等其他代理变量，也不会自动探测本地代理端口。这个代理规则只描述项目命令本身；agent 的 WebFetch/Fetch 不会因为 `.env` 里有 `all_proxy` 就自动走代理。
+`rss` 步骤的网络代理**按来源决定**：`ingest/sources.jsonc` 里标了 `"proxy": true` 的来源抓取时走 `.env` 的小写 `all_proxy`，其他来源直连；AI 模型请求仍受 `all_proxy` 控制（配置后即走代理）。标了 `proxy: true` 的来源若 `all_proxy` 未配或无效会直接报错，不会静默回退直连。它不会读取 `HTTP_PROXY`、`HTTPS_PROXY`、`ALL_PROXY` 等其他代理变量，也不会自动探测本地代理端口。这个代理规则只描述项目命令本身；agent 的 WebFetch/Fetch 不会因为 `.env` 里有 `all_proxy` 就自动走代理。
 
 生产步骤跑完后：
 
@@ -85,7 +85,7 @@ bun run video:prepare
 
 适合「想完全掌控内容 / 自定义非 RSS 来源 / 自动流程出问题时兜底」：你自己写 `data.json`，不跑 `rss`。
 
-主线很简单：参考或复制 `data-scheme-sample-1` → 编辑 `data-scheme/data.json` → `bun run dev`（会自动 TTS）或手动 `bun run tts` → `/generate-svg` 出图标。
+主线很简单：参考或复制 `demo/data-scheme-sample-1` → 编辑 `data-scheme/data.json` → `bun run dev`（会自动 TTS）或手动 `bun run tts` → `/generate-svg` 出图标。
 
 完整步骤、必填字段速查、theme 切换：**先读 [`rules/manual-mode.md`](./rules/manual-mode.md)** 再动手。
 
@@ -108,14 +108,14 @@ bun run video:prepare
 }
 ```
 
-这时不要让用户逐条跑命令，也不要要求用户改 `preferences.jsonc`。按 [`rules/rss-pick-mode.md`](./rules/rss-pick-mode.md) 执行：解析用户粘贴的多条 RSS 记录 → 对照当前 `data-scheme/data.json` 去重 → 按 `.env` 的视觉开关补图/写 `overlayImg` → 生成并追加对应 Story → 校验 → 重新生成 TTS 与图标。
+这时不要让用户逐条跑命令，也不要要求用户改 `preferences.jsonc`。按 [`rules/rss-pick-mode.md`](./rules/rss-pick-mode.md) 执行：解析用户粘贴的多条 RSS 记录 → 按各来源在 `sources.jsonc` 的 `proxy` 字段决定抓取是否走代理 → 对照当前 `data-scheme/data.json` 去重 → 按 `.env` 的视觉开关补图/写 `overlayImg` → 生成并追加对应 Story → 校验 → 重新生成 TTS 与图标。
 
 ## 换 TTS 模型 / 供应商
 
 一句话结论：**目前只适配了 MiniMax，RSS 用的 AI 模型随便换（改 `.env` 即可），TTS 要换供应商需要改代码。**
 
 - 只换 MiniMax 的模型/音色/语速 → 纯改 `.env`（`MINIMAX_TTS_MODEL` / `MINIMAX_TTS_VOICE_ID` / `MINIMAX_TTS_SPEED`）。
-- 换成别的 TTS 供应商（如阿里/字节）→ 要改 `scripts/lib/minimax-tts.mjs`、`scripts/render/generate-tts.mjs`、`data.schema.json` 三处，外加 `.env`。
+- 换成别的 TTS 供应商（如阿里/字节）→ 要改 `scripts/lib/minimax-tts.mjs`、`scripts/render/generate-tts.mjs`、`config/data.schema.json` 三处，外加 `.env`。
 
 详细改哪些点、怎么验证、缓存为何不用 `--force`：**先读 [`rules/tts-customize.md`](./rules/tts-customize.md)** 再动手。
 
@@ -173,7 +173,7 @@ bun run biliup:prepare                              # 一键备好 biliup 工具
 要点：
 
 - **标题 / 标签** 由 `bili:meta` 用 LLM 生成（手机短视频风、抓重点、适度夸张），写到 `data-scheme/bilibili-meta.json`——可手改再审。标题 = `前缀【AI日报 - MM - DD】`（≤80 字，中文/字母/符号每个算 1），标签 ≤10 个。
-- **固定参数**（分区 `tid 231` 计算机技术、自制、创作声明 AI 标识、封面帧、评论前等待 3 分钟过审核）在 `bilibili.config.json`。
+- **固定参数**（分区 `tid 231` 计算机技术、自制、创作声明 AI 标识、封面帧、评论前等待 3 分钟过审核）在 `config/bilibili.config.json`。
 - **凭据**：评论/置顶的 `SESSDATA` / `bili_jct` 直接从 `biliup/cookies.json` 读（`scripts/publish/bili/bili-api.mjs`），不在 `.env` 重复维护。
 - **biliup 工具**由 `bun run biliup:prepare`（内部走 `download-bili`）下载到 `biliup/`（跨平台、平铺结构，已 gitignore）。首次发 B站 时 bili 命令会自动触发该 ensure 逻辑；升级重跑 `bun run download-bili`，会自动保留登录态。
 - 也可拆开单步：`bili:meta`（生成标题/标签）、`bili:upload`（纯投稿，只发视频）、`bili:full`（投稿+评论+置顶 全套，原 `bili:upload` 行为）、`bili:comment` / `bili:stick`（单独发评/置顶）。`publish:bili` / `all:bili` 内部都调 `bili:full`。

@@ -7,7 +7,7 @@ import {readImageDimensions} from "./image-dims.mjs";
 // 时间线常量的单一事实源是 video-timeline.json（与 src/AiDailyReport.tsx 渲染侧同源读取）。
 // 改这里即两侧同步，避免此前硬编码常量在 JS/TS 两处各自维护导致的评论与画面错位。
 const videoTimeline = JSON.parse(
-  readFileSync(resolve(import.meta.dirname, "../../video-timeline.json"), "utf8"),
+  readFileSync(resolve(import.meta.dirname, "../../config/video-timeline.json"), "utf8"),
 );
 
 function getGreeting(hour) {

@@ -18,6 +18,7 @@ type SourceDefinition struct {
 	Adapter          string `json:"adapter"`
 	URL              string `json:"url"`
 	Enabled          bool   `json:"enabled"`
+	Proxy            bool   `json:"proxy"`
 	MaxPages         int    `json:"maxPages"`
 	PageStart        int    `json:"pageStart"`
 	PageDelaySeconds int    `json:"pageDelaySeconds"`
@@ -81,6 +82,7 @@ func buildSource(definition SourceDefinition) (RSS2Source, error) {
 		MaxPages:         definition.MaxPages,
 		PageStart:        definition.PageStart,
 		PageDelaySeconds: definition.PageDelaySeconds,
+		Proxy:            definition.Proxy,
 	}
 	switch definition.Adapter {
 	case "linuxdo":
@@ -102,12 +104,18 @@ func buildSource(definition SourceDefinition) (RSS2Source, error) {
 }
 
 // fetchRecentItems 抓取所有启用来源。单个来源失败时保留其他来源的结果，并返回失败来源供快照合并使用。
+// 每个来源按其自身的 proxy 策略构建 client（proxy:true 走 all_proxy、否则直连），互不拖累：
+// 需要代理的来源（如 linux.do）不会被直连拖到撞 Cloudflare，直连可达的来源也不会被代理抖动拖挂。
 func fetchRecentItems(sources []RSS2Source, within time.Duration) ([]Item, map[string]error) {
-	client := newHTTPClient(defaultFeedRequestTimeout, true, false)
 	cutoff := time.Now().Add(-within)
 	var combined []Item
 	failures := make(map[string]error)
 	for _, source := range sources {
+		client, err := newSourceHTTPClient(defaultFeedRequestTimeout, source)
+		if err != nil {
+			failures[source.ID] = err
+			continue
+		}
 		items, err := fetchRSS2Source(client, source, cutoff)
 		if err != nil {
 			failures[source.ID] = err

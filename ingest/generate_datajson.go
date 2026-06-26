@@ -69,7 +69,7 @@ func generateDataJSON(path string, groups []NewsGroup, items []Item) error {
 
 	now := time.Now()
 	report := DataJSON{
-		Schema: "../data.schema.json",
+		Schema: "../config/data.schema.json",
 		Theme:  reportTheme(now),
 		Date:   now.Format("2006-01-02"),
 	}

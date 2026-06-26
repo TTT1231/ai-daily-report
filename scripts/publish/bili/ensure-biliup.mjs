@@ -70,7 +70,7 @@ export function ensureBiliupCore(ctx) {
 /** 生产入口：读 bilibili.config.json、探测文件、用真实 spawn 编排。 */
 export function ensureBiliup({ needExe, needCookie } = {}) {
   const config = JSON.parse(
-    readFileSync(resolve(ROOT, "bilibili.config.json"), "utf-8"),
+    readFileSync(resolve(ROOT, "config", "bilibili.config.json"), "utf-8"),
   );
   const { exe, cookie } = biliupPaths(config);
   const plan = ensureBiliupCore({

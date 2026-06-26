@@ -1,4 +1,4 @@
-import videoLayout from "../video-layout.json";
+import videoLayout from "../config/video-layout.json";
 
 const navigation = videoLayout.navigation;
 

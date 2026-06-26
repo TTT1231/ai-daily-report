@@ -60,7 +60,7 @@ function runCapture(cmd, args, opts = {}) {
 }
 
 // ── 读配置 + meta ─────────────────────────────────────────────────────
-const config = JSON.parse(readFileSync(resolve(ROOT, "bilibili.config.json"), "utf-8"));
+const config = JSON.parse(readFileSync(resolve(ROOT, "config", "bilibili.config.json"), "utf-8"));
 
 const metaPath = resolve(dataDir, "bilibili-meta.json");
 if (!existsSync(metaPath)) {

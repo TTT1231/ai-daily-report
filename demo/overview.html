@@ -1,0 +1,460 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>AI 日报视频 · 使用指南</title>
+    <style>
+      :root {
+        --bg: #f8fafc;
+        --card: #ffffff;
+        --fg: #1e293b;
+        --muted: #64748b;
+        --border: #e2e8f0;
+        --accent: #2563eb;
+        --accent-soft: rgba(37, 99, 235, 0.08);
+        --radius: 12px;
+        --shadow: 0 1px 3px rgba(15, 23, 42, 0.06), 0 1px 2px rgba(15, 23, 42, 0.04);
+        --mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+      }
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+      html { scroll-behavior: smooth; }
+      body {
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+        background: var(--bg);
+        color: var(--fg);
+        line-height: 1.65;
+        -webkit-font-smoothing: antialiased;
+      }
+      a { color: var(--accent); text-decoration: none; }
+      a:hover { text-decoration: underline; }
+      code {
+        font-family: var(--mono);
+        font-size: 0.875em;
+        background: var(--accent-soft);
+        color: var(--accent);
+        padding: 0.1em 0.4em;
+        border-radius: 4px;
+      }
+
+      .skip-link { position: absolute; left: -9999px; }
+      .skip-link:focus {
+        left: 1rem; top: 1rem; z-index: 100;
+        background: var(--accent); color: #fff;
+        padding: 0.5rem 1rem; border-radius: 6px;
+      }
+
+      /* Nav */
+      .nav {
+        position: sticky; top: 0; z-index: 50;
+        display: flex; align-items: center; justify-content: space-between;
+        padding: 0.85rem 1.5rem;
+        background: rgba(248, 250, 252, 0.85);
+        -webkit-backdrop-filter: blur(10px);
+        backdrop-filter: blur(10px);
+        border-bottom: 1px solid var(--border);
+      }
+      .nav-brand {
+        display: inline-flex; align-items: center; gap: 0.5rem;
+        font-weight: 700; color: var(--fg); font-size: 1rem;
+      }
+      .nav-brand:hover { text-decoration: none; }
+      .nav-dot {
+        width: 10px; height: 10px; border-radius: 50%;
+        background: linear-gradient(135deg, var(--accent), #8b5cf6);
+      }
+      .nav-cta {
+        padding: 0.4rem 0.9rem; border-radius: 8px;
+        background: var(--accent); color: #fff;
+        font-size: 0.875rem; font-weight: 600;
+      }
+      .nav-cta:hover { background: #1d4ed8; text-decoration: none; }
+
+      /* Hero */
+      .hero {
+        text-align: center;
+        padding: 5rem 1.5rem 3.5rem;
+        max-width: 720px; margin: 0 auto;
+      }
+      .eyebrow {
+        color: var(--accent); font-size: 0.8rem; font-weight: 600;
+        letter-spacing: 0.08em; text-transform: uppercase; margin-bottom: 1rem;
+      }
+      .hero h1 {
+        font-size: clamp(2rem, 5vw, 3rem); font-weight: 800;
+        letter-spacing: -0.02em; line-height: 1.25; margin-bottom: 1rem;
+      }
+      .lede {
+        font-size: 1.125rem; color: var(--muted);
+        max-width: 540px; margin: 0 auto 2rem;
+      }
+      .hero-actions { display: flex; gap: 0.75rem; justify-content: center; flex-wrap: wrap; }
+      .btn {
+        display: inline-flex; align-items: center;
+        padding: 0.7rem 1.4rem; border-radius: 10px;
+        font-weight: 600; font-size: 0.95rem;
+        border: 1px solid var(--border); background: var(--card); color: var(--fg);
+        transition: all 0.18s;
+      }
+      .btn:hover { border-color: var(--accent); text-decoration: none; }
+      .btn-primary { background: var(--accent); color: #fff; border-color: var(--accent); }
+      .btn-primary:hover { background: #1d4ed8; }
+
+      /* Wrap + blocks */
+      .wrap { max-width: 760px; margin: 0 auto; padding: 0 1.5rem; }
+      .block { padding: 2.5rem 0; }
+      .block-head { margin-bottom: 1.5rem; }
+      .block-head .kicker {
+        display: inline-block; color: var(--accent); font-size: 0.75rem;
+        font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; margin-bottom: 0.5rem;
+      }
+      .block-head h2 {
+        font-size: 1.5rem; font-weight: 700; letter-spacing: -0.01em; margin-bottom: 0.5rem;
+      }
+      .block-head p { color: var(--muted); }
+
+      /* Command rows */
+      .cmd-row {
+        display: flex; align-items: center; justify-content: space-between;
+        gap: 0.75rem; padding: 0.7rem 0.9rem;
+        background: #1e293b; color: #e2e8f0;
+        border-radius: 8px; margin: 0.6rem 0;
+        font-family: var(--mono); font-size: 0.875rem;
+      }
+      .cmd-row code { background: none; color: inherit; padding: 0; font-size: inherit; }
+      .cmd-row button {
+        flex-shrink: 0; padding: 0.25rem 0.6rem;
+        background: rgba(37, 99, 235, 0.25); color: #dbeafe;
+        border: 1px solid rgba(147, 197, 253, 0.3); border-radius: 5px;
+        font-size: 0.75rem; cursor: pointer; transition: background 0.15s;
+      }
+      .cmd-row button:hover { background: rgba(37, 99, 235, 0.45); }
+
+      /* Demo screenshots */
+      .shots {
+        display: grid; grid-template-columns: repeat(2, 1fr); gap: 1rem;
+        margin: 1.5rem 0 0.75rem;
+      }
+      .shot {
+        display: block; position: relative;
+        border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden;
+        background: var(--card); transition: transform 0.18s, box-shadow 0.18s;
+      }
+      .shot:hover { text-decoration: none; transform: translateY(-2px); box-shadow: var(--shadow); }
+      .shot img { display: block; width: 100%; height: auto; }
+      .shot span {
+        position: absolute; left: 0.6rem; bottom: 0.6rem;
+        background: rgba(15, 23, 42, 0.7); color: #fff;
+        padding: 0.15rem 0.5rem; border-radius: 4px; font-size: 0.75rem;
+      }
+      .shots-note { font-size: 0.875rem; color: var(--muted); }
+
+      /* Separator */
+      .sep { border: none; border-top: 1px solid var(--border); margin: 0; }
+
+      /* Usage ways */
+      .way {
+        border: 1px solid var(--border); border-radius: var(--radius);
+        padding: 1.5rem; margin-bottom: 1rem; background: var(--card);
+      }
+      .way-rec {
+        border-color: rgba(37, 99, 235, 0.4);
+        background: linear-gradient(180deg, rgba(219, 234, 254, 0.5), var(--card));
+      }
+      .way-top { display: flex; align-items: center; gap: 0.6rem; margin-bottom: 0.6rem; }
+      .way-top h3 { font-size: 1.1rem; font-weight: 700; }
+      .way-tag {
+        font-size: 0.7rem; font-weight: 700; padding: 0.2rem 0.55rem;
+        border-radius: 999px; background: var(--accent); color: #fff;
+      }
+      .way-tag-mute { background: var(--border); color: var(--muted); }
+      .way p { color: var(--muted); margin-bottom: 0.5rem; }
+      .way-sub { font-size: 0.85rem; color: var(--muted); margin-top: 0.75rem; }
+
+      /* Checklist */
+      .check-list { list-style: none; }
+      .check-list li { padding: 0.85rem 0; border-bottom: 1px solid var(--border); }
+      .check-list li:last-child { border-bottom: none; }
+      .check-list strong { display: block; font-weight: 700; margin-bottom: 0.2rem; }
+      .check-list span { color: var(--muted); font-size: 0.9rem; }
+      .hint {
+        margin-top: 1rem; padding: 0.85rem 1rem;
+        background: #fffbeb; border: 1px solid #fde68a; color: #92400e;
+        border-radius: 8px; font-size: 0.875rem;
+      }
+      .hint code { background: rgba(146, 64, 14, 0.1); color: #92400e; }
+
+      /* Links */
+      .more-lead { margin-bottom: 1rem; color: var(--muted); }
+      .links {
+        display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 0.85rem;
+        margin-top: 1rem;
+      }
+      .link-card {
+        display: block; padding: 1rem 1.1rem;
+        border: 1px solid var(--border); border-radius: 10px; background: var(--card);
+        transition: border-color 0.15s, box-shadow 0.15s;
+      }
+      .link-card:hover { text-decoration: none; border-color: var(--accent); box-shadow: var(--shadow); }
+      .link-title { display: block; font-weight: 600; color: var(--fg); margin-bottom: 0.2rem; }
+      .link-desc { display: block; font-size: 0.8rem; color: var(--muted); }
+
+      /* Footer */
+      .footer {
+        text-align: center; padding: 2.5rem 1.5rem;
+        color: var(--muted); font-size: 0.875rem;
+        border-top: 1px solid var(--border); margin-top: 2rem;
+      }
+      .footer p { margin: 0.2rem 0; }
+
+      @media (max-width: 600px) {
+        .shots { grid-template-columns: 1fr; }
+        .hero { padding: 3.5rem 1.25rem 2.5rem; }
+        .nav-cta { display: none; }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        html { scroll-behavior: auto; }
+        * { transition: none !important; }
+      }
+    </style>
+  </head>
+  <body>
+    <a class="skip-link" href="#how">跳到怎么用</a>
+
+    <!-- Nav -->
+    <nav class="nav">
+      <a class="nav-brand" href="#top">
+        <span class="nav-dot"></span>
+        <span>AI 日报</span>
+      </a>
+      <a class="nav-cta" href="#how">开始使用</a>
+    </nav>
+
+    <!-- Hero -->
+    <header class="hero" id="top">
+      <p class="eyebrow">AI 日报 · 自动视频生成</p>
+      <h1>把每天的 AI 新闻，<br />变成一段带旁白的视频。</h1>
+      <p class="lede">
+        从 RSS 抓取、AI 筛选、TTS 配音，到一键渲染成片。不用懂代码也能跑起来。
+      </p>
+      <div class="hero-actions">
+        <a class="btn btn-primary" href="#preview">先看效果</a>
+        <a class="btn" href="#how">怎么用</a>
+      </div>
+    </header>
+
+    <main class="wrap">
+      <!-- 效果 -->
+      <section class="block" id="preview">
+        <div class="block-head">
+          <span class="kicker">长这样</span>
+          <h2>30 秒看效果，不用配置任何东西</h2>
+          <p>两条命令，就能在本地预览一段带旁白的示例视频。跑通了再决定要不要深入。</p>
+        </div>
+
+        <div class="cmd-row" data-copy="bun install">
+          <code>bun install</code>
+          <button type="button">复制</button>
+        </div>
+        <div class="cmd-row" data-copy="bun run preview">
+          <code>bun run preview</code>
+          <button type="button">复制</button>
+        </div>
+
+        <figure class="shots">
+          <a class="shot" href="demo-video.mp4">
+            <img src="demo-light.png" alt="亮色主题演示" loading="lazy" />
+            <span>亮色</span>
+          </a>
+          <a class="shot" href="demo-video.mp4">
+            <img src="demo-dark.png" alt="暗色主题演示" loading="lazy" />
+            <span>暗色</span>
+          </a>
+        </figure>
+        <p class="shots-note">
+          ▶ <a href="demo-video.mp4">查看完整视频演示</a> ·
+          想要无旁白的静音版可换 <code>preview:notts</code>
+        </p>
+      </section>
+
+      <hr class="sep" />
+
+      <!-- 怎么用 -->
+      <section class="block" id="how">
+        <div class="block-head">
+          <span class="kicker">怎么用</span>
+          <h2>三种方式，按需选一种</h2>
+        </div>
+
+        <!-- 推荐：自动出片放最前 -->
+        <article class="way way-rec">
+          <div class="way-top">
+            <span class="way-tag">推荐</span>
+            <h3>一键自动出片</h3>
+          </div>
+          <p>配好 <code>.env</code> 后，一条命令完成抓取、配音、生成图标。适合日常自动出日报。</p>
+          <div class="cmd-row" data-copy="bun run video:prepare">
+            <code>bun run video:prepare</code>
+            <button type="button">复制</button>
+          </div>
+          <p class="way-sub">跑完用下面两条预览或导出 mp4：</p>
+          <div class="cmd-row" data-copy="bun run dev">
+            <code>bun run dev</code>
+            <button type="button">复制</button>
+          </div>
+          <div class="cmd-row" data-copy="bun run video:render">
+            <code>bun run video:render</code>
+            <button type="button">复制</button>
+          </div>
+        </article>
+
+        <article class="way">
+          <div class="way-top">
+            <span class="way-tag way-tag-mute">零配置</span>
+            <h3>只想先看效果</h3>
+          </div>
+          <p>不想配 Key、不想抓内容？用上面「先看效果」的两条命令即可，<code>preview</code> 不依赖 <code>.env</code>。</p>
+        </article>
+
+        <article class="way">
+          <div class="way-top">
+            <span class="way-tag way-tag-mute">自己来</span>
+            <h3>手写内容</h3>
+          </div>
+          <p>自己控制标题、配图和字幕：复制一份示例，改 <code>data.json</code>，再预览。</p>
+          <div class="cmd-row" data-copy="cp -r demo/data-scheme-sample-1 data-scheme">
+            <code>cp -r demo/data-scheme-sample-1 data-scheme</code>
+            <button type="button">复制</button>
+          </div>
+          <div class="cmd-row" data-copy="bun run dev">
+            <code>bun run dev</code>
+            <button type="button">复制</button>
+          </div>
+          <p class="way-sub">编辑 <code>data-scheme/data.json</code>，图片放进 <code>data-scheme/images/</code>。</p>
+        </article>
+      </section>
+
+      <hr class="sep" />
+
+      <!-- 准备 -->
+      <section class="block" id="setup">
+        <div class="block-head">
+          <span class="kicker">准备一下</span>
+          <h2>开始前装好这些</h2>
+        </div>
+        <ul class="check-list">
+          <li>
+            <strong>Claude CLI · Bun · Go</strong>
+            <span>自动出片必需。<code>bun --version</code> 和 <code>go version</code> 都要能跑。</span>
+          </li>
+          <li>
+            <strong>ffmpeg</strong>
+            <span>可选，用于 TTS 音质检。没有时可设 <code>REQUIRE_VOICE_QUALITY_FFMPEG=false</code> 跳过。</span>
+          </li>
+          <li>
+            <strong>.env 里的 Key</strong>
+            <span>旁白用 <code>MINIMAX_API_KEY</code>，内容总结用 <code>AI_API_KEY</code>。暂时没有就先关掉：<code>TTS_REQUIRE=false</code>、<code>CLAUDE_VISION_ENABLED=false</code>。</span>
+          </li>
+        </ul>
+        <p class="hint">
+          ⚠ 需要抓 <code>linux.do</code> 时，在根目录 <code>.env</code> 配小写
+          <code>all_proxy</code>（科学上网环境）。
+        </p>
+      </section>
+
+      <hr class="sep" />
+
+      <!-- 遇到问题 / 深入 -->
+      <section class="block" id="more">
+        <div class="block-head">
+          <span class="kicker">卡住了？想深入？</span>
+          <h2>这里有答案</h2>
+        </div>
+
+        <p class="more-lead">遇到问题，最直接的方式是用项目自带的 skill：</p>
+        <div class="cmd-row" data-copy="/ai-daily-report 你的问题">
+          <code>/ai-daily-report 你的问题</code>
+          <button type="button">复制</button>
+        </div>
+
+        <div class="links">
+          <a class="link-card" href="../README.md">
+            <span class="link-title">README</span>
+            <span class="link-desc">安装、命令、示例数据，最全的起步说明</span>
+          </a>
+          <a class="link-card" href="../.claude/claude.html">
+            <span class="link-title">项目结构与流程 →</span>
+            <span class="link-desc">目录组织、数据流、文件职责、时间线规则</span>
+          </a>
+          <a class="link-card" href="../ingest/readme.html">
+            <span class="link-title">RSS 配置 →</span>
+            <span class="link-desc">添加来源、设置兴趣偏好与筛选</span>
+          </a>
+          <a
+            class="link-card"
+            href="https://github.com/TTT1231/ai-daily-report/issues"
+          >
+            <span class="link-title">提交 Issue →</span>
+            <span class="link-desc">遇到 Bug 或使用问题，来这里反馈</span>
+          </a>
+        </div>
+      </section>
+    </main>
+
+    <footer class="footer">
+      <p>
+        <strong>AI Daily Report</strong> · Remotion · Bun
+      </p>
+      <p>还能一键发布到 B站（投稿 + 评论 + 置顶），详见 README。</p>
+    </footer>
+
+    <script>
+      // Smooth scroll for in-page anchors
+      document.querySelectorAll('a[href^="#"]').forEach((anchor) => {
+        anchor.addEventListener("click", function (e) {
+          const id = this.getAttribute("href");
+          if (id === "#") return;
+          const target = document.querySelector(id);
+          if (target) {
+            e.preventDefault();
+            target.scrollIntoView({ behavior: "smooth", block: "start" });
+          }
+        });
+      });
+
+      // Copy-to-clipboard for command rows
+      document.querySelectorAll("[data-copy] button").forEach((button) => {
+        button.addEventListener("click", async () => {
+          const row = button.closest("[data-copy]");
+          const text = row.getAttribute("data-copy");
+          const original = button.textContent;
+          try {
+            if (navigator.clipboard?.writeText) {
+              await navigator.clipboard.writeText(text);
+            } else {
+              const ta = document.createElement("textarea");
+              ta.value = text;
+              ta.setAttribute("readonly", "");
+              ta.style.position = "fixed";
+              ta.style.opacity = "0";
+              document.body.appendChild(ta);
+              ta.select();
+              document.execCommand("copy");
+              ta.remove();
+            }
+            button.textContent = "已复制";
+          } catch {
+            button.textContent = "失败";
+          }
+          setTimeout(() => {
+            button.textContent = original;
+          }, 1500);
+        });
+      });
+
+      if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+        document.documentElement.style.scrollBehavior = "auto";
+      }
+    </script>
+  </body>
+</html>

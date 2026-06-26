@@ -75,3 +75,34 @@ func getProxyURL() (*url.URL, error) {
 	}
 	return proxyURL, nil
 }
+
+// newSourceHTTPClient 构建某个 RSS 来源专属的 *http.Client，把「用不用代理」的决定权
+// 交给每个来源自己（取代过去阶段级一刀切）：
+//   - source.Proxy == true：强制走 .env 的 all_proxy。配了就用；未配或无效则返回明确错误
+//     （含来源 ID），绝不静默回退直连——用于 linux.do 等被 Cloudflare 防护、直连必败的来源。
+//   - source.Proxy == false：直连，不读 all_proxy。来源 URL 来自用户可信的 sources.jsonc，
+//     故不加 SSRF 守卫（SSRF 仅用于来自不可信 feed 内容的图片 URL）。
+//
+// 与 newHTTPClient 的区别：newHTTPClient 是「配了 all_proxy 就走」的自动策略，供图片下载、
+// AI 模型请求等非按源场景使用；本函数按来源显式决策。
+func newSourceHTTPClient(timeout time.Duration, source RSS2Source) (*http.Client, error) {
+	transport := &http.Transport{
+		TLSClientConfig:     &tls.Config{MinVersion: tls.VersionTLS12},
+		MaxIdleConns:        20,
+		IdleConnTimeout:     30 * time.Second,
+		DisableKeepAlives:   false,
+		TLSHandshakeTimeout: 10 * time.Second,
+	}
+	if source.Proxy {
+		proxyURL, err := getProxyURL()
+		if err != nil {
+			return nil, fmt.Errorf("来源 %s 标记 proxy:true，但 all_proxy 无效: %w", source.ID, err)
+		}
+		if proxyURL == nil {
+			return nil, fmt.Errorf("来源 %s 标记 proxy:true，但 .env 未配置 all_proxy", source.ID)
+		}
+		transport.Proxy = http.ProxyURL(proxyURL)
+		fmt.Printf("   网络：%s 使用 all_proxy %s\n", source.Name, proxyURL)
+	}
+	return &http.Client{Timeout: timeout, Transport: transport}, nil
+}

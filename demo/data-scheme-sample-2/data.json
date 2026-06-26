@@ -1,5 +1,5 @@
 {
-  "$schema": "../data.schema.json",
+  "$schema": "../../config/data.schema.json",
   "theme": "light",
   "date": "2026-06-17",
   "stories": [
