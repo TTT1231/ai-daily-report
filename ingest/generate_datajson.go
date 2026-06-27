@@ -14,6 +14,15 @@ import (
 
 var validIdentifier = regexp.MustCompile(`^[a-z0-9][a-z0-9-.]*$`)
 
+var (
+	forumBracketRe = regexp.MustCompile(`^【[^】]*】\s*`)
+	forumSaluteRe  = regexp.MustCompile(`^各位佬[，,]?\s*|^佬们?[，,]?\s*`)
+	forumMetaRe    = regexp.MustCompile(`省流|长文总结|博客长文|个人省流`)
+	forumArrowRe   = regexp.MustCompile(`→`)
+	repeatBangRe   = regexp.MustCompile(`！{2,}`)
+	repeatQuestRe  = regexp.MustCompile(`？{2,}`)
+)
+
 type DataJSON struct {
 	Schema  string          `json:"$schema"`
 	Theme   string          `json:"theme"`
@@ -145,13 +154,26 @@ func generateDataJSON(path string, groups []NewsGroup, items []Item) error {
 	return nil
 }
 
+// stripForumDecorations 剥离 linuxdo 等论坛源的口语/装饰：前缀【】、各位佬/佬们称呼、
+// 省流/长文总结等元描述、→ 箭头、以及连续重复的！？。作为 LLM 标题清洗的确定性兜底。
+func stripForumDecorations(title string) string {
+	for _, re := range []*regexp.Regexp{forumBracketRe, forumSaluteRe} {
+		title = re.ReplaceAllString(title, "")
+	}
+	title = forumMetaRe.ReplaceAllString(title, "")
+	title = forumArrowRe.ReplaceAllString(title, "")
+	title = repeatBangRe.ReplaceAllString(title, "！")
+	title = repeatQuestRe.ReplaceAllString(title, "？")
+	return strings.TrimSpace(title)
+}
+
 func cleanDisplayTitle(title string) string {
 	title = strings.TrimSpace(title)
 	cleaned := strings.TrimRight(title, " \t\r\n?？")
 	if cleaned == "" {
 		return title
 	}
-	return cleaned
+	return stripForumDecorations(cleaned)
 }
 
 func compactStoriesByTopTitle(stories []DataJSONStory) []DataJSONStory {

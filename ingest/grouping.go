@@ -302,7 +302,7 @@ func cleanNavigationTitle(title string) string {
 	if isVacuousNavigationTitle(title) {
 		return ""
 	}
-	return title
+	return stripForumDecorations(title)
 }
 
 // isVacuousNavigationTitle 判断短标题是否内容空洞：只是栏目名或通用占位词，缺少“主体+事件”。
