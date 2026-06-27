@@ -12,6 +12,8 @@
 
 - Collect tabs from `intro.tabs` and `stories[].tabs`.
 - Preserve valid existing icons during incremental generation.
+- When only some tabs are missing icons, generate or repair only the missing/invalid icons. Do not
+  overwrite valid sibling icons for the same story or intro group.
 - Regenerate an icon when its title, meaning, or report theme changed, the file is missing, or quality
   is inadequate.
 - Update only tab `icon` fields. Do not change unrelated generated data.

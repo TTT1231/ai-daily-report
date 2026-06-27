@@ -3,13 +3,12 @@ import { existsSync } from "node:fs";
 import { createInterface } from "node:readline";
 import { clearInterval, setInterval } from "node:timers";
 import ora from "ora";
-import { GENERATE_SVG_ALLOWED_TOOLS } from "../lib/claude-allowlist.mjs";
 import { rawDataPath, rootDir } from "../lib/paths.mjs";
 import { terminateProcessTree } from "../lib/process-tree.mjs";
 import { classifyStepOutcome } from "../lib/step-outcome.mjs";
 
+const nodeCommand = process.execPath;
 const bunCommand = process.platform === "win32" ? "bun.exe" : "bun";
-const claudeCommand = process.platform === "win32" ? "claude.exe" : "claude";
 const productionEnv = { ...process.env, AI_DAILY_REPORT_RUN_ALL: "1" };
 
 const productionSteps = [
@@ -35,20 +34,8 @@ const productionSteps = [
   },
   {
     name: "generate-svg",
-    command: claudeCommand,
-    args: [
-      "--allowedTools",
-      ...GENERATE_SVG_ALLOWED_TOOLS,
-      "-p",
-      "--effort",
-      "low",
-      [
-        "/generate-svg",
-        "",
-        "Automation constraint: finish after static SVG and data validation.",
-        "Do not start bun run dev, Remotion Studio, rendering, or any other preview workflow.",
-      ].join("\n"),
-    ],
+    command: nodeCommand,
+    args: ["scripts/render/generate-svg.mjs", "--automation"],
   },
   {
     name: "check-icons",

@@ -1,0 +1,1093 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>AI 日报 · 项目架构图</title>
+    <style>
+      :root {
+        --bg: #f5f7fa;
+        --bg-soft: #eef2f7;
+        --panel: #ffffff;
+        --ink: #1f2937;
+        --ink-soft: #64748b;
+        --ink-faint: #94a3b8;
+        --line: #e5e9f0;
+        --line-strong: #d6dde7;
+        --accent: #2563eb;
+
+        --c-data-flow: #2563eb;
+        --c-trigger: #f97316;
+        --c-external: #ef4444;
+        --c-config: #94a3b8;
+
+        --l-external: #fb7185;
+        --l-ingest: #f59e0b;
+        --l-data: #ec4899;
+        --l-orchestration: #8b5cf6;
+        --l-build: #10b981;
+        --l-render: #3b82f6;
+        --l-publish: #14b8a6;
+
+        --shadow: 0 1px 2px rgba(15, 23, 42, 0.04), 0 4px 12px rgba(15, 23, 42, 0.05);
+        --shadow-lg: 0 4px 16px rgba(15, 23, 42, 0.08), 0 12px 32px rgba(15, 23, 42, 0.06);
+      }
+
+      * { box-sizing: border-box; }
+
+      html, body { height: 100%; margin: 0; }
+
+      body {
+        font-family: "IBM Plex Sans", "PingFang SC", "Microsoft YaHei", -apple-system,
+          BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+        background: var(--bg);
+        color: var(--ink);
+        -webkit-font-smoothing: antialiased;
+        overflow: hidden;
+      }
+
+      code, .mono {
+        font-family: "JetBrains Mono", "Cascadia Code", "SF Mono", Consolas, monospace;
+      }
+
+      /* ---------- Header ---------- */
+      header.topbar {
+        display: flex;
+        align-items: center;
+        gap: 18px;
+        padding: 14px 22px;
+        background: var(--panel);
+        border-bottom: 1px solid var(--line);
+        box-shadow: var(--shadow);
+        z-index: 30;
+        flex-shrink: 0;
+      }
+      .brand { display: flex; align-items: center; gap: 12px; }
+      .brand .logo {
+        width: 38px; height: 38px; border-radius: 10px;
+        background: linear-gradient(135deg, #2563eb, #7c3aed);
+        color: #fff; display: grid; place-items: center;
+        font-weight: 700; font-size: 18px;
+        box-shadow: 0 4px 10px rgba(37, 99, 235, 0.3);
+      }
+      .brand h1 { font-size: 16px; margin: 0; font-weight: 650; letter-spacing: 0.2px; }
+      .brand .sub { font-size: 12px; color: var(--ink-soft); margin-top: 2px; }
+
+      .presets { display: flex; gap: 8px; flex-wrap: wrap; margin-left: auto; }
+      .preset-btn {
+        border: 1px solid var(--line-strong);
+        background: var(--panel);
+        color: var(--ink-soft);
+        padding: 7px 13px;
+        border-radius: 999px;
+        font-size: 12.5px;
+        cursor: pointer;
+        transition: all 0.15s ease;
+        font-family: inherit;
+      }
+      .preset-btn:hover { border-color: var(--accent); color: var(--accent); }
+      .preset-btn.active {
+        background: var(--accent); color: #fff; border-color: var(--accent);
+        box-shadow: 0 2px 8px rgba(37, 99, 235, 0.3);
+      }
+
+      .copy-btn {
+        border: none;
+        background: #0f172a;
+        color: #fff;
+        padding: 8px 16px;
+        border-radius: 8px;
+        font-size: 12.5px;
+        cursor: pointer;
+        font-family: inherit;
+        font-weight: 550;
+        transition: all 0.15s ease;
+      }
+      .copy-btn:hover { background: #1e293b; transform: translateY(-1px); }
+      .copy-btn.copied { background: #10b981; }
+
+      /* ---------- App layout ---------- */
+      .app {
+        display: grid;
+        grid-template-columns: 248px 1fr 312px;
+        height: calc(100vh - 67px);
+      }
+
+      /* ---------- Sidebar (controls) ---------- */
+      aside.controls {
+        background: var(--panel);
+        border-right: 1px solid var(--line);
+        overflow-y: auto;
+        padding: 16px 16px 28px;
+      }
+      .ctl-group { margin-bottom: 22px; }
+      .ctl-group h3 {
+        font-size: 11px; font-weight: 650; letter-spacing: 0.8px;
+        text-transform: uppercase; color: var(--ink-faint);
+        margin: 0 0 10px;
+      }
+      .layer-toggle, .conn-toggle {
+        display: flex; align-items: center; gap: 9px;
+        padding: 7px 9px; border-radius: 7px; cursor: pointer;
+        font-size: 13px; transition: background 0.12s;
+        user-select: none;
+      }
+      .layer-toggle:hover, .conn-toggle:hover { background: var(--bg-soft); }
+      .layer-toggle .dot, .conn-toggle .dot {
+        width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0;
+        transition: opacity 0.15s;
+      }
+      .layer-toggle.off, .conn-toggle.off { opacity: 0.4; }
+      .layer-toggle.off .dot, .conn-toggle.off .dot { opacity: 0.35; }
+      .layer-toggle .name { flex: 1; }
+      .layer-toggle .count {
+        font-size: 11px; color: var(--ink-faint);
+        background: var(--bg-soft); padding: 1px 7px; border-radius: 999px;
+      }
+      .conn-toggle .line-sample {
+        width: 26px; height: 0; flex-shrink: 0;
+      }
+
+      .zoom-row { display: flex; gap: 6px; align-items: center; }
+      .zoom-btn {
+        flex: 1; border: 1px solid var(--line-strong); background: var(--panel);
+        color: var(--ink-soft); border-radius: 7px; padding: 7px 0; cursor: pointer;
+        font-size: 14px; font-family: inherit; transition: all 0.12s;
+      }
+      .zoom-btn:hover { border-color: var(--accent); color: var(--accent); }
+      .zoom-val { font-size: 12px; color: var(--ink-soft); min-width: 44px; text-align: center; }
+
+      .legend-note { font-size: 11.5px; color: var(--ink-faint); line-height: 1.7; }
+
+      /* ---------- Canvas ---------- */
+      main.canvas-wrap {
+        position: relative;
+        overflow: hidden;
+        background:
+          radial-gradient(circle at 1px 1px, #dde3ec 1px, transparent 0) 0 0 / 22px 22px,
+          var(--bg);
+        cursor: grab;
+      }
+      main.canvas-wrap.dragging { cursor: grabbing; }
+      .scaler {
+        position: absolute;
+        top: 0; left: 0;
+        transform-origin: 0 0;
+        padding: 34px 40px 60px;
+        min-width: 100%;
+        will-change: transform;
+      }
+      .content { position: relative; }
+
+      svg.connections {
+        position: absolute;
+        top: 0; left: 0;
+        pointer-events: none;
+        overflow: visible;
+        z-index: 1;
+      }
+
+      .layer-band {
+        position: relative;
+        z-index: 2;
+        margin-bottom: 64px;
+      }
+      .band-head {
+        display: flex; align-items: baseline; gap: 12px;
+        margin-bottom: 12px; padding-left: 4px;
+      }
+      .band-head .tag {
+        width: 4px; height: 16px; border-radius: 2px; align-self: center;
+      }
+      .band-head .label { font-size: 14px; font-weight: 650; }
+      .band-head .desc { font-size: 12px; color: var(--ink-soft); }
+
+      .card-row { display: flex; flex-wrap: wrap; gap: 12px; }
+
+      .card {
+        position: relative;
+        background: var(--panel);
+        border: 1px solid var(--line);
+        border-left: 3px solid var(--line-strong);
+        border-radius: 10px;
+        padding: 10px 13px;
+        width: 200px;
+        cursor: pointer;
+        box-shadow: var(--shadow);
+        transition: transform 0.14s ease, box-shadow 0.14s ease, border-color 0.14s;
+      }
+      .card:hover {
+        transform: translateY(-2px);
+        box-shadow: var(--shadow-lg);
+      }
+      .card .c-name { font-size: 13px; font-weight: 600; line-height: 1.35; }
+      .card .c-path {
+        font-size: 10.5px; color: var(--ink-faint); margin-top: 4px;
+        white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+      }
+      .card.selected {
+        border-color: var(--accent);
+        box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.25), var(--shadow-lg);
+      }
+      .card.connected {
+        border-color: var(--accent);
+      }
+      .card.dimmed { opacity: 0.32; }
+
+      .hint-overlay {
+        position: absolute; bottom: 16px; left: 50%; transform: translateX(-50%);
+        background: rgba(15, 23, 42, 0.82); color: #e2e8f0;
+        font-size: 11.5px; padding: 6px 14px; border-radius: 999px;
+        z-index: 5; pointer-events: none; opacity: 0;
+        transition: opacity 0.2s;
+      }
+      .hint-overlay.show { opacity: 1; }
+
+      /* ---------- Detail panel ---------- */
+      aside.detail {
+        background: var(--panel);
+        border-left: 1px solid var(--line);
+        overflow-y: auto;
+        padding: 20px 18px;
+      }
+      .detail .d-empty {
+        color: var(--ink-faint); font-size: 13px; text-align: center;
+        margin-top: 60px; line-height: 1.8;
+      }
+      .detail .d-empty .ico { font-size: 30px; display: block; margin-bottom: 10px; opacity: 0.5; }
+      .detail .d-tag {
+        display: inline-block; font-size: 11px; font-weight: 600;
+        padding: 2px 9px; border-radius: 999px; color: #fff;
+        margin-bottom: 10px;
+      }
+      .detail h2 { font-size: 16px; margin: 0 0 4px; line-height: 1.3; }
+      .detail .d-path {
+        font-size: 11.5px; color: var(--ink-soft); background: var(--bg-soft);
+        padding: 5px 9px; border-radius: 6px; margin: 8px 0 14px;
+        word-break: break-all;
+      }
+      .detail .d-role { font-size: 13px; line-height: 1.7; color: var(--ink); margin-bottom: 18px; }
+      .detail .d-section { margin-bottom: 16px; }
+      .detail .d-section h4 {
+        font-size: 11px; font-weight: 650; letter-spacing: 0.6px;
+        text-transform: uppercase; color: var(--ink-faint); margin: 0 0 7px;
+      }
+      .detail .flow-chip {
+        display: flex; align-items: center; gap: 7px;
+        font-size: 12.5px; padding: 5px 8px; border-radius: 6px;
+        cursor: pointer; transition: background 0.12s;
+      }
+      .flow-chip:hover { background: var(--bg-soft); }
+      .flow-chip .arr { color: var(--ink-faint); font-size: 11px; }
+      .flow-chip .nm { font-weight: 550; }
+      .flow-chip .lb { color: var(--ink-faint); font-size: 11px; margin-left: auto; }
+
+      /* ---------- toast ---------- */
+      .toast {
+        position: fixed; bottom: 24px; right: 24px;
+        background: #0f172a; color: #fff; padding: 11px 18px;
+        border-radius: 8px; font-size: 13px; z-index: 100;
+        box-shadow: var(--shadow-lg);
+        opacity: 0; transform: translateY(10px);
+        transition: all 0.2s; pointer-events: none;
+      }
+      .toast.show { opacity: 1; transform: translateY(0); }
+
+      ::-webkit-scrollbar { width: 9px; height: 9px; }
+      ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 6px; border: 2px solid var(--panel); }
+      ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+
+      @media (max-width: 1180px) {
+        .app { grid-template-columns: 220px 1fr; }
+        aside.detail { display: none; }
+      }
+    </style>
+  </head>
+  <body>
+    <header class="topbar">
+      <div class="brand">
+        <div class="logo">架</div>
+        <div>
+          <h1>AI 日报 · 项目架构</h1>
+          <div class="sub">Remotion 视频流水线 · 模块级架构图 · 数据自上而下流动</div>
+        </div>
+      </div>
+      <div class="presets" id="presets"></div>
+      <button class="copy-btn" id="copyBtn">复制架构说明</button>
+    </header>
+
+    <div class="app">
+      <aside class="controls">
+        <div class="ctl-group">
+          <h3>图层（点击切换）</h3>
+          <div id="layerToggles"></div>
+        </div>
+        <div class="ctl-group">
+          <h3>连线类型</h3>
+          <div id="connToggles"></div>
+        </div>
+        <div class="ctl-group">
+          <h3>缩放</h3>
+          <div class="zoom-row">
+            <button class="zoom-btn" id="zoomOut">−</button>
+            <span class="zoom-val" id="zoomVal">100%</span>
+            <button class="zoom-btn" id="zoomIn">+</button>
+            <button class="zoom-btn" id="zoomFit" title="适应窗口">⤢</button>
+          </div>
+        </div>
+        <div class="ctl-group">
+          <h3>操作提示</h3>
+          <div class="legend-note">
+            • 拖拽空白处平移画布<br />
+            • 点击模块查看详情与上下游<br />
+            • 选中后高亮其数据流路径<br />
+            • 滚轮可缩放
+          </div>
+        </div>
+      </aside>
+
+      <main class="canvas-wrap" id="canvasWrap">
+        <div class="scaler" id="scaler">
+          <div class="content" id="content">
+            <svg class="connections" id="connections"></svg>
+            <div id="bands"></div>
+          </div>
+        </div>
+        <div class="hint-overlay" id="hint"></div>
+      </main>
+
+      <aside class="detail" id="detail">
+        <div class="d-empty">
+          <span class="ico">◆</span>
+          点击任意模块<br />查看职责、文件路径与上下游
+        </div>
+      </aside>
+    </div>
+
+    <div class="toast" id="toast"></div>
+
+    <script>
+      // ============================================================
+      //  数据：图层 / 模块 / 连线
+      // ============================================================
+      const LAYERS = {
+        external: { label: "外部源 & 服务", desc: "数据来源与外部 API", color: "#fb7185" },
+        ingest: { label: "采集器 Ingest（Go）", desc: "RSS → 评分 → 合并 → Tabs → data.json", color: "#f59e0b" },
+        data: { label: "数据 & 配置", desc: "Raw / Generated 数据包与 Schema", color: "#ec4899" },
+        orchestration: { label: "编排脚本（Node）", desc: "全流程入口与生命周期", color: "#8b5cf6" },
+        build: { label: "构建与装配（Node）", desc: "TTS、装配、校验、事务", color: "#10b981" },
+        render: { label: "渲染 Remotion（TS）", desc: "时间轴驱动的故事渲染器", color: "#3b82f6" },
+        publish: { label: "发布 Bilibili（Node）", desc: "投稿、元数据、评论", color: "#14b8a6" },
+      };
+      const LAYER_ORDER = ["external", "ingest", "data", "orchestration", "build", "render", "publish"];
+
+      const MODULES = [
+        // ---- 外部 ----
+        { id: "rss-sources", layer: "external", name: "RSS 源（LinuxDo 等）", path: "ingest/sources.jsonc",
+          role: "人工维护的 RSS 2.0 来源入口，决定抓取哪些栏目、是否走代理。同一 Topic 跨栏目自动去重。" },
+        { id: "minimax", layer: "external", name: "MiniMax TTS", path: "外部语音 API",
+          role: "把 scene 字幕合成中文旁白 mp3，返回 audio_length 用于时间线计算。" },
+        { id: "claude-llm", layer: "external", name: "Claude（LLM）", path: "外部 LLM API",
+          role: "承担 vision 选图、B 站标题/标签生成、Tab 图标 SVG 生成等 AI 任务。" },
+        { id: "bilibili", layer: "external", name: "Bilibili 平台", path: "外部发布目标",
+          role: "视频投稿、评论发送与置顶的最终目的地。" },
+
+        // ---- Ingest Go ----
+        { id: "ingest-config", layer: "ingest", name: "配置加载", path: "ingest/config.go",
+          role: "加载来源、偏好、env 与回看窗口，启动前校验配置有效性。" },
+        { id: "ingest-fetch", layer: "ingest", name: "RSS 抓取 / 解析", path: "ingest/{rss2,sources,linuxdo_adapter}.go",
+          role: "并发抓取 RSS 2.0、清洗文本、LinuxDo 栏目适配，返回时间窗口内条目。" },
+        { id: "ingest-state", layer: "ingest", name: "状态快照", path: "ingest/state.go → rss-state.json",
+          role: "读写最近抓取快照；来源抓取失败时保留其上一次结果，可供补选。" },
+        { id: "ingest-score", layer: "ingest", name: "AI 评分", path: "ingest/{ranking,prompts,text}.go",
+          role: "按偏好画像对条目打分；AI 失败时降级为本地关键词权重保底。" },
+        { id: "ingest-group", layer: "ingest", name: "相似合并", path: "ingest/grouping.go",
+          role: "把同主题新闻聚类合并为 Story，AI 失败降级为本地分组。" },
+        { id: "ingest-tabs", layer: "ingest", name: "Tabs 编排", path: "ingest/{story_tabs,story_tab_text,navigation_layout}.go",
+          role: "为每个 Story 编排视频 Tabs 与字幕，保底凑齐最少 Tab 数量。" },
+        { id: "ingest-images", layer: "ingest", name: "图片处理", path: "ingest/{vision,image_assets,manual_images}.go",
+          role: "vision 选图、下载远程候选图、接入手动指定的图片素材。" },
+        { id: "ingest-output", layer: "ingest", name: "data.json 生成", path: "ingest/{generate_datajson,output}.go",
+          role: "装配最终结构并以原子写入 data.json，任一步失败都会中止整期。" },
+        { id: "ingest-infra", layer: "ingest", name: "基础设施", path: "ingest/{ssrf,vpnproxy,atomicfile,jsonc}.go",
+          role: "SSRF 防护、代理控制、原子文件写入、jsonc 解析等底层能力。" },
+
+        // ---- 数据 & 配置 ----
+        { id: "data-raw", layer: "data", name: "data.json（Raw）", path: "data-scheme/data.json",
+          role: "标题、Tabs、字幕与图片引用——由 ingest 生成或人工维护的原始数据。" },
+        { id: "data-gen", layer: "data", name: "data-generate.json（Generated）", path: "data-scheme/data-generate.json",
+          role: "TTS 派生的音频/时间线/图标/尺寸——Remotion 真正读取的视频数据源，勿手工改。" },
+        { id: "data-assets", layer: "data", name: "素材目录", path: "data-scheme/{images,icons,audio}",
+          role: "overlay 图、Tab 图标、TTS 音频文件，由各生成步骤写入。" },
+        { id: "config", layer: "data", name: "配置 & Schema", path: "config/*",
+          role: "data.schema、video-layout、video-timeline、bilibili.config——三侧共用的单一事实源。" },
+
+        // ---- 编排 ----
+        { id: "prep", layer: "orchestration", name: "prepare-video.mjs", path: "scripts/render/prepare-video.mjs",
+          role: "video:prepare 全流程编排：归档→rss→校验→tts→svg→check-icons，串行执行并转发子进程输出。" },
+        { id: "dev", layer: "orchestration", name: "dev.mjs", path: "scripts/render/dev.mjs",
+          role: "dev 预览，监听 data.json/图片变化，增量跑 TTS 并刷新 Remotion Studio。" },
+        { id: "archive", layer: "orchestration", name: "归档 / 重置", path: "scripts/archive/{archive,archive-rotate,reset}.mjs",
+          role: "按日期归档上期、抓取前轮转、清空 data-scheme 后完全重建。" },
+        { id: "checks", layer: "orchestration", name: "数据校验", path: "scripts/checks/{check-data-json,check-icons}.mjs",
+          role: "Raw 内容校验、渲染就绪校验（强制机器字段存在）、图标资源校验。" },
+        { id: "render-mp4", layer: "orchestration", name: "渲染出片", path: "remotion render · video:render",
+          role: "调用 Remotion CLI 把 AiDailyReport composition 渲染成 mp4（video:render = tts + render:mp4），读 data-generate.json 作 props。" },
+        { id: "render-cover", layer: "orchestration", name: "封面出图", path: "remotion still · render:cover",
+          role: "remotion still 抽取指定帧（--frame=45）导出 out/cover.png 封面，供投稿使用。" },
+        { id: "publish", layer: "orchestration", name: "publish:bili 一键发布", path: "package.json: publish:bili · all:bili",
+          role: "发布编排：video:render → render:cover → comment:generate → bili:meta → bili:full（投稿+评论+置顶）；all:bili = video:prepare + publish:bili。" },
+
+        // ---- 构建库 ----
+        { id: "tts-entry", layer: "build", name: "generate-tts.mjs", path: "scripts/render/generate-tts.mjs",
+          role: "TTS 编排入口：装配 generated → 合成音频 → 校验 → 事务提交。data-generate.json 的唯一写手。" },
+        { id: "builder", layer: "build", name: "report-builder.mjs", path: "scripts/lib/report-builder.mjs",
+          role: "装配 generated：定 theme、构建 intro/outro、从旧数据恢复 icon、按图片真实像素写尺寸。" },
+        { id: "tts-client", layer: "build", name: "minimax-tts.mjs", path: "scripts/lib/minimax-tts.mjs",
+          role: "MiniMax TTS API 客户端，按内容哈希缓存、失败重试，写 audioSrc/timing/tts。" },
+        { id: "gen-output", layer: "build", name: "generated-output.mjs", path: "scripts/lib/generated-output.mjs",
+          role: "音频与 Generated JSON 的原子事务提交，逐文件写入避免 Windows 句柄占用 EPERM。" },
+        { id: "gen-svg", layer: "build", name: "generate-svg.mjs", path: "scripts/render/generate-svg.mjs",
+          role: "调用 Claude（低 effort）为每个 Tab 生成彩色语义 SVG 图标，校验后写入 icons/。" },
+        { id: "validation", layer: "build", name: "校验库", path: "scripts/lib/{report,video-layout,video-timeline}-validation.mjs",
+          role: "JSON Schema 与跨字段业务校验，被 checks 与渲染前校验复用。" },
+        { id: "paths", layer: "build", name: "paths.mjs", path: "scripts/lib/paths.mjs",
+          role: "集中路径定义与 JSON 读取，锚定 rootDir，与入口目录深度无关。" },
+
+        // ---- 渲染 ----
+        { id: "root", layer: "render", name: "Root.tsx", path: "src/Root.tsx",
+          role: "Composition 定义：1920×1080、30fps，注册主组件并注入 data-generate.json 作为 props。" },
+        { id: "main-comp", layer: "render", name: "AiDailyReport.tsx", path: "src/AiDailyReport.tsx",
+          role: "时间轴驱动的故事渲染器，渲染 Tabs、字幕、overlay 图与音频，处理点击音效与过渡。" },
+        { id: "schema", layer: "render", name: "daily-report-data.ts", path: "src/daily-report-data.ts",
+          role: "Zod schema 定义、JSON 解析与类型导出，是 props 类型的单一来源。" },
+        { id: "layout", layer: "render", name: "布局 / 导航", path: "src/{layout-config,navigation-layout}.ts",
+          role: "视频布局与导航容量规则，读取 config/video-layout.json，自动分配 Header 宽度。" },
+
+        // ---- 发布 ----
+        { id: "upload", layer: "publish", name: "bili-upload.mjs", path: "scripts/publish/bili/bili-upload.mjs",
+          role: "调 biliup-rs 投稿视频（bili:upload 纯投稿 / bili:full 含评论置顶）。" },
+        { id: "meta", layer: "publish", name: "bili-meta.mjs", path: "scripts/publish/bili/bili-meta.mjs",
+          role: "LLM 生成 B 站标题+标签 → bilibili-meta.json。" },
+        { id: "comment", layer: "publish", name: "评论生成 / 发送", path: "scripts/publish/bili/{generate-comment,bili-comment,bili-stick}.mjs",
+          role: "从时间线数据生成 B 站风格跳转评论、发送并置顶。" },
+        { id: "bili-api", layer: "publish", name: "bili-api + biliup", path: "scripts/publish/bili/{bili-api,ensure-biliup,biliup-prepare,download-bili}.mjs + biliup/",
+          role: "web API（评论/置顶，凭据从 cookies.json 读）+ biliup-rs 工具下载、登录态准备与管理。" },
+      ];
+
+      // 连线类型
+      const CONN_TYPES = {
+        "data-flow": { label: "数据流", color: "#2563eb", dash: "none", baseOpacity: 0.9, width: 1.8 },
+        "trigger": { label: "编排触发", color: "#f97316", dash: "7 4", baseOpacity: 0.6, width: 1.5 },
+        "external": { label: "外部调用", color: "#ef4444", dash: "none", baseOpacity: 0.8, width: 1.7 },
+        "config": { label: "读取配置 / Schema", color: "#94a3b8", dash: "2 4", baseOpacity: 0.6, width: 1.3 },
+      };
+
+      const CONNECTIONS = [
+        // —— 主干数据流 ——
+        { from: "rss-sources", to: "ingest-fetch", type: "data-flow", label: "RSS 2.0" },
+        { from: "ingest-config", to: "ingest-fetch", type: "data-flow", label: "配置" },
+        { from: "ingest-fetch", to: "ingest-score", type: "data-flow", label: "条目" },
+        { from: "ingest-score", to: "ingest-group", type: "data-flow", label: "高分" },
+        { from: "ingest-group", to: "ingest-tabs", type: "data-flow", label: "Story" },
+        { from: "ingest-tabs", to: "ingest-output", type: "data-flow", label: "编排" },
+        { from: "ingest-images", to: "ingest-output", type: "data-flow", label: "图片" },
+        { from: "ingest-output", to: "data-raw", type: "data-flow", label: "写 data.json" },
+
+        { from: "data-raw", to: "checks", type: "data-flow", label: "校验" },
+
+        { from: "tts-entry", to: "builder", type: "data-flow", label: "装配" },
+        { from: "tts-entry", to: "tts-client", type: "data-flow", label: "合成" },
+        { from: "builder", to: "gen-output", type: "data-flow", label: "提交 generated" },
+        { from: "tts-client", to: "gen-output", type: "data-flow", label: "提交 audio" },
+        { from: "gen-output", to: "data-gen", type: "data-flow", label: "原子写入" },
+        { from: "gen-output", to: "data-assets", type: "data-flow", label: "写 mp3" },
+        { from: "gen-svg", to: "data-assets", type: "data-flow", label: "写 icons" },
+
+        { from: "data-gen", to: "main-comp", type: "data-flow", label: "props" },
+        { from: "data-assets", to: "main-comp", type: "data-flow", label: "publicDir" },
+        { from: "root", to: "main-comp", type: "data-flow", label: "渲染" },
+        { from: "main-comp", to: "schema", type: "config", label: "解析" },
+        { from: "data-gen", to: "render-mp4", type: "data-flow", label: "props" },
+        { from: "main-comp", to: "render-mp4", type: "data-flow", label: "渲染目标" },
+        { from: "render-mp4", to: "upload", type: "data-flow", label: "mp4" },
+        { from: "render-cover", to: "upload", type: "data-flow", label: "封面 png" },
+
+        { from: "meta", to: "upload", type: "data-flow", label: "标题/标签" },
+        { from: "comment", to: "bili-api", type: "data-flow", label: "评论/置顶" },
+
+        // —— 外部调用 ——
+        { from: "tts-client", to: "minimax", type: "external", label: "合成" },
+        { from: "gen-svg", to: "claude-llm", type: "external", label: "SVG" },
+        { from: "meta", to: "claude-llm", type: "external", label: "标题/标签" },
+        { from: "ingest-images", to: "claude-llm", type: "external", label: "vision 选图" },
+        { from: "upload", to: "bilibili", type: "external", label: "投稿" },
+        { from: "bili-api", to: "bilibili", type: "external", label: "评论/置顶" },
+
+        // —— 编排触发 ——
+        { from: "prep", to: "archive", type: "trigger", label: "archive:rotate" },
+        { from: "prep", to: "ingest-config", type: "trigger", label: "rss" },
+        { from: "prep", to: "checks", type: "trigger", label: "check" },
+        { from: "prep", to: "tts-entry", type: "trigger", label: "tts" },
+        { from: "prep", to: "gen-svg", type: "trigger", label: "svg" },
+        { from: "dev", to: "tts-entry", type: "trigger", label: "增量 TTS" },
+        { from: "publish", to: "render-mp4", type: "trigger", label: "video:render" },
+        { from: "publish", to: "render-cover", type: "trigger", label: "render:cover" },
+        { from: "publish", to: "comment", type: "trigger", label: "comment:generate" },
+        { from: "publish", to: "meta", type: "trigger", label: "bili:meta" },
+        { from: "publish", to: "upload", type: "trigger", label: "bili:full" },
+
+        // —— 读取配置 / 快照 ——
+        { from: "config", to: "validation", type: "config", label: "Schema" },
+        { from: "config", to: "checks", type: "config", label: "Schema" },
+        { from: "config", to: "layout", type: "config", label: "layout/timeline" },
+        { from: "ingest-state", to: "ingest-fetch", type: "config", label: "上次快照" },
+        { from: "bili-api", to: "upload", type: "config", label: "cookies 共享" },
+        { from: "paths", to: "builder", type: "config", label: "路径" },
+        { from: "paths", to: "gen-output", type: "config", label: "路径" },
+        { from: "paths", to: "checks", type: "config", label: "路径" },
+        { from: "paths", to: "validation", type: "config", label: "路径" },
+      ];
+
+      // 预设视图
+      const PRESETS = {
+        all: { label: "全部架构", layers: LAYER_ORDER },
+        ingest: { label: "采集流水线", layers: ["external", "ingest", "data"] },
+        tts: { label: "TTS 构建链", layers: ["external", "data", "build"] },
+        render: { label: "渲染", layers: ["data", "render", "orchestration"] },
+        publish: { label: "发布", layers: ["orchestration", "render", "publish", "external"] },
+        orchestration: { label: "编排视图", layers: ["orchestration", "data", "build", "render"] },
+      };
+
+      // ============================================================
+      //  状态
+      // ============================================================
+      const STATE = {
+        layers: new Set(LAYER_ORDER),
+        connTypes: new Set(Object.keys(CONN_TYPES)),
+        selectedId: null,
+        preset: "all",
+        scale: 1,
+        tx: 0,
+        ty: 0,
+      };
+
+      const moduleById = Object.fromEntries(MODULES.map((m) => [m.id, m]));
+
+      // ============================================================
+      //  渲染：图层 & 卡片
+      // ============================================================
+      const bandsEl = document.getElementById("bands");
+      const contentEl = document.getElementById("content");
+      const svgEl = document.getElementById("connections");
+
+      function renderBands() {
+        bandsEl.innerHTML = "";
+        for (const key of LAYER_ORDER) {
+          if (!STATE.layers.has(key)) continue;
+          const L = LAYERS[key];
+          const mods = MODULES.filter((m) => m.layer === key);
+          const band = document.createElement("div");
+          band.className = "layer-band";
+          band.innerHTML = `
+            <div class="band-head">
+              <span class="tag" style="background:${L.color}"></span>
+              <span class="label">${L.label}</span>
+              <span class="desc">${L.desc}</span>
+              <span class="desc" style="margin-left:auto">${mods.length} 个模块</span>
+            </div>
+            <div class="card-row"></div>
+          `;
+          const row = band.querySelector(".card-row");
+          for (const m of mods) {
+            const card = document.createElement("div");
+            card.className = "card";
+            card.dataset.id = m.id;
+            card.style.borderLeftColor = L.color;
+            card.innerHTML = `
+              <div class="c-name">${m.name}</div>
+              <div class="c-path mono">${m.path}</div>
+            `;
+            card.addEventListener("click", (e) => {
+              e.stopPropagation();
+              selectModule(m.id);
+            });
+            row.appendChild(card);
+          }
+          bandsEl.appendChild(band);
+        }
+      }
+
+      // ============================================================
+      //  连线几何
+      // ============================================================
+      function nodeRect(id) {
+        const el = bandsEl.querySelector(`[data-id="${id}"]`);
+        if (!el) return null;
+        // offset 坐标相对 #content（其 offsetParent 为 #content，因 bands 链路均为 static）
+        return {
+          x: el.offsetLeft, y: el.offsetTop, w: el.offsetWidth, h: el.offsetHeight,
+        };
+      }
+
+      function buildPath(a, b) {
+        const ac = { x: a.x + a.w / 2, y: a.y + a.h / 2 };
+        const bc = { x: b.x + b.w / 2, y: b.y + b.h / 2 };
+        const dx = bc.x - ac.x;
+        const dy = bc.y - ac.y;
+        let p1, p2;
+        if (Math.abs(dy) >= Math.abs(dx)) {
+          const down = dy >= 0;
+          p1 = { x: ac.x, y: down ? a.y + a.h : a.y };
+          p2 = { x: bc.x, y: down ? b.y : b.y + b.h };
+          const k = Math.max(36, Math.abs(dy) * 0.42);
+          const c1 = { x: p1.x, y: p1.y + (down ? k : -k) };
+          const c2 = { x: p2.x, y: p2.y + (down ? -k : k) };
+          return { d: `M ${p1.x} ${p1.y} C ${c1.x} ${c1.y} ${c2.x} ${c2.y} ${p2.x} ${p2.y}`, p1, p2, c1, c2 };
+        } else {
+          const right = dx >= 0;
+          p1 = { x: right ? a.x + a.w : a.x, y: ac.y };
+          p2 = { x: right ? b.x : b.x + b.w, y: bc.y };
+          const k = Math.max(36, Math.abs(dx) * 0.42);
+          const c1 = { x: p1.x + (right ? k : -k), y: p1.y };
+          const c2 = { x: p2.x + (right ? -k : k), y: p2.y };
+          return { d: `M ${p1.x} ${p1.y} C ${c1.x} ${c1.y} ${c2.x} ${c2.y} ${p2.x} ${p2.y}`, p1, p2, c1, c2 };
+        }
+      }
+
+      function cubicAt(p1, c1, c2, p2, t) {
+        const mt = 1 - t;
+        return {
+          x: mt * mt * mt * p1.x + 3 * mt * mt * t * c1.x + 3 * mt * t * t * c2.x + t * t * t * p2.x,
+          y: mt * mt * mt * p1.y + 3 * mt * mt * t * c1.y + 3 * mt * t * t * c2.y + t * t * t * p2.y,
+        };
+      }
+
+      function svgNs(tag) {
+        return document.createElementNS("http://www.w3.org/2000/svg", tag);
+      }
+
+      function renderConnections() {
+        svgEl.innerHTML = "";
+        // defs：每种类型的箭头 marker
+        const defs = svgNs("defs");
+        for (const [key, t] of Object.entries(CONN_TYPES)) {
+          const m = svgNs("marker");
+          m.setAttribute("id", `arrow-${key}`);
+          m.setAttribute("markerWidth", "9");
+          m.setAttribute("markerHeight", "7");
+          m.setAttribute("refX", "7.5");
+          m.setAttribute("refY", "3.5");
+          m.setAttribute("orient", "auto");
+          const poly = svgNs("polygon");
+          poly.setAttribute("points", "0 0, 9 3.5, 0 7");
+          poly.setAttribute("fill", t.color);
+          m.appendChild(poly);
+          defs.appendChild(m);
+        }
+        svgEl.appendChild(defs);
+
+        // 选中相关模块集合（用于高亮）
+        const sel = STATE.selectedId;
+        const connectedIds = new Set();
+        if (sel) {
+          connectedIds.add(sel);
+          for (const c of CONNECTIONS) {
+            if (c.from === sel) connectedIds.add(c.to);
+            if (c.to === sel) connectedIds.add(c.from);
+          }
+        }
+
+        for (const c of CONNECTIONS) {
+          if (!STATE.connTypes.has(c.type)) continue;
+          const mFrom = moduleById[c.from];
+          const mTo = moduleById[c.to];
+          if (!STATE.layers.has(mFrom.layer) || !STATE.layers.has(mTo.layer)) continue;
+          const a = nodeRect(c.from);
+          const b = nodeRect(c.to);
+          if (!a || !b) continue;
+
+          const built = buildPath(a, b);
+          const t = CONN_TYPES[c.type];
+
+          // 高亮 / 暗化
+          let opacity = t.baseOpacity;
+          let width = t.width;
+          let active = false;
+          if (sel) {
+            const involves = c.from === sel || c.to === sel;
+            if (involves) { opacity = 1; width = t.width + 0.9; active = true; }
+            else { opacity = 0.06; }
+          }
+
+          const path = svgNs("path");
+          path.setAttribute("d", built.d);
+          path.setAttribute("fill", "none");
+          path.setAttribute("stroke", t.color);
+          path.setAttribute("stroke-width", width);
+          path.setAttribute("opacity", opacity);
+          path.setAttribute("marker-end", `url(#arrow-${c.type})`);
+          if (t.dash !== "none") path.setAttribute("stroke-dasharray", t.dash);
+          svgEl.appendChild(path);
+
+          // 标签
+          if (c.label) {
+            const mid = cubicAt(built.p1, built.c1, built.c2, built.p2, 0.5);
+            const labelOpacity = sel ? (active ? 1 : 0.08) : Math.min(1, t.baseOpacity + 0.05);
+            const text = svgNs("text");
+            text.setAttribute("x", mid.x);
+            text.setAttribute("y", mid.y);
+            text.setAttribute("text-anchor", "middle");
+            text.setAttribute("dominant-baseline", "middle");
+            text.setAttribute("font-size", "10");
+            text.setAttribute("font-family", "IBM Plex Sans, sans-serif");
+            text.setAttribute("fill", "#475569");
+            text.setAttribute("opacity", labelOpacity);
+            text.textContent = c.label;
+            // 白底
+            const padX = 3, padY = 1.5;
+            const bg = svgNs("rect");
+            const w = c.label.length * 6.4 + padX * 2;
+            bg.setAttribute("x", mid.x - w / 2);
+            bg.setAttribute("y", mid.y - 7);
+            bg.setAttribute("width", w);
+            bg.setAttribute("height", 13);
+            bg.setAttribute("rx", "3");
+            bg.setAttribute("fill", "#ffffff");
+            bg.setAttribute("opacity", labelOpacity * 0.92);
+            svgEl.appendChild(bg);
+            svgEl.appendChild(text);
+          }
+        }
+
+        // 调整 svg 尺寸覆盖全部内容
+        svgEl.setAttribute("width", contentEl.scrollWidth);
+        svgEl.setAttribute("height", contentEl.scrollHeight);
+      }
+
+      // ============================================================
+      //  选中 & 详情面板
+      // ============================================================
+      function selectModule(id) {
+        STATE.selectedId = STATE.selectedId === id ? null : id;
+        applyCardStates();
+        renderConnections();
+        renderDetail();
+      }
+
+      function applyCardStates() {
+        const sel = STATE.selectedId;
+        const connected = new Set();
+        if (sel) {
+          connected.add(sel);
+          for (const c of CONNECTIONS) {
+            if (c.from === sel) connected.add(c.to);
+            if (c.to === sel) connected.add(c.from);
+          }
+        }
+        bandsEl.querySelectorAll(".card").forEach((card) => {
+          card.classList.remove("selected", "connected", "dimmed");
+          if (!sel) return;
+          if (card.dataset.id === sel) card.classList.add("selected");
+          else if (connected.has(card.dataset.id)) card.classList.add("connected");
+          else card.classList.add("dimmed");
+        });
+      }
+
+      const detailEl = document.getElementById("detail");
+      function renderDetail() {
+        const sel = STATE.selectedId;
+        if (!sel) {
+          detailEl.innerHTML = `
+            <div class="d-empty">
+              <span class="ico">◆</span>
+              点击任意模块<br />查看职责、文件路径与上下游
+            </div>`;
+          return;
+        }
+        const m = moduleById[sel];
+        const L = LAYERS[m.layer];
+        const incoming = CONNECTIONS.filter((c) => c.to === sel);
+        const outgoing = CONNECTIONS.filter((c) => c.from === sel);
+
+        const flowHtml = (list, isIn) =>
+          list
+            .map((c) => {
+              const otherId = isIn ? c.from : c.to;
+              const other = moduleById[otherId];
+              const lb = c.label ? `<span class="lb">${c.label}</span>` : "";
+              const arrow = isIn ? "←" : "→";
+              return `<div class="flow-chip" data-jump="${otherId}">
+                <span class="arr">${arrow}</span>
+                <span class="nm">${other.name}</span>
+                ${lb}
+              </div>`;
+            })
+            .join("");
+
+        detailEl.innerHTML = `
+          <span class="d-tag" style="background:${L.color}">${L.label}</span>
+          <h2>${m.name}</h2>
+          <div class="d-path mono">${m.path}</div>
+          <div class="d-role">${m.role}</div>
+          <div class="d-section">
+            <h4>上游（${incoming.length}）</h4>
+            ${incoming.length ? flowHtml(incoming, true) : '<div class="flow-chip" style="opacity:.5"><span class="nm">无</span></div>'}
+          </div>
+          <div class="d-section">
+            <h4>下游（${outgoing.length}）</h4>
+            ${outgoing.length ? flowHtml(outgoing, false) : '<div class="flow-chip" style="opacity:.5"><span class="nm">无</span></div>'}
+          </div>
+        `;
+        detailEl.querySelectorAll(".flow-chip[data-jump]").forEach((chip) => {
+          chip.addEventListener("click", () => {
+            const target = chip.dataset.jump;
+            const tMod = moduleById[target];
+            if (tMod && !STATE.layers.has(tMod.layer)) {
+              STATE.layers.add(tMod.layer);
+              STATE.preset = null;
+              renderAll();
+            } else {
+              selectModule(target);
+              ensureVisible(target);
+            }
+          });
+        });
+      }
+
+      function ensureVisible(id) {
+        const el = bandsEl.querySelector(`[data-id="${id}"]`);
+        if (!el) return;
+        const wrap = document.getElementById("canvasWrap");
+        const r = el.getBoundingClientRect();
+        const wr = wrap.getBoundingClientRect();
+        if (r.left < wr.left || r.right > wr.right || r.top < wr.top || r.bottom > wr.bottom) {
+          // 平移使其居中
+          const cx = r.left + r.width / 2;
+          const cy = r.top + r.height / 2;
+          STATE.tx += (wr.left + wr.width / 2) - cx;
+          STATE.ty += (wr.top + wr.height / 2) - cy;
+          applyTransform();
+        }
+      }
+
+      // ============================================================
+      //  控件：图层 / 连线 / 预设
+      // ============================================================
+      function renderLayerToggles() {
+        const el = document.getElementById("layerToggles");
+        el.innerHTML = "";
+        for (const key of LAYER_ORDER) {
+          const L = LAYERS[key];
+          const on = STATE.layers.has(key);
+          const count = MODULES.filter((m) => m.layer === key).length;
+          const row = document.createElement("div");
+          row.className = "layer-toggle" + (on ? "" : " off");
+          row.innerHTML = `
+            <span class="dot" style="background:${L.color}"></span>
+            <span class="name">${L.label}</span>
+            <span class="count">${count}</span>`;
+          row.addEventListener("click", () => {
+            if (STATE.layers.has(key)) STATE.layers.delete(key);
+            else STATE.layers.add(key);
+            STATE.preset = null;
+            renderAll();
+          });
+          el.appendChild(row);
+        }
+      }
+
+      function renderConnToggles() {
+        const el = document.getElementById("connToggles");
+        el.innerHTML = "";
+        for (const [key, t] of Object.entries(CONN_TYPES)) {
+          const on = STATE.connTypes.has(key);
+          const row = document.createElement("div");
+          row.className = "conn-toggle" + (on ? "" : " off");
+          const dashStyle = t.dash === "none" ? "solid" : t.dash === "2 4" ? "dotted" : "dashed";
+          row.innerHTML = `
+            <span class="line-sample" style="border-top: ${t.width}px ${dashStyle} ${t.color};"></span>
+            <span class="name">${t.label}</span>`;
+          row.addEventListener("click", () => {
+            if (STATE.connTypes.has(key)) STATE.connTypes.delete(key);
+            else STATE.connTypes.add(key);
+            renderConnToggles();
+            renderConnections();
+          });
+          el.appendChild(row);
+        }
+      }
+
+      function renderPresets() {
+        const el = document.getElementById("presets");
+        el.innerHTML = "";
+        for (const [key, p] of Object.entries(PRESETS)) {
+          const btn = document.createElement("button");
+          btn.className = "preset-btn" + (STATE.preset === key ? " active" : "");
+          btn.textContent = p.label;
+          btn.addEventListener("click", () => {
+            STATE.layers = new Set(p.layers);
+            STATE.preset = key;
+            STATE.selectedId = null;
+            renderAll();
+            setTimeout(fitToWindow, 30);
+          });
+          el.appendChild(btn);
+        }
+      }
+
+      // ============================================================
+      //  缩放 / 平移
+      // ============================================================
+      const scalerEl = document.getElementById("scaler");
+      const wrapEl = document.getElementById("canvasWrap");
+
+      function applyTransform() {
+        scalerEl.style.transform = `translate(${STATE.tx}px, ${STATE.ty}px) scale(${STATE.scale})`;
+        document.getElementById("zoomVal").textContent = Math.round(STATE.scale * 100) + "%";
+      }
+
+      function setScale(s, center) {
+        const newScale = Math.max(0.3, Math.min(2.2, s));
+        if (center) {
+          // 以鼠标位置为缩放中心
+          STATE.tx = center.x - (center.x - STATE.tx) * (newScale / STATE.scale);
+          STATE.ty = center.y - (center.y - STATE.ty) * (newScale / STATE.scale);
+        }
+        STATE.scale = newScale;
+        applyTransform();
+      }
+
+      function fitToWindow() {
+        const wrap = wrapEl.getBoundingClientRect();
+        const cw = contentEl.scrollWidth + 80;
+        const ch = contentEl.scrollHeight + 100;
+        const s = Math.min(wrap.width / cw, wrap.height / ch, 1.4);
+        STATE.scale = Math.max(0.3, s);
+        STATE.tx = Math.max(20, (wrap.width - contentEl.scrollWidth * STATE.scale) / 2);
+        STATE.ty = 20;
+        applyTransform();
+      }
+
+      // 滚轮缩放
+      wrapEl.addEventListener("wheel", (e) => {
+        e.preventDefault();
+        const rect = wrapEl.getBoundingClientRect();
+        const center = { x: e.clientX - rect.left, y: e.clientY - rect.top };
+        const factor = e.deltaY < 0 ? 1.12 : 1 / 1.12;
+        setScale(STATE.scale * factor, center);
+      }, { passive: false });
+
+      // 拖拽平移
+      let drag = null;
+      wrapEl.addEventListener("mousedown", (e) => {
+        if (e.target.closest(".card")) return;
+        drag = { x: e.clientX - STATE.tx, y: e.clientY - STATE.ty };
+        wrapEl.classList.add("dragging");
+      });
+      window.addEventListener("mousemove", (e) => {
+        if (!drag) return;
+        STATE.tx = e.clientX - drag.x;
+        STATE.ty = e.clientY - drag.y;
+        applyTransform();
+      });
+      window.addEventListener("mouseup", () => {
+        drag = null;
+        wrapEl.classList.remove("dragging");
+      });
+
+      // 点击空白取消选中
+      wrapEl.addEventListener("click", (e) => {
+        if (e.target.closest(".card")) return;
+        if (STATE.selectedId) {
+          STATE.selectedId = null;
+          applyCardStates();
+          renderConnections();
+          renderDetail();
+        }
+      });
+
+      document.getElementById("zoomIn").addEventListener("click", () => setScale(STATE.scale * 1.15));
+      document.getElementById("zoomOut").addEventListener("click", () => setScale(STATE.scale / 1.15));
+      document.getElementById("zoomFit").addEventListener("click", fitToWindow);
+
+      // ============================================================
+      //  复制架构说明（Markdown）
+      // ============================================================
+      function buildMarkdown() {
+        const lines = [];
+        lines.push("# AI 日报 · 项目架构说明");
+        lines.push("");
+        lines.push("> 由 architecture.html 导出。数据自上而下流动：采集 → 数据包 → 构建 → 渲染 → 发布。");
+        lines.push("");
+        for (const key of LAYER_ORDER) {
+          if (!STATE.layers.has(key)) continue;
+          const L = LAYERS[key];
+          lines.push(`## ${L.label}`);
+          lines.push(`> ${L.desc}`);
+          lines.push("");
+          for (const m of MODULES.filter((m) => m.layer === key)) {
+            lines.push(`- **${m.name}** \`${m.path}\` — ${m.role}`);
+          }
+          lines.push("");
+        }
+        return lines.join("\n");
+      }
+
+      const copyBtn = document.getElementById("copyBtn");
+      const toastEl = document.getElementById("toast");
+      copyBtn.addEventListener("click", async () => {
+        const md = buildMarkdown();
+        try {
+          await navigator.clipboard.writeText(md);
+        } catch {
+          // 降级
+          const ta = document.createElement("textarea");
+          ta.value = md;
+          document.body.appendChild(ta);
+          ta.select();
+          document.execCommand("copy");
+          ta.remove();
+        }
+        copyBtn.classList.add("copied");
+        copyBtn.textContent = "已复制 ✓";
+        toastEl.textContent = "架构说明已复制到剪贴板";
+        toastEl.classList.add("show");
+        setTimeout(() => {
+          copyBtn.classList.remove("copied");
+          copyBtn.textContent = "复制架构说明";
+          toastEl.classList.remove("show");
+        }, 1800);
+      });
+
+      // ============================================================
+      //  统一渲染入口
+      // ============================================================
+      function renderAll() {
+        renderBands();
+        renderLayerToggles();
+        renderConnToggles();
+        renderPresets();
+        applyCardStates();
+        // 连线需要在 DOM 布局后测量，延迟一帧
+        requestAnimationFrame(renderConnections);
+        renderDetail();
+      }
+
+      // ResizeObserver：布局变化重画连线
+      const ro = new ResizeObserver(() => requestAnimationFrame(renderConnections));
+      ro.observe(contentEl);
+
+      // 启动
+      renderAll();
+      requestAnimationFrame(() => {
+        fitToWindow();
+        // 首次提示
+        const hint = document.getElementById("hint");
+        hint.textContent = "拖拽平移 · 滚轮缩放 · 点击模块看详情";
+        hint.classList.add("show");
+        setTimeout(() => hint.classList.remove("show"), 3500);
+      });
+    </script>
+  </body>
+</html>

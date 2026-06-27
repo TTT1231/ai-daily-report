@@ -73,6 +73,13 @@ export const OVERLAY_SMALL_WIDTH = 640;
 export const OVERLAY_SMALL_HEIGHT = 360;
 export const OVERLAY_SMALL_AREA = 260000;
 
+// 推文/网页截图经常是 590px 左右宽、500px 以上高。它们不算低清小图，
+// 但也不适合直接撑到常规 overlay 的 760px 高度，所以走截图类高度上限。
+export const OVERLAY_MEDIUM_SCREENSHOT_MIN_WIDTH = 580;
+export const OVERLAY_MEDIUM_SCREENSHOT_MIN_HEIGHT = 500;
+export const OVERLAY_MEDIUM_SCREENSHOT_MIN_AREA = 320000;
+export const OVERLAY_MEDIUM_SCREENSHOT_MAX_ASPECT = 1.15;
+
 // ── Intro 概览 ──────────────────────────────────────────────────────────
 export const INTRO_GAP = 22;
 export const INTRO_VIEWPORT_HEIGHT = 700;

@@ -23,7 +23,9 @@ Read all rules before editing:
 2. Ensure the icon output directory exists before inspecting or writing icons:
    `mkdir -p data-scheme/icons`.
 3. Inspect existing SVG files, treating an empty newly created directory as a first-time generation.
-4. Decide which icons genuinely need generation or revision.
+4. Decide which icons genuinely need generation or revision. If some tabs already have an `icon`
+   field pointing to an existing valid SVG, treat those icons as locked: do not rewrite, redesign,
+   delete, or reassign them during incremental generation.
 5. Generate transparent SVGs at `data-scheme/icons/{storyId}-{tabId}.svg`.
 6. Update only the corresponding `icon` fields in `data-generate.json`. If the user is manually maintaining or replacing a story in `data-scheme/data.json`, mirror those same `icon` fields there too so the next `bun run tts` keeps them.
 7. Remove orphan icons only when they are no longer referenced.

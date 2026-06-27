@@ -20,15 +20,86 @@ export const GENERATE_SVG_ALLOWED_TOOLS = [
   "Bash(bun run comment:generate)",
 ];
 
-// 构造 claude CLI 调用 /generate-svg 时的参数，复用同一份 allowlist。
-// 与 prepare-video.mjs 的 generate-svg 步骤、package.json 的 generate-svg 入口保持同源。
-export function buildGenerateSvgArgs() {
+const GENERATE_SVG_BASE_ALLOWED_TOOLS = [
+  "Read",
+  "Glob",
+  "Grep",
+  "Edit(data-scheme/data-generate.json)",
+  "Edit(data-scheme/data.json)",
+  "Bash(mkdir -p data-scheme/icons)",
+  "Bash(bun run check-icons)",
+  "Bash(bun run lint)",
+  "Bash(bun run comment:generate)",
+];
+
+function iconToolPath(iconPath) {
+  if (typeof iconPath !== "string" || !/^icons\/[A-Za-z0-9_.-]+\.svg$/.test(iconPath)) {
+    return null;
+  }
+  return `data-scheme/${iconPath}`;
+}
+
+export function buildGenerateSvgAllowedTools({iconTargets = null} = {}) {
+  if (!Array.isArray(iconTargets) || iconTargets.length === 0) {
+    return GENERATE_SVG_ALLOWED_TOOLS;
+  }
+
+  const uniqueIconTargets = [...new Set(iconTargets)];
+  const targetPaths = uniqueIconTargets.map(iconToolPath).filter(Boolean);
+  if (targetPaths.length === 0 || targetPaths.length !== uniqueIconTargets.length) {
+    return GENERATE_SVG_ALLOWED_TOOLS;
+  }
+
+  return [
+    ...GENERATE_SVG_BASE_ALLOWED_TOOLS,
+    ...targetPaths.flatMap((targetPath) => [`Write(${targetPath})`, `Edit(${targetPath})`]),
+  ];
+}
+
+export function buildGenerateSvgArgs({
+  automation = false,
+  preflightErrors = [],
+  iconTargets = null,
+} = {}) {
+  const allowedTools = buildGenerateSvgAllowedTools({iconTargets});
+  const promptLines = ["/generate-svg"];
+
+  promptLines.push(
+    "",
+    "Incremental generation constraint:",
+    "- Treat tabs with an existing icon field that points to a valid SVG file as locked.",
+    "- Do not rewrite, redesign, delete, or reassign valid existing icons.",
+    "- Only generate or fix tabs whose icon field is missing, points to a missing file, or fails SVG validation.",
+    "- Preserve valid icon fields in both data-scheme/data-generate.json and data-scheme/data.json.",
+  );
+
+  if (Array.isArray(iconTargets) && iconTargets.length > 0) {
+    promptLines.push("", "Writable icon targets:", ...iconTargets.map((target) => `- ${target}`));
+  }
+
+  if (preflightErrors.length > 0) {
+    promptLines.push("", "Preflight issues to fix:");
+    for (const error of preflightErrors) {
+      promptLines.push(`- ${error}`);
+    }
+  }
+
+  if (automation) {
+    promptLines.push(
+      "",
+      "Automation constraint: finish after static SVG and data validation.",
+      "Do not start bun run dev, Remotion Studio, rendering, or any other preview workflow.",
+    );
+  }
+
+  const prompt = promptLines.join("\n");
+
   return [
     "--allowedTools",
-    ...GENERATE_SVG_ALLOWED_TOOLS,
+    ...allowedTools,
     "-p",
     "--effort",
     "low",
-    "/generate-svg",
+    prompt,
   ];
 }

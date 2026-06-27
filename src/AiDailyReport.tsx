@@ -33,6 +33,10 @@ import {
   getTabLayout,
   INTRO_GAP,
   INTRO_VIEWPORT_HEIGHT,
+  OVERLAY_MEDIUM_SCREENSHOT_MAX_ASPECT,
+  OVERLAY_MEDIUM_SCREENSHOT_MIN_AREA,
+  OVERLAY_MEDIUM_SCREENSHOT_MIN_HEIGHT,
+  OVERLAY_MEDIUM_SCREENSHOT_MIN_WIDTH,
   OVERLAY_SMALL_AREA,
   OVERLAY_SMALL_HEIGHT,
   OVERLAY_SMALL_WIDTH,
@@ -462,15 +466,21 @@ export const getOverlayImageLayout = (scene: DailyScene) => {
     width / height < 0.85 &&
     height >= OVERLAY_SMALL_HEIGHT &&
     width * height >= OVERLAY_SMALL_AREA;
+  const mediumScreenshot =
+    width >= OVERLAY_MEDIUM_SCREENSHOT_MIN_WIDTH &&
+    height >= OVERLAY_MEDIUM_SCREENSHOT_MIN_HEIGHT &&
+    width * height >= OVERLAY_MEDIUM_SCREENSHOT_MIN_AREA &&
+    width / height <= OVERLAY_MEDIUM_SCREENSHOT_MAX_ASPECT;
+  const screenshotLike = tallNarrow || mediumScreenshot;
   const small =
-    !tallNarrow &&
+    !screenshotLike &&
     (width < OVERLAY_SMALL_WIDTH ||
       height < OVERLAY_SMALL_HEIGHT ||
       width * height < OVERLAY_SMALL_AREA);
   const maxWidth = small ? OVERLAY_SMALL_MAX_WIDTH : OVERLAY_MAX_WIDTH;
   const maxHeight = small
     ? OVERLAY_SMALL_MAX_HEIGHT
-    : tallNarrow
+    : screenshotLike
       ? OVERLAY_PORTRAIT_MAX_HEIGHT
       : OVERLAY_MAX_HEIGHT;
   const maxUpscale = small ? OVERLAY_SMALL_MAX_UPSCALE : OVERLAY_MAX_UPSCALE;

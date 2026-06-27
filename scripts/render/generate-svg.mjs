@@ -7,17 +7,97 @@
 //
 // 不使用 --dangerously-skip-permissions：generate-svg 处理的是 RSS 抓来的不可信标题/描述，
 // 精确 allowlist 即便在提示注入下也能把越界操作拦在权限层。
-import { spawn } from "node:child_process";
-import { buildGenerateSvgArgs } from "../lib/claude-allowlist.mjs";
-import { rootDir } from "../lib/paths.mjs";
+import {spawn, spawnSync} from "node:child_process";
+import {existsSync} from "node:fs";
+import {dirname, resolve} from "node:path";
+import {buildGenerateSvgArgs} from "../lib/claude-allowlist.mjs";
+import {getGenerateSvgPreflight, printGenerateSvgPreflight} from "../lib/generate-svg-preflight.mjs";
+import {rootDir} from "../lib/paths.mjs";
+
+const args = process.argv.slice(2);
+const automation = args.includes("--automation");
+const force = args.includes("--force") || process.env.AI_DAILY_REPORT_FORCE_GENERATE_SVG === "1";
+const preflight = await getGenerateSvgPreflight({force});
+printGenerateSvgPreflight(preflight);
+
+if (preflight.skip) {
+  process.exit(0);
+}
+
+function whereExecutable(name) {
+  const result = spawnSync("where.exe", [name], {
+    encoding: "utf8",
+    windowsHide: true,
+  });
+  if (result.status !== 0) return [];
+  return result.stdout
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean);
+}
+
+function addDirectory(directories, directory) {
+  if (!directory || !existsSync(directory)) return;
+  directories.push(directory);
+}
+
+function buildClaudeEnv() {
+  const env = {...process.env, PYTHONUTF8: "1"};
+  if (process.platform !== "win32") return env;
+
+  const pathKey = Object.keys(env).find((key) => key.toLowerCase() === "path") ?? "Path";
+  const preferredDirectories = [];
+
+  for (const executable of [...whereExecutable("python3"), ...whereExecutable("python")]) {
+    if (/\\Microsoft\\WindowsApps\\/i.test(executable)) continue;
+    addDirectory(preferredDirectories, dirname(executable));
+  }
+
+  for (const executable of whereExecutable("bash")) {
+    if (/\\Microsoft\\WindowsApps\\/i.test(executable)) continue;
+    if (/\\Windows\\System32\\bash\.exe$/i.test(executable)) continue;
+    addDirectory(preferredDirectories, dirname(executable));
+  }
+
+  for (const executable of whereExecutable("git")) {
+    const gitDir = dirname(executable);
+    addDirectory(preferredDirectories, gitDir);
+    if (/\\cmd$/i.test(gitDir)) {
+      addDirectory(preferredDirectories, resolve(gitDir, "..", "bin"));
+    }
+  }
+
+  const pathEntries = [...preferredDirectories, ...(env[pathKey] ?? "").split(";")];
+  const seen = new Set();
+  env[pathKey] = pathEntries
+    .map((entry) => entry.trim())
+    .filter(Boolean)
+    .filter((entry) => {
+      const key = entry.toLowerCase();
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    })
+    .join(";");
+
+  return env;
+}
 
 const claudeCommand = process.platform === "win32" ? "claude.exe" : "claude";
-const child = spawn(claudeCommand, buildGenerateSvgArgs(), {
-  cwd: rootDir,
-  env: process.env,
-  stdio: "inherit",
-  shell: false,
-});
+const child = spawn(
+  claudeCommand,
+  buildGenerateSvgArgs({
+    automation,
+    preflightErrors: preflight.errors,
+    iconTargets: preflight.iconTargets,
+  }),
+  {
+    cwd: rootDir,
+    env: buildClaudeEnv(),
+    stdio: "inherit",
+    shell: false,
+  },
+);
 
 child.on("error", (error) => {
   console.error(`无法启动 claude (${claudeCommand}): ${error.message}`);
