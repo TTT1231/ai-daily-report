@@ -80,10 +80,18 @@ func run() int {
 	fmt.Println("[4/6] 合并相似新闻")
 	groups, err := groupSimilarNews(config.AI, scored, items)
 	if err != nil {
-		fmt.Printf("   ⚠️  警告：AI 合并失败，改用本地分组：%v\n", err)
-		groups = fallbackGroups(scored)
+		fmt.Printf("失败：AI 粗合并失败：%v\n", err)
+		return 1
 	}
-	fmt.Printf("   完成：生成 %d 个新闻主题\n\n", len(groups))
+	fmt.Printf("   完成：粗分组为 %d 个新闻主题\n\n", len(groups))
+
+	fmt.Println("[4.5/6] 内容感知合并相似 Story")
+	groups, err = mergeStoriesWithContent(config.AI, groups, items)
+	if err != nil {
+		fmt.Printf("失败：内容感知合并失败：%v\n", err)
+		return 1
+	}
+	fmt.Printf("   完成：合并为 %d 个新闻主题\n\n", len(groups))
 
 	fmt.Println("[5/6] 生成视频 Tabs 与字幕")
 	groups, err = generateStoryTabs(config.AI, groups, items)
