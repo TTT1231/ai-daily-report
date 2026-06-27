@@ -1,8 +1,11 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"sort"
+	"strings"
+	"time"
 )
 
 // storyMergeResult 是 LLM 对"哪些粗分组应合并成一个最终 Story"的决策。
@@ -113,4 +116,62 @@ func capHighlights(highlights []NewsHighlight, sources []int, items []Item, limi
 		}
 	}
 	return out
+}
+
+const mergeExcerptRunes = 400 // 每个来源送给合并 LLM 的正文摘录上限
+
+// mergeStoriesWithContent 读每个粗分组的来源正文，让 LLM 合并同事件粗分组并清洗标题。
+// 重试 3 次；请求失败 / JSON 无法解析 / 结构无法修补时返回 error（fail-fast，不降级）。
+func mergeStoriesWithContent(ai AIConfig, groups []NewsGroup, items []Item) ([]NewsGroup, error) {
+	if len(groups) <= 1 {
+		return groups, nil
+	}
+	userPrompt := buildStoryMergePrompt(groups, items)
+	messages := []ChatMessage{
+		{Role: "system", Content: storyMergeSystemPrompt},
+		{Role: "user", Content: userPrompt},
+	}
+	const maxAttempts = 3
+	var lastErr error
+	for attempt := 1; attempt <= maxAttempts; attempt++ {
+		content, err := requestModel(ai, messages)
+		if err != nil {
+			lastErr = err
+		} else {
+			var results []storyMergeResult
+			if jerr := json.Unmarshal([]byte(extractJSON(content)), &results); jerr == nil {
+				if merged, aerr := applyStoryMerge(groups, results, items); aerr == nil {
+					return merged, nil
+				} else {
+					lastErr = aerr
+				}
+			} else {
+				lastErr = jerr
+			}
+		}
+		if attempt < maxAttempts {
+			time.Sleep(time.Duration(attempt) * 5 * time.Second)
+		}
+	}
+	return nil, fmt.Errorf("内容感知合并重试 %d 次仍失败: %w", maxAttempts, lastErr)
+}
+
+// buildStoryMergePrompt 为每个粗分组拼出标题/理由 + 代表来源正文摘录。
+func buildStoryMergePrompt(groups []NewsGroup, items []Item) string {
+	var b strings.Builder
+	for i, g := range groups {
+		fmt.Fprintf(&b, "粗分组 %d\n主题：%s\n理由：%s\n来源正文：\n", i+1, g.Title, g.Reason)
+		for _, idx := range representativeSourceIndexes(g) {
+			if idx < 1 || idx > len(items) {
+				continue
+			}
+			excerpt := cleanRSS2ItemText(items[idx-1])
+			if r := []rune(excerpt); len(r) > mergeExcerptRunes {
+				excerpt = string(r[:mergeExcerptRunes])
+			}
+			fmt.Fprintf(&b, "· 来源 %d：%s\n", idx, excerpt)
+		}
+		b.WriteString("\n")
+	}
+	return b.String()
 }

@@ -1,7 +1,10 @@
 package main
 
 import (
+	"net/http"
+	"net/http/httptest"
 	"reflect"
+	"strings"
 	"testing"
 )
 
@@ -85,4 +88,62 @@ func makeItems(n int) []Item {
 		items[i] = Item{Title: "t"}
 	}
 	return items
+}
+
+// jsonString 把任意字符串包成 JSON 字符串字面量（简易实现，足够测试用）。
+func jsonString(s string) string {
+	var b strings.Builder
+	b.WriteByte('"')
+	for _, r := range s {
+		switch r {
+		case '"':
+			b.WriteString(`\"`)
+		case '\\':
+			b.WriteString(`\\`)
+		case '\n':
+			b.WriteString(`\n`)
+		default:
+			b.WriteRune(r)
+		}
+	}
+	b.WriteByte('"')
+	return b.String()
+}
+
+// mock 模型返回合并 JSON，断言 mergeStoriesWithContent 调用 applyStoryMerge 产出合并结果。
+func TestMergeStoriesWithContent(t *testing.T) {
+	// FIXED: brief 原始 fixture 缺少 highlights 数组的闭合 ]，已补全为合法 JSON。
+	body := `[{"merged_groups":[1,2],"title":"美国政府要求 OpenAI 分批发布 GPT-5.6","navigation_title":"GPT-5.6","highlights":[{"index":1,"point":"p1"}]},{"merged_groups":[3],"title":"DeepSeek 扩张","navigation_title":"DeepSeek","highlights":[{"index":5,"point":"p5"}]}]`
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write([]byte(`{"choices":[{"message":{"role":"assistant","content":` + jsonString(body) + `}}]}`))
+	}))
+	defer srv.Close()
+
+	groups := []NewsGroup{
+		{Title: "GPT-5.6 分批发布", Score: 8, SourceIndexes: []int{1}, Highlights: []NewsHighlight{{Index: 1, Point: "p1"}}},
+		{Title: "GPT5.6 受政府要求", Score: 7, SourceIndexes: []int{2}, Highlights: []NewsHighlight{{Index: 2, Point: "p2"}}},
+		{Title: "DeepSeek 扩张", Score: 9, SourceIndexes: []int{5}, Highlights: []NewsHighlight{{Index: 5, Point: "p5"}}},
+	}
+	ai := AIConfig{APIKey: "k", BaseURL: srv.URL, Model: "test"}
+	out, err := mergeStoriesWithContent(ai, groups, makeItems(5))
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(out) != 2 {
+		t.Fatalf("want 2 merged stories, got %d", len(out))
+	}
+	// 结果按 Score 降序：DeepSeek(9) 在前，GPT 合并(8) 在后；按标题识别合并条目。
+	var merged *NewsGroup
+	for i := range out {
+		if out[i].Title == "美国政府要求 OpenAI 分批发布 GPT-5.6" {
+			merged = &out[i]
+			break
+		}
+	}
+	if merged == nil {
+		t.Fatalf("merged GPT story not found in output")
+	}
+	if !reflect.DeepEqual(merged.SourceIndexes, []int{1, 2}) {
+		t.Errorf("merged SourceIndexes = %v, want [1 2]", merged.SourceIndexes)
+	}
 }
