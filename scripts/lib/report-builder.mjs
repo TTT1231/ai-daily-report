@@ -139,8 +139,8 @@ export function buildGeneratedReport(
   return report;
 }
 
-// 构建期按 overlayImg 文件真实像素写入 overlayImgWidth/Height。
-// raw 里的宽高只是提示；生成态先清旧值，再以文件为准。
+// overlayImgWidth/Height 是 generated-only：构建期按 overlayImg 文件真实像素写入
+// data-generate.json。生成态先清旧值再以文件为准（rss 不写，raw 手填也会被清掉重算）。
 function applyOverlayDimensions(report, dataDir) {
   for (const scene of collectTimelineScenes(report)) {
     delete scene.overlayImgWidth;

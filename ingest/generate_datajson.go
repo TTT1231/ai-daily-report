@@ -41,12 +41,10 @@ type DataJSONTab struct {
 }
 
 type DataJSONScene struct {
-	ID               string  `json:"id"`
-	Subtitle         string  `json:"subtitle"`
-	OverlayImg       string  `json:"overlayImg,omitempty"`
-	OverlayImgWidth  int     `json:"overlayImgWidth,omitempty"`
-	OverlayImgHeight int     `json:"overlayImgHeight,omitempty"`
-	OverlayImgScale  float64 `json:"overlayImgScale,omitempty"`
+	ID              string  `json:"id"`
+	Subtitle        string  `json:"subtitle"`
+	OverlayImg      string  `json:"overlayImg,omitempty"`
+	OverlayImgScale float64 `json:"overlayImgScale,omitempty"`
 }
 
 // defaultDataJSONPath 确定 data.json 输出路径：优先用 REPORT_DATA_PATH 环境变量，否则用项目根目录下的 data-scheme/data.json。
@@ -104,8 +102,6 @@ func generateDataJSON(path string, groups []NewsGroup, items []Item) error {
 			}
 			if overlay := overlayImageForTab(group, tab, usedImages); overlay.Path != "" {
 				scene.OverlayImg = overlay.Path
-				scene.OverlayImgWidth = overlay.Width
-				scene.OverlayImgHeight = overlay.Height
 			}
 			story.Scenes = append(story.Scenes, scene)
 		}

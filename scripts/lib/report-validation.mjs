@@ -51,8 +51,8 @@ export function validateOverlayImageDimensions(scene, scenePath, errors) {
   }
   if (!hasWidth) return;
 
-  // 尺寸是否与文件一致不再校验：构建期由 report-builder 按文件真相重算写入
-  // data-generate.json，raw data.json 里的 overlayImgWidth/Height 仅作可选提示。
+  // 尺寸是否与文件一致不再校验：overlayImgWidth/Height 是 generated-only，
+  // 由 report-builder 构建期按文件真相写入 data-generate.json（rss 不写、raw 不落盘）。
 }
 
 export function validateReport(report, {renderMode = false, checkAssets = true} = {}) {

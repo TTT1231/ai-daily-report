@@ -201,12 +201,12 @@
         "overlayImgWidth": {
           "type": "integer",
           "minimum": 1,
-          "description": "可选（raw 提示）。overlayImg 的原始像素宽度；构建期按文件真实像素重算写入 data-generate.json，raw 里可留空。"
+          "description": "generated-only。overlayImg 的原始像素宽度；由 tts 构建期按文件真实像素写入 data-generate.json（Remotion 实际读取的 props），raw data.json 不落盘（rss 不写，手填也会被构建覆盖）。"
         },
         "overlayImgHeight": {
           "type": "integer",
           "minimum": 1,
-          "description": "可选（raw 提示）。overlayImg 的原始像素高度；构建期按文件真实像素重算写入 data-generate.json，raw 里可留空。"
+          "description": "generated-only。overlayImg 的原始像素高度；由 tts 构建期按文件真实像素写入 data-generate.json（Remotion 实际读取的 props），raw data.json 不落盘（rss 不写，手填也会被构建覆盖）。"
         },
         "overlayImgScale": {
           "type": "number",

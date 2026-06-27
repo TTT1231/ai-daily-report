@@ -413,8 +413,8 @@ func TestGenerateDataJSONAssignsOverlayImagesByEvidence(t *testing.T) {
 		SourceIndexes: []int{1, 2},
 		Highlights:    []NewsHighlight{{Index: 1, Point: "来源一"}, {Index: 2, Point: "来源二"}},
 		ImageAssets: []StoryImage{
-			{SourceIndex: 1, Path: "images/source-one.png", Width: 320, Height: 180},
-			{SourceIndex: 2, Path: "images/source-two.png", Width: 1280, Height: 720},
+			{SourceIndex: 1, Path: "images/source-one.png"},
+			{SourceIndex: 2, Path: "images/source-two.png"},
 		},
 		Tabs: []StoryTab{
 			{Title: "第一张", Summary: "第一张图支撑的摘要内容。", EvidenceIndexes: []int{1}},
@@ -440,11 +440,7 @@ func TestGenerateDataJSONAssignsOverlayImagesByEvidence(t *testing.T) {
 	}
 	scenes := report.Stories[0].Scenes
 	if scenes[0].OverlayImg != "images/source-one.png" ||
-		scenes[0].OverlayImgWidth != 320 ||
-		scenes[0].OverlayImgHeight != 180 ||
 		scenes[1].OverlayImg != "images/source-two.png" ||
-		scenes[1].OverlayImgWidth != 1280 ||
-		scenes[1].OverlayImgHeight != 720 ||
 		scenes[2].OverlayImg != "" {
 		t.Fatalf("unexpected overlay assignment: %#v", scenes)
 	}

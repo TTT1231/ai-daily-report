@@ -31,8 +31,6 @@ func generateStoryTabs(ai AIConfig, groups []NewsGroup, items []Item) ([]NewsGro
 					SourceTitle: result.SourceTitle,
 					URL:         result.ImageURL,
 					Path:        result.OverlayPath,
-					Width:       result.OverlayW,
-					Height:      result.OverlayH,
 					Facts:       append([]string(nil), result.Facts...),
 					Uncertain:   append([]string(nil), result.Uncertain...),
 					Summary:     result.Summary,

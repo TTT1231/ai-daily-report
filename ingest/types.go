@@ -114,8 +114,6 @@ type StoryImage struct {
 	SourceTitle string   // 来源标题，便于调试与后续素材匹配。
 	URL         string   // 原始远程图片地址。
 	Path        string   // data-scheme 内的相对路径，例如 images/topic-xxx.png。
-	Width       int      // 图片原始宽度，用于渲染时限制放大倍率。
-	Height      int      // 图片原始高度，用于渲染时限制放大倍率。
 	Facts       []string // Claude 视觉识别出的确定事实。
 	Uncertain   []string // Claude 视觉识别出的不确定信息。
 	Summary     string   // Claude 视觉识别摘要。

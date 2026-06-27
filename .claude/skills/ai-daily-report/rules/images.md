@@ -18,7 +18,7 @@
 
 给 **scene** 加 `overlayImg` 字段（**注意：是 scene 级，不是 story 级、不是 tab 级**）。
 
-`overlayImgWidth` / `overlayImgHeight` 由构建按图片文件**真实像素**自动写入 `data-generate.json`，**无需手填**；值是原始像素，不是想让它显示成多大，渲染层用它们限制小图放大。raw 里写了只当提示、会被构建按文件真相覆盖；两个字段要么都不填、要么一起填（只填一个会被 `bun run check-data-json` 报出来）。
+`overlayImgWidth` / `overlayImgHeight` 是 **generated-only**：由 tts 构建期按图片文件**真实像素**写入 `data-generate.json`（Remotion 实际读取的 props），**无需手填**；值是原始像素，不是想让它显示成多大，渲染层用它们限制小图放大。rss 只写 `overlayImg` 路径、不写尺寸，手动写进 raw 也会被构建按文件真相覆盖。
 
 如果只有某一张图想再大一点或小一点，在这个 scene 上加 `overlayImgScale`，例如 `1.2`。它是人工微调的基础倍率，只影响当前图片，并会和正常的入场/聚焦动画叠加；不要去改 `SourceOverlay` 里的全局样式，否则后面的所有 overlay 图都会一起变大。
 
@@ -85,7 +85,7 @@ bun run dev
 自动模式（`bun run video:prepare`）下，`CLAUDE_VISION_ENABLED=true` 时，`ingest/vision.go` 会对达到日报入选线（Score ≥7）且含远程图的 Story 做视觉识别和自动配图。Story 按分数降序处理，分数高的先消耗预算；总量仍由 `CLAUDE_VISION_MAX_CALLS`、`CLAUDE_VISION_MAX_IMAGES_PER_SOURCE` 和 `CLAUDE_VISION_MAX_BUDGET_USD` 封顶。
 
 1. **提取事实**：调 `claude` 识别图片内容，补充到文案。Claude 子进程只允许 `mcp__*` 和 `WebFetch`，不放行 `Bash`、`Write`、`Edit`。
-2. **自动配图**：用聚类后的 Story 标题、重要性和要点做相关性判断。证据图、示意图、数据/评测图、产品截图、官方物料都算相关；纯表情包、头像、签名装饰图、与 Story 无关的截图会被判不相关。相关后，把该图下载到 `data-scheme/images/` 并写入对应 scene 的 `overlayImg`（带原始宽高，供 `SourceOverlay` 布局用）。
+2. **自动配图**：用聚类后的 Story 标题、重要性和要点做相关性判断。证据图、示意图、数据/评测图、产品截图、官方物料都算相关；纯表情包、头像、签名装饰图、与 Story 无关的截图会被判不相关。相关后，把该图下载到 `data-scheme/images/` 并写入对应 scene 的 `overlayImg` 路径；原始宽高由 tts 构建期按文件算进 `data-generate.json`、供 `SourceOverlay` 布局用（rss 不把尺寸写进 `data.json`）。
 
 远程图下载遇到网络错误、HTTP 429 或 5xx 会短暂重试；404、格式不支持、图片过大或疑似头像/Logo 这类永久性问题会直接跳过，不中断整期日报生成。
 

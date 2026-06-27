@@ -47,8 +47,6 @@ type VisionResult struct {
 	SourceTitle string   `json:"-"`
 	ImageURL    string   `json:"-"`
 	OverlayPath string   `json:"-"`
-	OverlayW    int      `json:"-"`
-	OverlayH    int      `json:"-"`
 }
 
 type VisionAnalyzer struct {
@@ -110,8 +108,6 @@ func (analyzer *VisionAnalyzer) analyzeItem(sourceIndex int, item Item, group Ne
 				fmt.Printf("   ⚠️  警告：图片可作为事实补充，但未写入 overlayImg：%v\n", err)
 			} else {
 				result.OverlayPath = overlay.Path
-				result.OverlayW = overlay.Width
-				result.OverlayH = overlay.Height
 			}
 			results = append(results, result)
 			continue
