@@ -118,6 +118,9 @@ func capHighlights(highlights []NewsHighlight, sources []int, items []Item, limi
 	return out
 }
 
+// storyMergeBackoff returns the wait before the given retry attempt (1-based). Overridable in tests.
+var storyMergeBackoff = func(attempt int) time.Duration { return time.Duration(attempt) * 5 * time.Second }
+
 const mergeExcerptRunes = 400 // 每个来源送给合并 LLM 的正文摘录上限
 
 // mergeStoriesWithContent 读每个粗分组的来源正文，让 LLM 合并同事件粗分组并清洗标题。
@@ -150,7 +153,7 @@ func mergeStoriesWithContent(ai AIConfig, groups []NewsGroup, items []Item) ([]N
 			}
 		}
 		if attempt < maxAttempts {
-			time.Sleep(time.Duration(attempt) * 5 * time.Second)
+			time.Sleep(storyMergeBackoff(attempt))
 		}
 	}
 	return nil, fmt.Errorf("内容感知合并重试 %d 次仍失败: %w", maxAttempts, lastErr)

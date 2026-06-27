@@ -6,6 +6,7 @@ import (
 	"reflect"
 	"strings"
 	"testing"
+	"time"
 )
 
 // 两个同事件粗分组 + 一个独立粗分组；LLM 决定合并前两个。
@@ -25,6 +26,9 @@ func TestApplyStoryMergeMergesSameEvent(t *testing.T) {
 	}
 	if len(out) != 2 {
 		t.Fatalf("want 2 stories, got %d", len(out))
+	}
+	if len(out) > len(groups) {
+		t.Fatalf("output %d stories > input %d groups: merge must not increase count", len(out), len(groups))
 	}
 	// 找到合并后的故事（按标题识别）
 	var merged *NewsGroup
@@ -145,5 +149,33 @@ func TestMergeStoriesWithContent(t *testing.T) {
 	}
 	if !reflect.DeepEqual(merged.SourceIndexes, []int{1, 2}) {
 		t.Errorf("merged SourceIndexes = %v, want [1 2]", merged.SourceIndexes)
+	}
+}
+
+// LLM 每次都返回不可解析的垃圾 JSON → 重试 3 次后 fail-fast 返回 error。
+func TestMergeStoriesWithContentRetryExhaustion(t *testing.T) {
+	var callCount int
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		callCount++
+		_, _ = w.Write([]byte(`{"choices":[{"message":{"role":"assistant","content":"NOT VALID JSON"}}]}`))
+	}))
+	defer srv.Close()
+
+	// 用零延迟让重试瞬间完成（测试必须在 <1s 内跑完）。
+	orig := storyMergeBackoff
+	storyMergeBackoff = func(int) time.Duration { return 0 }
+	t.Cleanup(func() { storyMergeBackoff = orig })
+
+	groups := []NewsGroup{
+		{Title: "A", Score: 8, SourceIndexes: []int{1}, Highlights: []NewsHighlight{{Index: 1, Point: "a"}}},
+		{Title: "B", Score: 7, SourceIndexes: []int{2}, Highlights: []NewsHighlight{{Index: 2, Point: "b"}}},
+	}
+	ai := AIConfig{APIKey: "k", BaseURL: srv.URL, Model: "test"}
+	_, err := mergeStoriesWithContent(ai, groups, makeItems(2))
+	if err == nil {
+		t.Fatal("want error when all retries fail, got nil")
+	}
+	if callCount != 3 {
+		t.Errorf("want mock called 3 times (full retry), got %d", callCount)
 	}
 }
