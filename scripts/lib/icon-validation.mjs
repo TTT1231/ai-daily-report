@@ -6,7 +6,7 @@ export const ICON_PATTERN = /^icons\/.+\.svg$/;
 export const MAX_SVG_BYTES = 2048;
 const SAFE_ICON_SEGMENT = /^[A-Za-z0-9_-]+$/;
 
-function defaultIconPathForTab(storyId, tabId) {
+export function defaultIconPathForTab(storyId, tabId) {
   if (!SAFE_ICON_SEGMENT.test(storyId ?? "") || !SAFE_ICON_SEGMENT.test(tabId ?? "")) {
     return null;
   }

@@ -1,19 +1,20 @@
 // generate-svg 的 npm 手动入口 wrapper。
 //
-// 原先 package.json 的 generate-svg 脚本是把整条 claude 命令（含 allowlist）以 shell 字符串
-// 内联，与 prepare-video.mjs 自动流程用的是同一份 allowlist 的两份拷贝，靠注释同步、容易漂移。
-// 这里改成由 node 构造命令：allowlist 从 scripts/lib/claude-allowlist.mjs（单一数据源）取，
-// 与 prepare-video.mjs 的 generate-svg 步骤同源；对外仍是 `bun run generate-svg`，行为不变。
-//
-// 不使用 --dangerously-skip-permissions：generate-svg 处理的是 RSS 抓来的不可信标题/描述，
-// 精确 allowlist 即便在提示注入下也能把越界操作拦在权限层。
+// Claude 只负责一次性产出 SVG JSON payload；Node 本地负责写 SVG、更新 icon 字段和校验。
+// 这样保留模型的语义/审美判断，同时避免让 agent 逐文件读写带来的分钟级工具往返。
 import {spawn, spawnSync} from "node:child_process";
 import {existsSync} from "node:fs";
 import {readFile} from "node:fs/promises";
 import {dirname, resolve} from "node:path";
-import {buildGenerateSvgArgs} from "../lib/claude-allowlist.mjs";
+import {buildGenerateSvgPayloadArgs} from "../lib/claude-allowlist.mjs";
 import {getGenerateSvgPreflight, printGenerateSvgPreflight} from "../lib/generate-svg-preflight.mjs";
-import {rootDir} from "../lib/paths.mjs";
+import {
+  applyGenerateSvgPayload,
+  buildGenerateSvgPayloadPrompt,
+  buildGenerateSvgTargetPlan,
+  parseGenerateSvgPayload,
+} from "../lib/generate-svg-payload.mjs";
+import {dataDir, generatedDataPath, rawDataPath, readJson, rootDir} from "../lib/paths.mjs";
 
 const args = process.argv.slice(2);
 const automation = args.includes("--automation");
@@ -117,33 +118,131 @@ async function readGenerateSvgSkillPrompt() {
   return sections;
 }
 
-const promptPrefix = await readGenerateSvgSkillPrompt();
 const claudeCommand = process.platform === "win32" ? "claude.exe" : "claude";
-const child = spawn(
-  claudeCommand,
-  [
-    ...buildBareSettingsArgs(),
-    ...buildGenerateSvgArgs({
-      automation,
-      preflightErrors: preflight.errors,
-      iconTargets: preflight.iconTargets,
-      promptPrefix,
-    }),
-  ],
-  {
-    cwd: rootDir,
-    env: buildClaudeEnv(),
-    stdio: "inherit",
-    shell: false,
-  },
-);
 
-child.on("error", (error) => {
-  console.error(`无法启动 claude (${claudeCommand}): ${error.message}`);
-  console.error("请确认 Claude CLI 已安装并在 PATH 中。");
+function requestClaudePayload(prompt) {
+  return new Promise((resolve, reject) => {
+    const child = spawn(
+      claudeCommand,
+      [
+        ...buildBareSettingsArgs(),
+        ...buildGenerateSvgPayloadArgs({prompt}),
+      ],
+      {
+        cwd: rootDir,
+        env: buildClaudeEnv(),
+        stdio: ["ignore", "pipe", "pipe"],
+        shell: false,
+      },
+    );
+
+    let stdout = "";
+    let stderr = "";
+
+    child.stdout.on("data", (chunk) => {
+      stdout += chunk;
+    });
+    child.stderr.on("data", (chunk) => {
+      const text = String(chunk);
+      stderr += text;
+      process.stderr.write(text);
+    });
+
+    child.on("error", (error) => {
+      reject(new Error(`无法启动 claude (${claudeCommand}): ${error.message}`));
+    });
+
+    child.on("close", (code) => {
+      if (code === 0) {
+        resolve(stdout);
+      } else {
+        reject(new Error(`claude payload exited ${code ?? "null"}${stderr ? `\n${stderr}` : ""}`));
+      }
+    });
+  });
+}
+
+function runCommand(command, commandArgs, name) {
+  return new Promise((resolve, reject) => {
+    const child = spawn(command, commandArgs, {
+      cwd: rootDir,
+      env: process.env,
+      stdio: "inherit",
+      shell: false,
+    });
+
+    child.on("error", (error) => {
+      reject(new Error(`无法启动 ${name}: ${error.message}`));
+    });
+
+    child.on("close", (code) => {
+      if (code === 0) {
+        resolve();
+      } else {
+        reject(new Error(`${name} exited ${code ?? "null"}`));
+      }
+    });
+  });
+}
+
+async function runPostGenerationChecks() {
+  const bunCommand = process.platform === "win32" ? "bun.exe" : "bun";
+  await runCommand(bunCommand, ["run", "check-icons"], "bun run check-icons");
+  await runCommand(bunCommand, ["run", "lint"], "bun run lint");
+  await runCommand(bunCommand, ["run", "comment:generate"], "bun run comment:generate");
+}
+
+async function runStructuredPayloadMode({promptPrefix}) {
+  const report = await readJson(generatedDataPath, "data-scheme/data-generate.json");
+  const targetPlan = buildGenerateSvgTargetPlan(report, {
+    dataDir,
+    force,
+  });
+
+  if (targetPlan.targets.length === 0) {
+    throw new Error("no payload targets could be derived from preflight issues.");
+  }
+
+  console.log(`generate-svg: requesting one Claude SVG payload for ${targetPlan.targets.length} icon(s).`);
+
+  const prompt = buildGenerateSvgPayloadPrompt({
+    promptPrefix,
+    targets: targetPlan.targets,
+    preflightErrors: preflight.errors,
+    automation,
+    theme: report.theme ?? "dark",
+  });
+  const output = await requestClaudePayload(prompt);
+  const payload = parseGenerateSvgPayload(output);
+  const result = await applyGenerateSvgPayload({
+    payload,
+    report,
+    targetPlan,
+    dataDir,
+    generatedDataPath,
+    rawDataPath,
+  });
+
+  console.log(
+    `generate-svg: wrote ${result.generated} SVG icon(s) from Claude payload${result.rawUpdated ? " and mirrored data.json" : ""}.`,
+  );
+  if (result.prunedIcons.length > 0) {
+    console.log(`generate-svg: pruned ${result.prunedIcons.length} orphan icon(s).`);
+  }
+  await runPostGenerationChecks();
+}
+
+async function main() {
+  const promptPrefix = await readGenerateSvgSkillPrompt();
+  await runStructuredPayloadMode({promptPrefix});
+}
+
+try {
+  await main();
+} catch (error) {
+  console.error(error.message);
+  if (/无法启动 claude/.test(error.message)) {
+    console.error("请确认 Claude CLI 已安装并在 PATH 中。");
+  }
   process.exitCode = 1;
-});
-
-child.on("close", (code) => {
-  process.exitCode = code ?? 1;
-});
+}

@@ -11,7 +11,7 @@ export async function getGenerateSvgPreflight({force = false} = {}) {
   if (force) {
     return {
       skip: false,
-      reason: "--force requested; running Claude generation.",
+      reason: "--force requested; requesting Claude SVG payload.",
       errors: [],
       iconTargets: null,
     };
@@ -23,7 +23,7 @@ export async function getGenerateSvgPreflight({force = false} = {}) {
   } catch (error) {
     return {
       skip: false,
-      reason: `${generatedDataDisplayPath} cannot be preflighted (${error.message}); running Claude generation.`,
+      reason: `${generatedDataDisplayPath} cannot be preflighted (${error.message}); requesting Claude SVG payload.`,
       errors: [],
       iconTargets: null,
     };
@@ -48,7 +48,7 @@ export async function getGenerateSvgPreflight({force = false} = {}) {
 
   return {
     skip: false,
-    reason: `${result.errors.length} icon issue(s) found; running Claude generation for ${result.iconTargets.length || "the affected"} target icon(s).`,
+    reason: `${result.errors.length} icon issue(s) found; requesting Claude SVG payload for ${result.iconTargets.length || "the affected"} target icon(s).`,
     errors: result.errors,
     iconTargets: result.iconTargets,
   };
