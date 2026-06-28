@@ -46,3 +46,5 @@ ingest/rss-state.json
 ingest/rss-state.html
 
 .superpowers
+# webhint local config (do not track)
+.hintrc
