@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import {buildGenerateSvgAllowedTools, buildGenerateSvgArgs} from "./claude-allowlist.mjs";
+import {buildGenerateSvgAllowedTools, buildGenerateSvgArgs} from "../claude-allowlist.mjs";
 
 test("buildGenerateSvgArgs includes incremental generation constraints by default", () => {
   const args = buildGenerateSvgArgs();

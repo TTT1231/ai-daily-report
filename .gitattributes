@@ -1,0 +1,4 @@
+# 统一文本文件行尾为 LF：
+# - 与 gofmt / bun / node 的 LF 输出对齐，消除 core.autocrlf 的 "LF will be replaced by CRLF" 警告；
+# - 跨平台一致（Windows 编辑器普遍兼容 LF）；text=auto 自动识别二进制（mp3/png/webp/jpg 等）不归一化。
+* text=auto eol=lf

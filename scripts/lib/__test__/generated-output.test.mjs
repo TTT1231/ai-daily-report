@@ -4,7 +4,7 @@ import {mkdtemp, mkdir, writeFile, open, readFile, rm} from "node:fs/promises";
 import {existsSync} from "node:fs";
 import {tmpdir} from "node:os";
 import {join} from "node:path";
-import {createGeneratedOutputTransaction} from "./generated-output.mjs";
+import {createGeneratedOutputTransaction} from "../generated-output.mjs";
 
 // 复现并锁定 Windows EPERM 真凶：Remotion Studio 在播放/拖动时会持有 audio/<id>.mp3
 // 的打开读句柄（in-flight HTTP Range 请求）。旧的 commit 第一步是

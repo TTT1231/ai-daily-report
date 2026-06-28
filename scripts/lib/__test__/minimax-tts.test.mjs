@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { createMinimaxClient } from "./minimax-tts.mjs";
+import { createMinimaxClient } from "../minimax-tts.mjs";
 
 // TTS 管线串行合成很多条字幕，瞬时网络抖动（ECONNRESET/ETIMEDOUT/DNS）不应让整条管线
 // 中断并回滚已合成的进度，而应像 429 一样按 maxRetries 重试后再放弃。

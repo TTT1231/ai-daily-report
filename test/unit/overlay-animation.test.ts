@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { getOverlayAnimation, getOverlayImageLayout } from "./AiDailyReport";
-import type { DailyScene } from "./daily-report-data";
+import { getOverlayAnimation, getOverlayImageLayout } from "../../src/AiDailyReport";
+import type { DailyScene } from "../../src/daily-report-data";
 
 // 这些时长曾经让 interpolate() 抛出
 // "inputRange must be strictly monotonically increasing"，直接搞崩整段

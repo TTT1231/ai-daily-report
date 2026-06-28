@@ -1,8 +1,8 @@
 import assert from "node:assert/strict";
 import {readFileSync} from "node:fs";
 import test from "node:test";
-import {videoTimelinePath} from "./paths.mjs";
-import {validateVideoTimelineValue} from "./video-timeline-validation.mjs";
+import {videoTimelinePath} from "../../scripts/lib/paths.mjs";
+import {validateVideoTimelineValue} from "../../scripts/lib/video-timeline-validation.mjs";
 
 const currentTimeline = JSON.parse(readFileSync(videoTimelinePath, "utf8"));
 const clone = (value) => JSON.parse(JSON.stringify(value));

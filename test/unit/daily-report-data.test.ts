@@ -10,7 +10,7 @@ import {
   dailyIntroSchema,
   hasDailyReportProps,
   resolveDailyReport,
-} from "./daily-report-data";
+} from "../../src/daily-report-data";
 
 // 这些约束与 data.schema.json 的 $defs（identifier / imagePath / audioPath / iconPath / date）
 // 对齐：渲染层（Zod）与 check-data-json（JSON Schema）应拒绝同一批非法值，避免灰区。

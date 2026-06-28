@@ -8,7 +8,7 @@ import {
   collectReferencedAssets,
   findUnreferenced,
   pruneUnreferencedAssets,
-} from "./prune-assets.mjs";
+} from "../prune-assets.mjs";
 
 // ── collectReferencedAssets ─────────────────────────────────────────────────
 

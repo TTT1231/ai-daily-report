@@ -4,9 +4,10 @@ import {mkdtemp, mkdir, writeFile, rm} from "node:fs/promises";
 import {tmpdir} from "node:os";
 import {join} from "node:path";
 import {resolve} from "node:path";
-import {readImageDimensions} from "./image-dims.mjs";
+import {readImageDimensions} from "../image-dims.mjs";
 
-const sampleDir = resolve(import.meta.dirname, "../../demo/data-scheme-sample-1");
+// 图片样本来自 test/mock/images/（与其它 mock 资产同源），不依赖 demo/ 目录。
+const sampleDir = resolve(import.meta.dirname, "../../../test/mock");
 
 test("readImageDimensions reads real PNG/WebP/JPEG fixtures", () => {
   const png = readImageDimensions("images/codex-reset.png", sampleDir);

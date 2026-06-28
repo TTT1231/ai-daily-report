@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import {splitSubtitleCues, subtitleVisualUnits} from "./AiDailyReport";
+import {splitSubtitleCues, subtitleVisualUnits} from "../../src/AiDailyReport";
 
 const MAX_SUBTITLE_VISUAL_UNITS = 44;
 

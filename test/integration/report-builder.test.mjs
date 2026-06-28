@@ -7,8 +7,8 @@ import {
   buildVideoStoryStartMs,
   STORY_TRANSITION_FRAMES,
   VIDEO_FPS,
-} from "./report-builder.mjs";
-import {readImageDimensions} from "./image-dims.mjs";
+} from "../../scripts/lib/report-builder.mjs";
+import {readImageDimensions} from "../../scripts/lib/image-dims.mjs";
 
 const videoTimeline = JSON.parse(
   readFileSync(resolve(import.meta.dirname, "../../config/video-timeline.json"), "utf8"),
@@ -74,7 +74,8 @@ test("buildVideoStoryStartMs aligns with [intro, ...stories, outro] and starts i
   assert.ok(starts[1] > 0, "first story starts after intro + transition");
 });
 
-const overlaySampleDir = resolve(import.meta.dirname, "../../demo/data-scheme-sample-1");
+// overlay 图片样本来自 test/mock/images/（与其它 mock 资产同源），不依赖 demo/ 目录。
+const overlaySampleDir = resolve(import.meta.dirname, "../mock");
 
 test("buildGeneratedReport default intro says lunar date and weekday", () => {
   const gen = buildGeneratedReport(

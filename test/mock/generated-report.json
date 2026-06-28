@@ -1,0 +1,59 @@
+{
+  "$schema": "../config/data.schema.json",
+  "date": "2026-06-28",
+  "theme": "light",
+  "intro": {
+    "id": "intro",
+    "topTitle": "Intro",
+    "bottomTitle": "Intro",
+    "contentTitle": "今日概览",
+    "tabs": [
+      {"id": "i1", "title": "A", "summary": "摘要一。"},
+      {"id": "i2", "title": "B", "summary": "摘要二。"}
+    ],
+    "scenes": [
+      {
+        "id": "intro-greeting",
+        "subtitle": "开场口播文案足够长的一句话内容。",
+        "audioSrc": "audio/intro-greeting.mp3",
+        "timing": {"startMs": 0, "durationMs": 1250},
+        "tts": {"provider": "minimax", "hash": "0000000000000000000000000000000000000000000000000000000000000000", "model": "speech-2.8-hd", "voiceId": "v", "speed": 1, "vol": 1, "pitch": 0, "audioLengthMs": 1000, "tailPaddingMs": 250}
+      }
+    ]
+  },
+  "stories": [
+    {
+      "id": "story-1",
+      "topTitle": "模型产品",
+      "bottomTitle": "GLM",
+      "contentTitle": "GLM 模型更新动态",
+      "tabs": [
+        {"id": "tab-1", "title": "事件概览", "summary": "摘要三。"},
+        {"id": "tab-2", "title": "用户影响", "summary": "摘要四。"}
+      ],
+      "scenes": [
+        {
+          "id": "scene-1",
+          "subtitle": "一句足够长的旁白口播文案内容。",
+          "audioSrc": "audio/scene-1.mp3",
+          "timing": {"startMs": 1250, "durationMs": 1750},
+          "tts": {"provider": "minimax", "hash": "0000000000000000000000000000000000000000000000000000000000000000", "model": "speech-2.8-hd", "voiceId": "v", "speed": 1, "vol": 1, "pitch": 0, "audioLengthMs": 1500, "tailPaddingMs": 250}
+        }
+      ]
+    }
+  ],
+  "outro": {
+    "id": "outro",
+    "topTitle": "结语",
+    "bottomTitle": "再见",
+    "scenes": [
+      {
+        "id": "outro-ending",
+        "subtitle": "今天的资讯播送完了，明天见！",
+        "audioSrc": "audio/outro-ending.mp3",
+        "timing": {"startMs": 3000, "durationMs": 1150},
+        "tts": {"provider": "minimax", "hash": "0000000000000000000000000000000000000000000000000000000000000000", "model": "speech-2.8-hd", "voiceId": "v", "speed": 1, "vol": 1, "pitch": 0, "audioLengthMs": 900, "tailPaddingMs": 250}
+      }
+    ]
+  }
+}

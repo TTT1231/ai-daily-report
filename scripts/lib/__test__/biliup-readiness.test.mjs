@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { planBiliupReadiness } from "./biliup-readiness.mjs";
+import { planBiliupReadiness } from "../biliup-readiness.mjs";
 
 // bili 命令执行前按需补齐 biliup：投稿需要 biliup.exe，发评论/置顶需要 cookies.json。
 // login 必须用 biliup.exe 跑（扫码），所以「要登录但 exe 不在」时必须先下载。
