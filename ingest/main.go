@@ -9,7 +9,7 @@ import (
 
 // main 是程序入口，串联整条 RSS 日报生成流水线：
 // 加载配置 → 抓取并去重 → 模型评分 → 聚类合并 → 编排视频 Tabs → 打印并写出 data.json。
-// 任一 AI 步骤失败时都会降级为本地保底逻辑，尽量保证每次运行都能产出日报。
+// 任一 AI 步骤失败即中止（不产出低质兜底成片）——低质成片仍需人工返工，不如直接失败、修好 AI 后重跑。
 func main() {
 	os.Exit(run())
 }
@@ -61,17 +61,21 @@ func run() int {
 	// tie-break（同分时新内容优先）保证，抓取快照仍由 rss-state.json 记录、用于来源失败保留等语义。
 	items := fetchedItems
 
+	// 先持久化本次抓取快照：后续任一 AI 阶段失败中止时，下一次重跑不必重新抓取（重付网络/Cloudflare 成本）。
+	if err := saveRSSState(config.StatePath, nextState); err != nil {
+		fmt.Printf("失败：无法保存本次 RSS 快照：%v\n", err)
+		return 1
+	}
+
 	fmt.Printf("[3/6] AI 兴趣筛选（%s）\n", config.AI.Model)
 	scored, err := analyzeWithModel(config.AI, config.Preferences, items)
 	if err != nil {
-		fmt.Printf("   ⚠️  警告：模型评分失败，改用本地兴趣规则：%v\n", err)
-		scored = applyKeywordWeights(config.Preferences, nil, items)
+		// AI 评分失败即中止：本地兜底只产出标题/通用 Tab 的低质成片，仍需人工返工，不如直接失败。
+		fmt.Printf("失败：模型评分失败：%v\n", err)
+		fmt.Println("   请检查 .env 的 AI_API_KEY/AI_BASE_URL/AI_MODEL 与模型服务可用性后重试 `bun run rss`。")
+		return 1
 	}
 	if len(scored) == 0 {
-		if err := saveRSSState(config.StatePath, nextState); err != nil {
-			fmt.Printf("失败：无法保存本次 RSS 快照：%v\n", err)
-			return 1
-		}
 		fmt.Println("提示：没有符合兴趣规则的新闻，本次结束。")
 		return 0
 	}
@@ -80,16 +84,18 @@ func run() int {
 	fmt.Println("[4/6] 合并相似新闻")
 	groups, err := groupSimilarNews(config.AI, scored, items)
 	if err != nil {
-		fmt.Printf("   ⚠️  警告：AI 合并失败，改用本地分组：%v\n", err)
-		groups = fallbackGroups(scored)
+		fmt.Printf("失败：AI 合并失败：%v\n", err)
+		fmt.Println("   请检查模型服务可用性后重试 `bun run rss`。")
+		return 1
 	}
 	fmt.Printf("   完成：生成 %d 个新闻主题\n\n", len(groups))
 
 	fmt.Println("[5/6] 生成视频 Tabs 与字幕")
 	groups, err = generateStoryTabs(config.AI, groups, items)
 	if err != nil {
-		fmt.Printf("   ⚠️  警告：AI Tabs 编排失败，改用本地保底结构：%v\n", err)
-		groups = withFallbackStoryTabs(groups)
+		fmt.Printf("失败：AI Tabs 编排失败：%v\n", err)
+		fmt.Println("   请检查模型服务可用性后重试 `bun run rss`。")
+		return 1
 	}
 	fmt.Printf("   完成：%d 个新闻主题已完成视频编排\n", len(groups))
 

@@ -11,7 +11,6 @@ import (
 // 分批处理并对结果做校验与保底补齐，最终保证每个 Story 都有足够的 Tab。
 func generateStoryTabs(ai AIConfig, groups []NewsGroup, items []Item) ([]NewsGroup, error) {
 	vision := newVisionAnalyzer()
-	retryCalls := 0
 	var materials []storyTabMaterial
 	for i := range groups {
 		group := &groups[i]
@@ -59,24 +58,24 @@ func generateStoryTabs(ai AIConfig, groups []NewsGroup, items []Item) ([]NewsGro
 			return groups, err
 		}
 		applyStoryTabsResults(groups, batch, results)
+	}
 
-		// 将本批所有未达标 Story 合并重试，既覆盖模型漏返回/只返回一个有效 Tab 的情况，
-		// 也减少逐个 Story 重试带来的固定 prompt 与请求开销。
-		retryBatch, feedbacks := collectStoryTabRetries(groups, batch)
-		if len(retryBatch) > 0 {
-			retryCalls += retryAndKeepBestTabs(ai, groups, retryBatch, feedbacks)
+	// 校验后直接剔除 AI 给不出 minStoryTabs 个合格 Tab 的 Story——不重试、不补 filler：
+	// 重试对「来源太薄/模型给不出」意义不大；补 filler 会发低质内容；剔除既不发低质，又不让单条卡掉整期。
+	kept := make([]NewsGroup, 0, len(groups))
+	for _, g := range groups {
+		if len(g.Tabs) < minStoryTabs {
+			fmt.Printf("   ⚠️  story %q 只有 %d 个有效 AI Tab，已剔除（不凑数、不重试）\n", g.Title, len(g.Tabs))
+			continue
 		}
+		g.lastRejected = nil
+		kept = append(kept, g)
 	}
-	stats := collectStoryTabQualityStats(groups)
-	for i := range groups {
-		groups[i].lastRejected = nil
+	if len(kept) == 0 {
+		return groups, fmt.Errorf("所有 Story 的 AI Tabs 均不足 %d 个，无法成片（检查 prompt/模型/来源质量）", minStoryTabs)
 	}
-	groups = withFallbackStoryTabs(groups)
-	fmt.Printf(
-		"   质量校验：重试 %d 批，保底补齐 %d 个 Story，最终仍拒绝无有效证据 Tab %d 个，字幕降级 %d/%d 个\n",
-		retryCalls, stats.fallbackStories, stats.evidenceRejections, stats.subtitleFallbacks, stats.acceptedTabs,
-	)
-	return groups, nil
+	fmt.Printf("   完成：保留 %d / %d 个 Story（剔除 %d 个 Tab 不足）\n", len(kept), len(groups), len(groups)-len(kept))
+	return kept, nil
 }
 
 // storyTabMaterial 缓存单个 Story 送给模型的材料文本及其全局序号，便于重试时复用。
@@ -86,8 +85,7 @@ type storyTabMaterial struct {
 }
 
 // requestStoryTabsBatchWithRetry 调用 requestStoryTabsBatch，对瞬时失败（限流/5xx/网络）
-// 退避重试，避免单批次抖动就直接整段回退到保底 Tabs。重试次数与请求成本独立于
-// retryAndKeepBestTabs 的质量重试。
+// 退避重试，避免单批次抖动直接让整段请求失败。
 func requestStoryTabsBatchWithRetry(ai AIConfig, batch []storyTabMaterial, feedbacks map[int][]string) ([][]StoryTab, error) {
 	const maxAttempts = 3
 	var lastErr error
@@ -208,94 +206,6 @@ func applyStoryTabsResults(groups []NewsGroup, batch []storyTabMaterial, results
 	}
 }
 
-// collectStoryTabRetries 收集有效 Tab 数不足的 Story，并生成包含数量与内容校验问题的反馈。
-func collectStoryTabRetries(groups []NewsGroup, batch []storyTabMaterial) ([]storyTabMaterial, map[int][]string) {
-	retryBatch := make([]storyTabMaterial, 0, len(batch))
-	feedbacks := make(map[int][]string)
-	for _, m := range batch {
-		group := &groups[m.GroupIndex-1]
-		if len(group.Tabs) >= minStoryTabs {
-			continue
-		}
-		retryBatch = append(retryBatch, m)
-		feedbacks[m.GroupIndex] = storyTabFeedback(*group)
-	}
-	return retryBatch, feedbacks
-}
-
-// storyTabFeedback 汇总一个 Story 当前的数量缺口和最近一次内容校验失败原因。
-func storyTabFeedback(group NewsGroup) []string {
-	var reasons []string
-	if len(group.Tabs) == 0 {
-		reasons = append(reasons, "模型未返回该 Story 的有效 Tabs")
-	} else if len(group.Tabs) < minStoryTabs {
-		reasons = append(reasons, fmt.Sprintf("当前只有 %d 个有效 Tab，至少需要 %d 个", len(group.Tabs), minStoryTabs))
-	}
-	reasons = append(reasons, tabRejectionFeedbacks(group.lastRejected)...)
-	return uniqueStrings(reasons)
-}
-
-// retryAndKeepBestTabs 对给定 Story 子集带反馈重试，最多 maxStoryTabRetries 次，
-// 使用有效数量、要点覆盖、证据覆盖和原生字幕质量选择更好的结果，并返回实际调用次数。
-func retryAndKeepBestTabs(ai AIConfig, groups []NewsGroup, batch []storyTabMaterial, feedbacks map[int][]string) int {
-	calls := 0
-	for attempt := 1; attempt <= maxStoryTabRetries; attempt++ {
-		calls++
-		results, err := requestStoryTabsBatch(ai, batch, feedbacks)
-		if err != nil {
-			fmt.Printf("   ⚠️  警告：Story Tabs 重试第 %d 次调用失败: %v\n", attempt, err)
-			break
-		}
-		anyImproved := false
-		for pos, tabs := range results {
-			m := batch[pos]
-			group := &groups[m.GroupIndex-1]
-			candidate, rejected := normalizeStoryTabsWithReasons(*group, tabs)
-			if betterStoryTabs(*group, candidate, group.Tabs) {
-				group.Tabs = candidate
-				group.lastRejected = rejected
-				anyImproved = true
-			}
-		}
-
-		batch, feedbacks = collectStoryTabRetries(groups, batch)
-		if len(batch) == 0 || !anyImproved {
-			break
-		}
-	}
-	return calls
-}
-
-// tabRejectionFeedbacks 把 rejectedTab 列表转成供 prompt 使用的失败原因字符串。
-func tabRejectionFeedbacks(rejected []rejectedTab) []string {
-	if len(rejected) == 0 {
-		return nil
-	}
-	reasons := make([]string, 0, len(rejected))
-	for _, r := range rejected {
-		if r.Reason == "" {
-			continue
-		}
-		reasons = append(reasons, r.Reason)
-	}
-	return uniqueStrings(reasons)
-}
-
-// uniqueStrings 按首次出现顺序去重非空字符串。
-func uniqueStrings(values []string) []string {
-	seen := make(map[string]bool, len(values))
-	result := make([]string, 0, len(values))
-	for _, value := range values {
-		value = strings.TrimSpace(value)
-		if value == "" || seen[value] {
-			continue
-		}
-		seen[value] = true
-		result = append(result, value)
-	}
-	return result
-}
-
 // formatVisionMaterial 把图片视觉识别结果格式化为送给模型的事实材料文本，不确定项会标注“[不确定]”。
 func formatVisionMaterial(results []VisionResult) string {
 	if len(results) == 0 {
@@ -343,92 +253,4 @@ func representativeSourceIndexes(group NewsGroup) []int {
 		}
 	}
 	return indexes
-}
-
-type storyTabsQuality struct {
-	tabCount            int
-	highlightCoverage   int
-	evidenceCoverage    int
-	nativeSubtitleCount int
-}
-
-type storyTabQualityStats struct {
-	acceptedTabs       int
-	subtitleFallbacks  int
-	evidenceRejections int
-	fallbackStories    int
-}
-
-// betterStoryTabs 按质量元组比较两个已归一化结果，确保重试不会只因数量相同而错过更可靠的版本。
-func betterStoryTabs(group NewsGroup, candidate []StoryTab, current []StoryTab) bool {
-	candidateQuality := measureStoryTabsQuality(group, candidate)
-	currentQuality := measureStoryTabsQuality(group, current)
-	candidateValues := []int{
-		candidateQuality.tabCount,
-		candidateQuality.highlightCoverage,
-		candidateQuality.evidenceCoverage,
-		candidateQuality.nativeSubtitleCount,
-	}
-	currentValues := []int{
-		currentQuality.tabCount,
-		currentQuality.highlightCoverage,
-		currentQuality.evidenceCoverage,
-		currentQuality.nativeSubtitleCount,
-	}
-	for i := range candidateValues {
-		if candidateValues[i] != currentValues[i] {
-			return candidateValues[i] > currentValues[i]
-		}
-	}
-	return false
-}
-
-// measureStoryTabsQuality 统计有效 Tab 数、highlight/来源证据覆盖和原生合格字幕数量。
-func measureStoryTabsQuality(group NewsGroup, tabs []StoryTab) storyTabsQuality {
-	highlightIndexes := make(map[int]bool, len(group.Highlights))
-	for _, highlight := range group.Highlights {
-		highlightIndexes[highlight.Index] = true
-	}
-	coveredHighlights := make(map[int]bool)
-	coveredEvidence := make(map[int]bool)
-	nativeSubtitles := 0
-	for _, tab := range tabs {
-		if !tab.subtitleFallback {
-			nativeSubtitles++
-		}
-		for _, index := range tab.EvidenceIndexes {
-			coveredEvidence[index] = true
-			if highlightIndexes[index] {
-				coveredHighlights[index] = true
-			}
-		}
-	}
-	return storyTabsQuality{
-		tabCount:            len(tabs),
-		highlightCoverage:   len(coveredHighlights),
-		evidenceCoverage:    len(coveredEvidence),
-		nativeSubtitleCount: nativeSubtitles,
-	}
-}
-
-// collectStoryTabQualityStats 汇总写入本地 fallback 前的质量指标，便于观察 prompt 调整后的收益与成本。
-func collectStoryTabQualityStats(groups []NewsGroup) storyTabQualityStats {
-	var stats storyTabQualityStats
-	for _, group := range groups {
-		stats.acceptedTabs += len(group.Tabs)
-		if len(group.Tabs) < minStoryTabs {
-			stats.fallbackStories++
-		}
-		for _, tab := range group.Tabs {
-			if tab.subtitleFallback {
-				stats.subtitleFallbacks++
-			}
-		}
-		for _, rejected := range group.lastRejected {
-			if strings.Contains(rejected.Reason, "evidence_indexes") {
-				stats.evidenceRejections++
-			}
-		}
-	}
-	return stats
 }

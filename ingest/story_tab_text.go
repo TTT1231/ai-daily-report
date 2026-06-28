@@ -7,9 +7,8 @@ import (
 	"unicode/utf8"
 )
 
-// 本文件是 story_tabs.go 的文本校验与兜底部分：负责校正模型返回的 Tab 内容、
-// 校验/降级口播字幕，并在模型结果不足时生成保底 Tab。它不涉及批次编排、
-// 重试或模型调用（见 story_tabs.go）。
+// 本文件是 story_tabs.go 的文本校验部分：负责校正模型返回的 Tab 内容、
+// 校验/降级口播字幕。它不涉及批次编排、重试或模型调用（见 story_tabs.go）。
 
 var (
 	tabSummaryCodeCandidatePattern = regexp.MustCompile(`(?i)(ChatGPT(?:\s+(?:Business|Plus|Pro|Team|Enterprise))?|Google Play(?: Store)?|Service Unavailable|AWS(?: Bedrock)?|Hacker News|AlphaWave Semi|Cross-region inference|Claude(?:\s+(?:Code|Design|Fable|Mythos|Opus))?(?:\s*\d+(?:\.\d+)?)?|GPT[-\s]?\d+(?:\.\d+)?(?:[-\s][A-Za-z0-9]+)*|Qwen[A-Za-z0-9.-]*|GLM[-A-Za-z0-9.]*|Gemini(?:[-\s][A-Za-z0-9.]+)*|OpenAI|Anthropic|Codex|DeepSeek|Kimi|Kiro|Qoder|Tabbit|Jalapeño|Broadcom|Celestica|Tomahawk|MiniMax[A-Za-z0-9.-]*|FFmpeg|CVE-\d+-\d+|PixelSmash|MagicYUV|MCP|API|VLC|Jellyfin|Kodi|Nextcloud|OBS|Slack|GitHub|Serverless|Web|Pro|PLUS)`)
@@ -170,88 +169,6 @@ func splitBoldSpanForInlineCode(summary string) string {
 		return summary[:span[0]] + strings.Join(parts, " ") + summary[span[1]:]
 	}
 	return summary
-}
-
-// containsEquivalentTab 判断候选 Tab 是否与已有任一 Tab 内容等价（按规范化标题+摘要比较），用于补齐时去重。
-func containsEquivalentTab(tabs []StoryTab, candidate StoryTab) bool {
-	candidateKey := normalizeTitle(candidate.Title + candidate.Summary)
-	for _, tab := range tabs {
-		if normalizeTitle(tab.Title+tab.Summary) == candidateKey {
-			return true
-		}
-	}
-	return false
-}
-
-// withFallbackStoryTabs 确保每个 Story 至少有 minStoryTabs 个有效 Tab：
-// 先校正已有 Tab，不足时用保底 Tab 补齐且避免重复。
-func withFallbackStoryTabs(groups []NewsGroup) []NewsGroup {
-	for i := range groups {
-		group := &groups[i]
-		group.Tabs = normalizeStoryTabs(*group, group.Tabs)
-		for _, fallback := range fallbackStoryTabs(*group) {
-			if len(group.Tabs) >= minStoryTabs {
-				break
-			}
-			candidate := normalizeStoryTabs(*group, []StoryTab{fallback})
-			if len(candidate) == 0 || containsEquivalentTab(group.Tabs, candidate[0]) {
-				continue
-			}
-			group.Tabs = append(group.Tabs, candidate[0])
-		}
-	}
-	return groups
-}
-
-// fallbackSummaryFloor 是保底 Tab 摘要的兜底句，长度大于 minTabSummaryRunes，
-// 用于在 Story 标题/理由过短时把摘要补到最小字数以上，避免保底 Tab 被 normalize 丢弃。
-// 措辞只如实说明“本期来源信息较少”，不再用“请以官方公告为准”这类把观众推回官方的免责话术。
-const fallbackSummaryFloor = "本期该主题捕获到的来源信息较少，更多细节有待后续来源补充。"
-
-func withSummaryFloor(summary string) string {
-	if utf8.RuneCountInString(summary) >= minTabSummaryRunes {
-		return summary
-	}
-	if summary == "" {
-		return fallbackSummaryFloor
-	}
-	if !strings.HasSuffix(summary, "。") {
-		summary += "。"
-	}
-	return summary + fallbackSummaryFloor
-}
-
-// fallbackOverviewSummary 生成“事件概览”保底 Tab 的摘要：优先用标题+理由，过短时拼接兜底句，
-// 确保至少满足 minTabSummaryRunes 字。否则当标题与理由都偏短（例如 “GLM。更新”）时，该保底 Tab
-// 会被 tabRejectionReason 丢弃，只剩一个保底 Tab，凑不齐 minStoryTabs(2)，
-// 最终在 generateDataJSON 触发整期 fatal 中止、丢失全部数据。
-func fallbackOverviewSummary(group NewsGroup) string {
-	composed := strings.TrimSpace(fmt.Sprintf("%s。%s", strings.TrimSpace(group.Title), strings.TrimSpace(group.Reason)))
-	return withSummaryFloor(composed)
-}
-
-// fallbackStoryTabs 生成两个保底 Tab（“事件概览”+“用户影响”），用于模型结果不足时的确定性补齐。
-// 第二个 Tab 复用 Story 自身的关注理由（Reason）走“用户影响”角度，让观众知道这条新闻为什么重要；
-// 不再用“需以官方说明为准 / 待正式公告确认”这类没有实际信息、把观众推回官方的免责话术凑数。
-func fallbackStoryTabs(group NewsGroup) []StoryTab {
-	evidence := append([]int(nil), group.SourceIndexes...)
-	impactSummary := withSummaryFloor(strings.TrimSpace(group.Reason))
-	return []StoryTab{
-		{
-			Title:           "事件概览",
-			Summary:         fallbackOverviewSummary(group),
-			Subtitle:        fallbackSubtitleFromText(group.Title),
-			Kind:            "fact",
-			EvidenceIndexes: evidence,
-		},
-		{
-			Title:           "用户影响",
-			Summary:         impactSummary,
-			Subtitle:        fallbackSubtitleFromText(impactSummary),
-			Kind:            "impact",
-			EvidenceIndexes: evidence,
-		},
-	}
 }
 
 // normalizeSceneSubtitle 校验并清洗口播字幕：去 Markdown、拒绝界面提示词与不完整短句、限制长度，不合格时返回空串。

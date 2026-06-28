@@ -227,28 +227,6 @@ func TestStripHTML(t *testing.T) {
 	}
 }
 
-func TestWithFallbackStoryTabsGuaranteesMinimumUsefulTabs(t *testing.T) {
-	groups := []NewsGroup{{
-		Title:         "智谱 GLM 消耗倍率或调整至九月底，Max 用户内测开启",
-		Score:         10,
-		Reason:        "智谱一倍消耗政策可能延续至九月底，同时 5.2 版本开始 Max 用户内测。",
-		SourceIndexes: []int{1},
-	}}
-
-	got := withFallbackStoryTabs(groups)
-	if len(got[0].Tabs) < minStoryTabs {
-		t.Fatalf("got %d tabs, want at least %d", len(got[0].Tabs), minStoryTabs)
-	}
-	for _, tab := range got[0].Tabs {
-		if utf8.RuneCountInString(tab.Summary) < minTabSummaryRunes {
-			t.Fatalf("tab summary too short: %q", tab.Summary)
-		}
-		if len(tab.EvidenceIndexes) == 0 || tab.EvidenceIndexes[0] != 1 {
-			t.Fatalf("tab has invalid evidence: %#v", tab.EvidenceIndexes)
-		}
-	}
-}
-
 func TestNormalizeStoryTabsRejectsShortAndUnknownEvidence(t *testing.T) {
 	group := NewsGroup{SourceIndexes: []int{2}}
 	tabs := []StoryTab{
@@ -491,8 +469,11 @@ func TestMigratedProjectPathsUseParentRoot(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if filepath.Base(root) != "ai-daily-report" {
-		t.Fatalf("projectRoot() = %q", root)
+	// projectRoot 的判据是存在 config/data.schema.json；basename 在 worktree 下不固定
+	//（worktree 目录名可能是 test-xxx），故只校验 root 确实带标志文件，不再断言具体目录名，
+	// 避免 worktree 假失败把 Go 套件挡在门禁外。
+	if _, err := os.Stat(filepath.Join(root, "config", "data.schema.json")); err != nil {
+		t.Fatalf("projectRoot() = %q 不含 config/data.schema.json: %v", root, err)
 	}
 	envPath, err := projectEnvPath()
 	if err != nil {
@@ -1311,60 +1292,6 @@ func TestNormalizeStoryTabsWithReasonsRejectsMissingEvidence(t *testing.T) {
 	}
 }
 
-func TestCollectStoryTabRetriesIncludesMissingAndShortStories(t *testing.T) {
-	groups := []NewsGroup{
-		{Title: "漏返回", SourceIndexes: []int{1}},
-		{
-			Title:         "只有一个",
-			SourceIndexes: []int{2},
-			Tabs: []StoryTab{{
-				Title:           "事件概览",
-				Summary:         "这是一段足够长且有来源证据的完整信息摘要内容。",
-				Subtitle:        "这是一段完整有效的新闻口播字幕，用于测试数量不足时仍会进入批量重试。",
-				EvidenceIndexes: []int{2},
-			}},
-		},
-		{
-			Title:         "已经达标",
-			SourceIndexes: []int{3},
-			Tabs: []StoryTab{
-				{Title: "一", Summary: "这是一段足够长且有来源证据的完整信息摘要内容。", EvidenceIndexes: []int{3}},
-				{Title: "二", Summary: "这是另一段足够长且有来源证据的完整信息摘要内容。", EvidenceIndexes: []int{3}},
-			},
-		},
-	}
-	batch := []storyTabMaterial{{GroupIndex: 1}, {GroupIndex: 2}, {GroupIndex: 3}}
-
-	retryBatch, feedbacks := collectStoryTabRetries(groups, batch)
-	if len(retryBatch) != 2 {
-		t.Fatalf("retry batch count = %d, want 2", len(retryBatch))
-	}
-	if !strings.Contains(strings.Join(feedbacks[1], "；"), "未返回") {
-		t.Fatalf("missing Story feedback = %#v", feedbacks[1])
-	}
-	if !strings.Contains(strings.Join(feedbacks[2], "；"), "当前只有 1 个") {
-		t.Fatalf("short Story feedback = %#v", feedbacks[2])
-	}
-}
-
-func TestBetterStoryTabsPrefersEvidenceCoverageAtSameCount(t *testing.T) {
-	group := NewsGroup{
-		SourceIndexes: []int{1, 2},
-		Highlights:    []NewsHighlight{{Index: 1}, {Index: 2}},
-	}
-	current := []StoryTab{
-		{Title: "一", EvidenceIndexes: []int{1}},
-		{Title: "二", EvidenceIndexes: []int{1}},
-	}
-	candidate := []StoryTab{
-		{Title: "一", EvidenceIndexes: []int{1}},
-		{Title: "二", EvidenceIndexes: []int{2}},
-	}
-	if !betterStoryTabs(group, candidate, current) {
-		t.Fatal("betterStoryTabs() did not prefer broader highlight/evidence coverage")
-	}
-}
-
 func TestBuildStoryTabsPromptIncludesFeedback(t *testing.T) {
 	batch := []storyTabMaterial{
 		{GroupIndex: 1, Body: "Story 1\n主题：测试"},
@@ -1390,89 +1317,6 @@ func TestBuildStoryTabsPromptOmitsFeedbackSectionWhenEmpty(t *testing.T) {
 	prompt := buildStoryTabsPrompt(batch, nil)
 	if strings.Contains(prompt, "需要修正的 Story") {
 		t.Fatalf("prompt should not contain feedback section when none provided:\n%s", prompt)
-	}
-}
-
-func TestRetryAndKeepBestTabsDoesNotRegress(t *testing.T) {
-	// 重试返回优质 Tabs，应被采纳。验证重试确实发生且结果被写入。
-	var callCount int
-	server := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
-		callCount++
-		writer.Header().Set("Content-Type", "application/json")
-		// 重试总是返回 2 个合格 Tab。
-		payload := `[{"group_index":1,"tabs":[` +
-			`{"title":"事件概览","summary":"这是一段足够长的摘要内容用于通过字数校验。","subtitle":"GLM-5.2 已开启 Max 用户小范围内测，具体参数仍待公布。","kind":"fact","evidence_indexes":[1]},` +
-			`{"title":"后续观察","summary":"这是另一段足够长的摘要内容用于通过字数校验。","subtitle":"具体上线范围与定价仍待智谱正式公布后确认。","kind":"watch","evidence_indexes":[1]}` +
-			`]}]`
-		_, _ = writer.Write([]byte(`{"choices":[{"message":{"role":"assistant","content":` + jsonQuote(payload) + `}}]}`))
-	}))
-	defer server.Close()
-
-	ai := AIConfig{APIKey: "test-key", BaseURL: server.URL, Model: "test-model"}
-	// 当前 0 个有效 Tab，触发重试。
-	groups := []NewsGroup{{Title: "测试 Story", SourceIndexes: []int{1}}}
-	groups[0].lastRejected = []rejectedTab{{Tab: StoryTab{Title: "", Summary: "短"}, Reason: "Tab 标题为空"}}
-
-	calls := retryAndKeepBestTabs(ai, groups, []storyTabMaterial{{GroupIndex: 1, Body: "Story 1\n主题：测试"}}, map[int][]string{1: {"Tab 标题为空"}})
-
-	if callCount != 1 || calls != 1 {
-		t.Fatalf("expected exactly 1 retry call (success stops further retries), got server=%d returned=%d", callCount, calls)
-	}
-	if len(groups[0].Tabs) < minStoryTabs {
-		t.Fatalf("after retry, tabs count = %d, want >= %d", len(groups[0].Tabs), minStoryTabs)
-	}
-}
-
-func TestRetryAndKeepBestTabsKeepsCurrentWhenNotImproved(t *testing.T) {
-	// 重试返回更差的 Tabs，应保留当前已有的。
-	var callCount int
-	server := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
-		callCount++
-		writer.Header().Set("Content-Type", "application/json")
-		// 重试全部不合格。
-		payload := `[{"group_index":1,"tabs":[{"title":"","summary":"短"}]}]`
-		_, _ = writer.Write([]byte(`{"choices":[{"message":{"role":"assistant","content":` + jsonQuote(payload) + `}}]}`))
-	}))
-	defer server.Close()
-
-	ai := AIConfig{APIKey: "test-key", BaseURL: server.URL, Model: "test-model"}
-	// 当前已有 1 个合格 Tab，重试不应让它变少。
-	groups := []NewsGroup{{
-		Title:         "测试 Story",
-		SourceIndexes: []int{1},
-		Tabs: []StoryTab{{
-			Title:    "已有 Tab",
-			Summary:  "这是一段足够长的摘要内容用于通过字数校验。",
-			Subtitle: "GLM-5.2 已开启 Max 用户小范围内测，具体参数仍待公布。",
-		}},
-	}}
-	groups[0].lastRejected = []rejectedTab{{Tab: StoryTab{Title: "", Summary: "短"}, Reason: "Tab 标题为空"}}
-
-	retryAndKeepBestTabs(ai, groups, []storyTabMaterial{{GroupIndex: 1, Body: "Story 1\n主题：测试"}}, map[int][]string{1: {"Tab 标题为空"}})
-
-	if len(groups[0].Tabs) != 1 || groups[0].Tabs[0].Title != "已有 Tab" {
-		t.Fatalf("retry regressed existing tabs: %#v", groups[0].Tabs)
-	}
-	if callCount != 1 {
-		t.Fatalf("retry calls = %d, want 1 when first retry did not improve quality", callCount)
-	}
-}
-
-func TestCollectStoryTabQualityStats(t *testing.T) {
-	groups := []NewsGroup{
-		{
-			Tabs: []StoryTab{
-				{subtitleFallback: true},
-				{},
-			},
-			lastRejected: []rejectedTab{{Reason: "evidence_indexes 未包含该 Story 的有效来源序号"}},
-		},
-		{Tabs: []StoryTab{{}}},
-	}
-	stats := collectStoryTabQualityStats(groups)
-	if stats.acceptedTabs != 3 || stats.subtitleFallbacks != 1 ||
-		stats.evidenceRejections != 1 || stats.fallbackStories != 1 {
-		t.Fatalf("collectStoryTabQualityStats() = %#v", stats)
 	}
 }
 

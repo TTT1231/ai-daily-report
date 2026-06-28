@@ -210,41 +210,7 @@ func splitIncompatibleGroups(groups []NewsGroup, candidates map[int]ScoredItem, 
 	return result
 }
 
-// fallbackGroups 在模型聚类失败时的本地降级方案：按 fallbackGroupIdentity 给出的身份键就地聚合，生成 Story。
-func fallbackGroups(scored []ScoredItem) []NewsGroup {
-	groupByKey := make(map[string]int)
-	groupLimit := maxStoryGroupsForNavigation()
-	groups := make([]NewsGroup, 0, min(len(scored), groupLimit))
-	for _, item := range scored {
-		key, title := fallbackGroupIdentity(item.Title)
-		position, exists := groupByKey[key]
-		if !exists {
-			groupByKey[key] = len(groups)
-			groups = append(groups, NewsGroup{
-				Title:         title,
-				Score:         item.Score,
-				Reason:        item.Reason,
-				SourceIndexes: []int{item.Index},
-				Highlights:    []NewsHighlight{{Index: item.Index, Point: item.Title}},
-			})
-			continue
-		}
-		group := &groups[position]
-		group.SourceIndexes = append(group.SourceIndexes, item.Index)
-		group.Score = max(group.Score, item.Score)
-		if len(group.Highlights) < maxGroupHighlights {
-			group.Highlights = append(group.Highlights, NewsHighlight{Index: item.Index, Point: item.Title})
-		}
-	}
-	sort.SliceStable(groups, func(i, j int) bool {
-		return groups[i].Score > groups[j].Score
-	})
-	if len(groups) > groupLimit {
-		groups = groups[:groupLimit]
-	}
-	return groups
-}
-
+// fallbackGroups 已移除：run() 不再在聚类失败时降级产出低质成片，改为直接中止（见 main.go groupSimilarNews 分支）。
 // fallbackGroupIdentity 由标题推断稳定的聚类身份键与展示标题：
 // 识别重点品牌及特定事件（额度重置、账号风控等），无法识别时回退为规范化标题。
 func fallbackGroupIdentity(title string) (string, string) {
