@@ -66,6 +66,7 @@
     "test:lib": "bun test scripts/lib/__test__",
     "test:unit": "bun test test/unit",
     "test:integration": "node --test test/integration/*.test.mjs",
+    "test:render": "node --test test/render/*.test.mjs",
     "test:e2e": "node --test test/e2e/*.test.mjs",
     "lint": "eslint src scripts && tsc"
   },

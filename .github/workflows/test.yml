@@ -41,8 +41,17 @@ jobs:
         run: bun run test:unit
 
       - name: Run JS integration tests
-        # 不设 REMOTION_RENDER_TEST / E2E_TEST：render 与 e2e 用例自动 skip，不费 CI 算力。
+        # 纯 JS 逻辑校验（不含 Remotion 渲染，秒级）。渲染冒烟见下方 test:render。
         run: bun run test:integration
+
+      - name: Ensure Remotion browser
+        # render 冒烟每帧 spawn Chromium；提前 ensure 一次 Chrome for Testing，避免首个 remotion still 在线下载拖慢/失败。
+        run: bunx remotion browser ensure
+
+      - name: Run JS render smoke tests
+        # Remotion 渲染冒烟：各关键帧 + 布局组合渲染成 1920×1080 PNG，断言不崩 + 非空白。
+        # 抓「某帧整段崩渲染」类回归（如 overlay 短场景的 interpolate 退化区间）。
+        run: bun run test:render
 
       - name: Run Go tests
         run: go -C ingest test ./...

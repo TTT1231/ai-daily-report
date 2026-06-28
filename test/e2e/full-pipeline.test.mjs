@@ -20,8 +20,6 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 // fixture raw data.json → generate-tts（mock MiniMax）产出 data-generate.json → remotion still 验收渲染。
 // 这是真正的 e2e：跨多个真实模块（report-builder / tts-timeline / generated-output / validateReport / Remotion），
 // 用 mock 挡住唯一的外部付费边界（MiniMax），remotion still 与实际渲染等效。
-// env-gated（要起 mock server + 跑 tts 子进程 + 起 Chromium 渲染，慢）：默认 skip，E2E_TEST=1 才跑。
-const E2E_ENABLED = process.env.E2E_TEST === "1";
 const generateTts = resolve(__dirname, "..", "..", "scripts", "render", "generate-tts.mjs");
 const mockDir = resolve(__dirname, "..", "mock");
 // 用真实 mp3 的字节作 mock 音频（合法 hex），让落盘的 audio/*.mp3 是有效文件、remotion 不报缺文件
@@ -37,7 +35,6 @@ function pngDimensions(path) {
 
 test(
   "e2e: data.json → tts → data-generate.json → remotion still renders a 1920x1080 frame",
-  {skip: !E2E_ENABLED ? "set E2E_TEST=1 to run the full-pipeline e2e" : false},
   async () => {
     // 1) mock MiniMax t2a_v2：对所有 POST 返回固定 hex 音频 + audio_length
     const server = createServer((_req, res) => {

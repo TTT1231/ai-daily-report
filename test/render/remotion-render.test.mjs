@@ -15,8 +15,6 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 //   以及 TwoTabLayout/FourTabLayout/FiveTabLayout 三个布局预览组合（此前完全没被 remotion still 覆盖）。
 // 不做像素 baseline diff（字体 hinting/Chromium/平台漂移、维护负担高）；冒烟已能抓住「某帧整段崩渲染」
 // 这一类最高价值失败（如 overlay 短场景的 interpolate 退化区间）。
-// env-gated：默认 bun run test:integration 跳过（每帧要 spawn Chromium）；REMOTION_RENDER_TEST=1 才跑。
-const RENDER_ENABLED = process.env.REMOTION_RENDER_TEST === "1";
 const SAMPLE_DIR = resolve(__dirname, "..", "..", "demo", "data-scheme-sample-2");
 const PROPS = join(SAMPLE_DIR, "data-generate.json");
 
@@ -66,7 +64,6 @@ const REPORT_FRAMES = [
 for (const {frame, name} of REPORT_FRAMES) {
   test(
     `AiDailyReport renders: ${name} (frame ${frame})`,
-    {skip: !RENDER_ENABLED ? "set REMOTION_RENDER_TEST=1 to run render smoke tests" : false},
     () => {
       const dir = mkdtempSync(join(tmpdir(), "remotion-frame-"));
       try {
@@ -87,7 +84,6 @@ for (const {frame, name} of REPORT_FRAMES) {
 for (const compositionId of ["TwoTabLayout", "FourTabLayout", "FiveTabLayout"]) {
   test(
     `${compositionId} layout preview renders a valid 1920x1080 frame`,
-    {skip: !RENDER_ENABLED ? "set REMOTION_RENDER_TEST=1 to run render smoke tests" : false},
     () => {
       const dir = mkdtempSync(join(tmpdir(), "remotion-layout-"));
       try {
