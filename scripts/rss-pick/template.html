@@ -6,38 +6,32 @@
 <title>RSS 挑选 Playground</title>
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
 <style>
   :root {
-    /* surfaces — clean white cards on a barely-there cool canvas */
-    --bg: #f6f8fb;
+    --bg: #f4f6f8;
     --surface: #ffffff;
-    --surface-2: #f1f5f9;
-    --surface-3: #e8eef6;
-    --border: #e6eaf0;
-    --border-strong: #d4dae3;
-    /* text — near-black slate, high contrast yet easy on the eyes */
-    --text: #0f172a;
-    --text-muted: #5b6675;
-    --text-faint: #8a94a3;
-    /* accent — one clean, fresh blue */
-    --primary: #2563eb;
-    --primary-hover: #1d4ed8;
-    --primary-soft: rgba(37, 99, 235, 0.10);
-    --primary-ring: rgba(37, 99, 235, 0.28);
-    --link: #2563eb;
-    /* semantic */
-    --green: #059669;
-    --green-soft: #ecfdf5;
-    --green-border: #a7f3d0;
-    --amber: #c2820a;
-    --amber-soft: #fffbeb;
-    --amber-border: #fde68a;
-    /* shape + elevation */
-    --radius: 12px;
-    --radius-sm: 8px;
-    --shadow-1: 0 1px 2px rgba(15, 23, 42, 0.04), 0 1px 3px rgba(15, 23, 42, 0.05);
-    --shadow-2: 0 12px 32px rgba(15, 23, 42, 0.12), 0 2px 8px rgba(15, 23, 42, 0.06);
+    --surface-soft: #f8fafc;
+    --surface-strong: #eef2f7;
+    --border: #dbe2ea;
+    --border-strong: #c5ced9;
+    --text: #111827;
+    --text-muted: #536273;
+    --text-faint: #8290a3;
+    --primary: #2557d6;
+    --primary-hover: #1f49b6;
+    --primary-soft: #eaf0ff;
+    --primary-ring: rgba(37, 87, 214, 0.24);
+    --green: #087a52;
+    --green-soft: #e8f7ef;
+    --green-border: #a9dfc1;
+    --amber: #a35f00;
+    --amber-soft: #fff4dd;
+    --amber-border: #f1c879;
+    --danger: #b42318;
+    --radius: 8px;
+    --radius-sm: 6px;
+    --shadow: 0 1px 2px rgba(17, 24, 39, 0.05), 0 10px 30px rgba(17, 24, 39, 0.06);
     --ring: 0 0 0 3px var(--primary-ring);
     --ease: cubic-bezier(0.4, 0, 0.2, 1);
   }
@@ -45,261 +39,800 @@
   * { box-sizing: border-box; }
   html, body { margin: 0; padding: 0; }
   html { color-scheme: light; }
-
   body {
+    min-height: 100vh;
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
     background: var(--bg);
     color: var(--text);
-    font: 14px/1.6 "Inter", system-ui, -apple-system, "Segoe UI", "Microsoft YaHei", Roboto, sans-serif;
+    font: 14px/1.5 "Inter", system-ui, -apple-system, "Segoe UI", "Microsoft YaHei", Roboto, sans-serif;
     -webkit-font-smoothing: antialiased;
     text-rendering: optimizeLegibility;
-    min-height: 100vh;
   }
 
   ::selection { background: var(--primary-soft); color: var(--text); }
-
-  a { color: var(--link); text-decoration: none; transition: color .15s var(--ease); }
-  a:hover { color: var(--primary-hover); text-decoration: underline; text-underline-offset: 2px; }
-
+  a { color: inherit; text-decoration: none; }
+  button, input { font: inherit; }
   .mono {
     font-family: "JetBrains Mono", "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
     font-variant-numeric: tabular-nums;
-    letter-spacing: -0.01em;
   }
 
-  /* subtle light scrollbars (WebKit 系；Firefox 用默认滚动条) */
   *::-webkit-scrollbar { width: 10px; height: 10px; }
   *::-webkit-scrollbar-thumb {
-    background: #cbd5e1; border-radius: 999px;
-    border: 2px solid transparent; background-clip: padding-box;
+    background: #c9d2df;
+    border: 2px solid transparent;
+    border-radius: 999px;
+    background-clip: padding-box;
   }
-  *::-webkit-scrollbar-thumb:hover { background: #94a3b8; background-clip: padding-box; }
+  *::-webkit-scrollbar-thumb:hover { background: #9caabe; background-clip: padding-box; }
 
-  /* ---- Topbar ---- */
-  header.topbar {
-    position: sticky; top: 0; z-index: 10;
-    background: rgba(255, 255, 255, 0.78);
-    -webkit-backdrop-filter: saturate(180%) blur(12px);
-    backdrop-filter: saturate(180%) blur(12px);
+  .topbar {
+    flex: 0 0 auto;
+    background: rgba(255, 255, 255, 0.92);
     border-bottom: 1px solid var(--border);
-    padding: 14px 20px 12px;
+    -webkit-backdrop-filter: blur(14px) saturate(160%);
+    backdrop-filter: blur(14px) saturate(160%);
+    z-index: 20;
   }
-  .topbar h1 {
-    display: flex; align-items: center; gap: 9px;
-    font-size: 16px; margin: 0 0 8px; font-weight: 600; letter-spacing: -0.01em;
+  .topbar-main {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 18px;
+    padding: 12px 18px 10px;
   }
-  .topbar h1 .rss-ico { color: var(--primary); display: inline-flex; }
-  .hint { color: var(--text-muted); font-size: 13px; margin: 0 0 12px; max-width: 860px; }
-  .hint b { color: var(--text); font-weight: 600; }
-  .hint .mono {
-    color: var(--text); background: var(--surface-2); border: 1px solid var(--border);
-    border-radius: 6px; padding: 1px 6px; font-size: 12px;
+  .brand {
+    display: flex;
+    align-items: center;
+    min-width: 0;
+    gap: 10px;
+  }
+  .rss-ico {
+    width: 30px;
+    height: 30px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex: 0 0 auto;
+    color: var(--primary);
+    background: var(--primary-soft);
+    border: 1px solid #d7e2ff;
+    border-radius: var(--radius);
+  }
+  .brand h1 {
+    margin: 0;
+    color: var(--text);
+    font-size: 17px;
+    line-height: 1.25;
+    font-weight: 700;
+    letter-spacing: 0;
+  }
+  .brand p {
+    margin: 2px 0 0;
+    color: var(--text-muted);
+    font-size: 12px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .metrics {
+    display: flex;
+    align-items: stretch;
+    justify-content: flex-end;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+  .metric {
+    min-width: 76px;
+    padding: 6px 10px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background: var(--surface-soft);
+  }
+  .metric-value {
+    display: block;
+    color: var(--text);
+    font-size: 15px;
+    line-height: 1.1;
+    font-weight: 700;
+  }
+  .metric-label {
+    display: block;
+    color: var(--text-muted);
+    font-size: 11px;
+    margin-top: 2px;
   }
 
-  .tools { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
-  .search-wrap { position: relative; flex: 1 1 260px; min-width: 200px; display: flex; align-items: center; }
-  .search-wrap > svg { position: absolute; left: 11px; color: var(--text-faint); pointer-events: none; }
-  .tools input[type="search"] {
+  .commandbar {
+    display: grid;
+    grid-template-columns: minmax(280px, 1fr) auto auto;
+    align-items: center;
+    gap: 10px;
+    padding: 0 18px 12px;
+  }
+  .search-wrap {
+    position: relative;
+    display: flex;
+    align-items: center;
+    min-width: 0;
+  }
+  .search-wrap svg {
+    position: absolute;
+    left: 11px;
+    color: var(--text-faint);
+    pointer-events: none;
+  }
+  #search {
     width: 100%;
-    background: var(--surface); color: var(--text);
-    border: 1px solid var(--border-strong); border-radius: var(--radius-sm);
-    padding: 9px 12px 9px 34px; outline: none; font-size: 13.5px; font-family: inherit;
-    box-shadow: var(--shadow-1);
+    min-width: 0;
+    height: 36px;
+    color: var(--text);
+    background: var(--surface);
+    border: 1px solid var(--border-strong);
+    border-radius: var(--radius);
+    outline: none;
+    padding: 8px 12px 8px 35px;
     transition: border-color .15s var(--ease), box-shadow .15s var(--ease);
   }
-  .tools input[type="search"]::placeholder { color: var(--text-faint); }
-  .tools input[type="search"]:focus { border-color: var(--primary); box-shadow: var(--shadow-1), var(--ring); }
+  #search::placeholder { color: var(--text-faint); }
+  #search:focus { border-color: var(--primary); box-shadow: var(--ring); }
 
+  .segmented {
+    display: inline-flex;
+    align-items: center;
+    height: 36px;
+    padding: 3px;
+    gap: 2px;
+    background: var(--surface-strong);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+  }
+  .segmented button {
+    height: 28px;
+    border: 0;
+    border-radius: var(--radius-sm);
+    color: var(--text-muted);
+    background: transparent;
+    padding: 0 10px;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: color .15s var(--ease), background .15s var(--ease), box-shadow .15s var(--ease);
+  }
+  .segmented button:hover { color: var(--text); }
+  .segmented button.is-active {
+    color: var(--text);
+    background: var(--surface);
+    box-shadow: 0 1px 2px rgba(17, 24, 39, 0.08);
+  }
+
+  .actions {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 8px;
+  }
   .btn {
-    display: inline-flex; align-items: center; gap: 6px;
-    background: var(--surface); color: var(--text);
-    border: 1px solid var(--border-strong); border-radius: var(--radius-sm);
-    padding: 8px 12px; cursor: pointer; font-size: 13px; font-weight: 500; font-family: inherit;
-    box-shadow: var(--shadow-1);
-    transition: background .15s var(--ease), border-color .15s var(--ease), transform .05s var(--ease);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    height: 36px;
+    gap: 7px;
+    color: var(--text);
+    background: var(--surface);
+    border: 1px solid var(--border-strong);
+    border-radius: var(--radius);
+    padding: 0 12px;
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 600;
+    white-space: nowrap;
+    transition: background .15s var(--ease), border-color .15s var(--ease), color .15s var(--ease), box-shadow .15s var(--ease);
   }
-  .btn svg { opacity: 0.75; }
-  .btn:hover { background: var(--surface-2); border-color: #b9c2cf; }
-  .btn:active { transform: translateY(1px); }
+  .btn svg { color: var(--text-muted); flex: 0 0 auto; }
+  .btn:hover { background: var(--surface-soft); border-color: #aeb9c8; }
+  .btn-primary {
+    color: #fff;
+    background: var(--primary);
+    border-color: var(--primary);
+  }
+  .btn-primary svg { color: #fff; }
+  .btn-primary:hover {
+    color: #fff;
+    background: var(--primary-hover);
+    border-color: var(--primary-hover);
+  }
+  .btn-primary[disabled] {
+    color: var(--text-faint);
+    background: var(--surface-strong);
+    border-color: var(--border);
+    cursor: not-allowed;
+  }
+  .btn-primary[disabled] svg { color: var(--text-faint); }
+  .btn:focus-visible,
+  .segmented button:focus-visible,
+  .source-btn:focus-visible,
+  .item-row:focus-visible,
+  .icon-btn:focus-visible,
+  .preview-action:focus-visible,
+  #search:focus-visible {
+    outline: none;
+    box-shadow: var(--ring);
+  }
 
-  .counters { color: var(--text-muted); font-size: 12.5px; margin-left: auto; }
-  .counters b { color: var(--text); font-weight: 600; font-variant-numeric: tabular-nums; }
+  .workspace {
+    flex: 1 1 auto;
+    min-height: 0;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 360px;
+    grid-template-rows: auto minmax(0, 1fr);
+    gap: 12px;
+    padding: 12px;
+  }
+  .panel {
+    min-height: 0;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+  }
 
-  /* ---- Main ---- */
-  main { max-width: 980px; margin: 0 auto; padding: 22px 20px 110px; }
-
-  /* ---- Group ---- */
-  .group { margin-bottom: 16px; }
-  .group > summary {
-    cursor: pointer; list-style: none; -webkit-user-select: none; user-select: none;
-    display: flex; align-items: center; gap: 10px;
-    background: var(--surface); border: 1px solid var(--border);
-    border-radius: var(--radius); padding: 12px 16px;
-    font-weight: 600; font-size: 14px;
-    box-shadow: var(--shadow-1);
-    transition: border-color .15s var(--ease), box-shadow .15s var(--ease), transform .05s var(--ease);
+  .source-panel {
+    grid-column: 1 / -1;
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    align-items: stretch;
+    overflow: hidden;
   }
-  .group > summary:hover { border-color: var(--border-strong); box-shadow: var(--shadow-2); }
-  .group > summary:active { transform: translateY(1px); }
-  .group > summary::-webkit-details-marker { display: none; }
-  .group > summary::before {
-    content: ""; width: 7px; height: 7px;
-    border-right: 2px solid var(--text-muted);
-    border-bottom: 2px solid var(--text-muted);
-    transform: rotate(-45deg); margin: 1px 3px 0 2px;
-    transition: transform .18s var(--ease); flex: 0 0 auto;
+  .panel-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    min-height: 44px;
+    padding: 0 12px;
+    border-right: 1px solid var(--border);
+    color: var(--text);
+    font-weight: 700;
   }
-  .group[open] > summary::before { transform: rotate(45deg); }
-  .group-meta {
-    margin-left: auto; color: var(--text-muted); font-weight: 400; font-size: 12.5px;
-    display: inline-flex; gap: 6px; align-items: center;
+  .panel-head span {
+    color: var(--text-muted);
+    font-size: 12px;
+    font-weight: 500;
   }
-  .group-meta .pill {
-    background: var(--surface-2); border: 1px solid var(--border);
-    border-radius: 999px; padding: 2px 10px; color: var(--text-muted);
+  .source-list {
+    display: flex;
+    gap: 6px;
+    min-width: 0;
+    overflow-x: auto;
+    overflow-y: hidden;
+    padding: 8px;
+  }
+  .source-btn {
+    width: auto;
+    min-width: 154px;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 8px;
+    align-items: center;
+    min-height: 34px;
+    margin: 0;
+    border: 1px solid transparent;
+    border-radius: var(--radius-sm);
+    background: transparent;
+    color: var(--text-muted);
+    padding: 7px 8px;
+    text-align: left;
+    cursor: pointer;
+    transition: color .15s var(--ease), background .15s var(--ease), border-color .15s var(--ease);
+  }
+  .source-btn:hover { color: var(--text); background: var(--surface-soft); }
+  .source-btn.is-active {
+    color: var(--text);
+    background: var(--primary-soft);
+    border-color: #d7e2ff;
+  }
+  .source-name {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-weight: 600;
+  }
+  .source-count {
+    color: var(--text-muted);
+    font-size: 12px;
+    font-weight: 600;
     font-variant-numeric: tabular-nums;
   }
-
-  /* ---- Items ---- */
-  ul.items { list-style: none; margin: 8px 0 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
-  li.item {
-    display: flex; align-items: flex-start; gap: 12px;
-    background: var(--surface); border: 1px solid var(--border);
-    border-radius: var(--radius); padding: 12px 14px;
-    box-shadow: var(--shadow-1);
-    cursor: pointer;
-    -webkit-user-select: none; user-select: none;
-    transition: border-color .12s var(--ease), box-shadow .12s var(--ease), background .12s var(--ease);
+  .source-fresh {
+    grid-column: 1 / -1;
+    color: var(--text-faint);
+    font-size: 11px;
   }
-  li.item:hover { border-color: var(--border-strong); box-shadow: var(--shadow-2); }
-  li.item:active { background: var(--surface-2); }
-  /* 标题与 hash 仍允许选中复制 */
-  li.item .title, li.item .sub { -webkit-user-select: text; user-select: text; }
 
-  /* custom checkbox — crisp, on-brand, focusable */
-  li.item input[type="checkbox"] {
-    -webkit-appearance: none; appearance: none;
+  .list-panel {
+    grid-column: 1;
+    grid-row: 2;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+  .list-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    min-height: 54px;
+    padding: 9px 12px;
+    border-bottom: 1px solid var(--border);
+  }
+  .list-head h2 {
+    margin: 0;
+    color: var(--text);
+    font-size: 15px;
+    line-height: 1.2;
+    font-weight: 700;
+    letter-spacing: 0;
+  }
+  .list-head p {
+    margin: 3px 0 0;
+    color: var(--text-muted);
+    font-size: 12px;
+  }
+  .list-table {
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+  }
+  .list-header,
+  .item-row {
+    display: grid;
+    grid-template-columns: 34px minmax(0, 1fr) 124px 36px;
+    align-items: center;
+  }
+  .list-header {
     flex: 0 0 auto;
-    width: 18px; height: 18px; margin: 2px 0 0;
-    border: 1.5px solid #cbd5e1; border-radius: 5px;
-    background: var(--surface); cursor: pointer;
+    min-height: 34px;
+    padding: 0 10px;
+    color: var(--text-faint);
+    background: var(--surface-soft);
+    border-bottom: 1px solid var(--border);
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0;
+  }
+  .item-list {
+    min-height: 0;
+    overflow: auto;
+    overscroll-behavior: contain;
+    scroll-padding-bottom: 28px;
+    background:
+      linear-gradient(var(--surface) 30%, rgba(255, 255, 255, 0)) 0 0 / 100% 18px no-repeat local,
+      linear-gradient(rgba(255, 255, 255, 0), var(--surface) 70%) 0 100% / 100% 18px no-repeat local,
+      radial-gradient(farthest-side at 50% 0, rgba(17, 24, 39, 0.13), rgba(17, 24, 39, 0)) 0 0 / 100% 8px no-repeat scroll,
+      radial-gradient(farthest-side at 50% 100%, rgba(17, 24, 39, 0.13), rgba(17, 24, 39, 0)) 0 100% / 100% 8px no-repeat scroll,
+      var(--surface);
+  }
+  .item-row {
+    min-height: 50px;
+    padding: 7px 10px;
+    border-bottom: 1px solid #edf1f5;
+    cursor: pointer;
+    -webkit-user-select: none;
+    user-select: none;
+    transition: background .12s var(--ease), box-shadow .12s var(--ease);
+  }
+  .item-row:hover { background: #fafcff; }
+  .item-row.is-active {
+    background: var(--primary-soft);
+    box-shadow: inset 3px 0 0 var(--primary);
+  }
+  .item-row.is-accepted { color: var(--text-muted); }
+  .item-row.is-accepted .row-title {
+    color: var(--text-muted);
+    text-decoration: line-through;
+    text-decoration-color: var(--text-faint);
+  }
+  .item-row.is-selected:not(.is-active) { background: #f6fbff; }
+  .check-cell {
+    display: inline-flex;
+    align-items: center;
+    justify-content: flex-start;
+    width: 28px;
+    height: 28px;
+    cursor: pointer;
+  }
+  .check-cell input {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 17px;
+    height: 17px;
+    margin: 0;
+    border: 1.5px solid #b9c5d3;
+    border-radius: 5px;
+    background: var(--surface);
+    cursor: pointer;
     transition: background .12s var(--ease), border-color .12s var(--ease), box-shadow .12s var(--ease);
   }
-  li.item input[type="checkbox"]:hover { border-color: var(--primary); }
-  li.item input[type="checkbox"]:checked {
-    background: var(--primary); border-color: var(--primary);
+  .check-cell input:hover { border-color: var(--primary); }
+  .check-cell input:checked {
+    border-color: var(--primary);
+    background-color: var(--primary);
     background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23ffffff' stroke-width='3.5' stroke-linecap='round' stroke-linejoin='round'><polyline points='20 6 9 17 4 12'/></svg>");
-    background-repeat: no-repeat; background-position: center;
+    background-position: center;
+    background-repeat: no-repeat;
   }
-  li.item input[type="checkbox"]:focus-visible { outline: none; box-shadow: var(--ring); }
-
-  .body { flex: 1 1 auto; min-width: 0; }
-  .title { font-size: 14.5px; font-weight: 500; line-height: 1.5; word-break: break-word; }
-  .sub {
-    color: var(--text-muted); font-size: 12px; margin-top: 5px;
-    display: flex; flex-wrap: wrap; gap: 4px 12px; align-items: center;
+  .check-cell input:focus-visible { outline: none; box-shadow: var(--ring); }
+  .title-cell {
+    min-width: 0;
+    padding-right: 10px;
   }
-  .sub .mono { font-size: 11.5px; color: var(--text-faint); }
-
-  /* ---- Badges ---- */
+  .row-title {
+    color: var(--text);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 13.5px;
+    font-weight: 600;
+    line-height: 1.35;
+  }
+  .row-meta {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+    margin-top: 3px;
+    color: var(--text-faint);
+    font-size: 11px;
+  }
+  .row-meta span {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .status-cell {
+    display: flex;
+    justify-content: flex-start;
+    gap: 5px;
+    min-width: 0;
+  }
   .badge {
-    display: inline-flex; align-items: center; gap: 4px;
-    font-size: 11px; font-weight: 600; border-radius: 999px; padding: 2px 8px;
-    border: 1px solid transparent; white-space: nowrap; vertical-align: middle;
-    margin-left: 7px; letter-spacing: 0.01em;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    max-width: 100%;
+    height: 22px;
+    border: 1px solid transparent;
+    border-radius: 999px;
+    padding: 0 7px;
+    font-size: 11px;
+    font-weight: 700;
+    white-space: nowrap;
   }
-  .badge::before { content: ""; width: 6px; height: 6px; border-radius: 999px; background: currentColor; }
-  .badge-accepted { background: var(--green-soft); color: var(--green); border-color: var(--green-border); }
-  .badge-copied { background: var(--amber-soft); color: var(--amber); border-color: var(--amber-border); }
+  .badge::before {
+    content: "";
+    width: 6px;
+    height: 6px;
+    border-radius: 999px;
+    background: currentColor;
+    flex: 0 0 auto;
+  }
+  .badge-accepted { color: var(--green); background: var(--green-soft); border-color: var(--green-border); }
+  .badge-copied { color: var(--amber); background: var(--amber-soft); border-color: var(--amber-border); }
+  .badge-selected { color: var(--primary); background: var(--primary-soft); border-color: #d7e2ff; }
+  .badge-neutral { color: var(--text-muted); background: var(--surface-strong); border-color: var(--border); }
+  .icon-btn {
+    width: 30px;
+    height: 30px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-muted);
+    border: 1px solid transparent;
+    border-radius: var(--radius-sm);
+    background: transparent;
+    cursor: pointer;
+    transition: color .15s var(--ease), background .15s var(--ease), border-color .15s var(--ease);
+  }
+  .icon-btn:hover {
+    color: var(--primary);
+    background: var(--surface);
+    border-color: var(--border);
+  }
+  .empty {
+    margin: 28px;
+    padding: 32px 20px;
+    color: var(--text-muted);
+    background: var(--surface-soft);
+    border: 1px dashed var(--border-strong);
+    border-radius: var(--radius);
+    text-align: center;
+  }
+  .list-end {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 56px;
+    margin: 0 10px 10px;
+    color: var(--text-faint);
+    border-top: 1px solid var(--border);
+    font-size: 12px;
+  }
+  .list-end::before,
+  .list-end::after {
+    content: "";
+    width: 28px;
+    height: 1px;
+    margin: 0 10px;
+    background: var(--border);
+  }
 
-  /* states */
-  li.item.accepted { opacity: 0.6; }
-  li.item.accepted .title { text-decoration: line-through; text-decoration-color: var(--text-faint); color: var(--text-muted); }
-  li.item.copied:not(.accepted) { border-color: var(--amber-border); }
-  li.item.hidden { display: none; }
-
-  /* ---- Floating copy CTA ---- */
-  .float-copy {
-    position: fixed; right: 22px; bottom: 22px; z-index: 20;
-    display: inline-flex; align-items: center; gap: 8px;
-    background: linear-gradient(180deg, #3b82f6, var(--primary));
-    color: #fff; border: 1px solid rgba(255, 255, 255, 0.2); border-radius: 999px;
-    padding: 12px 20px; font-weight: 600; font-size: 13.5px; cursor: pointer; font-family: inherit;
-    box-shadow: 0 10px 24px rgba(37, 99, 235, 0.35), 0 2px 6px rgba(15, 23, 42, 0.1);
-    transition: transform .12s var(--ease), box-shadow .15s var(--ease), filter .15s var(--ease);
+  .preview-panel {
+    grid-column: 2;
+    grid-row: 2;
+    align-self: start;
+    max-height: 100%;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
   }
-  .float-copy:hover {
-    transform: translateY(-1px); filter: brightness(1.05);
-    box-shadow: 0 14px 30px rgba(37, 99, 235, 0.42), 0 2px 6px rgba(15, 23, 42, 0.12);
+  .preview-body {
+    min-height: 0;
+    overflow: auto;
+    padding: 14px;
   }
-  .float-copy:active { transform: translateY(0); }
-  .float-copy[disabled] {
-    background: var(--surface-2); color: var(--text-faint);
-    border-color: var(--border); cursor: not-allowed; box-shadow: var(--shadow-1); transform: none; filter: none;
+  .preview-empty {
+    display: grid;
+    place-items: center;
+    min-height: 220px;
+    color: var(--text-muted);
+    text-align: center;
   }
-
-  /* ---- Toast ---- */
-  .toast {
-    position: fixed; left: 50%; bottom: 28px; transform: translate(-50%, 10px);
-    background: var(--surface); color: var(--text);
+  .preview-title {
+    margin: 0 0 12px;
+    color: var(--text);
+    font-size: 18px;
+    line-height: 1.45;
+    font-weight: 700;
+    letter-spacing: 0;
+    word-break: break-word;
+  }
+  .preview-status {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-bottom: 14px;
+  }
+  .preview-meta {
+    display: grid;
+    grid-template-columns: 74px minmax(0, 1fr);
+    gap: 8px 10px;
+    margin: 0 0 14px;
+    padding: 12px;
+    background: var(--surface-soft);
     border: 1px solid var(--border);
-    padding: 11px 16px 11px 14px; border-radius: var(--radius-sm);
-    font-size: 13px; font-weight: 500; font-family: inherit;
-    box-shadow: var(--shadow-2); opacity: 0; pointer-events: none;
-    transition: opacity .2s var(--ease), transform .2s var(--ease);
-    display: inline-flex; align-items: center; gap: 9px; max-width: 90vw;
+    border-radius: var(--radius);
+  }
+  .preview-meta dt {
+    color: var(--text-muted);
+    font-size: 12px;
+  }
+  .preview-meta dd {
+    min-width: 0;
+    margin: 0;
+    color: var(--text);
+    font-size: 12px;
+    word-break: break-all;
+  }
+  .preview-link {
+    color: var(--primary);
+    text-decoration: underline;
+    text-underline-offset: 2px;
+  }
+  .preview-actions {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+  .preview-action {
+    min-height: 36px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 7px;
+    color: var(--text);
+    background: var(--surface);
+    border: 1px solid var(--border-strong);
+    border-radius: var(--radius);
+    padding: 0 10px;
+    cursor: pointer;
+    font-weight: 700;
+    text-align: center;
+    transition: background .15s var(--ease), border-color .15s var(--ease), color .15s var(--ease);
+  }
+  .preview-action:hover { background: var(--surface-soft); border-color: #aeb9c8; }
+  .preview-action.primary {
+    color: #fff;
+    background: var(--primary);
+    border-color: var(--primary);
+  }
+  .preview-action.primary:hover { background: var(--primary-hover); border-color: var(--primary-hover); }
+  .preview-action.full { grid-column: 1 / -1; }
+
+  .toast {
+    position: fixed;
+    left: 50%;
+    bottom: 18px;
+    z-index: 40;
+    max-width: min(520px, calc(100vw - 28px));
+    display: inline-flex;
+    align-items: center;
+    gap: 9px;
+    color: var(--text);
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 10px 13px;
+    box-shadow: var(--shadow);
+    opacity: 0;
+    pointer-events: none;
+    transform: translate(-50%, 8px);
+    transition: opacity .18s var(--ease), transform .18s var(--ease);
   }
   .toast::before {
-    content: ""; width: 8px; height: 8px; border-radius: 999px;
-    background: var(--green); box-shadow: 0 0 0 4px var(--green-soft); flex: 0 0 auto;
+    content: "";
+    width: 8px;
+    height: 8px;
+    border-radius: 999px;
+    background: var(--green);
+    box-shadow: 0 0 0 4px var(--green-soft);
+    flex: 0 0 auto;
   }
   .toast.show { opacity: 1; transform: translate(-50%, 0); }
 
-  .empty { color: var(--text-muted); padding: 60px 0; text-align: center; font-size: 14px; }
-
-  /* ---- Focus rings (keyboard) ---- */
-  .btn:focus-visible,
-  .group > summary:focus-visible { outline: none; box-shadow: var(--shadow-1), var(--ring); border-color: var(--primary); }
-  a:focus-visible { outline: none; box-shadow: var(--ring); border-radius: 4px; }
-
-  /* ---- Reduced motion ---- */
   @media (prefers-reduced-motion: reduce) {
-    *, *::before, *::after { transition: none !important; }
+    *, *::before, *::after { transition: none !important; scroll-behavior: auto !important; }
   }
 
-  /* ---- Responsive ---- */
+  @media (max-width: 1180px) {
+    .workspace { grid-template-columns: minmax(0, 1fr) 320px; }
+    .commandbar { grid-template-columns: minmax(260px, 1fr) auto; }
+    .actions { grid-column: 1 / -1; justify-content: flex-start; }
+  }
+
+  @media (max-width: 900px) {
+    body { height: auto; min-height: 100vh; overflow: auto; }
+    .topbar { position: static; }
+    .topbar-main { align-items: flex-start; flex-direction: column; }
+    .metrics { width: 100%; justify-content: flex-start; }
+    .commandbar { grid-template-columns: 1fr; }
+    .segmented, .actions { overflow-x: auto; justify-content: flex-start; }
+    .workspace {
+      display: flex;
+      flex-direction: column;
+      padding: 10px;
+    }
+    .source-list {
+      display: flex;
+      gap: 6px;
+      overflow-x: auto;
+      padding: 8px;
+    }
+    .source-panel {
+      display: flex;
+      flex-direction: column;
+    }
+    .source-panel .panel-head {
+      border-right: 0;
+      border-bottom: 1px solid var(--border);
+    }
+    .source-btn {
+      width: auto;
+      min-width: 148px;
+      margin: 0;
+    }
+    .list-panel,
+    .preview-panel { overflow: visible; }
+    .item-list { overflow: visible; }
+  }
+
   @media (max-width: 640px) {
-    header.topbar { padding: 12px 14px 10px; }
-    main { padding: 16px 14px 110px; }
-    .counters { width: 100%; margin-left: 0; text-align: right; }
-    .title { font-size: 14px; }
+    .topbar-main,
+    .commandbar { padding-left: 12px; padding-right: 12px; }
+    .metric { min-width: 68px; padding: 6px 8px; }
+    .btn { padding: 0 10px; }
+    .list-header { display: none; }
+    .item-row {
+      grid-template-columns: 34px minmax(0, 1fr) 32px;
+      min-height: 58px;
+    }
+    .status-cell { grid-column: 2 / 3; margin-top: 5px; }
+    .item-row .icon-btn { grid-column: 3 / 4; grid-row: 1 / span 2; }
+    .row-title { white-space: normal; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+    .preview-actions { grid-template-columns: 1fr; }
+    .actions {
+      flex-wrap: wrap;
+      overflow-x: visible;
+    }
+    .status-cell:empty { display: none; }
   }
 </style>
 </head>
 <body>
 
 <header class="topbar">
-  <h1><span class="rss-ico" aria-hidden="true"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 11a9 9 0 0 1 9 9"/><path d="M4 4a16 16 0 0 1 16 16"/><circle cx="5" cy="19" r="1"/></svg></span>RSS 挑选 Playground</h1>
-  <p class="hint">
-    <b>已收录</b> = 绿标，已在 <span class="mono">data-scheme/data.json</span> 里（默认不勾，避免重复补选）。
-    勾选感兴趣的条目 → 点「复制选中为 JSONC」→ <b>贴回对话</b>，agent 会按
-    <span class="mono">rss-pick-mode</span> 把它们补选进本期日报。
-  </p>
-  <div class="tools">
+  <div class="topbar-main">
+    <div class="brand">
+      <span class="rss-ico" aria-hidden="true">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 11a9 9 0 0 1 9 9"/><path d="M4 4a16 16 0 0 1 16 16"/><circle cx="5" cy="19" r="1"/></svg>
+      </span>
+      <div>
+        <h1>RSS 挑选 Playground</h1>
+        <p><span class="mono">ingest/rss-state.json</span> → <span class="mono">data-scheme/data.json</span></p>
+      </div>
+    </div>
+    <div class="metrics" aria-label="统计">
+      <div class="metric"><span class="metric-value" id="c-visible">0</span><span class="metric-label">当前</span></div>
+      <div class="metric"><span class="metric-value" id="c-selected">0</span><span class="metric-label">已选</span></div>
+      <div class="metric"><span class="metric-value" id="c-accepted">0</span><span class="metric-label">已收录</span></div>
+      <div class="metric"><span class="metric-value" id="c-total">0</span><span class="metric-label">全部</span></div>
+    </div>
+  </div>
+  <div class="commandbar">
     <div class="search-wrap">
       <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
-      <input id="search" type="search" placeholder="按标题过滤…" autocomplete="off" />
+      <input id="search" type="search" placeholder="搜索标题、来源、topic、hash" autocomplete="off" />
     </div>
-    <button class="btn" id="select-all" title="只勾选未收录的可见项"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 10.5V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h12.5"/><path d="m9 11 3 3L22 4"/></svg>全选未收录</button>
-    <button class="btn" id="invert" title="反选可见项"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 3 4 7l4 4"/><path d="M4 7h16"/><path d="m16 21 4-4-4-4"/><path d="M20 17H4"/></svg>反选</button>
-    <button class="btn" id="clear-checked" title="清空勾选"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="m15 9-6 6"/><path d="m9 9 6 6"/></svg>清空勾选</button>
-    <span class="counters">已选 <b id="c-selected">0</b> · 已收录 <b id="c-accepted">0</b> · 共 <b id="c-total">0</b></span>
+    <div class="segmented" role="group" aria-label="状态筛选">
+      <button type="button" class="is-active" data-filter="fresh" aria-pressed="true">未收录</button>
+      <button type="button" data-filter="all" aria-pressed="false">全部</button>
+      <button type="button" data-filter="selected" aria-pressed="false">已选</button>
+      <button type="button" data-filter="copied" aria-pressed="false">已复制</button>
+      <button type="button" data-filter="accepted" aria-pressed="false">已收录</button>
+    </div>
+    <div class="actions">
+      <button class="btn" id="select-all" type="button" title="勾选当前列表里的未收录项"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 10.5V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h12.5"/><path d="m9 11 3 3L22 4"/></svg>全选未收录</button>
+      <button class="btn" id="invert" type="button" title="反选当前列表"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 3 4 7l4 4"/><path d="M4 7h16"/><path d="m16 21 4-4-4-4"/><path d="M20 17H4"/></svg>反选当前</button>
+      <button class="btn" id="clear-checked" type="button" title="清空勾选"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="m15 9-6 6"/><path d="m9 9 6 6"/></svg>清空</button>
+      <button class="btn btn-primary" id="copy-btn" type="button" disabled><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>复制 JSONC</button>
+    </div>
   </div>
 </header>
 
-<main id="root"></main>
+<main class="workspace">
+  <aside class="panel source-panel" aria-label="来源">
+    <div class="panel-head">来源 <span id="source-total">0 个</span></div>
+    <div class="source-list" id="source-list"></div>
+  </aside>
 
-<button class="float-copy" id="copy-btn" disabled><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>复制选中为 JSONC</button>
-<div class="toast" id="toast"></div>
+  <section class="panel list-panel" aria-label="条目列表">
+    <div class="list-head">
+      <div>
+        <h2 id="list-title">未收录条目</h2>
+        <p id="list-subtitle">0 条</p>
+      </div>
+    </div>
+    <div class="list-table">
+      <div class="list-header" aria-hidden="true">
+        <span></span>
+        <span>标题</span>
+        <span>状态</span>
+        <span></span>
+      </div>
+      <div class="item-list" id="items-list"></div>
+      <div class="empty" id="empty" hidden>没有匹配条目</div>
+    </div>
+  </section>
+
+  <aside class="panel preview-panel" aria-label="预览">
+    <div class="panel-head">预览 <span id="preview-index">-</span></div>
+    <div class="preview-body" id="preview-body"></div>
+  </aside>
+</main>
+
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
 
 <!-- build-rss-state-html.mjs 在此注入运行期数据（不修改本文件其余内容） -->
 <script id="rss-state-data" type="application/json">__RSS_STATE__</script>
@@ -311,8 +844,6 @@
   var rssState = JSON.parse(document.getElementById("rss-state-data").textContent || "{}") || {};
   var reportStories = JSON.parse(document.getElementById("report-data").textContent || "[]") || [];
 
-  // ---- 本期 data.json 已收录的 topic id 集合 ----
-  // Story id 形如 topic-2466852（见 ingest/linuxdo_adapter.go:42-43 StableID，经 generate_datajson.go storyID 透传）
   var acceptedTopicIds = {};
   var acceptedTitles = {};
   for (var i = 0; i < reportStories.length; i++) {
@@ -331,88 +862,98 @@
     var m = String(link).match(/\/t\/topic\/(\d+)/);
     return m ? m[1] : null;
   }
+
   function isAccepted(item) {
     var tid = topicIdFromLink(item.link);
     if (tid && acceptedTopicIds[tid]) return true;
-    // 弱兜底：contentTitle 完全相等（RSS 原始标题通常更长，命中率低，仅作补充）
     if (item.title && acceptedTitles[String(item.title).trim()]) return true;
     return false;
   }
 
-  // ---- 本机“已复制”记忆（localStorage，不写文件系统） ----
   var LS_KEY = "rss-pick-playground:copied";
   var copied = {};
   try { copied = JSON.parse(localStorage.getItem(LS_KEY) || "{}") || {}; } catch (e) { copied = {}; }
+
   function markCopied(hashList) {
     for (var i = 0; i < hashList.length; i++) copied[hashList[i]] = true;
     try { localStorage.setItem(LS_KEY, JSON.stringify(copied)); } catch (e) {}
   }
 
-  // ---- 扁平化条目（保留 hash） ----
-  var items = rssState && rssState.items ? rssState.items : rssState; // 兼容顶层直接是 map
+  var items = rssState && rssState.items ? rssState.items : rssState;
   var entries = [];
-  var total = 0, acceptedCount = 0;
+  var entryMap = {};
+  var selected = {};
+  var total = 0;
+  var acceptedCount = 0;
+
   for (var hash in items) {
     if (!Object.prototype.hasOwnProperty.call(items, hash)) continue;
     var it = items[hash] || {};
     var accepted = isAccepted(it);
-    entries.push({
+    var topicId = topicIdFromLink(it.link);
+    var entry = {
       hash: hash,
       sourceId: it.sourceId || "",
       title: it.title || "(无标题)",
       link: it.link || "",
       accepted: accepted,
       copied: !!copied[hash],
-      topicId: topicIdFromLink(it.link)
-    });
+      topicId: topicId,
+      searchText: [
+        it.title || "",
+        it.sourceId || "",
+        topicId ? "topic-" + topicId : "",
+        hash
+      ].join(" ").toLowerCase()
+    };
+    entries.push(entry);
+    entryMap[hash] = entry;
     total++;
     if (accepted) acceptedCount++;
   }
 
-  // 稳定排序：未收录优先，再按 sourceId、标题
   entries.sort(function (a, b) {
     if (a.accepted !== b.accepted) return a.accepted ? 1 : -1;
     if (a.sourceId !== b.sourceId) return a.sourceId < b.sourceId ? -1 : 1;
     return a.title < b.title ? -1 : (a.title > b.title ? 1 : 0);
   });
 
-  // ---- 按 sourceId 分组 ----
-  var groups = {};
-  var groupOrder = [];
-  for (var i = 0; i < entries.length; i++) {
-    var e = entries[i];
-    var key = e.sourceId || "其他";
-    if (!groups[key]) { groups[key] = []; groupOrder.push(key); }
-    groups[key].push(e);
+  var state = {
+    query: "",
+    filter: "fresh",
+    source: "all",
+    activeHash: entries[0] ? entries[0].hash : null
+  };
+
+  var root = document.getElementById("items-list");
+  var empty = document.getElementById("empty");
+  var searchInput = document.getElementById("search");
+  var copyBtn = document.getElementById("copy-btn");
+  var sourceList = document.getElementById("source-list");
+  var previewBody = document.getElementById("preview-body");
+  var previewIndex = document.getElementById("preview-index");
+  var cVisible = document.getElementById("c-visible");
+  var cSelected = document.getElementById("c-selected");
+  var cAccepted = document.getElementById("c-accepted");
+  var cTotal = document.getElementById("c-total");
+  var listTitle = document.getElementById("list-title");
+  var listSubtitle = document.getElementById("list-subtitle");
+
+  cTotal.textContent = total;
+  cAccepted.textContent = acceptedCount;
+  document.getElementById("source-total").textContent = sourceStats().length + " 个";
+
+  if (entries.length === 0) {
+    root.innerHTML = "";
+    empty.hidden = false;
+    empty.innerHTML = '没有 RSS 条目。确认 <span class="mono">ingest/rss-state.json</span> 里有没有 items。';
+    renderPreview(null, []);
+    recount([]);
+    return;
   }
 
-  // ---- 渲染 ----
-  var root = document.getElementById("root");
-  if (entries.length === 0) {
-    root.innerHTML = '<div class="empty">没有 RSS 条目。确认 <span class="mono">ingest/rss-state.json</span> 里有没有 items。</div>';
-  } else {
-    var html = "";
-    for (var g = 0; g < groupOrder.length; g++) {
-      var key = groupOrder[g];
-      var list = groups[key];
-      var acc = 0;
-      for (var k = 0; k < list.length; k++) if (list[k].accepted) acc++;
-      html += '<details class="group" open>'
-        + '<summary>'
-          + '<span>' + escapeHtml(key) + '</span>'
-          + '<span class="group-meta">'
-            + '<span class="pill">' + list.length + ' 条</span>'
-            + (acc ? '<span class="pill">已收录 ' + acc + '</span>' : '')
-          + '</span>'
-        + '</summary>'
-        + '<ul class="items">';
-      for (var j = 0; j < list.length; j++) {
-        html += renderItem(list[j]);
-      }
-      html += '</ul></details>';
-    }
-    root.innerHTML = html;
-  }
+  renderSourceList();
+  renderAll();
 
   function escapeHtml(s) {
     return String(s).replace(/[&<>"']/g, function (c) {
@@ -420,106 +961,276 @@
     });
   }
 
-  function renderItem(e) {
-    var classes = "item";
-    if (e.accepted) classes += " accepted";
-    if (e.copied) classes += " copied";
-    var titleHtml;
-    if (e.link) {
-      titleHtml = '<a class="title" href="' + escapeHtml(e.link) + '" target="_blank" rel="noopener noreferrer">' + escapeHtml(e.title) + '</a>';
-    } else {
-      titleHtml = '<span class="title">' + escapeHtml(e.title) + '</span>';
-    }
-    var badges = "";
-    if (e.accepted) badges += ' <span class="badge badge-accepted">已收录</span>';
-    if (e.copied) badges += ' <span class="badge badge-copied">已复制</span>';
-    var subRight = (e.topicId ? ('topic-' + e.topicId) : (e.hash.slice(0, 8)));
-    var sub = '<div class="sub">'
-      + '<span class="mono">' + e.hash.slice(0, 10) + '…</span>'
-      + '<span class="mono">' + escapeHtml(subRight) + '</span>'
-      + '</div>';
-    return '<li class="' + classes + '" data-hash="' + escapeHtml(e.hash) + '" data-accepted="' + (e.accepted ? "1" : "0") + '">'
-      + '<input type="checkbox" />'
-      + '<div class="body">' + titleHtml + badges + sub + '</div>'
-      + '</li>';
+  function escapeAttr(s) {
+    return escapeHtml(s).replace(/`/g, "&#96;");
   }
 
-  // ---- 交互 ----
-  var searchInput = document.getElementById("search");
-  var copyBtn = document.getElementById("copy-btn");
-  var cSelected = document.getElementById("c-selected");
-  var cAccepted = document.getElementById("c-accepted");
-  var cTotal = document.getElementById("c-total");
-  cTotal.textContent = total;
-  cAccepted.textContent = acceptedCount;
+  function sourceStats() {
+    var stats = {};
+    for (var i = 0; i < entries.length; i++) {
+      var e = entries[i];
+      var key = e.sourceId || "其他";
+      if (!stats[key]) stats[key] = { sourceId: key, total: 0, fresh: 0, accepted: 0 };
+      stats[key].total++;
+      if (e.accepted) stats[key].accepted++;
+      else stats[key].fresh++;
+    }
+    return Object.keys(stats).sort().map(function (key) { return stats[key]; });
+  }
 
-  function visibleItems() {
-    var q = (searchInput.value || "").trim().toLowerCase();
+  function renderSourceList() {
+    var stats = sourceStats();
+    var fresh = 0;
+    for (var i = 0; i < entries.length; i++) if (!entries[i].accepted) fresh++;
+    var html = renderSourceButton("all", "全部来源", entries.length, fresh);
+    for (var j = 0; j < stats.length; j++) {
+      html += renderSourceButton(stats[j].sourceId, stats[j].sourceId, stats[j].total, stats[j].fresh);
+    }
+    sourceList.innerHTML = html;
+  }
+
+  function renderSourceButton(value, label, count, fresh) {
+    var active = state.source === value ? " is-active" : "";
+    return '<button class="source-btn' + active + '" type="button" data-source="' + escapeAttr(value) + '" aria-pressed="' + (state.source === value ? "true" : "false") + '">'
+      + '<span class="source-name">' + escapeHtml(label) + '</span>'
+      + '<span class="source-count">' + count + '</span>'
+      + '<span class="source-fresh">未收录 ' + fresh + '</span>'
+      + '</button>';
+  }
+
+  function filteredEntries() {
+    var q = state.query.trim().toLowerCase();
     var out = [];
-    var nodes = root.querySelectorAll("li.item");
-    for (var i = 0; i < nodes.length; i++) {
-      var n = nodes[i];
-      var titleEl = n.querySelector(".title");
-      var title = titleEl ? titleEl.textContent.toLowerCase() : "";
-      var hide = q && title.indexOf(q) === -1;
-      n.classList.toggle("hidden", hide);
-      if (!hide) out.push(n);
+    for (var i = 0; i < entries.length; i++) {
+      var e = entries[i];
+      if (state.source !== "all" && (e.sourceId || "其他") !== state.source) continue;
+      if (q && e.searchText.indexOf(q) === -1) continue;
+      if (state.filter === "fresh" && e.accepted) continue;
+      if (state.filter === "accepted" && !e.accepted) continue;
+      if (state.filter === "copied" && !e.copied) continue;
+      if (state.filter === "selected" && !selected[e.hash]) continue;
+      out.push(e);
     }
     return out;
   }
 
-  function recount() {
-    var sel = root.querySelectorAll("li.item input[type=checkbox]:checked").length;
-    cSelected.textContent = sel;
-    copyBtn.disabled = sel === 0;
+  function renderAll() {
+    var visible = filteredEntries();
+    if (visible.length && (!state.activeHash || !containsHash(visible, state.activeHash))) {
+      state.activeHash = visible[0].hash;
+    }
+    renderList(visible);
+    renderSourceList();
+    updateFilterButtons();
+    renderPreview(entryMap[state.activeHash] || null, visible);
+    recount(visible);
   }
 
-  root.addEventListener("change", function (ev) {
-    if (ev.target && ev.target.type === "checkbox") recount();
+  function containsHash(list, hash) {
+    for (var i = 0; i < list.length; i++) if (list[i].hash === hash) return true;
+    return false;
+  }
+
+  function renderList(visible) {
+    var titleMap = {
+      all: "全部条目",
+      fresh: "未收录条目",
+      selected: "已选条目",
+      copied: "已复制条目",
+      accepted: "已收录条目"
+    };
+    listTitle.textContent = titleMap[state.filter] || "条目";
+    listSubtitle.textContent = sourceLabel() + " · " + visible.length + " 条";
+
+    if (!visible.length) {
+      root.innerHTML = "";
+      empty.hidden = false;
+      return;
+    }
+    empty.hidden = true;
+    var html = "";
+    for (var i = 0; i < visible.length; i++) {
+      html += renderItem(visible[i]);
+    }
+    html += '<div class="list-end">已到底 · 当前 ' + visible.length + ' 条</div>';
+    root.innerHTML = html;
+  }
+
+  function sourceLabel() {
+    return state.source === "all" ? "全部来源" : state.source;
+  }
+
+  function renderItem(e) {
+    var classes = "item-row";
+    if (e.hash === state.activeHash) classes += " is-active";
+    if (e.accepted) classes += " is-accepted";
+    if (selected[e.hash]) classes += " is-selected";
+    var topic = e.topicId ? "topic-" + e.topicId : e.hash.slice(0, 8);
+    var badges = "";
+    if (selected[e.hash]) badges += '<span class="badge badge-selected">已选</span>';
+    if (e.accepted) badges += '<span class="badge badge-accepted">已收录</span>';
+    if (e.copied) badges += '<span class="badge badge-copied">已复制</span>';
+    if (!badges) badges = "";
+    var open = e.link
+      ? '<a class="icon-btn" href="' + escapeAttr(e.link) + '" target="_blank" rel="noopener noreferrer" aria-label="打开原文"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 3h6v6"/><path d="M10 14 21 3"/><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/></svg></a>'
+      : '<span></span>';
+    return '<div class="' + classes + '" data-hash="' + escapeAttr(e.hash) + '" tabindex="0" aria-selected="' + (e.hash === state.activeHash ? "true" : "false") + '">'
+      + '<label class="check-cell" aria-label="选择 ' + escapeAttr(e.title) + '"><input type="checkbox" ' + (selected[e.hash] ? "checked" : "") + ' /></label>'
+      + '<div class="title-cell">'
+        + '<div class="row-title" title="' + escapeAttr(e.title) + '">' + escapeHtml(e.title) + '</div>'
+        + '<div class="row-meta"><span>' + escapeHtml(e.sourceId || "其他") + '</span><span class="mono">' + escapeHtml(topic) + '</span><span class="mono">' + escapeHtml(e.hash.slice(0, 8)) + '</span></div>'
+      + '</div>'
+      + '<div class="status-cell">' + badges + '</div>'
+      + open
+      + '</div>';
+  }
+
+  function renderPreview(e, visible) {
+    if (!e) {
+      previewIndex.textContent = "-";
+      previewBody.innerHTML = '<div class="preview-empty">选择一条内容查看详情</div>';
+      return;
+    }
+    var index = 0;
+    for (var i = 0; i < visible.length; i++) {
+      if (visible[i].hash === e.hash) {
+        index = i + 1;
+        break;
+      }
+    }
+    previewIndex.textContent = index ? (index + " / " + visible.length) : "-";
+    var topic = e.topicId ? "topic-" + e.topicId : "-";
+    var status = "";
+    if (selected[e.hash]) status += '<span class="badge badge-selected">已选</span>';
+    if (e.accepted) status += '<span class="badge badge-accepted">已收录</span>';
+    if (e.copied) status += '<span class="badge badge-copied">已复制</span>';
+    if (!status) status = '<span class="badge badge-neutral">未选择</span>';
+    var link = e.link
+      ? '<a class="preview-link" href="' + escapeAttr(e.link) + '" target="_blank" rel="noopener noreferrer">' + escapeHtml(e.link) + '</a>'
+      : "-";
+    var toggleText = selected[e.hash] ? "移出选择" : "加入选择";
+    previewBody.innerHTML =
+      '<h2 class="preview-title">' + escapeHtml(e.title) + '</h2>'
+      + '<div class="preview-status">' + status + '</div>'
+      + '<dl class="preview-meta">'
+        + '<dt>来源</dt><dd>' + escapeHtml(e.sourceId || "其他") + '</dd>'
+        + '<dt>Topic</dt><dd class="mono">' + escapeHtml(topic) + '</dd>'
+        + '<dt>Hash</dt><dd class="mono">' + escapeHtml(e.hash) + '</dd>'
+        + '<dt>链接</dt><dd>' + link + '</dd>'
+      + '</dl>'
+      + '<div class="preview-actions">'
+        + '<button class="preview-action primary" type="button" id="preview-toggle"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>' + toggleText + '</button>'
+        + '<button class="preview-action" type="button" id="preview-copy-link"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 13a5 5 0 0 0 7.07 0l2.83-2.83a5 5 0 0 0-7.07-7.07L11.5 4.43"/><path d="M14 11a5 5 0 0 0-7.07 0L4.1 13.83a5 5 0 0 0 7.07 7.07l1.33-1.33"/></svg>复制链接</button>'
+      + '</div>';
+  }
+
+  function recount(visible) {
+    var selectedCount = Object.keys(selected).length;
+    cVisible.textContent = visible ? visible.length : filteredEntries().length;
+    cSelected.textContent = selectedCount;
+    copyBtn.disabled = selectedCount === 0;
+  }
+
+  function updateFilterButtons() {
+    document.querySelectorAll(".segmented button").forEach(function (btn) {
+      var active = btn.dataset.filter === state.filter;
+      btn.classList.toggle("is-active", active);
+      btn.setAttribute("aria-pressed", active ? "true" : "false");
+    });
+  }
+
+  searchInput.addEventListener("input", function () {
+    state.query = searchInput.value || "";
+    renderAll();
   });
 
-  // 点整行也能勾选：点击 li.item 任意位置（除复选框自身和标题链接）切换该行勾选
+  document.querySelector(".segmented").addEventListener("click", function (ev) {
+    var btn = ev.target.closest && ev.target.closest("button[data-filter]");
+    if (!btn) return;
+    state.filter = btn.dataset.filter;
+    renderAll();
+  });
+
+  sourceList.addEventListener("click", function (ev) {
+    var btn = ev.target.closest && ev.target.closest("button[data-source]");
+    if (!btn) return;
+    state.source = btn.dataset.source;
+    renderAll();
+  });
+
   root.addEventListener("click", function (ev) {
-    var li = ev.target.closest && ev.target.closest("li.item");
-    if (!li) return;
-    if (ev.target.tagName === "INPUT") return;   // 复选框自身已由原生处理，避免双触发
-    if (ev.target.closest("a")) return;          // 点标题链接正常打开，不切换勾选
-    var cb = li.querySelector('input[type=checkbox]');
-    if (!cb) return;
-    cb.checked = !cb.checked;
-    cb.dispatchEvent(new Event("change", { bubbles: true }));
+    var row = ev.target.closest && ev.target.closest(".item-row");
+    if (!row) return;
+    var hash = row.dataset.hash;
+    state.activeHash = hash;
+    if (ev.target.closest("a")) {
+      renderAll();
+      return;
+    }
+    if (ev.target.matches('input[type="checkbox"]')) {
+      setSelected(hash, ev.target.checked);
+      return;
+    }
+    renderAll();
   });
 
-  searchInput.addEventListener("input", function () { visibleItems(); });
+  root.addEventListener("keydown", function (ev) {
+    var row = ev.target.closest && ev.target.closest(".item-row");
+    if (!row || ev.target.matches('input[type="checkbox"]')) return;
+    if (ev.key === "Enter" || ev.key === " ") {
+      ev.preventDefault();
+      state.activeHash = row.dataset.hash;
+      renderAll();
+    }
+  });
+
+  previewBody.addEventListener("click", function (ev) {
+    if (!state.activeHash) return;
+    if (ev.target.closest("#preview-toggle")) {
+      setSelected(state.activeHash, !selected[state.activeHash]);
+    }
+    if (ev.target.closest("#preview-copy-link")) {
+      var e = entryMap[state.activeHash];
+      if (e && e.link) copyText(e.link, function (ok) {
+        showToast(ok ? "已复制链接" : "复制失败");
+      });
+    }
+  });
 
   document.getElementById("select-all").addEventListener("click", function () {
-    visibleItems().forEach(function (n) {
-      if (n.dataset.accepted !== "1") n.querySelector("input[type=checkbox]").checked = true;
-    });
-    recount();
+    var visible = filteredEntries();
+    for (var i = 0; i < visible.length; i++) {
+      if (!visible[i].accepted) selected[visible[i].hash] = true;
+    }
+    renderAll();
   });
+
   document.getElementById("invert").addEventListener("click", function () {
-    visibleItems().forEach(function (n) {
-      var cb = n.querySelector("input[type=checkbox]");
-      cb.checked = !cb.checked;
-    });
-    recount();
+    var visible = filteredEntries();
+    for (var i = 0; i < visible.length; i++) {
+      var hash = visible[i].hash;
+      if (selected[hash]) delete selected[hash];
+      else selected[hash] = true;
+    }
+    renderAll();
   });
+
   document.getElementById("clear-checked").addEventListener("click", function () {
-    root.querySelectorAll("li.item input[type=checkbox]").forEach(function (cb) { cb.checked = false; });
-    recount();
+    selected = {};
+    renderAll();
   });
+
+  function setSelected(hash, checked) {
+    if (checked) selected[hash] = true;
+    else delete selected[hash];
+    renderAll();
+  }
 
   function buildJsonc() {
     var lines = [];
-    root.querySelectorAll("li.item").forEach(function (n) {
-      var cb = n.querySelector("input[type=checkbox]");
-      if (!cb || !cb.checked) return;
-      var hash = n.dataset.hash;
-      var e = null;
-      for (var i = 0; i < entries.length; i++) { if (entries[i].hash === hash) { e = entries[i]; break; } }
-      if (!e) return;
-      // 形如 rss-pick-mode.md 期望的片段：hash -> {sourceId,title,link}，无外层包裹
+    for (var i = 0; i < entries.length; i++) {
+      var e = entries[i];
+      if (!selected[e.hash]) continue;
       lines.push(
         '"' + e.hash + '": {\n' +
         '  "sourceId": ' + JSON.stringify(e.sourceId) + ',\n' +
@@ -527,66 +1238,81 @@
         '  "link": ' + JSON.stringify(e.link) + '\n' +
         '}'
       );
-    });
+    }
     return lines.join(",\n");
-  }
-
-  function showToast(msg, color) {
-    var t = document.getElementById("toast");
-    t.textContent = msg;
-    if (color) { t.style.background = color; }
-    t.classList.add("show");
-    setTimeout(function () { t.classList.remove("show"); }, 1800);
   }
 
   copyBtn.addEventListener("click", function () {
     var text = buildJsonc();
     if (!text) return;
-    var copiedHashes = [];
-    root.querySelectorAll("li.item").forEach(function (n) {
-      var cb = n.querySelector("input[type=checkbox]");
-      if (cb && cb.checked) {
-        copiedHashes.push(n.dataset.hash);
-        n.classList.add("copied");
+    var copiedHashes = Object.keys(selected);
+    markCopied(copiedHashes);
+    for (var i = 0; i < copiedHashes.length; i++) {
+      if (entryMap[copiedHashes[i]]) entryMap[copiedHashes[i]].copied = true;
+    }
+    copyText(text, function (ok) {
+      if (ok) {
+        showToast("已复制 " + copiedHashes.length + " 条");
+        renderAll();
+      } else {
+        showToast("复制失败，请手动复制");
+        fallbackTextarea(text);
       }
     });
-    markCopied(copiedHashes);
-
-    function done(ok) {
-      if (ok) {
-        showToast("已复制 " + copiedHashes.length + " 条，贴回对话即可");
-      } else {
-        showToast("复制失败，请手动选中下方文本", "#d9a441");
-        // 兜底：弹出可编辑区域供手动复制
-        var ta = document.createElement("textarea");
-        ta.value = text;
-        ta.style.position = "fixed"; ta.style.left = "0"; ta.style.top = "0";
-        ta.style.width = "100%"; ta.style.height = "40vh";
-        ta.style.zIndex = "999"; ta.style.background = "#111"; ta.style.color = "#eee";
-        document.body.appendChild(ta); ta.focus(); ta.select();
-      }
-    }
-
-    if (navigator.clipboard && navigator.clipboard.writeText) {
-      navigator.clipboard.writeText(text).then(function () { done(true); }).catch(function () { done(fallbackExec(text)); });
-    } else {
-      done(fallbackExec(text));
-    }
   });
+
+  function copyText(text, cb) {
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text).then(function () { cb(true); }).catch(function () { cb(fallbackExec(text)); });
+    } else {
+      cb(fallbackExec(text));
+    }
+  }
 
   function fallbackExec(text) {
     try {
       var ta = document.createElement("textarea");
       ta.value = text;
-      ta.style.position = "fixed"; ta.style.opacity = "0";
-      document.body.appendChild(ta); ta.focus(); ta.select();
+      ta.style.position = "fixed";
+      ta.style.opacity = "0";
+      document.body.appendChild(ta);
+      ta.focus();
+      ta.select();
       var ok = document.execCommand("copy");
       document.body.removeChild(ta);
       return ok;
-    } catch (e) { return false; }
+    } catch (e) {
+      return false;
+    }
   }
 
-  recount();
+  function fallbackTextarea(text) {
+    var ta = document.createElement("textarea");
+    ta.value = text;
+    ta.style.position = "fixed";
+    ta.style.left = "12px";
+    ta.style.right = "12px";
+    ta.style.bottom = "70px";
+    ta.style.width = "calc(100vw - 24px)";
+    ta.style.height = "34vh";
+    ta.style.zIndex = "99";
+    ta.style.background = "#111827";
+    ta.style.color = "#f9fafb";
+    ta.style.border = "0";
+    ta.style.borderRadius = "8px";
+    ta.style.padding = "12px";
+    document.body.appendChild(ta);
+    ta.focus();
+    ta.select();
+  }
+
+  function showToast(msg) {
+    var t = document.getElementById("toast");
+    t.textContent = msg;
+    t.classList.add("show");
+    clearTimeout(showToast.timer);
+    showToast.timer = setTimeout(function () { t.classList.remove("show"); }, 1800);
+  }
 })();
 </script>
 </body>
