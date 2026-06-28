@@ -9,6 +9,7 @@
 // 精确 allowlist 即便在提示注入下也能把越界操作拦在权限层。
 import {spawn, spawnSync} from "node:child_process";
 import {existsSync} from "node:fs";
+import {readFile} from "node:fs/promises";
 import {dirname, resolve} from "node:path";
 import {buildGenerateSvgArgs} from "../lib/claude-allowlist.mjs";
 import {getGenerateSvgPreflight, printGenerateSvgPreflight} from "../lib/generate-svg-preflight.mjs";
@@ -83,14 +84,52 @@ function buildClaudeEnv() {
   return env;
 }
 
+function buildBareSettingsArgs() {
+  const homeDir = process.env.USERPROFILE || process.env.HOME;
+  if (!homeDir) return ["--bare"];
+
+  const settingsPath = resolve(homeDir, ".claude", "settings.json");
+  if (!existsSync(settingsPath)) return ["--bare"];
+
+  return ["--bare", "--settings", settingsPath];
+}
+
+async function readGenerateSvgSkillPrompt() {
+  const skillDir = resolve(rootDir, ".agents", "skills", "generate-svg");
+  const files = [
+    ["SKILL.md", resolve(skillDir, "SKILL.md")],
+    ["rules/design.md", resolve(skillDir, "rules", "design.md")],
+    ["rules/semantics.md", resolve(skillDir, "rules", "semantics.md")],
+    ["rules/theme.md", resolve(skillDir, "rules", "theme.md")],
+    ["rules/data-workflow.md", resolve(skillDir, "rules", "data-workflow.md")],
+  ];
+
+  const sections = [
+    "Run the generate-svg skill inline.",
+    "Claude is started with --bare for this automation, so do not rely on slash commands, plugins, hooks, or MCP servers.",
+    "Follow these project skill instructions exactly:",
+  ];
+
+  for (const [displayPath, filePath] of files) {
+    sections.push("", `## ${displayPath}`, await readFile(filePath, "utf8"));
+  }
+
+  return sections;
+}
+
+const promptPrefix = await readGenerateSvgSkillPrompt();
 const claudeCommand = process.platform === "win32" ? "claude.exe" : "claude";
 const child = spawn(
   claudeCommand,
-  buildGenerateSvgArgs({
-    automation,
-    preflightErrors: preflight.errors,
-    iconTargets: preflight.iconTargets,
-  }),
+  [
+    ...buildBareSettingsArgs(),
+    ...buildGenerateSvgArgs({
+      automation,
+      preflightErrors: preflight.errors,
+      iconTargets: preflight.iconTargets,
+      promptPrefix,
+    }),
+  ],
   {
     cwd: rootDir,
     env: buildClaudeEnv(),

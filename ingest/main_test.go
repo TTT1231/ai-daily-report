@@ -196,30 +196,6 @@ func TestFallbackGroupIdentity(t *testing.T) {
 	}
 }
 
-func TestSplitIncompatibleGroups(t *testing.T) {
-	items := []Item{
-		{Title: "用了半个月的plus号突然全被杀了，上一个杀一个"},
-		{Title: "OpenAI称关联账户试图煽动反对数据中心建设"},
-	}
-	candidates := map[int]ScoredItem{
-		1: {Index: 1, Score: 8},
-		2: {Index: 2, Score: 7},
-	}
-	groups := []NewsGroup{{
-		Title:         "错误的宽泛 OpenAI 分组",
-		SourceIndexes: []int{1, 2},
-		Highlights: []NewsHighlight{
-			{Index: 1, Point: items[0].Title},
-			{Index: 2, Point: items[1].Title},
-		},
-	}}
-
-	got := splitIncompatibleGroups(groups, candidates, items)
-	if len(got) != 2 {
-		t.Fatalf("splitIncompatibleGroups() returned %d groups, want 2", len(got))
-	}
-}
-
 func TestStripHTML(t *testing.T) {
 	got := stripHTML(`<p>智谱运维人员在群内表示，<strong>一倍消耗</strong>可能持续到九月底。</p><p>Max 用户开始内测。</p>`)
 	if strings.Contains(got, "<") || !strings.Contains(got, "一倍消耗") || !strings.Contains(got, "Max 用户") {

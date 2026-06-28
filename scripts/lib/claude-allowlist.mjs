@@ -60,9 +60,10 @@ export function buildGenerateSvgArgs({
   automation = false,
   preflightErrors = [],
   iconTargets = null,
+  promptPrefix = "/generate-svg",
 } = {}) {
   const allowedTools = buildGenerateSvgAllowedTools({iconTargets});
-  const promptLines = ["/generate-svg"];
+  const promptLines = Array.isArray(promptPrefix) ? [...promptPrefix] : [promptPrefix];
 
   promptLines.push(
     "",

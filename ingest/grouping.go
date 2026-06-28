@@ -77,14 +77,13 @@ func groupSimilarNews(ai AIConfig, scored []ScoredItem, items []Item) ([]NewsGro
 	return nil, fmt.Errorf("聚类重试 %d 次仍未成功", maxAttempts)
 }
 
-// normalizeGroups 校正模型聚类结果：拆分被错误合并的来源、去重序号与要点、补全缺失字段、
-// 按分数排序并截断，同时把高分关键词保底候选作为独立 Story 补回。
+// normalizeGroups 校正模型聚类结果：去重序号与要点、补全缺失字段、按分数排序并截断，
+// 同时把高分关键词保底候选作为独立 Story 补回。
 func normalizeGroups(groups []NewsGroup, scored []ScoredItem, items []Item) []NewsGroup {
 	candidates := make(map[int]ScoredItem, len(scored))
 	for _, item := range scored {
 		candidates[item.Index] = item
 	}
-	groups = splitIncompatibleGroups(groups, candidates, items)
 
 	covered := make(map[int]bool)
 	normalized := make([]NewsGroup, 0, len(groups))
@@ -167,82 +166,6 @@ func normalizeGroups(groups []NewsGroup, scored []ScoredItem, items []Item) []Ne
 		normalized = normalized[:groupLimit]
 	}
 	return normalized
-}
-
-// splitIncompatibleGroups 检查每个 Story 内来源的本地聚类身份，把被错误归到一起的来源拆成多个独立 Story，
-// 避免仅因提到同一品牌就被合并。
-func splitIncompatibleGroups(groups []NewsGroup, candidates map[int]ScoredItem, items []Item) []NewsGroup {
-	var result []NewsGroup
-	for _, group := range groups {
-		partitions := make(map[string][]int)
-		var keyOrder []string
-		for _, index := range group.SourceIndexes {
-			if _, ok := candidates[index]; !ok || index < 1 || index > len(items) {
-				continue
-			}
-			key, _ := fallbackGroupIdentity(items[index-1].Title)
-			if _, exists := partitions[key]; !exists {
-				keyOrder = append(keyOrder, key)
-			}
-			partitions[key] = append(partitions[key], index)
-		}
-		if len(partitions) <= 1 {
-			result = append(result, group)
-			continue
-		}
-
-		for _, key := range keyOrder {
-			indexes := partitions[key]
-			_, fallbackTitle := fallbackGroupIdentity(items[indexes[0]-1].Title)
-			partition := NewsGroup{Title: fallbackTitle, SourceIndexes: indexes}
-			for _, highlight := range group.Highlights {
-				if _, ok := candidates[highlight.Index]; !ok || highlight.Index < 1 || highlight.Index > len(items) {
-					continue
-				}
-				highlightKey, _ := fallbackGroupIdentity(items[highlight.Index-1].Title)
-				if highlightKey == key {
-					partition.Highlights = append(partition.Highlights, highlight)
-				}
-			}
-			result = append(result, partition)
-		}
-	}
-	return result
-}
-
-// fallbackGroups 在模型聚类失败时的本地降级方案：按 fallbackGroupIdentity 给出的身份键就地聚合，生成 Story。
-func fallbackGroups(scored []ScoredItem) []NewsGroup {
-	groupByKey := make(map[string]int)
-	groupLimit := maxStoryGroupsForNavigation()
-	groups := make([]NewsGroup, 0, min(len(scored), groupLimit))
-	for _, item := range scored {
-		key, title := fallbackGroupIdentity(item.Title)
-		position, exists := groupByKey[key]
-		if !exists {
-			groupByKey[key] = len(groups)
-			groups = append(groups, NewsGroup{
-				Title:         title,
-				Score:         item.Score,
-				Reason:        item.Reason,
-				SourceIndexes: []int{item.Index},
-				Highlights:    []NewsHighlight{{Index: item.Index, Point: item.Title}},
-			})
-			continue
-		}
-		group := &groups[position]
-		group.SourceIndexes = append(group.SourceIndexes, item.Index)
-		group.Score = max(group.Score, item.Score)
-		if len(group.Highlights) < maxGroupHighlights {
-			group.Highlights = append(group.Highlights, NewsHighlight{Index: item.Index, Point: item.Title})
-		}
-	}
-	sort.SliceStable(groups, func(i, j int) bool {
-		return groups[i].Score > groups[j].Score
-	})
-	if len(groups) > groupLimit {
-		groups = groups[:groupLimit]
-	}
-	return groups
 }
 
 // fallbackGroupIdentity 由标题推断稳定的聚类身份键与展示标题：
