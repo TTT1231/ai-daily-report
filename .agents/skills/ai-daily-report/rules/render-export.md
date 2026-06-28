@@ -39,7 +39,7 @@ bunx remotion render AiDailyReport out/AiDailyReport.mp4 \
 
 1. **`data-scheme/` 存在**，里面有 `data.json`。
 2. **`data-generate.json` 和 `audio/*.mp3` 是最新的**：如果刚改过 `data.json`，先 `bun run tts`。`video:render` 已自动做这步。
-3. **图标都在**：`data-generate.json` 里每个 tab 都有 `icon` 且对应文件存在。没有就先 `/generate-svg`。
+3. **图标都在**：`data-generate.json` 里每个 tab 都有 `icon` 且对应文件存在。没有就先 `bun run generate-svg`。
 4. **图片都在**：你写过 `overlayImg` 的图片都在 `data-scheme/images/`。
 5. **校验通过**：`bun run check-data-json:render`。
 

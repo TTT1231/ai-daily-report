@@ -33,7 +33,7 @@ description: How to use the ai-daily-report project end-to-end — set it up, ru
 每次先在心里过一遍这两点，缺什么先补什么：
 
 - **环境变量** `.env`（参考 `.env.example`）：
-  - RSS/AI 总结用：`AI_API_KEY`、`AI_BASE_URL`、`AI_MODEL` 三者均必填（OpenAI 兼容接口；`.env.example` 给了 DeepSeek 示例值）。`bili:meta` 生成 B站 标题/标签也复用这套。
+  - RSS/AI 总结用：`AI_API_KEY`、`AI_BASE_URL`、`AI_MODEL` 三者均必填（OpenAI 兼容接口；`.env.example` 给了 DeepSeek 示例值）。`video:meta` 生成视频标题/标签也复用这套。
   - 网络受限时可选：小写 `all_proxy`（如 `http://127.0.0.1:7890`）。**按来源决定**是否走代理——`ingest/sources.jsonc` 里标了 `"proxy": true` 的来源（如 linux.do，在 Cloudflare 后面）抓取时走 `all_proxy`，其他来源直连；AI 评分请求仍受 `all_proxy` 控制（配置后即走）。MiniMax TTS、B站 标题/标签生成与投稿/评论/置顶等 Node 端请求**不**走此代理，始终直连。标了 `proxy: true` 的来源若 `.env` 未配 `all_proxy` 或配置无效，抓取时直接报错，不静默回退直连。不要使用其他代理变量。注意：Claude/WebFetch/Fetch 这类 agent 工具不会自动读取项目 `.env`，人工补选 Linux.do 页面时如果 WebFetch 失败，应改用本地命令或项目脚本显式读取 `all_proxy` 后抓取，不能直接退化为只看标题生成。
   - TTS 旁白用：`TTS_REQUIRE=true` 时需要 `MINIMAX_API_KEY`、`MINIMAX_TTS_MODEL`、`MINIMAX_TTS_VOICE_ID`、`MINIMAX_TTS_SPEED`；不需要旁白或没有 MiniMax Key 时设 `TTS_REQUIRE=false`，会跳过 MiniMax、音频和 ffmpeg 音质检测。
   - 图片识别用：`CLAUDE_VISION_ENABLED=true` 时，默认处理达到日报入选线（Score ≥7）且含远程图的 Story；分数高的 Story 会先消耗调用预算，总量由 `CLAUDE_VISION_MAX_CALLS` 封顶。识图会使用 Story 标题、重要性和要点做相关性判断，相关才自动写 `overlayImg`。没有多模态、远程读取或图像分析 MCP 能力时设为 `false`，流程会下载候选图到 `data-scheme/images/` 供手动配图。
@@ -70,7 +70,7 @@ bun run video:prepare
 | `rss`             | Go 采集器抓 RSS → AI 筛选/聚类 → 生成结构           | `data-scheme/data.json`                          |
 | `check-data-json` | 校验 Raw 数据（Schema / 重复 ID / 引用 / 资源路径） | （无产物，不通过则中断）                         |
 | `tts`             | 给每个 scene 生成 MiniMax 旁白，算时间线            | `data-scheme/data-generate.json` + `audio/*.mp3` |
-| `generate-svg`    | 调 `claude -p /generate-svg` 给 tabs 出图标         | `data-scheme/icons/*.svg`                        |
+| `generate-svg`    | 调 `bun run generate-svg` 批量生成 tabs 图标        | `data-scheme/icons/*.svg`                        |
 
 `rss` 步骤的网络代理**按来源决定**：`ingest/sources.jsonc` 里标了 `"proxy": true` 的来源抓取时走 `.env` 的小写 `all_proxy`，其他来源直连；AI 模型请求仍受 `all_proxy` 控制（配置后即走代理）。标了 `proxy: true` 的来源若 `all_proxy` 未配或无效会直接报错，不会静默回退直连。它不会读取 `HTTP_PROXY`、`HTTPS_PROXY`、`ALL_PROXY` 等其他代理变量，也不会自动探测本地代理端口。这个代理规则只描述项目命令本身；agent 的 WebFetch/Fetch 不会因为 `.env` 里有 `all_proxy` 就自动走代理。
 
@@ -85,7 +85,7 @@ bun run video:prepare
 
 适合「想完全掌控内容 / 自定义非 RSS 来源 / 自动流程出问题时兜底」：你自己写 `data.json`，不跑 `rss`。
 
-主线很简单：参考或复制 `demo/data-scheme-sample-1` → 编辑 `data-scheme/data.json` → `bun run dev`（会自动 TTS）或手动 `bun run tts` → `/generate-svg` 出图标。
+主线很简单：参考或复制 `demo/data-scheme-sample-1` → 编辑 `data-scheme/data.json` → `bun run dev`（会自动 TTS）或手动 `bun run tts` → `bun run generate-svg` 出图标。
 
 完整步骤、必填字段速查、theme 切换：**先读 [`rules/manual-mode.md`](./rules/manual-mode.md)** 再动手。
 
@@ -155,10 +155,10 @@ bunx remotion render AiDailyReport out/AiDailyReport.mp4 \
 把当期成片自动发到 B站，并发表 + 置顶「今日日报」评论（内容来自 `data-scheme/comments.txt`，由 `comment:generate` 从时间线生成）。一条龙：
 
 ```bash
-# 从零到发布：video:prepare → video:render → 渲封面 → comment:generate → bili:meta → bili:full（投稿→等审核→发评论→置顶）
+# 从零到发布：video:prepare → video:render → 渲封面 → comment:generate → video:meta → bili:full（投稿→等审核→发评论→置顶）
 bun run all:bili
 
-# 数据已备好、只想发 B站：video:render → 渲封面 → comment:generate → bili:meta → bili:full（投稿+评论+置顶）
+# 数据已备好、只想发 B站：video:render → 渲封面 → comment:generate → video:meta → bili:full（投稿+评论+置顶）
 bun run publish:bili
 ```
 
@@ -172,11 +172,11 @@ bun run biliup:prepare                              # 一键备好 biliup 工具
 
 要点：
 
-- **标题 / 标签** 由 `bili:meta` 用 LLM 生成（手机短视频风、抓重点、适度夸张），写到 `data-scheme/bilibili-meta.json`——可手改再审。标题 = `前缀【AI日报 - MM - DD】`（≤80 字，中文/字母/符号每个算 1），标签 ≤10 个。
+- **标题 / 标签** 由 `video:meta` 用 LLM 生成（手机短视频风、抓重点、适度夸张），写到 `data-scheme/video-meta.json`——可手改再审。标题 = `前缀【AI日报 - MM - DD】`（≤80 字，中文/字母/符号每个算 1），标签 ≤10 个。
 - **固定参数**（分区 `tid 231` 计算机技术、自制、创作声明 AI 标识、封面帧、评论前等待 3 分钟过审核）在 `config/bilibili.config.json`。
 - **凭据**：评论/置顶的 `SESSDATA` / `bili_jct` 直接从 `biliup/cookies.json` 读（`scripts/publish/bili/bili-api.mjs`），不在 `.env` 重复维护。
-- **biliup 工具**由 `bun run biliup:prepare`（内部走 `download-bili`）下载到 `biliup/`（跨平台、平铺结构，已 gitignore）。首次发 B站 时 bili 命令会自动触发该 ensure 逻辑；升级重跑 `bun run download-bili`，会自动保留登录态。
-- 也可拆开单步：`bili:meta`（生成标题/标签）、`bili:upload`（纯投稿，只发视频）、`bili:full`（投稿+评论+置顶 全套，原 `bili:upload` 行为）、`bili:comment` / `bili:stick`（单独发评/置顶）。`publish:bili` / `all:bili` 内部都调 `bili:full`。
+- **biliup 工具**由 `bun run biliup:prepare`（内部走 `download-bili-tool`）下载到 `biliup/`（跨平台、平铺结构，已 gitignore）。首次发 B站 时 bili 命令会自动触发该 ensure 逻辑；升级重跑 `bun run download-bili-tool`，会自动保留登录态。
+- 也可拆开单步：`video:meta`（生成标题/标签）、`bili:upload`（纯投稿，只发视频）、`bili:full`（投稿+评论+置顶 全套，原 `bili:upload` 行为）、`bili:comment` / `bili:stick`（单独发评/置顶）。`publish:bili` / `all:bili` 内部都调 `bili:full`。
 - **封面（默认 16:9；4:3 / 16:9 裁切是重要坑）**：`render:cover` 截主视频第 `coverFrame` 帧（默认 45，配在 `bilibili.config.json`）→ `out/cover.png`——视频是 1920×1080，所以**自动封面固定是 16:9**，`coverFrame` 只决定截哪一帧、**不改比例**。投稿时 `biliup --cover` **只上传这一张**。**B站 每个视频只能传一张封面**——首页推荐按 4:3、播放页/空间按 16:9 显示，是**同一张图被平台自动裁切**，不是两个上传位，也**不能分别传两张不同的图**（平台限制，不是工具限制）。因此封面标题/主体要放在**中央安全区**（1920×1080 帧在首页 4:3 位会被裁掉左右各约 240px）。**想要非 16:9 / 自制封面**有两条手动路：① `bun run render:cover` 之后、`bili:upload` 之前**手动替换 `out/cover.png`**；② 走一键 `all:bili` 发布后，去 **B站 创作中心 → 稿件管理 → 编辑 → 修改封面** 手动重传/调裁切（那里仍是单张封面，但能换图，是 `biliup` 之外唯一的封面定制入口）。
 
 > `bili:full` 会**真实发布**稿件 + 评论 + 置顶到你的 B站 号（对外动作）。`bili:upload` 是纯投稿（已带 `--no-comment`，只发视频，不发评论/置顶）——纯测试可用它发一条试稿，发完记得去创作中心删测试稿。
@@ -196,4 +196,4 @@ bun run biliup:prepare                              # 一键备好 biliup 工具
 
 发布到 B站 没有独立 rule 文件，主线（登录 / 配置 / 命令 / 注意事项）就在上面的「发布到 B站」一节。
 
-要做 Tab 图标，用 `generate-svg` skill（README 和 `package.json` 里 `/generate-svg`）；要改 Remotion 组件本身（动画、布局、`<Audio>`/`<Img>` 用法），用 `remotion-best-practices` skill。
+要做 Tab 图标，用 `bun run generate-svg`（内部加载 `generate-svg` skill）；要改 Remotion 组件本身（动画、布局、`<Audio>`/`<Img>` 用法），用 `remotion-best-practices` skill。

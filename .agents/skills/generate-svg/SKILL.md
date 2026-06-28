@@ -17,7 +17,24 @@ Read all rules before editing:
 - [rules/theme.md](rules/theme.md)
 - [rules/data-workflow.md](rules/data-workflow.md)
 
-## Execute
+## Structured Payload Mode
+
+`bun run generate-svg` loads this skill through `scripts/render/generate-svg.mjs`. In that wrapper
+mode, the prompt includes target icon context and asks for a structured payload.
+
+When the prompt says `Structured payload mode`:
+
+1. Do not call tools, read or write files, run shell commands, start previews, or edit JSON.
+2. Use only the provided target context, sibling tabs, theme, and preflight issues.
+3. Generate every requested SVG in one response.
+4. Return only the marked JSON payload requested by the wrapper, with one entry per exact target path.
+5. Let the Node wrapper write SVG files, update `icon` fields, mirror `data.json`, prune orphan icons,
+   and run `bun run check-icons`, `bun run lint`, and `bun run comment:generate`.
+
+## Manual Execute
+
+Use these steps only when an agent is applying the skill directly in the workspace, not when the
+wrapper asks for structured payload output.
 
 1. Read `data-scheme/data-generate.json`, including its `theme` and the relevant sibling tabs.
 2. Ensure the icon output directory exists before inspecting or writing icons:
@@ -33,5 +50,5 @@ Read all rules before editing:
 9. For visual changes, open a representative Remotion frame and verify icon scale, contrast, and
    distinction from sibling icons.
 
-Preserve unrelated user changes. Do not stop at a proposal when the icons can be generated and
-verified in the workspace.
+Preserve unrelated user changes. In manual mode, do not stop at a proposal when the icons can be
+generated and verified in the workspace.

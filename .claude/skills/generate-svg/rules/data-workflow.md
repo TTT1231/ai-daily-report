@@ -8,10 +8,32 @@
 - Icon field format: `icons/{storyId}-{tabId}.svg`
 - Intro uses `intro` as the story ID.
 
-## Updating Data
+## Structured Payload Workflow
+
+When `scripts/render/generate-svg.mjs` requests structured payload output:
+
+- Return only the wrapper's requested JSON payload between its markers.
+- Include exactly one `icons[]` entry for each requested target path and no extra paths.
+- Each entry must use:
+
+```json
+{"path":"icons/example.svg","concept":"short semantic concept","svg":"<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 96 96\" fill=\"none\">...</svg>"}
+```
+
+- The `path` must exactly match the provided target path.
+- The `svg` string must be self-contained and pass the validation rules below.
+- Do not edit `data-generate.json`, `data.json`, or the filesystem in payload mode.
+- The Node wrapper writes SVG files, updates the matching `icon` fields, mirrors raw `data.json`
+  story icons when applicable, removes orphan icons, and runs validation commands.
+
+## Manual Updating Data
+
+Use this section only when directly editing files in the workspace.
 
 - Collect tabs from `intro.tabs` and `stories[].tabs`.
 - Preserve valid existing icons during incremental generation.
+- When only some tabs are missing icons, generate or repair only the missing/invalid icons. Do not
+  overwrite valid sibling icons for the same story or intro group.
 - Regenerate an icon when its title, meaning, or report theme changed, the file is missing, or quality
   is inadequate.
 - Update only tab `icon` fields. Do not change unrelated generated data.
@@ -21,7 +43,7 @@
 
 ## Validation
 
-Run:
+In payload mode, the wrapper runs validation after applying the payload. In manual mode, run:
 
 ```bash
 bun run check-icons

@@ -33,7 +33,7 @@ bun run dev
 
 - 单独生成 TTS（`dev` 没开时）：`bun run tts`
 - 只看固定示例：`bun run preview`（有 TTS）/ `bun run preview:notts`（无 TTS）
-- 出 Tab 图标：`/generate-svg`（让 agent 跑这个 skill）
+- 出 Tab 图标：`bun run generate-svg`（内部加载 `generate-svg` skill）
 - 加图片：见 [`images.md`](./images.md)。
 - 渲染成 mp4：见 [`render-export.md`](./render-export.md)。
 
