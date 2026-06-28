@@ -37,13 +37,13 @@ test("ensureBiliupCore: 已就绪 → 不下载不登录不报错", () => {
   assert.equal(calls.failed, null);
 });
 
-test("ensureBiliupCore: 需要 exe 但 exe 不在 → 调 bun run download-bili（继承 stdio）", () => {
+test("ensureBiliupCore: 需要 exe 但 exe 不在 → 调 bun run download-bili-tool（继承 stdio）", () => {
   const { ctx, calls } = makeCtx({ exeExists: false, cookieExists: true });
   const plan = ensureBiliupCore(ctx);
   assert.equal(plan.download, true);
   assert.deepEqual(calls.run[0], {
     cmd: "bun",
-    args: ["run", "download-bili"],
+    args: ["run", "download-bili-tool"],
     opts: { stdio: "inherit" },
   });
 });

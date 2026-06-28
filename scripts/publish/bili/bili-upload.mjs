@@ -8,7 +8,7 @@
  *   bili:full   默认全套：投稿 → 等审核 → 发评论 → 置顶
  *
  * 流程：
- *   1. 读 bilibili-meta.json(LLM 标题/标签) + bilibili.config.json(固定参数) + mp4 + cover
+ *   1. 读 video-meta.json(LLM 标题/标签) + bilibili.config.json(固定参数) + mp4 + cover
  *   2. 校验：标题 ≤80、标签 ≤10
  *   3. 调 biliup.exe 投稿 → 从输出抓 bvid
  *   4. (bili:full，即未指定 --no-comment 时) 等审核 → 发评论 → 置顶
@@ -62,9 +62,9 @@ function runCapture(cmd, args, opts = {}) {
 // ── 读配置 + meta ─────────────────────────────────────────────────────
 const config = JSON.parse(readFileSync(resolve(ROOT, "config", "bilibili.config.json"), "utf-8"));
 
-const metaPath = resolve(dataDir, "bilibili-meta.json");
+const metaPath = resolve(dataDir, "video-meta.json");
 if (!existsSync(metaPath)) {
-  fail("缺少 data-scheme/bilibili-meta.json，先跑: bun run bili:meta");
+  fail("缺少 data-scheme/video-meta.json，先跑: bun run video:meta");
 }
 const meta = JSON.parse(readFileSync(metaPath, "utf-8"));
 
@@ -123,8 +123,8 @@ if (DRY_RUN) {
 
 // 按需补齐 biliup：缺 exe 自动下载、缺登录态自动扫码登录（替代旧 postinstall，不发 B 站就不触发）
 ensureBiliup({ needExe: true, needCookie: true });
-// download-bili 是 best-effort，补齐后再确认一次真实存在性
-if (!existsSync(exe)) fail(`biliup.exe 仍不在: ${exe}（下载可能失败，可手动 \`bun run download-bili\`）`);
+// download-bili-tool 是 best-effort，补齐后再确认一次真实存在性
+if (!existsSync(exe)) fail(`biliup.exe 仍不在: ${exe}（下载可能失败，可手动 \`bun run download-bili-tool\`）`);
 if (!existsSync(cookie)) fail(`cookie 仍不在: ${cookie}，先扫码登录`);
 
 const up = await runCapture(exe, uploadArgs);

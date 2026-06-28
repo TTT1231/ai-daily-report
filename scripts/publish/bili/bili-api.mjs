@@ -6,7 +6,7 @@
  * (w_rid/dm_img_*) 在本场景经实测不是强制的，故不带。
  *
  * 所有函数都返回纯数据、自己不打印（重试进度除外）。
- * 凭据从 biliup/cookies.json 读取（biliup login 生成、download-bili 平铺），
+ * 凭据从 biliup/cookies.json 读取（biliup login 生成、download-bili-tool 平铺），
  * 不再走 .env，避免重复维护。
  *
  * 重试策略：评论/置顶失败最多重试 3 次，指数回退（3s→6s…）+ 0~1s 随机抖动，
@@ -44,7 +44,7 @@ export function getCredentials() {
     raw = readFileSync(COOKIE_FILE, "utf8");
   } catch {
     throw new Error(
-      `读不到 biliup/cookies.json（${COOKIE_FILE}）。先 bun run download-bili，再 biliup.exe -u biliup/cookies.json login 扫码登录。`,
+      `读不到 biliup/cookies.json（${COOKIE_FILE}）。先 bun run download-bili-tool，再 biliup.exe -u biliup/cookies.json login 扫码登录。`,
     );
   }
 

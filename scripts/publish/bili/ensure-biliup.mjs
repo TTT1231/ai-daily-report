@@ -8,7 +8,7 @@
  * 不用 B 站的用户永远不会被它打扰。
  *
  * 「要不要下载/登录」的决策是纯函数（见 ../../lib/biliup-readiness.mjs，已测），
- * 这里只做编排：spawn download-bili / spawn biliup login。
+ * 这里只做编排：spawn download-bili-tool / spawn biliup login。
  */
 
 import { existsSync, readFileSync, rmSync } from "node:fs";
@@ -50,7 +50,7 @@ export function ensureBiliupCore(ctx) {
 
   if (plan.download) {
     info("⬇️  biliup 未安装，按需下载…");
-    run("bun", ["run", "download-bili"], { stdio: "inherit" });
+    run("bun", ["run", "download-bili-tool"], { stdio: "inherit" });
   }
 
   if (plan.login) {

@@ -1,20 +1,20 @@
 #!/usr/bin/env node
 
 /**
- * bili-meta.mjs
+ * video-meta.mjs
  *
  * 读当天 data.json 的新闻，调 LLM(复用 ingest 同款 OpenAI 兼容接口)
- * 生成 B站 短视频标题前缀 + 标签，拼上固定后缀，校验后写到
- * data-scheme/bilibili-meta.json，供 bili-upload.mjs 读取。
- * 只取 contentTitle/introTitle，这两个字段 data.json 与 data-generate.json 完全一致，
- * 因此不依赖 generate-svg 产出的 data-generate.json，可独立运行。
+ * 生成视频标题前缀 + 标签，拼上固定后缀，校验后写到
+ * data-scheme/video-meta.json。产物是与发布平台无关的视频元数据，
+ * 供投稿脚本读取；只取 contentTitle/introTitle，这两个字段 data.json 与
+ * data-generate.json 完全一致，因此不依赖 generate-svg 产出的 data-generate.json，可独立运行。
  *
- * 用法：bun run bili:meta   (package.json 已带 --env-file-if-exists=.env)
+ * 用法：bun run video:meta   (package.json 已带 --env-file-if-exists=.env)
  */
 
 import { writeFileSync } from "node:fs";
 import { resolve } from "node:path";
-import { dataDir, rawDataPath, readJson } from "../../lib/paths.mjs";
+import { dataDir, rawDataPath, readJson } from "./paths.mjs";
 
 // ── LLM 配置（复用 rss 的 AI_API_KEY / AI_BASE_URL / AI_MODEL）──────────
 const { AI_API_KEY: API_KEY, AI_BASE_URL: BASE_URL, AI_MODEL: MODEL } = process.env;
@@ -152,7 +152,7 @@ ${newsList}
     generatedAt: new Date().toISOString(),
     model: MODEL,
   };
-  const outPath = resolve(dataDir, "bilibili-meta.json");
+  const outPath = resolve(dataDir, "video-meta.json");
   writeFileSync(outPath, JSON.stringify(out, null, 2) + "\n", "utf-8");
 
   console.log(`✅ 已生成 ${outPath}`);

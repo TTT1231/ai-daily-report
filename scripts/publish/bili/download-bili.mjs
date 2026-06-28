@@ -1,10 +1,10 @@
 #!/usr/bin/env node
 
 /**
- * download-bili.mjs  →  bun run download-bili
+ * download-bili.mjs  →  bun run download-bili-tool
  * 不再经 postinstall 自动触发（旧设计每次 install 都联网下载，对不发 B 站的用户是负担）；
  * 改为首次跑 bili:upload / bili:comment / bili:stick 时由 ensure-biliup 按需调用，
- * 也可手动 `bun run download-bili` 触发。
+ * 也可手动 `bun run download-bili-tool` 触发。
  *
  * 把 biliup-rs 最新版下载/更新到 ./biliup/，跨平台：
  *   1. 递归备份 biliup/ 下已有的 cookies.json（保住登录态，升级免重扫）
@@ -33,8 +33,8 @@ import { rootDir } from "../../lib/paths.mjs";
 const ROOT = rootDir;
 const BILIUP_DIR = resolve(ROOT, "biliup");
 const UA = "ai-daily-report-installer";
-const log = (...a) => console.log("[download-bili]", ...a);
-const warn = (...a) => console.warn("[download-bili] ⚠️", ...a);
+const log = (...a) => console.log("[download-bili-tool]", ...a);
+const warn = (...a) => console.warn("[download-bili-tool] ⚠️", ...a);
 
 /** 递归找 cookies.json */
 function findCookie(dir) {
@@ -89,7 +89,7 @@ function flatten(dir) {
   return subdirs[0].name;
 }
 
-// cookie 提升到模块级：download-bili 失败时（biliup/ 可能已被清空）可在 catch 中还原登录态，
+// cookie 提升到模块级：download-bili-tool 失败时（biliup/ 可能已被清空）可在 catch 中还原登录态，
 // 避免升级失败静默丢失 cookies.json、用户被迫重新扫码登录。
 let cookie = null;
 
@@ -172,6 +172,6 @@ main().catch((e) => {
       warn("登录态还原失败（需重新扫码登录）：" + restoreErr.message);
     }
   }
-  warn("biliup 本次未更新（不影响 install）。可稍后 `bun run download-bili` 重试。");
+  warn("biliup 本次未更新（不影响 install）。可稍后 `bun run download-bili-tool` 重试。");
   process.exit(0); // best-effort：绝不搞坏 bun install
 });
