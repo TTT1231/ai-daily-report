@@ -6,7 +6,7 @@
 
 从 RSS 内容采集、AI 筛选，到 TTS 旁白与视频生成，一条流水线完成每日内容生产。
 
-[使用导览](./demo/overview.html) · [RSS 配置](./ingest/readme.html) · [项目结构与流程](./.claude/claude.html)
+[使用导览](./demo/overview.html) · [RSS 配置](./ingest/readme.html) · [项目结构与流程](./docs/architecture.html)
 
 <br />
 
@@ -21,7 +21,7 @@
 
 ## 这是什么
 
-一个把每天的 AI 新闻自动做成**带旁白视频**的项目：RSS 抓取 → AI 筛选 → TTS 配音 → 渲染成片，一条流水线。还能一键发布到 B 站。
+一个把每天的 AI 新闻自动做成**带旁白视频**的项目：RSS 抓取 → AI 筛选 → TTS 配音 → 渲染成片，一条流水线。
 
 不想读文档？先看 [可视化使用导览](./demo/overview.html)，30 秒就能跑起来。
 
@@ -90,17 +90,6 @@ bun run dev
 > [!WARNING]
 > 抓取 `linux.do` 需要能访问它（在 Cloudflare 后面）。网络受限时在根目录 `.env` 配小写 `all_proxy`（科学上网环境），如 `all_proxy=http://127.0.0.1:7890`。
 
-## 发布到 B 站
-
-数据备好后，一条命令从成片到发布（投稿 → 等 → 发评论 → 置顶）：
-
-```bash
-bun run all:bili       # 从抓取到发布一条龙
-bun run publish:bili   # 数据已备好，只走发布段
-```
-
-> 首次需用 `biliup login` 扫码登录（凭据存 `biliup/cookies.json`，不进 `.env`）。详细拆分命令见 [使用导览](./demo/overview.html)。
-
 ## 卡住了？
 
 直接用项目自带的 skill 提问：
@@ -114,7 +103,7 @@ bun run publish:bili   # 数据已备好，只走发布段
 | 文档 | 内容 |
 | ---- | ---- |
 | [可视化使用导览](./demo/overview.html) | 图文版使用指南，最直观 |
-| [项目结构与流程](./.claude/claude.html) | 目录组织、数据流、文件职责、时间线规则 |
+| [项目结构与流程](./docs/architecture.html) | 目录组织、数据流、文件职责、时间线规则 |
 | [RSS 配置](./ingest/readme.html) | 添加来源、兴趣偏好、筛选阈值 |
 
 ## 🐛 Bug / 使用问题

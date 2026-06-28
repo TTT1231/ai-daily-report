@@ -130,6 +130,7 @@
         display: flex; align-items: center; gap: 9px;
         padding: 7px 9px; border-radius: 7px; cursor: pointer;
         font-size: 13px; transition: background 0.12s;
+        -webkit-user-select: none;
         user-select: none;
       }
       .layer-toggle:hover, .conn-toggle:hover { background: var(--bg-soft); }
@@ -309,7 +310,7 @@
         <div class="logo">架</div>
         <div>
           <h1>AI 日报 · 项目架构</h1>
-          <div class="sub">Remotion 视频流水线 · 模块级架构图 · 数据自上而下流动</div>
+          <div class="sub">Remotion 视频流水线 · Go 采集 / Node 构建装配 / TS 渲染 · 数据自上而下流动</div>
         </div>
       </div>
       <div class="presets" id="presets"></div>
@@ -405,8 +406,8 @@
           role: "把同主题新闻聚类合并为 Story，AI 失败降级为本地分组。" },
         { id: "ingest-tabs", layer: "ingest", name: "Tabs 编排", path: "ingest/{story_tabs,story_tab_text,navigation_layout}.go",
           role: "为每个 Story 编排视频 Tabs 与字幕，保底凑齐最少 Tab 数量。" },
-        { id: "ingest-images", layer: "ingest", name: "图片处理", path: "ingest/{vision,image_assets,manual_images}.go",
-          role: "vision 选图、下载远程候选图、接入手动指定的图片素材。" },
+        { id: "ingest-images", layer: "ingest", name: "图片处理 / Vision", path: "ingest/{vision,image_assets,manual_images}.go",
+          role: "对达日报入选线的 Story 调 Claude vision（远程识图 MCP，预算/超时封顶）判断相关性，提取图中可见事实，相关则下载原图作 overlay；vision 失败时降级为只下载候选图供手填。另支持手动指定图片素材。" },
         { id: "ingest-output", layer: "ingest", name: "data.json 生成", path: "ingest/{generate_datajson,output}.go",
           role: "装配最终结构并以原子写入 data.json，任一步失败都会中止整期。" },
         { id: "ingest-infra", layer: "ingest", name: "基础设施", path: "ingest/{ssrf,vpnproxy,atomicfile,jsonc}.go",
@@ -427,8 +428,8 @@
           role: "video:prepare 全流程编排：归档→rss→校验→tts→svg→check-icons，串行执行并转发子进程输出。" },
         { id: "dev", layer: "orchestration", name: "dev.mjs", path: "scripts/render/dev.mjs",
           role: "dev 预览，监听 data.json/图片变化，增量跑 TTS 并刷新 Remotion Studio。" },
-        { id: "archive", layer: "orchestration", name: "归档 / 重置", path: "scripts/archive/{archive,archive-rotate,reset}.mjs",
-          role: "按日期归档上期、抓取前轮转、清空 data-scheme 后完全重建。" },
+        { id: "archive", layer: "orchestration", name: "归档 / 重置 / 清理", path: "scripts/archive/{archive,archive-rotate,reset}.mjs + lib/prune-assets.mjs",
+          role: "archive-rotate 抓取前按 date 轮转（已归档则清空，否则先归档）；archive 归档前 prune 未引用资产再原子移入 daily-dates/；reset 清空 data-scheme + RSS 快照（交互确认）。" },
         { id: "checks", layer: "orchestration", name: "数据校验", path: "scripts/checks/{check-data-json,check-icons}.mjs",
           role: "Raw 内容校验、渲染就绪校验（强制机器字段存在）、图标资源校验。" },
         { id: "render-mp4", layer: "orchestration", name: "渲染出片", path: "remotion render · video:render",
@@ -436,21 +437,21 @@
         { id: "render-cover", layer: "orchestration", name: "封面出图", path: "remotion still · render:cover",
           role: "remotion still 抽取指定帧（--frame=45）导出 out/cover.png 封面，供投稿使用。" },
         { id: "publish", layer: "orchestration", name: "publish:bili 一键发布", path: "package.json: publish:bili · all:bili",
-          role: "发布编排：video:render → render:cover → comment:generate → bili:meta → bili:full（投稿+评论+置顶）；all:bili = video:prepare + publish:bili。" },
+          role: "发布编排：video:render → render:cover → comment:generate → video:meta → bili:full（投稿+评论+置顶）；all:bili = video:prepare + publish:bili。" },
 
         // ---- 构建库 ----
         { id: "tts-entry", layer: "build", name: "generate-tts.mjs", path: "scripts/render/generate-tts.mjs",
-          role: "TTS 编排入口：装配 generated → 合成音频 → 校验 → 事务提交。data-generate.json 的唯一写手。" },
+          role: "TTS 编排入口：装配 generated → 合成音频 → ffmpeg 音质检（isolated-burst 重试）→ 渲染前校验 → 事务提交。data-generate.json 的唯一写手。" },
         { id: "builder", layer: "build", name: "report-builder.mjs", path: "scripts/lib/report-builder.mjs",
-          role: "装配 generated：定 theme、构建 intro/outro、从旧数据恢复 icon、按图片真实像素写尺寸。" },
+          role: "装配 generated：定 theme（按时段）、构建 intro/outro（按栏目聚合）、从旧数据恢复 icon、按图片真实像素写尺寸、算 story.videoStartMs（评论同源）。" },
         { id: "tts-client", layer: "build", name: "minimax-tts.mjs", path: "scripts/lib/minimax-tts.mjs",
-          role: "MiniMax TTS API 客户端，按内容哈希缓存、失败重试，写 audioSrc/timing/tts。" },
+          role: "MiniMax TTS API 客户端：按内容/参数哈希缓存复用、限速 + 限流退避重试、tailPadding 控制留白，写 audioSrc/timing/tts。" },
         { id: "gen-output", layer: "build", name: "generated-output.mjs", path: "scripts/lib/generated-output.mjs",
-          role: "音频与 Generated JSON 的原子事务提交，逐文件写入避免 Windows 句柄占用 EPERM。" },
+          role: "音频 + Generated JSON 的原子事务提交：文件锁防并发，逐文件写 mp3 + 单文件 rename 发布 manifest，规避 Windows 句柄占用 EPERM；末尾 best-effort 清孤儿音频。" },
         { id: "gen-svg", layer: "build", name: "generate-svg.mjs", path: "scripts/render/generate-svg.mjs",
-          role: "调用 Claude（低 effort）为每个 Tab 生成彩色语义 SVG 图标，校验后写入 icons/。" },
+          role: "Tab 图标生成入口：preflight 先校验现有图标，仅对缺失/失效的目标调 Claude（low effort）；精确 allowlist（仅许图标写入 + 只读/校验）拦住不可信 RSS 内容的提示注入。校验后写入 icons/。" },
         { id: "validation", layer: "build", name: "校验库", path: "scripts/lib/{report,video-layout,video-timeline}-validation.mjs",
-          role: "JSON Schema 与跨字段业务校验，被 checks 与渲染前校验复用。" },
+          role: "JSON Schema + 跨字段业务校验（Raw / Generated 双模式、renderMode 强制机器字段、overlay 尺寸不变量），被 checks、TTS 与渲染前校验复用。" },
         { id: "paths", layer: "build", name: "paths.mjs", path: "scripts/lib/paths.mjs",
           role: "集中路径定义与 JSON 读取，锚定 rootDir，与入口目录深度无关。" },
 
@@ -458,17 +459,17 @@
         { id: "root", layer: "render", name: "Root.tsx", path: "src/Root.tsx",
           role: "Composition 定义：1920×1080、30fps，注册主组件并注入 data-generate.json 作为 props。" },
         { id: "main-comp", layer: "render", name: "AiDailyReport.tsx", path: "src/AiDailyReport.tsx",
-          role: "时间轴驱动的故事渲染器，渲染 Tabs、字幕、overlay 图与音频，处理点击音效与过渡。" },
+          role: "时间轴驱动的故事渲染器：统一时间线（单次 walk 派生时长/音频/画面/音效）、Tabs 网格、字幕视觉宽度切分、overlay 智能布局（截图/竖图分类+缩放）、intro 自动滚动估算、主题（明/暗）。" },
         { id: "schema", layer: "render", name: "daily-report-data.ts", path: "src/daily-report-data.ts",
           role: "Zod schema 定义、JSON 解析与类型导出，是 props 类型的单一来源。" },
-        { id: "layout", layer: "render", name: "布局 / 导航", path: "src/{layout-config,navigation-layout}.ts",
-          role: "视频布局与导航容量规则，读取 config/video-layout.json，自动分配 Header 宽度。" },
+        { id: "layout", layer: "render", name: "布局 / 导航 / 时间线常量", path: "src/{layout-config,navigation-layout}.ts + config/video-{layout,timeline}.json",
+          role: "布局查表（按 Tab 数选网格/字号）、导航容量规则；video-timeline.json 是 fps / 过渡帧常量的单一事实源，渲染侧与评论侧同源读取。" },
 
         // ---- 发布 ----
         { id: "upload", layer: "publish", name: "bili-upload.mjs", path: "scripts/publish/bili/bili-upload.mjs",
           role: "调 biliup-rs 投稿视频（bili:upload 纯投稿 / bili:full 含评论置顶）。" },
-        { id: "meta", layer: "publish", name: "bili-meta.mjs", path: "scripts/publish/bili/bili-meta.mjs",
-          role: "LLM 生成 B 站标题+标签 → bilibili-meta.json。" },
+        { id: "meta", layer: "publish", name: "video-meta.mjs", path: "scripts/lib/video-meta.mjs",
+          role: "LLM 生成视频标题+标签 → video-meta.json（投稿元数据，与平台无关）。" },
         { id: "comment", layer: "publish", name: "评论生成 / 发送", path: "scripts/publish/bili/{generate-comment,bili-comment,bili-stick}.mjs",
           role: "从时间线数据生成 B 站风格跳转评论、发送并置顶。" },
         { id: "bili-api", layer: "publish", name: "bili-api + biliup", path: "scripts/publish/bili/{bili-api,ensure-biliup,biliup-prepare,download-bili}.mjs + biliup/",
@@ -514,6 +515,8 @@
         { from: "render-cover", to: "upload", type: "data-flow", label: "封面 png" },
 
         { from: "meta", to: "upload", type: "data-flow", label: "标题/标签" },
+        { from: "data-gen", to: "meta", type: "data-flow", label: "标题/内容" },
+        { from: "data-gen", to: "comment", type: "data-flow", label: "videoStartMs" },
         { from: "comment", to: "bili-api", type: "data-flow", label: "评论/置顶" },
 
         // —— 外部调用 ——
@@ -534,7 +537,7 @@
         { from: "publish", to: "render-mp4", type: "trigger", label: "video:render" },
         { from: "publish", to: "render-cover", type: "trigger", label: "render:cover" },
         { from: "publish", to: "comment", type: "trigger", label: "comment:generate" },
-        { from: "publish", to: "meta", type: "trigger", label: "bili:meta" },
+        { from: "publish", to: "meta", type: "trigger", label: "video:meta" },
         { from: "publish", to: "upload", type: "trigger", label: "bili:full" },
 
         // —— 读取配置 / 快照 ——
