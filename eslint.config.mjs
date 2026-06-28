@@ -3,7 +3,7 @@ import { config } from "@remotion/eslint-config-flat";
 export default [
   ...config,
   {
-    files: ["scripts/**/*.mjs"],
+    files: ["scripts/**/*.mjs", "test/**/*.mjs"],
     languageOptions: {
       globals: {
         Buffer: "readonly",
@@ -19,7 +19,7 @@ export default [
       },
     },
     rules: {
-      // scripts/ 是 Node CLI，不经 Remotion 渲染：随机性/确定性规则不适用。
+      // scripts/ 与 test/ 是 Node CLI / 测试，不经 Remotion 渲染：随机性/确定性规则不适用。
       "@remotion/deterministic-randomness": "off",
     },
   },

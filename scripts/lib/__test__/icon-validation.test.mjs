@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import {mkdtemp, mkdir, writeFile} from "node:fs/promises";
 import {tmpdir} from "node:os";
 import {join} from "node:path";
-import {validateReportIcons} from "./icon-validation.mjs";
+import {validateReportIcons} from "../icon-validation.mjs";
 
 const validSvg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 96"><path d="M20 76 48 16l28 60Z" fill="#2563eb"/></svg>`;
 

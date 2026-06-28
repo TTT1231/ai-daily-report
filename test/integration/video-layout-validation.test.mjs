@@ -1,8 +1,8 @@
 import assert from "node:assert/strict";
 import {readFileSync} from "node:fs";
 import test from "node:test";
-import {videoLayoutPath} from "./paths.mjs";
-import {validateVideoLayoutValue} from "./video-layout-validation.mjs";
+import {videoLayoutPath} from "../../scripts/lib/paths.mjs";
+import {validateVideoLayoutValue} from "../../scripts/lib/video-layout-validation.mjs";
 
 const currentLayout = JSON.parse(readFileSync(videoLayoutPath, "utf8"));
 const clone = (value) => JSON.parse(JSON.stringify(value));

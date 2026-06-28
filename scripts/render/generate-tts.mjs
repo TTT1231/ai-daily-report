@@ -12,6 +12,7 @@ import {
 } from "../lib/report-builder.mjs";
 import {createGeneratedOutputTransaction} from "../lib/generated-output.mjs";
 import {createMinimaxClient} from "../lib/minimax-tts.mjs";
+import {sceneAudioFields, isReusable} from "../lib/tts-timeline.mjs";
 import {
   dataDir,
   generatedDataPath,
@@ -97,17 +98,6 @@ function getSceneHash(text) {
 function createSceneCache(previousReport) {
   return new Map(
     collectTimelineScenes(previousReport ?? {}).map((scene) => [scene.id, scene]),
-  );
-}
-
-function isReusable(scene, cachedScene, hash, outputPath) {
-  return (
-    !force &&
-    existsSync(outputPath) &&
-    cachedScene?.audioSrc === `audio/${scene.id}.mp3` &&
-    cachedScene?.tts?.hash === hash &&
-    Number.isInteger(cachedScene.tts.audioLengthMs) &&
-    cachedScene.tts.audioLengthMs > 0
   );
 }
 
@@ -205,7 +195,7 @@ try {
     const existingAudioPath = dryRun
       ? resolve(dataDir, "audio", `${scene.id}.mp3`)
       : transaction.existingAudioPath(scene.id);
-    let reusable = isReusable(scene, cachedScene, hash, existingAudioPath);
+    let reusable = isReusable(scene, cachedScene, hash, existingAudioPath, force);
     // 复用音频不再重跑 ffmpeg 音质检：该片段首次生成时已由 synthesizeChecked 检过，
     // 哈希命中即证明是同一段已验证音频。每次保存都按 scene 数重跑 ffmpeg（约 0.14s/scene）
     // 是 dev 同步 10s+ 的主因；怀疑缓存损坏时用 `bun run tts:force` 强制重生成并复检。
@@ -231,23 +221,11 @@ try {
       console.log(`- ${scene.id}: generated ${audioLengthMs}ms`);
     }
 
-    scene.audioSrc = `audio/${scene.id}.mp3`;
-    scene.timing = {
-      startMs: cursorMs,
-      durationMs: audioLengthMs + config.tailPaddingMs,
-    };
-    scene.tts = {
-      provider: "minimax",
-      hash,
-      model: config.model,
-      voiceId: config.voiceId,
-      speed: config.speed,
-      vol: config.vol,
-      pitch: config.pitch,
-      audioLengthMs,
-      tailPaddingMs: config.tailPaddingMs,
-    };
-    cursorMs += scene.timing.durationMs;
+    const audioFields = sceneAudioFields(scene.id, hash, audioLengthMs, cursorMs, config);
+    scene.audioSrc = audioFields.audioSrc;
+    scene.timing = audioFields.timing;
+    scene.tts = audioFields.tts;
+    cursorMs = audioFields.nextCursorMs;
   }
 
   if (dryRun) {

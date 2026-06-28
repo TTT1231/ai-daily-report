@@ -1,0 +1,33 @@
+{
+  "$schema": "../config/data.schema.json",
+  "date": "2026-06-28",
+  "stories": [
+    {
+      "id": "story-1",
+      "topTitle": "模型产品",
+      "bottomTitle": "GLM",
+      "contentTitle": "智谱 GLM 模型更新动态",
+      "tabs": [
+        {"id": "tab-1", "title": "事件概览", "summary": "智谱发布新模型并开源，推理成本显著下降。"},
+        {"id": "tab-2", "title": "用户影响", "summary": "新模型让开发者调用接口获得更好性价比。"}
+      ],
+      "scenes": [
+        {"id": "scene-1", "subtitle": "第一句足够长的旁白口播文案内容。"},
+        {"id": "scene-2", "subtitle": "第二句足够长的旁白口播文案内容。"}
+      ]
+    },
+    {
+      "id": "story-2",
+      "topTitle": "行业动态",
+      "bottomTitle": "芯片",
+      "contentTitle": "OpenAI 自研推理芯片发布",
+      "tabs": [
+        {"id": "tab-1", "title": "事件概览", "summary": "OpenAI 发布自研推理芯片 Jalapeño。"},
+        {"id": "tab-2", "title": "后续观察", "summary": "自研芯片可能影响未来推理成本与供应。"}
+      ],
+      "scenes": [
+        {"id": "scene-3", "subtitle": "第三句足够长的旁白口播文案内容。"}
+      ]
+    }
+  ]
+}

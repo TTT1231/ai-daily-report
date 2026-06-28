@@ -21,6 +21,9 @@ type httpError struct {
 // maxFeedBytes 限制单个 RSS 响应体的最大字节数，避免恶意/损坏的 feed 返回超大 body 拖垮内存。
 const maxFeedBytes int64 = 10 * 1024 * 1024
 
+// rssRetrySleep 是 fetchRSS2Page 重试退避的睡眠函数，默认 time.Sleep；测试可替换为 no-op 加速。
+var rssRetrySleep = time.Sleep
+
 func (e *httpError) Error() string { return e.message }
 
 type rss2Document struct {
@@ -44,7 +47,8 @@ type rss2Item struct {
 }
 
 // fetchRSS2Source 抓取单个 RSS 2.0 源（按 MaxPages 翻页），只保留晚于 cutoff 的条目，
-// 当某页最旧条目已早于 cutoff 或不分页时停止翻页，并在翻页间按配置延迟。
+// 当某页没有任何时间窗内的条目（已翻到窗口之外）时停止翻页，并在翻页间按配置延迟。
+// 不再用「全页最旧条目」判断停止：置顶/旧帖混在某一页会把最旧值拉低、错误截断后续页。
 func fetchRSS2Source(client *http.Client, source RSS2Source, cutoff time.Time) ([]Item, error) {
 	if source.PageURL == nil {
 		return nil, fmt.Errorf("RSS 来源未配置分页地址生成器")
@@ -56,7 +60,7 @@ func fetchRSS2Source(client *http.Client, source RSS2Source, cutoff time.Time) (
 		if err != nil {
 			return nil, err
 		}
-		items, oldest, err := fetchRSS2Page(client, rawURL, source, cutoff)
+		items, err := fetchRSS2Page(client, rawURL, source, cutoff)
 		if err != nil {
 			return nil, fmt.Errorf("第 %d 页: %w", pageOffset+1, err)
 		}
@@ -68,7 +72,7 @@ func fetchRSS2Source(client *http.Client, source RSS2Source, cutoff time.Time) (
 			seen[key] = struct{}{}
 			recent = append(recent, item)
 		}
-		if !oldest.IsZero() && !oldest.After(cutoff) {
+		if len(items) == 0 {
 			break
 		}
 		if pageOffset < source.MaxPages-1 && source.PageDelaySeconds > 0 {
@@ -80,7 +84,7 @@ func fetchRSS2Source(client *http.Client, source RSS2Source, cutoff time.Time) (
 
 // fetchRSS2Page 抓取单个 RSS 2.0 页面，仅对可重试错误（429 / 5xx / 网络超时）最多重试 3 次，
 // 优先遵守 Retry-After 头，否则用递增退避；4xx 等永久错误立即返回。
-func fetchRSS2Page(client *http.Client, rawURL string, source RSS2Source, cutoff time.Time) ([]Item, time.Time, error) {
+func fetchRSS2Page(client *http.Client, rawURL string, source RSS2Source, cutoff time.Time) ([]Item, error) {
 	const maxRetries = 3
 	var body []byte
 	var err error
@@ -99,30 +103,26 @@ func fetchRSS2Page(client *http.Client, rawURL string, source RSS2Source, cutoff
 			wait = time.Duration(retry+1) * 10 * time.Second
 		}
 		fmt.Printf("   重试：第 %d 次请求失败，等待 %v 后继续\n", retry+1, wait)
-		time.Sleep(wait)
+		rssRetrySleep(wait)
 	}
 	if err != nil {
-		return nil, time.Time{}, err
+		return nil, err
 	}
 
 	items, err := parseRSS2(body, source)
 	if err != nil {
-		return nil, time.Time{}, err
+		return nil, err
 	}
 	var recent []Item
-	var oldest time.Time
 	for _, item := range items {
 		if item.PublishedAt.IsZero() {
 			continue
-		}
-		if oldest.IsZero() || item.PublishedAt.Before(oldest) {
-			oldest = item.PublishedAt
 		}
 		if item.PublishedAt.After(cutoff) {
 			recent = append(recent, item)
 		}
 	}
-	return recent, oldest, nil
+	return recent, nil
 }
 
 // parseRSS2 解析 RSS 2.0 格式的 Feed，把每个 <item> 转成标准化 Item。

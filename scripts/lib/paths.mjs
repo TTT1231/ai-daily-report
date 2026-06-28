@@ -2,7 +2,11 @@ import {readFile} from "node:fs/promises";
 import {resolve} from "node:path";
 
 export const rootDir = resolve(import.meta.dirname, "../..");
-export const dataDir = resolve(rootDir, "data-scheme");
+// DATA_SCHEME_DIR 让 CLI/校验脚本在测试里指向临时目录（hermetic），与 Go 侧的 REPORT_DATA_PATH 对齐。
+// 不设置时默认指向项目根的 data-scheme/，生产行为不变。
+export const dataDir = process.env.DATA_SCHEME_DIR
+  ? resolve(process.env.DATA_SCHEME_DIR)
+  : resolve(rootDir, "data-scheme");
 export const rawDataPath = resolve(dataDir, "data.json");
 export const generatedDataPath = resolve(dataDir, "data-generate.json");
 export const schemaPath = resolve(rootDir, "config", "data.schema.json");

@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import {mkdtemp, mkdir, writeFile, rm} from "node:fs/promises";
 import {tmpdir} from "node:os";
 import {join} from "node:path";
-import {collectMissingImageAssets} from "./asset-check.mjs";
+import {collectMissingImageAssets} from "../asset-check.mjs";
 
 // D 的核心契约：dev.mjs 在图片被删/改时，需要精确指出哪些 overlayImg/icon 引用
 // 现在指向了不存在的文件（否则 Remotion <Img> 会 cancelRender 且永不自愈）。

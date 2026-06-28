@@ -1,0 +1,48 @@
+name: test
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # bun 版本与 package.json 的 packageManager 字段保持一致（bun@1.3.12）。
+      - name: Setup bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.3.12
+
+      # 从 ingest/go.mod 读取 go 版本（go 1.21），避免与本地开发脱节。
+      - name: Read Go version from ingest/go.mod
+        id: go-version
+        run: |
+          version=$(grep -E '^go [0-9]+\.[0-9]+' ingest/go.mod | awk '{print $2}')
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ steps.go-version.outputs.version }}
+          # ingest 模块只用标准库（无外部依赖），没有 go.sum；缓存键锚定 go.mod 即可。
+          cache-dependency-path: ingest/go.mod
+
+      - name: Install JS dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Run JS unit tests
+        run: bun run test:unit
+
+      - name: Run JS integration tests
+        # 不设 REMOTION_RENDER_TEST / E2E_TEST：render 与 e2e 用例自动 skip，不费 CI 算力。
+        run: bun run test:integration
+
+      - name: Run Go tests
+        run: go -C ingest test ./...

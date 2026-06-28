@@ -168,6 +168,10 @@ func normalizeGroups(groups []NewsGroup, scored []ScoredItem, items []Item) []Ne
 	return normalized
 }
 
+// fallbackGroups 已移除：run() 不再在聚类失败时降级产出低质成片，改为直接中止（见 main.go groupSimilarNews 分支）。
+// splitIncompatibleGroups 也已移除：本地按品牌身份键拆分的启发式被 main.go 的内容感知合并
+// mergeStoriesWithContent 取代——避免仅因提到同一品牌就被拆开同事件来源。fallbackGroupIdentity
+// 仍保留，供 generate_datajson.go 的 navigationTitle() 降级推断使用。
 // fallbackGroupIdentity 由标题推断稳定的聚类身份键与展示标题：
 // 识别重点品牌及特定事件（额度重置、账号风控等），无法识别时回退为规范化标题。
 func fallbackGroupIdentity(title string) (string, string) {

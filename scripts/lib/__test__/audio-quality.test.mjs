@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { findIsolatedBursts, parseSilenceEvents } from "./audio-quality.mjs";
+import { findIsolatedBursts, parseSilenceEvents } from "../audio-quality.mjs";
 
 test("parses FFmpeg silence events", () => {
   const output = [
