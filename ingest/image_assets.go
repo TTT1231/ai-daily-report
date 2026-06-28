@@ -70,7 +70,7 @@ func fetchOverlayImage(client *http.Client, imageURL, refererLink string) ([]byt
 		if wait <= 0 {
 			wait = time.Duration(attempt*2) * time.Second
 		}
-		fmt.Printf("   图片下载重试：第 %d 次失败，等待 %v 后继续\n", attempt, wait)
+		fmt.Printf("   图片重试：%s 第 %d 次，等待 %v\n", imageURL, attempt, wait)
 		overlayImageRetrySleep(wait)
 	}
 	return nil, "", lastErr
