@@ -24,6 +24,9 @@ import {validateReport} from "../lib/report-validation.mjs";
 const dryRun = process.argv.includes("--dry-run");
 const force = process.argv.includes("--force");
 const apiKey = process.env.MINIMAX_API_KEY;
+// dev.mjs 跑 tts 时透传此 flag(见 dev.mjs);据此静音 dev 下冗余日志(pacing 是每次一样的配置回显,
+// 且 generated=0 时与运行无关)。单独 `bun run tts` / `tts:force` 不设它,保留完整日志。
+const isDev = process.env.AI_DAILY_REPORT_DEV === "1";
 const config = {
   // Master switch for the whole TTS subsystem. false => skip voice generation
   // entirely (no MiniMax, no audio, no ffmpeg quality check); every MINIMAX_* /
@@ -150,10 +153,14 @@ const scenes = collectTimelineScenes(report);
 const cachedScenes = createSceneCache(previousReport);
 const synthesize = createMinimaxClient({...config, apiKey});
 
-console.log(
-  `${dryRun ? "Planning" : "Generating"} ${scenes.length} scene voiceover(s) with ${config.model} / ${config.voiceId}.`,
-);
-if (!dryRun) {
+// dev 下不打 header：每次保存都打、且「Generating」在 generated=0（全量复用）时有误导性；
+// 模型/音色只在 `bun run tts` / `tts:force` 直跑（isDev=false）时才需确认，那时照常打印。
+if (!isDev) {
+  console.log(
+    `${dryRun ? "Planning" : "Generating"} ${scenes.length} scene voiceover(s) with ${config.model} / ${config.voiceId}.`,
+  );
+}
+if (!dryRun && !isDev) {
   console.log(
     `MiniMax pacing: ${config.requestIntervalMs}ms between requests, up to ${config.maxRetries} retries.`,
   );
@@ -212,7 +219,8 @@ try {
       audioLengthMs = cachedScene.tts.audioLengthMs;
       await transaction.stageExistingAudio(scene.id);
       reused++;
-      console.log(`- ${scene.id}: reused ${audioLengthMs}ms`);
+      // 复用不逐条打印：dev 同步常命中全量缓存，逐条 reused 日志会刷屏；
+      // 复用总数由末尾 "TTS complete: generated X, reused Y" 汇总给出，只打印实际调用 MiniMax 生成的片段。
     } else {
       const result = await synthesizeChecked(scene);
       audioLengthMs = result.audioLengthMs;

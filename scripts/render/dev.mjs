@@ -1,6 +1,6 @@
 import {existsSync, readFileSync, watch} from "node:fs";
 import {spawn} from "node:child_process";
-import {extname} from "node:path";
+import {delimiter, extname, resolve} from "node:path";
 import {clearTimeout, setTimeout} from "node:timers";
 import {dataDir, generatedDataPath, rawDataPath, rootDir} from "../lib/paths.mjs";
 import {terminateProcessTree} from "../lib/process-tree.mjs";
@@ -12,8 +12,12 @@ if (process.env.AI_DAILY_REPORT_RUN_ALL === "1") {
   );
 }
 
+// 标记「子进程是在 dev 里跑的」:runScript 经 childEnv 透传,generate-tts 据此静音 dev 下冗余的
+// 日志(如每次都一样的 MiniMax pacing 配置回显)。单独 `bun run tts` / `tts:force` 不经 dev.mjs,
+// 不设此 flag,保留完整日志。
+process.env.AI_DAILY_REPORT_DEV = "1";
+
 const debounceMs = 700;
-const bunCommand = process.platform === "win32" ? "bun.exe" : "bun";
 const rawDataName = "data.json";
 const imageExtensions = new Set([".avif", ".gif", ".jpeg", ".jpg", ".png", ".svg", ".webp"]);
 
@@ -27,22 +31,35 @@ let inputWatchers = [];
 const maxConsecutiveFailures = 3;
 let consecutiveFailures = 0;
 
-function runBunScript(name) {
-  const child = spawn(bunCommand, ["run", name], {
+// 直接 spawn package.json 里的脚本命令、不走 `bun run`——`bun run` 每次会先打印一行
+// "$ <命令>" 回显（如 "$ node ... generate-tts.mjs" / "$ remotion studio ..."），零信息量。
+// 命令仍以 package.json 为单一事实源；本地 CLI（remotion）靠把 node_modules/.bin 塞进 PATH
+// 解析，shell:true 让 Windows 走 .bin/*.cmd。已在 Windows 验证此机制能解析 .cmd、透传 stdout、
+// 并按子进程退出码收尾（含 tts 赖以区分校验失败的 code===2），故 runSync 的退出码分支不受影响。
+const pkgScripts = JSON.parse(
+  readFileSync(resolve(rootDir, "package.json"), "utf8"),
+).scripts;
+const childEnv = {
+  ...process.env,
+  PATH: `${resolve(rootDir, "node_modules", ".bin")}${delimiter}${process.env.PATH ?? ""}`,
+};
+function runScript(name) {
+  const child = spawn(pkgScripts[name], {
     cwd: rootDir,
-    env: process.env,
+    env: childEnv,
     stdio: "inherit",
+    shell: true,
   });
   child.once("error", (error) => {
-    console.error(`无法运行 bun run ${name}: ${error.message}`);
+    console.error(`无法运行 ${name}: ${error.message}`);
   });
   return child;
 }
 
 function startStudio() {
   if (studioProcess || shuttingDown) return;
-  console.log("\n🎬 数据已同步，正在启动 Remotion Studio...\n");
-  studioProcess = runBunScript("dev:studio");
+  console.log("\n🎬 正在启动 Remotion Studio...\n");
+  studioProcess = runScript("dev:studio");
   studioProcess.once("close", (code, signal) => {
     studioProcess = null;
     if (!shuttingDown) {
@@ -59,12 +76,13 @@ function runSync(reason) {
   }
 
   console.log(`\n🔄 ${reason}，正在同步 data-generate.json...`);
-  syncProcess = runBunScript("tts");
+  syncProcess = runScript("tts");
   syncProcess.once("close", (code) => {
     syncProcess = null;
     if (code === 0) {
       consecutiveFailures = 0;
-      console.log("✅ data-generate.json 已更新；未变化的旁白已从缓存复用。");
+      // 不再打印 "✅ 已更新"：tts 末尾的 "TTS complete: generated X, reused Y" 已是成功信号，
+      // 每次保存都和它重复。失败路径（code 2 的 ⚠️ / 其它的 ❌）仍保留明确提示。
       startStudio();
     } else if (code === 2) {
       // 退出码 2 = tts 在调用 MiniMax 之前就失败（data.json 校验/JSON 语法/缺 API Key）。
@@ -163,10 +181,15 @@ function runImageAssetCheck({silentWhenClean = false} = {}) {
 }
 
 const assetCheckDebounceMs = 400;
-function scheduleImageAssetCheck(changedName) {
-  console.log(`🖼 图片素材已变化：${changedName}；检查 overlayImg/icon 引用是否悬空...`);
+// 图片变化时静默检查引用是否悬空：干净不报（图片变化本身已由 🔄 "重算 overlay 尺寸" 同步行确认），
+// 仅当发现会导致 Remotion <Img> cancelRender 的悬空引用时才打 ⚠️。遵循"成功安静、失败响亮"——
+// 否则每次批量落图都会刷一片"检查中 / 引用完整"的零信息行。
+function scheduleImageAssetCheck() {
   clearTimeout(assetCheckTimer);
-  assetCheckTimer = setTimeout(() => runImageAssetCheck(), assetCheckDebounceMs);
+  assetCheckTimer = setTimeout(
+    () => runImageAssetCheck({silentWhenClean: true}),
+    assetCheckDebounceMs,
+  );
 }
 
 function watchInputs() {
@@ -182,7 +205,7 @@ function watchInputs() {
         return;
       }
       if (imageExtensions.has(extname(name).toLowerCase())) {
-        scheduleImageAssetCheck(name);
+        scheduleImageAssetCheck();
         // 图片变化也让 tts 跑一次（音频走缓存复用、不调 MiniMax），以便构建按新文件重算 overlay 尺寸。
         scheduleSync("图片素材已变化（重算 overlay 尺寸）");
       }
@@ -237,9 +260,8 @@ if (!existsSync(dataDir)) {
 
 inputWatchers = watchInputs();
 console.log(
-  "👀 开发监听已启动：data.json、数据与布局 Schema、video-layout.json、.env 和图片素材。",
+  "👀 dev 监听已启动：data.json / Schema / 布局 / .env / 图片变化自动同步 TTS（图片仅重算 overlay、不调 MiniMax）。",
 );
-console.log("   数据 / Schema / 布局 / .env 变化会自动运行 TTS；图片变化也会触发一次 TTS 同步（音频缓存复用、不调 MiniMax）以重算 overlay 尺寸。");
 runImageAssetCheck({silentWhenClean: true});
 if (existsSync(generatedDataPath)) {
   startStudio();
