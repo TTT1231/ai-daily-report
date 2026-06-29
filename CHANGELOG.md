@@ -1,5 +1,21 @@
 # Changelog
 
+## 0.7.0
+
+- Added: ingest 用 LLM 对同主题、跨来源的条目做内容感知合并，故事更聚焦、去重更彻底
+- Added: generate-svg 改为增量模式，只补齐缺失或无效的图标，已有的有效图标锁定不重写，生成更快更稳
+- Changed: ingest 在 AI 阶段失败时直接中止整期，不再用本地降级凑数；凑不齐足够 Tab 的薄弱故事直接丢弃
+- Changed: 论坛（LinuxDo）标题自动剥离楼层、标签等装饰，显示标题更干净
+- Changed: 视频标题与标签从 B 站解耦，写入平台无关的 data-scheme/video-meta.json，命令 bili:meta 更名为 video:meta
+- Fixed: LinuxDo 置顶帖导致 RSS 分页抓取失效，分页采集恢复正常
+- Added: RSS 快照人工补选页重新设计，按来源分类挑选
+- Added: Remotion 渲染冒烟测试纳入 CI
+- Fixed: 模型评分、MiniMax TTS、video-meta 标题生成对瞬时 API 失败（限流/5xx/网络抖动）退避重试，单次抖动不再中止整轮 ingest 或丢弃已合成音频
+- Fixed: RSS 抓取的 Retry-After 等待封顶 60s，异常或恶意 feed 无法再用超大值拖垮当日流水线
+- Fixed: Zod schema 漏放 gif/avif（0.6.0 已声明支持、TS 正则没同步），手动 gif/avif overlay 不再在渲染时被拒
+- Fixed: macOS/Linux 下 Ctrl+C 正确终止整棵子进程树（含 Remotion Chromium），不再留孤儿；Windows 杀进程失败改为显式告警
+- Changed: 清理 story tabs 未启用的定向修正重试死代码，行为不变
+
 ## 0.6.0
 
 - Changed: `bun run dev` 每次保存不再对缓存音频重跑 ffmpeg 音质检，同步耗时从约 10s 降到 1-2s

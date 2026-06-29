@@ -38,7 +38,11 @@ test("dateSchema requires the YYYY-MM-DD shape", () => {
 test("imagePathSchema requires the images/ prefix and an image extension", () => {
   assert.throws(() => imagePathSchema.parse("../secret.png"));
   assert.throws(() => imagePathSchema.parse("images/noextension"));
+  assert.throws(() => imagePathSchema.parse("images/cover.bmp"));
   assert.equal(imagePathSchema.parse("images/cover.jpeg"), "images/cover.jpeg");
+  // gif/avif 是 0.6.0 声明支持的手动 overlay 格式，须被放行（曾因 Zod 正则漏放而在渲染时报错）。
+  assert.equal(imagePathSchema.parse("images/anim.gif"), "images/anim.gif");
+  assert.equal(imagePathSchema.parse("images/photo.avif"), "images/photo.avif");
 });
 
 test("audioPathSchema requires the audio/ prefix and an audio extension", () => {

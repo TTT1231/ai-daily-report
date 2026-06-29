@@ -281,7 +281,7 @@
     "imagePath": {
       "type": "string",
       "pattern": "^images/.+\\.(svg|png|jpe?g|webp|gif|avif)$",
-      "description": "当前日报数据包中 images/ 目录下的图片路径。"
+      "description": "当前日报数据包中 images/ 目录下的图片路径（支持 svg/png/jpg/jpeg/webp/gif/avif）。须与 src/daily-report-data.ts 的 imagePathSchema 保持一致。"
     },
     "audioPath": {
       "type": "string",

@@ -89,7 +89,6 @@ type NewsGroup struct {
 	Highlights      []NewsHighlight `json:"highlights"`                 // 互不重复的关键要点。
 	Tabs            []StoryTab      `json:"tabs,omitempty"`             // 后续编排出的视频 Tabs。
 	ImageAssets     []StoryImage    `json:"-"`                          // 已确认相关并可作为画面 overlay 的本地图片素材。
-	lastRejected    []rejectedTab   `json:"-"`                          // 运行时缓存：最近一次 Tab 归一化被丢弃的项，供带反馈重试使用。
 }
 
 // NewsHighlight 是 Story 内的一个不重复要点，指向最能代表它的来源序号。

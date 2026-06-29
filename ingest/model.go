@@ -10,6 +10,7 @@ import (
 	"slices"
 	"sort"
 	"strings"
+	"time"
 )
 
 // analyzeWithModel 让模型按用户兴趣画像对条目标题打分筛选，再用关键词保底规则叠加修正，返回候选列表。
@@ -31,17 +32,37 @@ func analyzeWithModel(ai AIConfig, preferences PreferencesConfig, items []Item) 
 内容列表：
 %s`, len(items), preferences.Thresholds.MaximumCandidates, preferences.Thresholds.MinimumScore, strings.Join(titles, "\n"))
 
-	content, err := requestModel(ai, []ChatMessage{
+	messages := []ChatMessage{
 		{Role: "system", Content: buildNewsRankingSystemPrompt(preferences)},
 		{Role: "user", Content: prompt},
-	})
-	if err != nil {
-		return nil, err
 	}
 
-	scored, err := parseScoredItems(content)
-	if err != nil {
-		return nil, err
+	// 对瞬时失败（限流/5xx/网络/坏 JSON）退避重试，与聚类/合并/Tabs 阶段一致：
+	// 单次模型 API 抖动不再直接中止整轮 ingest（main.go 会打印"模型评分失败"并退出）。
+	const maxAttempts = 3
+	var scored []ScoredItem
+	for attempt := 1; attempt <= maxAttempts; attempt++ {
+		content, err := requestModel(ai, messages)
+		if err != nil {
+			if attempt == maxAttempts {
+				return nil, err
+			}
+			wait := time.Duration(attempt) * 5 * time.Second
+			fmt.Printf("   ⚠️  警告：评分请求第 %d 次失败，等待 %v 后重试: %v\n", attempt, wait, err)
+			time.Sleep(wait)
+			continue
+		}
+		scored, err = parseScoredItems(content)
+		if err != nil {
+			if attempt == maxAttempts {
+				return nil, err
+			}
+			wait := time.Duration(attempt) * 5 * time.Second
+			fmt.Printf("   ⚠️  警告：评分 JSON 第 %d 次解析失败，等待 %v 后重试\n", attempt, wait)
+			time.Sleep(wait)
+			continue
+		}
+		break
 	}
 	scored = normalizeScoredItems(preferences, scored)
 	// 模型 JSON 不返回发布时间，从 items 回填，供评分阶段做"新内容优先"的稳定 tie-break。

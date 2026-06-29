@@ -247,19 +247,30 @@ func doGet(client *http.Client, rawURL string) ([]byte, error) {
 	return body, nil
 }
 
+// maxRetryAfterWait 限制单次 Retry-After 退避的上限：恶意/异常 feed 用 Retry-After: 86400
+// 之类的大值会让抓取器 sleep 数小时甚至数天，实质性挂死整条日报流水线（http.Client.Timeout
+// 不覆盖重试间的 time.Sleep）。裁到这个上限既能尊重服务器的限流指引，又不给单源可乘之机。
+const maxRetryAfterWait = 60 * time.Second
+
 // parseRetryAfter 解析 Retry-After 响应头：支持秒数与 HTTP 日期，无法识别时返回 0。
+// 返回值裁到 [0, maxRetryAfterWait]：负值与过去的 HTTP 日期都视为无指引（返回 0，由调用方
+// 走默认退避），过大值裁到上限。
 func parseRetryAfter(resp *http.Response) time.Duration {
 	value := strings.TrimSpace(resp.Header.Get("Retry-After"))
 	if value == "" {
 		return 0
 	}
+	var d time.Duration
 	if seconds, err := strconv.Atoi(value); err == nil {
-		return time.Duration(seconds) * time.Second
+		d = time.Duration(seconds) * time.Second
+	} else if t, err := http.ParseTime(value); err == nil {
+		d = time.Until(t)
 	}
-	if t, err := http.ParseTime(value); err == nil {
-		if wait := time.Until(t); wait > 0 {
-			return wait
-		}
+	if d < 0 {
+		return 0
 	}
-	return 0
+	if d > maxRetryAfterWait {
+		return maxRetryAfterWait
+	}
+	return d
 }

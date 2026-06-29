@@ -275,3 +275,45 @@ func TestFetchRSS2SourceStopsWhenPageHasNoInWindowItems(t *testing.T) {
 		t.Fatalf("expected only page 1 fetched (stop on all-old), got %d page calls", got)
 	}
 }
+
+// ---------- parseRetryAfter 上限与边界 ----------
+
+// TestParseRetryAfterCapsAndEdges 锁定 parseRetryAfter 的上限裁剪与边界语义：
+//   - 头缺失/0/负数/无法识别 → 0（由调用方走默认退避）；
+//   - 正常小值原样返回；
+//   - 过大值（恶意 feed 用 Retry-After: 86400 拖垮流水线）裁到 maxRetryAfterWait；
+//   - 过去的 HTTP 日期 → 0；遥远的未来 HTTP 日期 → 裁到上限。
+func TestParseRetryAfterCapsAndEdges(t *testing.T) {
+	withRetryAfter := func(value string) *http.Response {
+		resp := &http.Response{Header: http.Header{}}
+		if value != "" {
+			resp.Header.Set("Retry-After", value)
+		}
+		return resp
+	}
+
+	cases := []struct {
+		name    string
+		hdr     string
+		wantMin time.Duration // 期望返回值落在 [wantMin, wantMax] 内（HTTP-date 用区间，避免精确断言）
+		wantMax time.Duration
+	}{
+		{"missing header", "", 0, 0},
+		{"zero seconds", "0", 0, 0},
+		{"negative seconds", "-5", 0, 0},
+		{"small seconds", "7", 7 * time.Second, 7 * time.Second},
+		{"just under cap", "59", 59 * time.Second, 59 * time.Second},
+		{"capped large seconds", "86400", maxRetryAfterWait, maxRetryAfterWait},
+		{"garbage", "not-a-number", 0, 0},
+		{"past http-date", time.Now().Add(-time.Hour).UTC().Format(http.TimeFormat), 0, 0},
+		{"far-future http-date caps", time.Now().Add(48 * time.Hour).UTC().Format(http.TimeFormat), maxRetryAfterWait, maxRetryAfterWait},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			got := parseRetryAfter(withRetryAfter(tc.hdr))
+			if got < tc.wantMin || got > tc.wantMax {
+				t.Fatalf("parseRetryAfter(%q) = %v, want in [%v,%v]", tc.hdr, got, tc.wantMin, tc.wantMax)
+			}
+		})
+	}
+}

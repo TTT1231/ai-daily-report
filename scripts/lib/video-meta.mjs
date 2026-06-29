@@ -39,25 +39,57 @@ const buildSuffix = (date) => {
 };
 
 // ── 调 LLM ────────────────────────────────────────────────────────────
+const LLM_TIMEOUT_MS = 60000;
+const LLM_MAX_ATTEMPTS = 3;
+
+// llm 调用 OpenAI 兼容 chat/completions，带 60s 超时与瞬态错误退避重试，与 minimax-tts 的
+// 超时/重试防护对齐：避免 LLM 接口挂起让 video:meta 无限阻塞，或单次 5xx/网络抖动直接失败。
+// 4xx 等永久错误立即抛出（重试无意义）。
 async function llm(messages) {
-  const res = await fetch(`${BASE_URL}/chat/completions`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${API_KEY}`,
-    },
-    body: JSON.stringify({
-      model: MODEL,
-      stream: false,
-      temperature: 0.85,
-      messages,
-    }),
+  const body = JSON.stringify({
+    model: MODEL,
+    stream: false,
+    temperature: 0.85,
+    messages,
   });
-  if (!res.ok) throw new Error(`AI 接口 ${res.status}: ${await res.text()}`);
-  const data = await res.json();
-  const text = data.choices?.[0]?.message?.content?.trim();
-  if (!text) throw new Error("AI 返回为空");
-  return text;
+  let lastErr;
+  for (let attempt = 1; attempt <= LLM_MAX_ATTEMPTS; attempt++) {
+    let res;
+    try {
+      res = await fetch(`${BASE_URL}/chat/completions`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${API_KEY}`,
+        },
+        signal: globalThis.AbortSignal.timeout(LLM_TIMEOUT_MS),
+        body,
+      });
+    } catch (err) {
+      // 网络错误 / 超时（AbortError）：退避重试，单次抖动不应让 video:meta 失败。
+      lastErr = err;
+      if (attempt < LLM_MAX_ATTEMPTS) {
+        console.warn(`[LLM] 请求失败，重试中 (${attempt}/${LLM_MAX_ATTEMPTS}): ${err.message}`);
+        continue;
+      }
+      throw new Error(`AI 接口请求失败（已重试 ${LLM_MAX_ATTEMPTS} 次）: ${err.message}`);
+    }
+    if (!res.ok) {
+      const errBody = await res.text().catch(() => "");
+      // 5xx 视为瞬时错误重试；4xx 立即抛出。错误体限长 300 字，避免超大错误页撑爆日志。
+      if (res.status >= 500 && attempt < LLM_MAX_ATTEMPTS) {
+        lastErr = new Error(`AI 接口 ${res.status}: ${errBody.slice(0, 300)}`);
+        console.warn(`[LLM] 接口返回 ${res.status}，重试中 (${attempt}/${LLM_MAX_ATTEMPTS})`);
+        continue;
+      }
+      throw new Error(`AI 接口 ${res.status}: ${errBody.slice(0, 300)}`);
+    }
+    const data = await res.json();
+    const text = data.choices?.[0]?.message?.content?.trim();
+    if (!text) throw new Error("AI 返回为空");
+    return text;
+  }
+  throw lastErr ?? new Error("AI 接口请求失败");
 }
 
 // 容错解析：剥掉 ```json 围栏，取第一个 {..} 块

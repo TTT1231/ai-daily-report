@@ -53,7 +53,7 @@ func generateStoryTabs(ai AIConfig, groups []NewsGroup, items []Item) ([]NewsGro
 	for start := 0; start < len(materials); start += storyTabBatchSize {
 		end := min(start+storyTabBatchSize, len(materials))
 		batch := materials[start:end]
-		results, err := requestStoryTabsBatchWithRetry(ai, batch, nil)
+		results, err := requestStoryTabsBatchWithRetry(ai, batch)
 		if err != nil {
 			return groups, err
 		}
@@ -68,7 +68,6 @@ func generateStoryTabs(ai AIConfig, groups []NewsGroup, items []Item) ([]NewsGro
 			fmt.Printf("   ⚠️  story %q 只有 %d 个有效 AI Tab，已剔除（不凑数、不重试）\n", g.Title, len(g.Tabs))
 			continue
 		}
-		g.lastRejected = nil
 		kept = append(kept, g)
 	}
 	if len(kept) == 0 {
@@ -86,11 +85,11 @@ type storyTabMaterial struct {
 
 // requestStoryTabsBatchWithRetry 调用 requestStoryTabsBatch，对瞬时失败（限流/5xx/网络）
 // 退避重试，避免单批次抖动直接让整段请求失败。
-func requestStoryTabsBatchWithRetry(ai AIConfig, batch []storyTabMaterial, feedbacks map[int][]string) ([][]StoryTab, error) {
+func requestStoryTabsBatchWithRetry(ai AIConfig, batch []storyTabMaterial) ([][]StoryTab, error) {
 	const maxAttempts = 3
 	var lastErr error
 	for attempt := 1; attempt <= maxAttempts; attempt++ {
-		results, err := requestStoryTabsBatch(ai, batch, feedbacks)
+		results, err := requestStoryTabsBatch(ai, batch)
 		if err == nil {
 			return results, nil
 		}
@@ -106,9 +105,8 @@ func requestStoryTabsBatchWithRetry(ai AIConfig, batch []storyTabMaterial, feedb
 }
 
 // requestStoryTabsBatch 调用模型为一个批次的 Story 生成 Tabs。
-// feedbacks 非空时会把失败原因拼进 prompt，作为对该批次 Story 的定向修正指引；键为 GroupIndex。
-func requestStoryTabsBatch(ai AIConfig, batch []storyTabMaterial, feedbacks map[int][]string) ([][]StoryTab, error) {
-	prompt := buildStoryTabsPrompt(batch, feedbacks)
+func requestStoryTabsBatch(ai AIConfig, batch []storyTabMaterial) ([][]StoryTab, error) {
+	prompt := buildStoryTabsPrompt(batch)
 	content, err := requestModel(ai, []ChatMessage{
 		{Role: "system", Content: storyTabsSystemPrompt},
 		{Role: "user", Content: prompt},
@@ -142,9 +140,9 @@ func batchPositionByIndex(batch []storyTabMaterial, groupIndex int) int {
 	return -1
 }
 
-// buildStoryTabsPrompt 构造批次 prompt；feedbacks 非空时追加每个 Story 的失败原因，要求模型针对性修正。
-func buildStoryTabsPrompt(batch []storyTabMaterial, feedbacks map[int][]string) string {
-	header := fmt.Sprintf(`请为以下 %d 个 Story 分别生成 %d 至 %d 个适合短视频展示的 Tabs。
+// buildStoryTabsPrompt 构造批次 prompt，要求模型为每个 Story 生成 Tabs。
+func buildStoryTabsPrompt(batch []storyTabMaterial) string {
+	return fmt.Sprintf(`请为以下 %d 个 Story 分别生成 %d 至 %d 个适合短视频展示的 Tabs。
 每个 summary 至少 %d 个汉字。先完整覆盖来源中的独立事实，再决定 Tabs 数量；只有来源确实不超过两个独立事实时才使用两个 Tabs，不得虚构事实或用重复内容凑数。
 
 严格返回以下 JSON，不要返回其他内容：
@@ -167,21 +165,6 @@ Story 材料：
 %s
 
 group_index 必须照抄材料中的 Story 序号，不得使用当前批次内的相对序号。`, len(batch), minStoryTabs, maxStoryTabs, minTabSummaryRunes, joinMaterialBodies(batch))
-
-	if len(feedbacks) == 0 {
-		return header
-	}
-
-	var notes []string
-	for _, m := range batch {
-		reasons, ok := feedbacks[m.GroupIndex]
-		if !ok || len(reasons) == 0 {
-			continue
-		}
-		combined := strings.Join(reasons, "；")
-		notes = append(notes, fmt.Sprintf("- Story %d 上轮生成结果未通过校验：%s。请基于同样的来源材料重新生成该 Story 的全部 Tabs，确保修正上述问题，不要原样复用被拒绝的 Tabs。", m.GroupIndex, combined))
-	}
-	return header + "\n\n需要修正的 Story：\n" + strings.Join(notes, "\n")
 }
 
 // joinMaterialBodies 把批次内各 Story 材料正文用空行拼接。
@@ -193,16 +176,14 @@ func joinMaterialBodies(batch []storyTabMaterial) string {
 	return strings.Join(bodies, "\n\n")
 }
 
-// applyStoryTabsResults 把批次请求结果归一化后写入对应 Story，并缓存被丢弃原因供重试使用。
+// applyStoryTabsResults 把批次请求结果归一化后写入对应 Story。
 func applyStoryTabsResults(groups []NewsGroup, batch []storyTabMaterial, results [][]StoryTab) {
 	for pos, tabs := range results {
 		if pos < 0 || pos >= len(batch) {
 			continue
 		}
 		group := &groups[batch[pos].GroupIndex-1]
-		normalized, rejected := normalizeStoryTabsWithReasons(*group, tabs)
-		group.Tabs = normalized
-		group.lastRejected = rejected
+		group.Tabs = normalizeStoryTabs(*group, tabs)
 	}
 }
 

@@ -8,7 +8,7 @@
 
 ## 允许的格式
 
-来自 `data.schema.json` 的 `imagePath` 正则 `^images/.+\.(svg|png|jpe?g|webp|gif|avif)$`：
+来自 `data.schema.json` 的 `imagePath` 正则 `^images/.+\.(svg|png|jpe?g|webp|gif|avif)$`（与 `src/daily-report-data.ts` 的 Zod `imagePathSchema` 一致）：
 
 - `.svg` / `.png` / `.jpg` / `.jpeg` / `.webp` / `.gif` / `.avif`
 

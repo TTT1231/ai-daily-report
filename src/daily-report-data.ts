@@ -19,11 +19,15 @@ export const identifierSchema = z
 export const dateSchema = z
   .string()
   .regex(/^\d{4}-\d{2}-\d{2}$/, "date must be YYYY-MM-DD");
+// overlay 图片路径正则——TS 侧单一事实源。config/data.schema.json 的 imagePath pattern
+// 必须与此保持一致（手工同步：JSON Schema 无法 import）。支持的格式：svg/png/jpg/jpeg/webp/gif/avif；
+// gif/avif 供手动 overlay 使用（Remotion <Img> 可解码），ingest 自动抓图只产出 png/jpg/webp。
+const OVERLAY_IMAGE_PATH_PATTERN = /^images\/.+\.(svg|png|jpe?g|webp|gif|avif)$/;
 export const imagePathSchema = z
   .string()
   .min(1)
   .regex(
-    /^images\/.+\.(svg|png|jpe?g|webp)$/,
+    OVERLAY_IMAGE_PATH_PATTERN,
     "image path must be images/<name>.<ext>",
   );
 export const audioPathSchema = z

@@ -1268,31 +1268,11 @@ func TestNormalizeStoryTabsWithReasonsRejectsMissingEvidence(t *testing.T) {
 	}
 }
 
-func TestBuildStoryTabsPromptIncludesFeedback(t *testing.T) {
-	batch := []storyTabMaterial{
-		{GroupIndex: 1, Body: "Story 1\n主题：测试"},
-		{GroupIndex: 2, Body: "Story 2\n主题：测试二"},
-	}
-	feedbacks := map[int][]string{1: {"summary 仅 5 字，不足 20 字下限"}}
-
-	prompt := buildStoryTabsPrompt(batch, feedbacks)
-	if !strings.Contains(prompt, "需要修正的 Story") {
-		t.Fatalf("prompt missing feedback section:\n%s", prompt)
-	}
-	if !strings.Contains(prompt, "summary 仅 5 字，不足 20 字下限") {
-		t.Fatalf("prompt missing specific feedback reason:\n%s", prompt)
-	}
-	// 未带反馈的 Story 不应出现在修正段。
-	if !strings.Contains(prompt, "Story 1 上轮生成") {
-		t.Fatalf("prompt missing Story 1 correction note:\n%s", prompt)
-	}
-}
-
-func TestBuildStoryTabsPromptOmitsFeedbackSectionWhenEmpty(t *testing.T) {
+func TestBuildStoryTabsPromptHasNoFeedbackSection(t *testing.T) {
 	batch := []storyTabMaterial{{GroupIndex: 1, Body: "Story 1\n主题：测试"}}
-	prompt := buildStoryTabsPrompt(batch, nil)
+	prompt := buildStoryTabsPrompt(batch)
 	if strings.Contains(prompt, "需要修正的 Story") {
-		t.Fatalf("prompt should not contain feedback section when none provided:\n%s", prompt)
+		t.Fatalf("prompt should not contain feedback section:\n%s", prompt)
 	}
 }
 

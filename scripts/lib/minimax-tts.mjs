@@ -1,4 +1,4 @@
-import {setTimeout as sleep} from "node:timers/promises";
+import {setTimeout as defaultSleep} from "node:timers/promises";
 
 export function createMinimaxClient({
   apiKey,
@@ -13,6 +13,7 @@ export function createMinimaxClient({
   rateLimitRetryMs = 60000,
   timeoutMs = 60000,
   fetch = globalThis.fetch,
+  sleep = defaultSleep,
 }) {
   let lastRequestStartedAt = 0;
 
@@ -90,15 +91,25 @@ export function createMinimaxClient({
           result.base_resp?.status_msg ??
           result.message ??
           `HTTP ${response.status}`;
-        const rateLimited =
-          response.status === 429 || /rate limit|too many requests/i.test(message);
-        if (rateLimited && attempt < maxRetries) {
-          const retryAfterSeconds = Number(response.headers.get("retry-after"));
-          const waitMs = Number.isFinite(retryAfterSeconds)
-            ? Math.max(retryAfterSeconds * 1000, requestIntervalMs)
-            : rateLimitRetryMs * (attempt + 1);
+        // 瞬时错误才重试：429 限流 + 5xx 服务端错误（含限流文案）。base_resp 业务错误码
+        // （HTTP 200 内的 status_code）多为参数/内容问题，是确定性失败，不重试、直接抛出，
+        // 避免对必败请求反复消耗配额。
+        const transient =
+          response.status === 429 ||
+          response.status >= 500 ||
+          /rate limit|too many requests/i.test(message);
+        if (transient && attempt < maxRetries) {
+          // 服务器给了 Retry-After（秒数）就遵守；头缺失或非数值（如 HTTP 日期）则走递增退避。
+          // 注意：headers.get 在头缺失时返回 null，Number(null)===0 会误钻进 isFinite 分支、
+          // 只等 requestIntervalMs（~2.2s）→ 立刻再撞限流。必须先用 retryAfterRaw != null 区分。
+          const retryAfterRaw = response.headers.get("retry-after");
+          const retryAfterSeconds = Number(retryAfterRaw);
+          const waitMs =
+            retryAfterRaw != null && Number.isFinite(retryAfterSeconds)
+              ? Math.max(retryAfterSeconds * 1000, requestIntervalMs)
+              : rateLimitRetryMs * (attempt + 1);
           console.warn(
-            `MiniMax RPM limit reached; retrying in ${Math.ceil(waitMs / 1000)}s (${attempt + 1}/${maxRetries}).`,
+            `MiniMax 请求失败（${message}），${Math.ceil(waitMs / 1000)}s 后重试 (${attempt + 1}/${maxRetries}).`,
           );
           await sleep(waitMs);
           continue;
