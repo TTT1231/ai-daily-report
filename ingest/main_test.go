@@ -1204,7 +1204,7 @@ func TestTabRejectionReason(t *testing.T) {
 	// 合格返回空串。
 	got := tabRejectionReason(StoryTab{
 		Title:   "事件概览",
-		Summary: "这是一段足够长的摘要内容用于通过字数校验。",
+		Summary: "这是一段足够长的摘要内容用于通过字数校验，并说明具体影响。",
 	})
 	if got != "" {
 		t.Fatalf("tabRejectionReason() for valid tab = %q, want empty", got)
@@ -1235,7 +1235,7 @@ func TestTabRejectionReason(t *testing.T) {
 func TestNormalizeStoryTabsWithReasonsCapturesRejections(t *testing.T) {
 	group := NewsGroup{SourceIndexes: []int{1}}
 	tabs := []StoryTab{
-		{Title: "完整标题", Summary: "这是一段足够长的摘要内容用于通过字数校验。", Subtitle: "GLM-5.2 已开启 Max 用户小范围内测，具体参数仍待公布。", EvidenceIndexes: []int{1}},
+		{Title: "完整标题", Summary: "这是一段足够长的摘要内容用于通过字数校验，并说明具体影响。", Subtitle: "GLM-5.2 已开启 Max 用户小范围内测，具体参数仍待公布。", EvidenceIndexes: []int{1}},
 		{Title: "", Summary: "被丢弃因为标题为空"},
 		{Title: "短摘要", Summary: "太短"},
 	}
@@ -1257,7 +1257,7 @@ func TestNormalizeStoryTabsWithReasonsRejectsMissingEvidence(t *testing.T) {
 	group := NewsGroup{SourceIndexes: []int{1}}
 	tabs := []StoryTab{{
 		Title:   "完整标题",
-		Summary: "这是一段足够长但没有有效来源证据的摘要内容。",
+		Summary: "这是一段足够长但没有有效来源证据的摘要内容，用于测试证据校验。",
 	}}
 	normalized, rejected := normalizeStoryTabsWithReasons(group, tabs)
 	if len(normalized) != 0 || len(rejected) != 1 {

@@ -6,11 +6,12 @@ test("generate-svg payload mode only allows read access for Claude", () => {
   assert.deepEqual(GENERATE_SVG_PAYLOAD_ALLOWED_TOOLS, ["Read"]);
 });
 
-test("buildGenerateSvgPayloadArgs builds a single prompt call without write or bash tools", () => {
-  const args = buildGenerateSvgPayloadArgs({prompt: "return SVG payload"});
+test("buildGenerateSvgPayloadArgs omits the prompt from argv (prompt goes via stdin)", () => {
+  // Windows CreateProcess 命令行上限 ~32,767 字符；31 个图标 + skill 文档会拼出
+  // 40K+ 字符的 prompt，塞进 argv 会 spawn ENAMETOOLONG。prompt 必须走 stdin。
+  const args = buildGenerateSvgPayloadArgs();
 
-  assert.deepEqual(args.slice(0, 3), ["--allowedTools", "Read", "-p"]);
-  assert.ok(args.includes("--effort"));
-  assert.equal(args.at(-1), "return SVG payload");
+  // 固定 flags，prompt 绝不出现在 argv 里。
+  assert.deepEqual(args, ["--allowedTools", "Read", "-p", "--effort", "low"]);
   assert.ok(!args.some((arg) => /^Write|^Edit|^Bash/.test(arg)));
 });

@@ -52,8 +52,8 @@ func TestPipelineIntegrationWithMockedAIStagesProducesValidDataJSON(t *testing.T
 	groupsServer := fakeModelServer(t, `[{"title":"智谱 GLM-5.2 发布与成本调整","navigation_title":"GLM","score":9,"reason":"重要模型更新","source_indexes":[1,2],"highlights":[{"index":1,"point":"GLM-5.2 发布"},{"index":2,"point":"推理成本下调"}]}]`)
 	defer groupsServer.Close()
 	tabsServer := fakeModelServer(t, `[{"group_index":1,"tabs":[
-		{"title":"模型发布","summary":"本次更新带来全新模型架构，性能较前代有大幅提升。","subtitle":"智谱正式发布全新一代 GLM-5.2 模型并同步开源，显著降低推理成本。","kind":"fact","evidence_indexes":[1]},
-		{"title":"用户影响","summary":"新模型让开发者在调用接口时获得更好的性价比与体验。","subtitle":"智谱 GLM 系列模型推理成本下调，开发者调用接口的费用明显下降。","kind":"impact","evidence_indexes":[2]}
+		{"title":"模型发布","summary":"本次更新带来全新模型架构，性能较前代有大幅提升，并同步开源给开发者测试。","subtitle":"智谱正式发布全新一代 GLM-5.2 模型并同步开源，显著降低推理成本。","kind":"fact","evidence_indexes":[1]},
+		{"title":"用户影响","summary":"新模型让开发者在调用接口时获得更好的性价比与体验，并降低持续使用成本。","subtitle":"智谱 GLM 系列模型推理成本下调，开发者调用接口的费用明显下降。","kind":"impact","evidence_indexes":[2]}
 	]}]`)
 	defer tabsServer.Close()
 

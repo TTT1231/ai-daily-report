@@ -121,23 +121,34 @@ async function readGenerateSvgSkillPrompt() {
 const claudeCommand = process.platform === "win32" ? "claude.exe" : "claude";
 
 function requestClaudePayload(prompt) {
+  if (typeof prompt !== "string" || prompt.trim() === "") {
+    return Promise.reject(new Error("requestClaudePayload requires a non-empty prompt."));
+  }
+
   return new Promise((resolve, reject) => {
     const child = spawn(
       claudeCommand,
       [
         ...buildBareSettingsArgs(),
-        ...buildGenerateSvgPayloadArgs({prompt}),
+        ...buildGenerateSvgPayloadArgs(),
       ],
       {
         cwd: rootDir,
         env: buildClaudeEnv(),
-        stdio: ["ignore", "pipe", "pipe"],
+        // prompt 走 stdin（非 argv），绕开 Windows ~32K 命令行上限，避免 spawn ENAMETOOLONG。
+        stdio: ["pipe", "pipe", "pipe"],
         shell: false,
       },
     );
 
     let stdout = "";
     let stderr = "";
+
+    // 子进程提前退出会让 stdin 写入抛 EPIPE/ERR_STREAM_DESTROYED；挂个 error 监听吸收掉，
+    // 真正的退出语义由 close 事件接管。
+    child.stdin.on("error", () => {});
+    child.stdin.write(prompt);
+    child.stdin.end();
 
     child.stdout.on("data", (chunk) => {
       stdout += chunk;

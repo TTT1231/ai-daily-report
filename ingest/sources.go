@@ -66,9 +66,6 @@ func buildSource(definition SourceDefinition) (RSS2Source, error) {
 		}
 		return RSS2Source{}, fmt.Errorf("url 不是有效地址: %w", err)
 	}
-	if definition.MaxPages < 1 {
-		return RSS2Source{}, fmt.Errorf("maxPages 必须大于 0")
-	}
 	if definition.PageStart < 0 {
 		return RSS2Source{}, fmt.Errorf("pageStart 不能小于 0")
 	}
@@ -76,24 +73,33 @@ func buildSource(definition SourceDefinition) (RSS2Source, error) {
 		return RSS2Source{}, fmt.Errorf("pageDelaySeconds 不能小于 0")
 	}
 
+	// MaxPages 的语义随适配器不同：rss2 单页抓取、maxPages 无意义（省略即 1）；
+	// linuxdo 需要翻页、必须显式声明。故校验下放到各 adapter 分支，避免 rss2 被迫
+	// 填写一个它用不到的字段。
 	source := RSS2Source{
 		ID:               definition.ID,
 		Name:             definition.Name,
-		MaxPages:         definition.MaxPages,
 		PageStart:        definition.PageStart,
 		PageDelaySeconds: definition.PageDelaySeconds,
 		Proxy:            definition.Proxy,
 	}
 	switch definition.Adapter {
 	case "linuxdo":
+		if definition.MaxPages < 1 {
+			return RSS2Source{}, fmt.Errorf("linuxdo 适配器的 maxPages 必须 ≥ 1")
+		}
+		source.MaxPages = definition.MaxPages
 		source.PageURL = func(page int) (string, error) {
 			return linuxDoPageURL(definition.URL, page)
 		}
 		source.AdaptItem = adaptLinuxDoItem
 	case "rss2":
-		if definition.MaxPages != 1 {
-			return RSS2Source{}, fmt.Errorf("rss2 适配器的 maxPages 必须为 1")
+		// rss2 不分页：maxPages 省略（0）或 1 都合法并归一为 1；显式写成其它值说明
+		// 误以为能翻页，报错纠正而不是静默吞掉。
+		if definition.MaxPages != 0 && definition.MaxPages != 1 {
+			return RSS2Source{}, fmt.Errorf("rss2 适配器不支持分页，maxPages 只能为 1 或省略")
 		}
+		source.MaxPages = 1
 		source.PageURL = func(_ int) (string, error) {
 			return definition.URL, nil
 		}

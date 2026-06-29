@@ -32,7 +32,7 @@
       //   不静默回退直连。
       "proxy": true,
 
-      // maxPages: 最多抓取页数。普通 rss2 适配器必须设置为 1。
+      // maxPages: 最多抓取页数。linuxdo 翻页用、必须 ≥ 1；rss2 单页抓取、可省略（默认 1）。
       "maxPages": 2,
 
       // pageStart: 第一页使用的页码。LinuxDo RSS 从 0 开始。
