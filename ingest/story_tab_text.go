@@ -87,15 +87,23 @@ func normalizeStoryTabsWithReasons(group NewsGroup, tabs []StoryTab) ([]StoryTab
 // 失败原因可被反馈给模型用于定向修正，因此只描述内容问题，不描述序号/去重等程序性校验。
 // 注意：subtitle 校验失败不在此列——原行为是退到 fallbackTabSubtitle 兜底，不丢弃 Tab。
 func tabRejectionReason(tab StoryTab) string {
+	visibleRunes := tabSummaryVisibleRuneCount(tab.Summary)
 	switch {
 	case tab.Title == "":
 		return "Tab 标题为空"
-	case utf8.RuneCountInString(tab.Summary) < minTabSummaryRunes:
-		return fmt.Sprintf("summary 仅 %d 字，不足 %d 字下限", utf8.RuneCountInString(tab.Summary), minTabSummaryRunes)
+	case visibleRunes < minTabSummaryRunes:
+		return fmt.Sprintf("summary 仅 %d 个可见字符，不足 %d 字下限", visibleRunes, minTabSummaryRunes)
+	case visibleRunes > maxTabSummaryVisibleRunes:
+		return fmt.Sprintf("summary 有 %d 个可见字符，超过 %d 字上限", visibleRunes, maxTabSummaryVisibleRunes)
 	case isLowInformationUncertainty(tab.Title, tab.Summary):
 		return "空信息不确定性 Tab：不要把“等待官方确认/尚未公布”单独做成内容，请改为具体事实或用户影响"
 	}
 	return ""
+}
+
+func tabSummaryVisibleRuneCount(summary string) int {
+	visible := strings.NewReplacer("**", "", "`", "").Replace(summary)
+	return utf8.RuneCountInString(visible)
 }
 
 // enrichTabSummaryMarkdown 轻量补齐 Tab 摘要里的受限 Markdown：

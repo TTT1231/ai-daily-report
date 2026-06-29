@@ -143,7 +143,7 @@ func batchPositionByIndex(batch []storyTabMaterial, groupIndex int) int {
 // buildStoryTabsPrompt 构造批次 prompt，要求模型为每个 Story 生成 Tabs。
 func buildStoryTabsPrompt(batch []storyTabMaterial) string {
 	return fmt.Sprintf(`请为以下 %d 个 Story 分别生成 %d 至 %d 个适合短视频展示的 Tabs。
-每个 summary 至少 %d 个汉字，建议 25 至 80 个可见字符，最多不超过 96 个可见字符。先完整覆盖来源中的独立事实，再决定 Tabs 数量；只有来源确实不超过两个独立事实时才使用两个 Tabs，不得虚构事实或用重复内容凑数。
+每个 summary 至少 %d 个汉字，目标长度 25 至 80 个可见字符，硬性上限 110 个可见字符；超过 110 个可见字符会被判为不合格。先完整覆盖来源中的独立事实，再决定 Tabs 数量；只有来源确实不超过两个独立事实时才使用两个 Tabs，不得虚构事实或用重复内容凑数。
 遇到多个很长的模型名、API 名或版本号时，不要逐项穷举清单；优先概括系列名、覆盖范围、数量、参数区间和 1 至 2 个代表例，避免行内代码标签堆满卡片。
 
 严格返回以下 JSON，不要返回其他内容：
@@ -153,7 +153,7 @@ func buildStoryTabsPrompt(batch []storyTabMaterial) string {
     "tabs": [
       {
         "title": "简短 Tab 标题",
-        "summary": "25至80个可见字符的完整描述（最多96字）；重要信息（数字/日期/价格/关键结论）用粗体，模型/产品/API/错误码/版本等专有名用行内代码",
+        "summary": "25至80个可见字符的完整描述（硬性最多110字）；重要信息（数字/日期/价格/关键结论）用粗体，模型/产品/API/错误码/版本等专有名用行内代码",
         "subtitle": "28至96个汉字的完整新闻口播，包含主体、事件及范围或结果，禁止提到卡片或详细内容",
         "kind": "fact、impact 或 watch",
         "evidence_indexes": [支撑该 Tab 的来源序号]

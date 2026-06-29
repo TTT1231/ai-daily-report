@@ -1182,6 +1182,13 @@ func TestTabRejectionReason(t *testing.T) {
 	if got := tabRejectionReason(StoryTab{Title: "事件概览", Summary: "太短"}); got == "" {
 		t.Fatalf("tabRejectionReason() for short summary should not be empty")
 	}
+	// summary 超过卡片可承载的可见字符上限。
+	if got := tabRejectionReason(StoryTab{
+		Title:   "过长摘要",
+		Summary: "DeepSeek V4 正式版计划于 **7 月中旬** 上线，将带来功能优化与性能提升。同时引入 **峰谷定价机制**：`deepseek-v4-pro` 和 `deepseek-v4-flash` 在高峰时段（每日 **9:00～12:00** 和 **14:00～18:00** 北京时间）价格翻倍。调整前 **24 小时** 会通过邮件通知用户，不同意可退出并退费。",
+	}); got == "" {
+		t.Fatalf("tabRejectionReason() for overlong summary should not be empty")
+	}
 	// 单独讲未知或等待官方确认，应拒绝。
 	for _, tab := range []StoryTab{
 		{

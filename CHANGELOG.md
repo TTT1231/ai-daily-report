@@ -14,6 +14,7 @@
 - Fixed: RSS 抓取的 Retry-After 等待封顶 60s，异常或恶意 feed 无法再用超大值拖垮当日流水线
 - Fixed: Zod schema 漏放 gif/avif（0.6.0 已声明支持、TS 正则没同步），手动 gif/avif overlay 不再在渲染时被拒
 - Fixed: macOS/Linux 下 Ctrl+C 正确终止整棵子进程树（含 Remotion Chromium），不再留孤儿；Windows 杀进程失败改为显式告警
+- Fixed: Story Tab summary 增加 25 至 110 个可见字符约束，避免长摘要撑爆卡片布局
 - Changed: 清理 story tabs 未启用的定向修正重试死代码，行为不变
 
 ## 0.6.0
