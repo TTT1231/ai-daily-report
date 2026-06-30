@@ -9,22 +9,20 @@ const dailyDatesDir = resolve(root, "daily-dates");
 
 const dryRun = process.argv.slice(2).includes("--dry-run");
 
-// 打印清理摘要：每目录一行；null 表示该类被跳过（无引用来源，如缺 data-generate.json）。
+// 打印清理摘要：只输出「实际有删除」的目录；无删除则整体静默（含 dry-run），不刷屏。
+// skipped 是安全栅栏跳过清理的原因（如缺 data-generate.json 时不清 audio），罕见，单独提示。
 function logPruneSummary(summary) {
   const lines = [];
   for (const cat of ["images", "icons", "audio"]) {
     const result = summary[cat];
-    if (result === null) {
-      lines.push(`  ${cat}/: 跳过`);
-    } else if (result.deleted.length === 0) {
-      lines.push(`  ${cat}/: 无需清理（保留 ${result.kept} 个）`);
-    } else {
+    if (result && result.deleted.length > 0) {
       lines.push(
         `  ${cat}/: 删除 ${result.deleted.length} 个（${result.deleted.join(", ")}），保留 ${result.kept} 个`,
       );
     }
   }
   for (const reason of summary.skipped) lines.push(`  · ${reason}`);
+  if (lines.length === 0) return; // 无删除且无跳过：静默
   console.log(
     summary.dryRun ? "🧹 清理未引用资源（dry-run 预览，未实际删除）…" : "🧹 清理未引用资源…",
   );
