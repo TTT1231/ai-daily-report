@@ -119,3 +119,30 @@
   - Windows 上避免「重命名含打开文件的目录」或「rename 覆盖被占用文件」；改用 `writeFile` 原地覆盖 / `unlink`（Node 以 `FILE_SHARE_WRITE | FILE_SHARE_DELETE` 打开，持句柄可写可删）。
   - 凡是被另一个长驻进程（Studio / 编辑器 / Defender 实时扫描）会打开的资源目录，提交/发布都走「逐文件 + 单文件原子 rename 指针」，不要整目录 rename。
   - 这类「静态全过、运行时 + 跨进程句柄才暴露」的坑，必须有能「持句柄复现」的回归测试，tsc/eslint 抓不到。
+
+---
+
+## RSS 补选抓 linux.do：`.rss` 端点现在也吃 Cloudflare challenge，光带 `all_proxy` 拿到的是 "Just a moment" 假页（rss-pick-mode 文档已过时）
+
+- **Tags**: `#runtime` `#environment` `#third-party-library` `#tricky-issue`
+- **Trigger Context**: Windows + bash 工具，按 `.claude/skills/ai-daily-report/rules/rss-pick-mode.md` 给用户补选 linux.do 条目、抓 `.rss` 取正文+图。`.env` 已配 `all_proxy=http://127.0.0.1:7897`、`bun run video:prepare` 自身能正常抓。
+- **Symptoms**: 按文档「`ALL_PROXY=... curl ... https://linux.do/t/topic/{id}.rss`」抓，返回 **6902/6838 字节**的 HTML，`head -c` 是 `<html dir="ltr"><head><title>Just a moment...</title>`——CF JS challenge 页，不是 RSS。同条 curl 重试 3-4 次、间隔 8s **仍全是 challenge**（不是代理瞬时抖动，是方法错了）。文档却说「`.rss` 不走 JS challenge、curl+代理秒级拿到真实内容」——已与实测不符。
+- **Root Cause**: linux.do 的 Cloudflare 防护现已覆盖 `.rss` 端点（不再只挡 HTML 页）。**仅带 `all_proxy` 不够**，CF 仍 challenge。项目自己的 Go 采集器能成功，是因为 `ingest/rss2.go:217-224` 对 `linux.do` 域名**额外**把整个 `LINUXDO_CF_CLEARANCE` 环境变量当 `Cookie` 头、把 `LINUXDO_USER_AGENT` 当 `User-Agent` 一起发出去（cf_clearance + 配套 UA 才过 CF）。文档作者写「proxy+`.rss` 就够」时可能是 cf_clearance 还没失效、或 CF 策略后来收紧；总之现在必须三件套齐全。
+  - 附带坑：想 `set -a; . ./.env` 整体 source `.env` 会**整文件失败**——`LINUXDO_USER_AGENT=Mozilla/5.0 (Windows NT 10.0; Win64; x64) ...` 含未转义括号 `(`，bash 把它当语法错误，连带 `$all_proxy` 也设不上（导致后续 curl 其实没走代理，直连撞到 CF 边缘节点仍返回 challenge 页，容易被误判为「代理无效」）。
+- **Verified Solution**（实测：topic-2506187 / 2505571 均一次拿到 `<?xml` 真实 RSS）：
+  ```bash
+  # 1) 用 grep|cut 单独抽三个值，绝不整体 source .env（UA 含括号会炸）
+  ap=$(grep '^all_proxy=' .env | cut -d= -f2-)
+  ck=$(grep '^LINUXDO_CF_CLEARANCE=' .env | cut -d= -f2-)
+  ua=$(grep '^LINUXDO_USER_AGENT=' .env | cut -d= -f2-)
+  # 2) 三件套：proxy + Cookie(cf_clearance) + 浏览器 UA，少一个都拿 challenge 页
+  ALL_PROXY="$ap" curl -sL --max-time 20 -H "User-Agent: $ua" -H "Cookie: $ck" \
+    "https://linux.do/t/topic/{topicId}.rss" -o topic.rss
+  # 判定：head -c 5 必须是 '<?xml'；是 '<html' 就是 challenge，不要当成功
+  ```
+  - 解析 RSS 正文+图时，Windows python 不认 Git Bash 的 `/tmp/...` 路径（FileNotFoundError）；用 `cygpath -w /tmp/x.rss` 转 Windows 路径再 `python - "$winpath"`，且 heredoc `<<'PY'` 会抢占 stdin，所以**不能** `cat file | python - <<'PY'`（会把脚本本身当数据读），要 `python - "$winpath" <<'PY'` 用 argv 传路径。
+  - 提图必须看 `<img>` 的 class/尺寸：`class="site-icon"` / `width=235 height=256` 是站点 logo 弃用；`class="thumbnail"` 或正文 Markdown `![]()` 内嵌的才是内容图。只 grep cdn3 域名会把 logo 当配图。原图重写 `optimized/4X/{a}/{b}/{c}/{sha}_2_{W}x{H}.ext` → `original/4X/{a}/{b}/{c}/{sha}.ext` 恒成立（即使页面只引 optimized）。
+- **Prevention Recommendations**:
+  - rss-pick-mode.md 里「`.rss`+`all_proxy` 就够、不走 JS challenge」的结论已过时；抓 linux.do 一律带 `LINUXDO_CF_CLEARANCE` cookie + `LINUXDO_USER_AGENT` + `all_proxy` 三件套（与 `ingest/rss2.go` 同源），别先试光秃 curl。
+  - 任何「`curl https://linux.do/...` 拿到 HTML」都要先 `head -c 5` 判 `<?xml` vs `<html`——拿到 HTML 不代表代理生效（直连也能到 CF 边缘拿 challenge 页）。
+  - 永远不要 `source` 本项目 `.env`（值未加引号、UA 含括号）；按需 `grep '^VAR=' .env | cut -d= -f2-` 抽单个值。

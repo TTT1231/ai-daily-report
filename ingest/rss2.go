@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
+	"os"
 	"strconv"
 	"strings"
 	"time"
@@ -212,6 +214,17 @@ func doGet(client *http.Client, rawURL string) ([]byte, error) {
 		return nil, fmt.Errorf("创建请求失败: %w", err)
 	}
 	req.Header.Set("User-Agent", "ai-daily-report-rss/1.0")
+	if fullCookie := os.Getenv("LINUXDO_CF_CLEARANCE"); fullCookie != "" {
+		if u, err := url.Parse(rawURL); err == nil {
+			host := strings.ToLower(u.Hostname())
+			if host == "linux.do" || strings.HasSuffix(host, ".linux.do") {
+				req.Header.Set("Cookie", fullCookie)
+				if browserUA := os.Getenv("LINUXDO_USER_AGENT"); browserUA != "" {
+					req.Header.Set("User-Agent", browserUA)
+				}
+			}
+		}
+	}
 
 	resp, err := client.Do(req)
 	if err != nil {
