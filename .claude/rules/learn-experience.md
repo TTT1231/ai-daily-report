@@ -119,6 +119,7 @@
   - Windows 上避免「重命名含打开文件的目录」或「rename 覆盖被占用文件」；改用 `writeFile` 原地覆盖 / `unlink`（Node 以 `FILE_SHARE_WRITE | FILE_SHARE_DELETE` 打开，持句柄可写可删）。
   - 凡是被另一个长驻进程（Studio / 编辑器 / Defender 实时扫描）会打开的资源目录，提交/发布都走「逐文件 + 单文件原子 rename 指针」，不要整目录 rename。
   - 这类「静态全过、运行时 + 跨进程句柄才暴露」的坑，必须有能「持句柄复现」的回归测试，tsc/eslint 抓不到。
+  - **第二次踩同一坑（`scripts/archive/archive.mjs`，2026-07-09 验证）**：整目录 `renameSync(data-scheme/, daily-dates/{date})` 归档时，VS Code 文件监视器持有 `data-scheme/` 内文件句柄 → EPERM，与 Studio 持 audio/ 句柄是同一机理。修复照搬 `download-bili.mjs:82-86` 的 `try rename → catch EPERM/EACCES/EBUSY → cpSync(recursive) + rmSync(force)` 兜底。**附带更隐蔽的坑**：`cpSync(src, dst, {recursive:true})` 在 `dst` 已存在时会**合并进旧目录而非报错**——所以「整目录搬移」前必须先 `existsSync(dst)` 栅栏（目标已存在就中止/改名），否则同日期重复归档会把新内容并进旧目录、无声覆盖。归档脚本据此加了 `resolveArchiveName`（同日期加 `-01` 序号，沿用既有 `data-scheme-{date}-01` 约定）+ move 前 `existsSync` 安全栅栏。结论：不只是 audio/，任何被常驻进程触碰的资源目录做「整目录 rename 归档/提交」都会中招，且 cpSync 兜底本身要防「目标已存在被合并」。
 
 ---
 
