@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.8.0
+
+- Added: 新增「半自动挑选」流水线与 `video:half-auto` 一键命令——先抓 RSS 快照，在本地挑选页勾选条目，再喂给 ingest 评分编排出 data.json，想人工干预选题时不再必须全自动跑模型
+- Changed: 脚本命令重命名以匹配新职责：`video:prepare` → `video:auto-generate`、`rss:vision-pick` → `rss:pick`，原 `archive:rotate` 并入 `archive`（沿用旧名会失败）
+- Fixed: linux.do 抓取恢复——Cloudflare 现已对 `.rss` 端点下发挑战，仅代理不再够用，补齐 cf_clearance Cookie + 浏览器 UA 后条目重新可抓
+- Fixed: Windows 下归档（archive）整目录搬移被编辑器/杀软占用句柄撞 EPERM 而间歇失败，改为逐文件兜底，归档不再因句柄占用而中断
+- Changed: `bun run dev` 自动 TTS 同步的日志更精简，成功时少刷屏
+
 ## 0.7.0
 
 - Added: ingest 用 LLM 对同主题、跨来源的条目做内容感知合并，故事更聚焦、去重更彻底
