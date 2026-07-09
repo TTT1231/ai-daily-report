@@ -126,7 +126,7 @@
 ## RSS 补选抓 linux.do：`.rss` 端点现在也吃 Cloudflare challenge，光带 `all_proxy` 拿到的是 "Just a moment" 假页（rss-pick-mode 文档已过时）
 
 - **Tags**: `#runtime` `#environment` `#third-party-library` `#tricky-issue`
-- **Trigger Context**: Windows + bash 工具，按 `.claude/skills/ai-daily-report/rules/rss-pick-mode.md` 给用户补选 linux.do 条目、抓 `.rss` 取正文+图。`.env` 已配 `all_proxy=http://127.0.0.1:7897`、`bun run video:prepare` 自身能正常抓。
+- **Trigger Context**: Windows + bash 工具，按 `.claude/skills/ai-daily-report/rules/rss-pick-mode.md` 给用户补选 linux.do 条目、抓 `.rss` 取正文+图。`.env` 已配 `all_proxy=http://127.0.0.1:7897`、`bun run video:auto-generate` 自身能正常抓。
 - **Symptoms**: 按文档「`ALL_PROXY=... curl ... https://linux.do/t/topic/{id}.rss`」抓，返回 **6902/6838 字节**的 HTML，`head -c` 是 `<html dir="ltr"><head><title>Just a moment...</title>`——CF JS challenge 页，不是 RSS。同条 curl 重试 3-4 次、间隔 8s **仍全是 challenge**（不是代理瞬时抖动，是方法错了）。文档却说「`.rss` 不走 JS challenge、curl+代理秒级拿到真实内容」——已与实测不符。
 - **Root Cause**: linux.do 的 Cloudflare 防护现已覆盖 `.rss` 端点（不再只挡 HTML 页）。**仅带 `all_proxy` 不够**，CF 仍 challenge。项目自己的 Go 采集器能成功，是因为 `ingest/rss2.go:217-224` 对 `linux.do` 域名**额外**把整个 `LINUXDO_CF_CLEARANCE` 环境变量当 `Cookie` 头、把 `LINUXDO_USER_AGENT` 当 `User-Agent` 一起发出去（cf_clearance + 配套 UA 才过 CF）。文档作者写「proxy+`.rss` 就够」时可能是 cf_clearance 还没失效、或 CF 策略后来收紧；总之现在必须三件套齐全。
   - 附带坑：想 `set -a; . ./.env` 整体 source `.env` 会**整文件失败**——`LINUXDO_USER_AGENT=Mozilla/5.0 (Windows NT 10.0; Win64; x64) ...` 含未转义括号 `(`，bash 把它当语法错误，连带 `$all_proxy` 也设不上（导致后续 curl 其实没走代理，直连撞到 CF 边缘节点仍返回 challenge 页，容易被误判为「代理无效」）。

@@ -72,7 +72,7 @@ func TestGenerateStoryTabsDropsStoryWithTooFewValidTabsAndKeepsGoodOne(t *testin
 	defer server.Close()
 
 	ai := AIConfig{APIKey: "test-key", BaseURL: server.URL, Model: "test-model"}
-	kept, err := generateStoryTabs(ai, groups, items)
+	kept, err := generateStoryTabs(ai, groups, items, nil)
 	if err != nil {
 		t.Fatalf("generateStoryTabs returned error on partial drop: %v", err)
 	}
@@ -113,7 +113,7 @@ func TestGenerateStoryTabsErrorsWhenAllStoriesHaveTooFewValidTabs(t *testing.T) 
 	defer server.Close()
 
 	ai := AIConfig{APIKey: "test-key", BaseURL: server.URL, Model: "test-model"}
-	_, err := generateStoryTabs(ai, groups, items)
+	_, err := generateStoryTabs(ai, groups, items, nil)
 	if err == nil {
 		t.Fatal("expected error when all groups have too few valid tabs, got nil")
 	}
@@ -144,7 +144,7 @@ func TestGenerateStoryTabsDropsStoryWithShortSummaryTabs(t *testing.T) {
 	defer server.Close()
 
 	ai := AIConfig{APIKey: "test-key", BaseURL: server.URL, Model: "test-model"}
-	kept, err := generateStoryTabs(ai, groups, items)
+	kept, err := generateStoryTabs(ai, groups, items, nil)
 	if err != nil {
 		t.Fatalf("generateStoryTabs returned error on short-summary partial drop: %v", err)
 	}

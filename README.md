@@ -59,7 +59,7 @@ bun run preview:notts  # 无旁白的静音示例
 配好 `.env`（见下）后，一条命令完成抓取、配音、生成图标：
 
 ```bash
-bun run video:prepare   # 抓取 + 配音 + 图标
+bun run video:auto-generate   # 抓取 + 配音 + 图标
 bun run dev             # 预览当前数据
 bun run video:render    # 导出 mp4
 ```

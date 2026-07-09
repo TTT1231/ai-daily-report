@@ -5,6 +5,7 @@ import { dataDir, rootDir } from "../lib/paths.mjs";
 
 const rssStatePath = resolve(rootDir, "ingest", "rss-state.json");
 const rssStateTempPath = `${rssStatePath}.tmp`;
+const picksPath = resolve(rootDir, "ingest", "picks.json");
 const yes = process.argv.includes("--yes") || process.argv.includes("-y");
 
 function clearDirectory(path) {
@@ -32,9 +33,10 @@ async function confirmReset() {
   console.log("⚠️  reset 会清空以下内容：");
   console.log("   - data-scheme/");
   console.log("   - ingest/rss-state.json");
+  console.log("   - ingest/picks.json");
   console.log("");
   console.log(
-    "这会丢弃当前日报数据和 RSS 去重快照；下一次 bun run video:prepare 会重新抓取并生成。",
+    "这会丢弃当前日报数据、RSS 快照与人工 pick；下一次 bun run video:auto-generate 会重新抓取并生成。",
   );
 
   const readline = createInterface({
@@ -57,6 +59,7 @@ if (!(await confirmReset())) {
 clearDirectory(dataDir);
 const removedState = removeFile(rssStatePath);
 const removedTempState = removeFile(rssStateTempPath);
+const removedPicks = removeFile(picksPath);
 
 console.log("✅ reset 完成");
 console.log("   已清空：data-scheme/");
@@ -68,4 +71,9 @@ console.log(
 if (removedTempState) {
   console.log("   已删除：ingest/rss-state.json.tmp");
 }
-console.log("   下一步：运行 bun run video:prepare 重新生成日报。");
+console.log(
+  removedPicks
+    ? "   已删除：ingest/picks.json"
+    : "   跳过：ingest/picks.json 不存在",
+);
+console.log("   下一步：运行 bun run video:auto-generate 重新生成日报。");

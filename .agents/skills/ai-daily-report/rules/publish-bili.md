@@ -7,7 +7,7 @@
 ## 命令
 
 ```bash
-# 从零到发布：video:prepare → video:render → 渲封面 → comment:generate → video:meta → bili:full（投稿→等审核→发评论→置顶）
+# 从零到发布：video:auto-generate → video:render → 渲封面 → comment:generate → video:meta → bili:full（投稿→等审核→发评论→置顶）
 bun run all:bili
 
 # 数据已备好、只想发 B站：video:render → 渲封面 → comment:generate → video:meta → bili:full

@@ -797,6 +797,8 @@
       <button class="btn" id="invert" type="button" title="反选当前列表"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 3 4 7l4 4"/><path d="M4 7h16"/><path d="m16 21 4-4-4-4"/><path d="M20 17H4"/></svg>反选当前</button>
       <button class="btn" id="clear-checked" type="button" title="清空勾选"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="m15 9-6 6"/><path d="m9 9 6 6"/></svg>清空</button>
       <button class="btn btn-primary" id="copy-btn" type="button" disabled><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>复制 JSONC</button>
+      <button class="btn btn-primary" id="save-btn" type="button" disabled title="把勾选写入 picks.json 并关闭服务"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>保存并关闭</button>
+      <button class="btn" id="close-btn" type="button" title="不保存直接关闭服务"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>关闭</button>
     </div>
   </div>
 </header>
@@ -837,12 +839,14 @@
 <!-- build-rss-state-html.mjs 在此注入运行期数据（不修改本文件其余内容） -->
 <script id="rss-state-data" type="application/json">__RSS_STATE__</script>
 <script id="report-data" type="application/json">__REPORT_STORIES__</script>
+<script id="picks-data" type="application/json">__PICKS__</script>
 
 <script>
 "use strict";
 (function () {
   var rssState = JSON.parse(document.getElementById("rss-state-data").textContent || "{}") || {};
   var reportStories = JSON.parse(document.getElementById("report-data").textContent || "[]") || [];
+  var savedPicks = JSON.parse(document.getElementById("picks-data").textContent || "{}") || {};
 
   var acceptedTopicIds = {};
   var acceptedTitles = {};
@@ -883,6 +887,12 @@
   var entries = [];
   var entryMap = {};
   var selected = {};
+  // 预勾选：从已保存的 picks.json 回显（上次保存过的 hash 初始置选中）。
+  for (var ph in savedPicks) {
+    if (Object.prototype.hasOwnProperty.call(savedPicks, ph) && savedPicks[ph]) {
+      selected[ph] = true;
+    }
+  }
   var total = 0;
   var acceptedCount = 0;
 
@@ -929,6 +939,8 @@
   var empty = document.getElementById("empty");
   var searchInput = document.getElementById("search");
   var copyBtn = document.getElementById("copy-btn");
+  var saveBtn = document.getElementById("save-btn");
+  var closeBtn = document.getElementById("close-btn");
   var sourceList = document.getElementById("source-list");
   var previewBody = document.getElementById("preview-body");
   var previewIndex = document.getElementById("preview-index");
@@ -1129,6 +1141,7 @@
     cVisible.textContent = visible ? visible.length : filteredEntries().length;
     cSelected.textContent = selectedCount;
     copyBtn.disabled = selectedCount === 0;
+    saveBtn.disabled = selectedCount === 0;
   }
 
   function updateFilterButtons() {
@@ -1258,6 +1271,45 @@
         showToast("复制失败，请手动复制");
         fallbackTextarea(text);
       }
+    });
+  });
+
+  // 保存：把勾选写入 picks.json（{hash: true}），服务收到后自动关闭。
+  saveBtn.addEventListener("click", function () {
+    var hashes = Object.keys(selected);
+    if (hashes.length === 0) return;
+    var body = {};
+    for (var i = 0; i < hashes.length; i++) body[hashes[i]] = true;
+    saveBtn.disabled = true;
+    saveBtn.textContent = "保存中…";
+    fetch("/picks", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    }).then(function (r) { return r.json(); }).then(function (res) {
+      if (res && res.ok) {
+        showToast("已保存 " + hashes.length + " 条到 picks.json，服务已关闭");
+        saveBtn.textContent = "已保存";
+        // 服务会自行关闭，页面保持显示结果。
+      } else {
+        showToast("保存失败：服务返回异常");
+        saveBtn.disabled = false;
+        saveBtn.textContent = "保存并关闭";
+      }
+    }).catch(function (e) {
+      // 服务关闭后连接断开属正常：只要请求已发出即视为成功。
+      showToast("已保存（服务已关闭）");
+      saveBtn.textContent = "已保存";
+    });
+  });
+
+  // 关闭：不保存，直接关服务。
+  closeBtn.addEventListener("click", function () {
+    closeBtn.disabled = true;
+    fetch("/shutdown", { method: "POST" }).then(function () {
+      showToast("服务已关闭");
+    }).catch(function () {
+      showToast("服务已关闭");
     });
   });
 

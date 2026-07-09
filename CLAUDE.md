@@ -45,13 +45,12 @@ ai-daily-report/
 │   │   ├── generate-tts.mjs             # TTS 编排入口：组织构建、合成、校验和提交
 │   │   ├── generate-svg.mjs             # generate-svg 的 npm 入口 wrapper，allowlist 与自动流程同源
 │   │   ├── dev.mjs                      # 开发监听入口：自动跑 TTS 并拉起 Remotion Studio
-│   │   └── prepare-video.mjs            # video:prepare 编排：archive:rotate→rss→check-data-json→tts→generate-svg（不再自动开预览）
+│   │   └── prepare-video.mjs            # video / video:auto-generate 编排：archive→ingest→check-data-json→tts→generate-svg（不再自动开预览）
 │   ├── archive/                         # 归档与重置
-│   │   ├── archive.mjs                  # 按完整日期归档当前日报数据包
-│   │   ├── archive-rotate.mjs           # archive:rotate 命令：抓取 RSS 前的归档轮转
-│   │   └── reset.mjs                    # 清空 data-scheme/ 后用于完全重建
+│   │   ├── archive.mjs                  # 归档当前日报数据包（含覆盖前轮转检查，原 archive:rotate 已合并）
+│   │   └── reset.mjs                    # 清空 data-scheme/ + rss-state.json + picks.json 后用于完全重建
 │   ├── rss-pick/                        # RSS 快照人工补选工具链
-│   │   ├── build-rss-state-html.mjs     # 把 rss-state.json 渲染成按 sourceId 分类的 HTML 挑选页并打开浏览器
+│   │   ├── build-rss-state-html.mjs     # Bun.serve 本地服务：渲染 rss-state.json 为挑选页，POST 写 picks.json
 │   │   └── template.html                # 挑选页固定模板（CSS/JS 内联，脚本只注入运行期数据）
 │   ├── publish/bili/                    # B 站发布工具链
 │   │   ├── generate-comment.mjs         # 从时间线数据生成 B 站风格跳转评论 → data-scheme/comments.txt
@@ -115,7 +114,7 @@ ai-daily-report/
 ├── .agents/skills/                      # 项目级 Skill 定义（generate-svg / remotion-best-practices 等）
 ├── .vscode/                             # 编辑器配置
 ├── remotion.config.ts                   # Remotion 配置（JPEG、publicDir、Tailwind）
-└── package.json                         # 脚本入口（rss / tts / generate-svg / video:prepare / bili:* 等）
+└── package.json                         # 脚本入口（rss / tts / generate-svg / video:auto-generate / bili:* 等）
 ```
 
 ## 测试

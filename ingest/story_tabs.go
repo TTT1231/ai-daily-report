@@ -9,7 +9,11 @@ import (
 
 // generateStoryTabs 让模型根据来源正文为每个 Story 编排 2-6 个视频 Tab（含摘要与口播字幕），
 // 分批处理并对结果做校验与保底补齐，最终保证每个 Story 都有足够的 Tab。
-func generateStoryTabs(ai AIConfig, groups []NewsGroup, items []Item) ([]NewsGroup, error) {
+//
+// pickedGroupIndexes 标记哪些 group 是人工 pick 的（key 是 groups 的下标）：
+//   非 picked 且 Tab 不足 → 直接剔除（不凑数、不重试，原逻辑）。
+//   picked 且 Tab 不足    → 降级补齐到 minStoryTabs（人工挑的不可能是低质，不能丢）。
+func generateStoryTabs(ai AIConfig, groups []NewsGroup, items []Item, pickedGroupIndexes map[int]bool) ([]NewsGroup, error) {
 	vision := newVisionAnalyzer()
 	var materials []storyTabMaterial
 	for i := range groups {
@@ -60,21 +64,110 @@ func generateStoryTabs(ai AIConfig, groups []NewsGroup, items []Item) ([]NewsGro
 		applyStoryTabsResults(groups, batch, results)
 	}
 
-	// 校验后直接剔除 AI 给不出 minStoryTabs 个合格 Tab 的 Story——不重试、不补 filler：
-	// 重试对「来源太薄/模型给不出」意义不大；补 filler 会发低质内容；剔除既不发低质，又不让单条卡掉整期。
+	// 校验：Tab 不足时，picked group 降级补齐，非 picked group 直接剔除。
+	// 重试对「来源太薄/模型给不出」意义不大；非 picked 剔除既不发低质，又不让单条卡掉整期；
+	// picked 是人工挑的，剔除等于丢用户的选择，改为从标题/正文降级补齐（坑A：否则 generateDataJSON 的 minStoryTabs 硬报错闸会炸）。
 	kept := make([]NewsGroup, 0, len(groups))
-	for _, g := range groups {
+	var dropped, backfilled int
+	for i, g := range groups {
 		if len(g.Tabs) < minStoryTabs {
-			fmt.Printf("   ⚠️  story %q 只有 %d 个有效 AI Tab，已剔除（不凑数、不重试）\n", g.Title, len(g.Tabs))
-			continue
+			beforeTabs := len(g.Tabs)
+			if pickedGroupIndexes != nil && pickedGroupIndexes[i] {
+				g.Tabs = backfillStoryTabs(g, items, minStoryTabs)
+				backfilled++
+				fmt.Printf("   ⚠️  pick story %q 只有 %d 个有效 AI Tab，已降级补齐到 %d 个\n",
+					g.Title, beforeTabs, len(g.Tabs))
+			} else {
+				fmt.Printf("   ⚠️  story %q 只有 %d 个有效 AI Tab，已剔除（不凑数、不重试）\n", g.Title, beforeTabs)
+				dropped++
+				continue
+			}
 		}
 		kept = append(kept, g)
 	}
 	if len(kept) == 0 {
 		return groups, fmt.Errorf("所有 Story 的 AI Tabs 均不足 %d 个，无法成片（检查 prompt/模型/来源质量）", minStoryTabs)
 	}
-	fmt.Printf("   完成：保留 %d / %d 个 Story（剔除 %d 个 Tab 不足）\n", len(kept), len(groups), len(groups)-len(kept))
+	if dropped > 0 || backfilled > 0 {
+		fmt.Printf("   完成：保留 %d / %d 个 Story（剔除 %d 个 Tab 不足，降级补齐 %d 个 picked）\n",
+			len(kept), len(groups), dropped, backfilled)
+	} else {
+		fmt.Printf("   完成：保留 %d / %d 个 Story\n", len(kept), len(groups))
+	}
 	return kept, nil
+}
+
+// backfillStoryTabs 为 picked Story 补齐 Tab 到至少 minTabs 个。
+// 当 AI 给出的 Tab 不足时（来源正文太薄/模型给不出），从来源标题与正文摘要合成完整 Tab：
+// Title/Summary 从标题与 cleanRSS2ItemText 正文取，Subtitle 复用 fallbackTabSubtitle 降级生成。
+// 不只用 fallbackTabSubtitle——那只补字幕，补的是完整 Tab（含 title/summary/kind/evidence）。
+func backfillStoryTabs(group NewsGroup, items []Item, minTabs int) []StoryTab {
+	tabs := group.Tabs
+	for _, idx := range group.SourceIndexes {
+		if len(tabs) >= minTabs {
+			break
+		}
+		if idx < 1 || idx > len(items) {
+			continue
+		}
+		item := items[idx-1]
+		title := item.Title
+		if title == "" {
+			title = "详情"
+		}
+		summary := cleanRSS2ItemText(item)
+		if r := []rune(summary); len(r) > maxTabSummaryVisibleRunes {
+			summary = string(r[:maxTabSummaryVisibleRunes])
+		}
+		if summary == "" {
+			summary = title
+		}
+		subtitle := fallbackSubtitleFromText(summary)
+		if subtitle == "" {
+			subtitle = fallbackSubtitleFromText(title)
+		}
+		tabs = append(tabs, StoryTab{
+			Title:           title,
+			Summary:         summary,
+			Subtitle:        subtitle,
+			Kind:            "fact",
+			EvidenceIndexes: []int{idx},
+			subtitleFallback: true,
+		})
+	}
+	// 兜底：来源不足 minTabs 时（理论上 picks 路径每 Story 只有 1 个来源），用标题重复补齐，
+	// 保证过 generateDataJSON 的 minStoryTabs 闸。picks 每条独立成 Story 只有 1 个来源，
+	// 若 AI 一个 Tab 都没给，这里至少补到 2 个。
+	for len(tabs) < minTabs {
+		if len(group.SourceIndexes) == 0 {
+			break
+		}
+		idx := group.SourceIndexes[0]
+		var title, summary string
+		if idx >= 1 && idx <= len(items) {
+			title = items[idx-1].Title
+			summary = cleanRSS2ItemText(items[idx-1])
+		}
+		if title == "" {
+			title = "详情"
+		}
+		if summary == "" {
+			summary = title
+		}
+		subtitle := fallbackSubtitleFromText(summary)
+		if subtitle == "" {
+			subtitle = fallbackSubtitleFromText(title)
+		}
+		tabs = append(tabs, StoryTab{
+			Title:            title,
+			Summary:          summary,
+			Subtitle:         subtitle,
+			Kind:             "fact",
+			EvidenceIndexes:  []int{idx},
+			subtitleFallback: true,
+		})
+	}
+	return tabs
 }
 
 // storyTabMaterial 缓存单个 Story 送给模型的材料文本及其全局序号，便于重试时复用。

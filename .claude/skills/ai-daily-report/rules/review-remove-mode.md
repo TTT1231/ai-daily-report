@@ -7,7 +7,7 @@
 用户已经跑过：
 
 ```bash
-bun run video:prepare
+bun run video:auto-generate
 ```
 
 自动出的 `data-scheme/data.json` 大体能用，但审核时发现**某几条 story 不想要**（和 AI 日报定位无关、质量不够、或用户主观判断不值得上镜），要把它们从当前期删掉。
@@ -61,7 +61,7 @@ bun run video:prepare
 
 ## 重要约束
 
-- 不要重跑 `bun run video:prepare` 或 `bun run rss`：它们会**覆盖** `data-scheme/data.json`，把人工删除和本期的其他改动一起冲掉。
+- 不要重跑 `bun run video:auto-generate` 或 `bun run rss`：它们会**覆盖** `data-scheme/data.json`，把人工删除和本期的其他改动一起冲掉。
 - 不要把删除结果写进 `data-generate.json`：原始维护文件永远是 `data-scheme/data.json`，`data-generate.json` 由 `tts` 生成。
 - 不要手动删 `audio/*.mp3` 或改 `data-generate.json`：交给 `bun run tts` 自动处理。
 - 不要自动删 `images/` 下的图片：可能被复用，交给用户判断。

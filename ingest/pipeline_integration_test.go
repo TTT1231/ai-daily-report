@@ -77,7 +77,7 @@ func TestPipelineIntegrationWithMockedAIStagesProducesValidDataJSON(t *testing.T
 		t.Fatal("groupSimilarNews returned no groups")
 	}
 
-	groups, err = generateStoryTabs(mockedAI(tabsServer), groups, items)
+	groups, err = generateStoryTabs(mockedAI(tabsServer), groups, items, nil)
 	if err != nil {
 		t.Fatalf("generateStoryTabs failed: %v", err)
 	}

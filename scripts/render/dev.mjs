@@ -8,7 +8,7 @@ import {collectMissingImageAssets} from "../lib/asset-check.mjs";
 
 if (process.env.AI_DAILY_REPORT_RUN_ALL === "1") {
   throw new Error(
-    "bun run dev cannot start during the bun run video:prepare production phase.",
+    "bun run dev cannot start during the bun run video / video:auto-generate production phase.",
   );
 }
 

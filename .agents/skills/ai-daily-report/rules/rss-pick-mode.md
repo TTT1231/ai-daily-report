@@ -4,13 +4,26 @@
 
 ## 什么时候用
 
-用户已经跑过：
+用户想人工控制选稿时，走 **`rss` → `rss:pick` → `video`** 三步流程：
 
 ```bash
-bun run video:prepare
+# 1. 抓取 + 去重，写 rss-state.json（候选池），停下
+bun run rss
+
+# 2. 浏览器勾选 → 写 picks.json → 服务自动关闭
+bun run rss:pick
+
+# 3. 读 picks.json，每条 picked 独立成 Story → tts → svg → check → data.json
+bun run video
 ```
 
-当前 `data-scheme/data.json` 已经由自动 RSS 流程生成，但用户觉得自动筛选太少，于是从 `ingest/rss-state.json` 中复制了一批自己感兴趣的条目，要求追加进本期日报。
+`bun run rss:pick` 起一个本地服务（端口 7788），把 `rss-state.json` 渲染成按 `sourceId` 分类的网页并自动打开浏览器。已进本期 `data.json` 的条目带绿标（默认不勾，避免重复），已 pick 的条目会预勾选。勾选后点「保存并关闭」直接写 `ingest/picks.json`（`{hash: true}` 白名单）并自动关服务——不再走复制 JSONC 贴对话的弯路。
+
+`bun run video`（picks 路径）读 `picks.json`，每条 picked **独立成一个单来源 Story**，跳过评分/聚类/合并（人工已挑，不让 AI 再筛/合），直接跑 Tabs(识图) → data.json → tts → svg → check。
+
+### 旧的手动补选（已过时，保留备查）
+
+以下「复制 JSONC 贴对话 → agent 手搓 Story 写 data.json」的流程已被上面的 `rss:pick` → `video` 取代，仅在 `picks.json` 不可用时作为 fallback：
 
 典型输入是用户直接贴一段 JSON 片段：
 
@@ -29,13 +42,9 @@ bun run video:prepare
 
 这不是完全手动模式。不要让用户从零写 `data.json`，也不要要求用户逐条执行命令。
 
-> **挑条目更省事**：手动翻 `rss-state.json` 很累。跑 `bun run rss:vision-pick` 会生成一个按 `sourceId` 分类的网页并自动打开浏览器——
-> 已进本期 `data.json` 的条目会带绿标（默认不勾，避免重复补选），勾选后一键「复制选中为 JSONC」，粘回对话即可进入下面的补选流程。
-> 实现见 `scripts/rss-pick/`。
-
 ## 环境变量一致性
 
-RSS 补选模式必须尽量保持和 `bun run video:prepare` 一致的环境变量语义：
+RSS 补选模式必须尽量保持和 `bun run video:auto-generate` 一致的环境变量语义：
 
 - **TTS**：追加 `data-scheme/data.json` 后必须跑 `bun run tts`。该命令已经在 `package.json` 中带 `node --env-file-if-exists=.env`，所以会继续受 `TTS_REQUIRE`、`MINIMAX_API_KEY`、`MINIMAX_TTS_MODEL`、`MINIMAX_TTS_VOICE_ID`、`MINIMAX_TTS_SPEED`、`REQUIRE_VOICE_QUALITY_FFMPEG` 等变量控制。不要手写 `audioSrc`、`timing` 或 `tts`。
 - **Tab 图标**：TTS 后跑 `bun run generate-svg`，让图标继续按现有 `generate-svg` skill 生成，不手写 icon。
@@ -69,7 +78,7 @@ RSS 补选模式必须尽量保持和 `bun run video:prepare` 一致的环境变
 
 #### 示例：linux.do（`proxy:true`、Discourse + Cloudflare）
 
-linux.do 是 Discourse，整站（**含 `.rss` 端点**）都在 Cloudflare 后面。`.rss` 现在也吃 CF challenge——光带 `all_proxy` 拿到的是 "Just a moment..." 假页（约 6KB HTML，不是 RSS）。要拿到真实内容必须**三件套齐全**：`all_proxy`（代理）+ `LINUXDO_CF_CLEARANCE`（cf_clearance cookie）+ `LINUXDO_USER_AGENT`（签发该 cookie 的浏览器 UA），缺一就撞 challenge。这正是 `ingest/rss2.go:217-224` 对 linux.do 域名做的事；`bun run video:prepare` 能成功靠的是这三件套，不是只靠代理。详见 `.claude/rules/learn-experience.md` 的 linux.do 条目。
+linux.do 是 Discourse，整站（**含 `.rss` 端点**）都在 Cloudflare 后面。`.rss` 现在也吃 CF challenge——光带 `all_proxy` 拿到的是 "Just a moment..." 假页（约 6KB HTML，不是 RSS）。要拿到真实内容必须**三件套齐全**：`all_proxy`（代理）+ `LINUXDO_CF_CLEARANCE`（cf_clearance cookie）+ `LINUXDO_USER_AGENT`（签发该 cookie 的浏览器 UA），缺一就撞 challenge。这正是 `ingest/rss2.go:217-224` 对 linux.do 域名做的事；`bun run video:auto-generate` 能成功靠的是这三件套，不是只靠代理。详见 `.claude/rules/learn-experience.md` 的 linux.do 条目。
 
 1. **抓正文+图用 `.rss` 端点**（topicId 取自用户贴的 `link`）。**绝不能 `source .env`**——`LINUXDO_USER_AGENT` 含未转义括号，会让 bash 整文件解析失败、连带 `$all_proxy` 也设不上；用 `grep|cut` 逐个抽值：
    ```bash
@@ -140,7 +149,7 @@ bun run check-data-json:render
 ## 重要约束
 
 - 不要修改 `ingest/preferences.jsonc`。这类补选是当天人工判断，不是长期偏好。
-- 不要重新跑 `bun run video:prepare`。它会重新覆盖 `data-scheme/data.json`，把人工补选结果冲掉。
+- 不要重新跑 `bun run video:auto-generate`。它会重新覆盖 `data-scheme/data.json`，把人工补选结果冲掉。
 - 不要让用户逐条运行 `rss:add --link ...` 之类命令。用户的高效用法就是一次贴多条 RSS 条目。
 - 不要把补选新闻写进 `data-generate.json`。原始维护文件永远是 `data-scheme/data.json`，`data-generate.json` 由 TTS 生成。
 - 不要手写 `audioSrc`、`timing`、`tts`、`icon` 字段。

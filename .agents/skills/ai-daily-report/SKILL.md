@@ -13,9 +13,9 @@ description: How to use the ai-daily-report project end-to-end — set it up, ru
 
 用户问「`/ai-daily-report` 这个 skill 怎么用」时，先按下面三种入口解释，不要一上来只讲完全手动模式：
 
-1. **自动出片**：用户想一条命令生成当天日报，就让他配置 `.env` 后运行 `bun run video:prepare`。这会自动抓 RSS、筛选、生成 `data.json`、TTS 和 Tab 图标。
-2. **审核删除**：用户跑完 `bun run video:prepare` 后审核，发现某条 story 不想要，直接说「删掉 topic-XXX」。agent 按 [`rules/review-remove-mode.md`](./rules/review-remove-mode.md) 从 `data-scheme/data.json` 干净地移除该 story、清理孤儿 icon、重跑 TTS 让 audio 和 `data-generate.json` 自愈，再跑校验。
-3. **RSS 补选**：用户已经跑过 `bun run video:prepare`，但觉得自动筛选太少，就让他从 `ingest/rss-state.json` 复制多条想补进视频的记录，直接贴给 `/ai-daily-report`。agent 按 [`rules/rss-pick-mode.md`](./rules/rss-pick-mode.md) 解析这些记录，按 `.env` 里的视觉/TTS 开关补图和生成语音，追加到当前 `data-scheme/data.json`，再跑校验、TTS 和图标生成。
+1. **自动出片**：用户想一条命令生成当天日报，就让他配置 `.env` 后运行 `bun run video:auto-generate`。这会自动抓 RSS、筛选、生成 `data.json`、TTS 和 Tab 图标。
+2. **审核删除**：用户跑完 `bun run video:auto-generate` 后审核，发现某条 story 不想要，直接说「删掉 topic-XXX」。agent 按 [`rules/review-remove-mode.md`](./rules/review-remove-mode.md) 从 `data-scheme/data.json` 干净地移除该 story、清理孤儿 icon、重跑 TTS 让 audio 和 `data-generate.json` 自愈，再跑校验。
+3. **RSS 补选**：用户已经跑过 `bun run video:auto-generate`，但觉得自动筛选太少，就让他从 `ingest/rss-state.json` 复制多条想补进视频的记录，直接贴给 `/ai-daily-report`。agent 按 [`rules/rss-pick-mode.md`](./rules/rss-pick-mode.md) 解析这些记录，按 `.env` 里的视觉/TTS 开关补图和生成语音，追加到当前 `data-scheme/data.json`，再跑校验、TTS 和图标生成。
 4. **完全手动**：用户不想用 RSS，或要做特别篇，才让他自己维护 `data-scheme/data.json`。agent 按 [`rules/manual-mode.md`](./rules/manual-mode.md) 协助。
 
 最常见的日常用法是：**先自动出片，再按需审核删减 / RSS 补选**（删除走 `review-remove-mode.md`，追加走 `rss-pick-mode.md`，两者方向相反）。长期偏好才改 `ingest/preferences.jsonc`；当天临时想加的新闻不要要求用户维护关键词，直接走 RSS 补选。
@@ -54,20 +54,20 @@ bun install
 #    要发 B站 时再单独跑一次 bili 前置（下载 biliup 工具 + 清理扫码产物）：
 #    bun run biliup:prepare
 
-# 1. 跑全流程：archive:rotate → rss → check-data-json → tts → generate-svg（跑完即结束，不自动开预览）
-bun run video:prepare
+# 1. 跑全流程：archive → ingest(run-auto) → check-data-json → tts → generate-svg（跑完即结束，不自动开预览）
+bun run video:auto-generate
 
 # 如果要丢弃当前 data-scheme/ 和 RSS 去重快照后完全重建
 bun run reset
-bun run video:prepare
+bun run video:auto-generate
 ```
 
-`bun run video:prepare`（`scripts/render/prepare-video.mjs`）先按顺序跑生产步骤并显示实时状态，任一步失败会中断。**跑完即结束，不再自动开预览**（要看画面单独 `bun run dev`）：
+`bun run video:auto-generate`（`scripts/render/prepare-video.mjs`）先按顺序跑生产步骤并显示实时状态，任一步失败会中断。**跑完即结束，不再自动开预览**（要看画面单独 `bun run dev`）：
 
 | 步骤              | 做什么                                              | 产物                                             |
 | ----------------- | --------------------------------------------------- | ------------------------------------------------ |
-| `archive:rotate`  | 归档上一天数据（必要时），保证每次都从干净状态开始  | `daily-dates/`                                   |
-| `rss`             | Go 采集器抓 RSS → AI 筛选/聚类 → 生成结构           | `data-scheme/data.json`                          |
+| `archive`         | 归档上一天数据（必要时），保证每次都从干净状态开始  | `daily-dates/`                                   |
+| `ingest(run-auto)`| Go 采集器抓 RSS → AI 筛选/聚类 → 生成结构           | `data-scheme/data.json`                          |
 | `check-data-json` | 校验 Raw 数据（Schema / 重复 ID / 引用 / 资源路径） | （无产物，不通过则中断）                         |
 | `tts`             | 给每个 scene 生成 MiniMax 旁白，算时间线            | `data-scheme/data-generate.json` + `audio/*.mp3` |
 | `generate-svg`    | 调 `bun run generate-svg` 批量生成 tabs 图标        | `data-scheme/icons/*.svg`                        |
@@ -79,7 +79,26 @@ bun run video:prepare
 - **图片自动 + 手动两条路**：`CLAUDE_VISION_ENABLED=true` 时，`rss` 视觉识别会处理达到日报入选线（Score ≥7）且含远程图片的 Story；在调用上限/预算内，Claude 会结合 Story 上下文判定相关，相关后自动把该图下载到 `data-scheme/images/` 并写入对应 scene 的 `overlayImg`；`CLAUDE_VISION_ENABLED=false` 时不会写 `overlayImg`，但会下载候选图，方便手动填图。详见下方「把图片放进 data.json」。
 - **预览 / 渲染 / 发布**：`bun run preview` 看完整示例，`bun run preview:notts` 看无 TTS 示例；看当前 `data-scheme/` 用 `bun run dev`（HMR 只同步 data → TTS 并刷新 Studio，**不含 Tab 图标**——新增/改 tab 后图标缺失需单独 `bun run generate-svg`）。导出用 `bun run video:render`，发 B站 用 `bun run all:bili`。
 
-> 关于 `ingest/rss-state.json`：它存的是最近一次完整抓取快照，用于来源失败时保留上次状态，也方便从抓取结果里人工补选新闻；当前采集器会对最近时间窗口内的全部条目重新评分，不再用它做跨次预过滤。日常不用手动编辑；如果想丢弃当前数据与快照后完全重建，先跑 `bun run reset`，再跑 `bun run video:prepare`。
+> 关于 `ingest/rss-state.json`：它存的是最近一次完整抓取快照（候选池），含标题/正文/发布时间等完整字段，供人工 pick（`bun run rss:pick`）和 `video`（picks 路径）使用。日常不用手动编辑；如果想丢弃当前数据与快照后完全重建，先跑 `bun run reset`，再跑 `bun run video:auto-generate`。
+
+### 人工 pick 路径（`rss` → `rss:pick` → `video`）
+
+想人工控制选稿时，把抓取和评分拆开，中间插入挑选窗口：
+
+```bash
+# 1. 只抓取 + 去重，写 rss-state.json（候选池），停下
+bun run rss
+
+# 2. 浏览器勾选想进视频的条目 → 写 picks.json → 服务自动关闭
+bun run rss:pick
+
+# 3. 读 picks.json，每条 picked 独立成一个 Story（跳过评分/聚类/合并）→ tts → svg → check
+bun run video
+```
+
+想一条命令串起来（`rss:pick` 步骤会停住等你勾选保存后才继续）：`bun run video:half-auto`（= `rss` → `rss:pick` → `video`）。
+
+`bun run video`（picks 路径）和 `bun run video:auto-generate`（全自动）终点都是可渲染数据，区别是前者按你 pick 的条目出片、后者按 AI 评分全自动。`bun run video` 找不到 `picks.json` 会报错提示先跑 `rss` + `rss:pick`。
 
 ## B. 手动模式
 
@@ -91,7 +110,7 @@ bun run video:prepare
 
 ## C. RSS 补选模式
 
-适合「已经跑完 `bun run video:prepare`，但自动筛选出来的新闻太少，用户从 `ingest/rss-state.json` 里挑了几条想补进本期视频」。
+适合「已经跑完 `bun run video:auto-generate`，但自动筛选出来的新闻太少，用户从 `ingest/rss-state.json` 里挑了几条想补进本期视频」。
 
 这是**半自动补选**，不是完全手写：用户直接把一段 `rss-state.json` 条目贴给 `/ai-daily-report`，例如：
 
@@ -123,7 +142,7 @@ bun run video:prepare
 
 一句话结论：**把图片丢进 `data-scheme/images/`，给对应的 scene 加 `"overlayImg": "images/文件名"`；`"overlayImgWidth"` / `"overlayImgHeight"` 由构建按文件真实像素自动写入 `data-generate.json`，无需手填。**
 
-- 自动模式（`bun run video:prepare`）下，`rss` 视觉识别开启时会给达到日报入选线（Score ≥7）且含远程图的 Story **自动下载并配图**（写入 `overlayImg`）；视觉关闭时只下载候选图，不写 `overlayImg`。下面讲的是没被自动配上、或手动模式下你自己加图时怎么做。
+- 自动模式（`bun run video:auto-generate`）下，`rss` 视觉识别开启时会给达到日报入选线（Score ≥7）且含远程图的 Story **自动下载并配图**（写入 `overlayImg`）；视觉关闭时只下载候选图，不写 `overlayImg`。下面讲的是没被自动配上、或手动模式下你自己加图时怎么做。
 - 图片是 **scene 级**的（不是 story 级、不是 tab 级），一张图配一句旁白。
 - 允许格式：`.svg .png .jpg/.jpeg .webp .gif .avif`。
 - `overlayImgWidth` / `overlayImgHeight` 是 **generated-only**：rss 只把 `overlayImg` 路径写进 `data.json`，尺寸由 tts 构建期按文件真实像素算进 `data-generate.json`（Remotion 实际读取的 props），**无需手填**；手动写进 raw 也会被构建按文件真相覆盖。
@@ -155,7 +174,7 @@ bunx remotion render AiDailyReport out/AiDailyReport.mp4 \
 一条龙发布：投稿视频 → 等审核 → 发「今日日报」评论（内容来自 `comment:generate`）→ 置顶。
 
 ```bash
-# 从零到发布：video:prepare → video:render → 渲封面 → comment:generate → video:meta → bili:full
+# 从零到发布：video:auto-generate → video:render → 渲封面 → comment:generate → video:meta → bili:full
 bun run all:bili
 
 # 数据已备好、只想发 B站：video:render → 渲封面 → comment:generate → video:meta → bili:full

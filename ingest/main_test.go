@@ -958,24 +958,74 @@ func TestSaveRSSStateAtomicallyReplacesAndCleansStaleTemp(t *testing.T) {
 	}
 }
 
-func TestMergeRSSStatePreservesFailedSourceOnly(t *testing.T) {
-	previous := snapshotRSSState([]Item{
-		{ID: "old-a", SourceID: "source-a", Title: "旧 A"},
-		{ID: "old-b", SourceID: "source-b", Title: "旧 B"},
-	})
-	next := mergeRSSState(
-		[]Item{{ID: "new-a", SourceID: "source-a", Title: "新 A"}},
-		previous,
-		map[string]error{"source-b": fmt.Errorf("抓取失败")},
-	)
-	if len(next.Items) != 2 {
-		t.Fatalf("mergeRSSState() contains %d items, want 2", len(next.Items))
+// TestLoadRSSStateAsItemsRoundTrip 覆盖 picks 路径的 hash 匹配命门：
+// StateItem 必须存全 CanonicalID 等字段，否则从 rss-state.json 重构出的 Item 算出的
+// itemFingerprint 会和当初写入的 hash key 对不上，picks.json 的挑选就会丢失。
+func TestLoadRSSStateAsItemsRoundTrip(t *testing.T) {
+	published := time.Date(2026, 7, 9, 10, 0, 0, 0, time.UTC)
+	original := []Item{
+		{
+			ID:          "guid-1",
+			StableID:    "topic-111",
+			CanonicalID: "linuxdo:topic:111",
+			SourceID:    "linuxdo-news",
+			SourceName:  "Linux.do 前沿快讯",
+			Title:       "DeepSeek 自研芯片",
+			Link:        "https://linux.do/t/topic/111",
+			PubDate:     "Wed, 09 Jul 26 10:00:00 +0800",
+			PublishedAt: published,
+			Description: "<p>正文摘要 <img src=\"https://example.com/a.png\"></p>",
+		},
+		{
+			ID:          "guid-2",
+			StableID:    "topic-222",
+			CanonicalID: "linuxdo:topic:222",
+			SourceID:    "linuxdo-news",
+			SourceName:  "Linux.do 前沿快讯",
+			Title:       "美光财报",
+			Link:        "https://linux.do/t/topic/222",
+			PubDate:     "Wed, 09 Jul 26 09:00:00 +0800",
+			PublishedAt: published.Add(-time.Hour),
+			Description: "<p>另一条正文</p>",
+		},
 	}
-	if len(filterUnseenItems([]Item{{ID: "old-b", SourceID: "source-b"}}, next)) != 0 {
-		t.Fatal("mergeRSSState() did not preserve failed source snapshot")
+
+	// 预先算好每条的 hash（= rss-state.json 的 key，也是 picks.json 的 key）。
+	wantHashes := make(map[string]bool, len(original))
+	for _, item := range original {
+		wantHashes[itemFingerprint(item)] = true
 	}
-	if len(filterUnseenItems([]Item{{ID: "old-a", SourceID: "source-a"}}, next)) != 1 {
-		t.Fatal("mergeRSSState() did not replace successful source snapshot")
+
+	path := filepath.Join(t.TempDir(), "rss-state.json")
+	if err := saveRSSState(path, snapshotRSSState(original)); err != nil {
+		t.Fatalf("save error = %v", err)
+	}
+
+	loaded, err := loadRSSStateAsItems(path)
+	if err != nil {
+		t.Fatalf("loadRSSStateAsItems error = %v", err)
+	}
+	if len(loaded) != len(original) {
+		t.Fatalf("got %d items, want %d", len(loaded), len(original))
+	}
+
+	// 命门：重构出的 Item 算的 hash 必须和写入时的 hash 完全一致。
+	for _, item := range loaded {
+		h := itemFingerprint(item)
+		if !wantHashes[h] {
+			t.Fatalf("重构 Item 的 hash %q 与写入时的 hash 不匹配，字段还原不完整", h)
+		}
+	}
+
+	// 排序必须确定：PublishedAt desc。
+	if loaded[0].CanonicalID != "linuxdo:topic:111" {
+		t.Fatalf("期望第一条是较新的 topic-111，实际 %s", loaded[0].CanonicalID)
+	}
+
+	// 字段完整性：Description 等 [5/6] 识图需要的字段必须保留。
+	if loaded[0].Description == "" || loaded[0].SourceName == "" {
+		t.Fatalf("重构 Item 丢了关键字段: Description=%q SourceName=%q",
+			loaded[0].Description, loaded[0].SourceName)
 	}
 }
 

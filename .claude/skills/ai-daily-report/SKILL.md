@@ -13,9 +13,9 @@ description: How to use the ai-daily-report project end-to-end — set it up, ru
 
 用户问「`/ai-daily-report` 这个 skill 怎么用」时，先按下面三种入口解释，不要一上来只讲完全手动模式：
 
-1. **自动出片**：用户想一条命令生成当天日报，就让他配置 `.env` 后运行 `bun run video:prepare`。这会自动抓 RSS、筛选、生成 `data.json`、TTS 和 Tab 图标。
-2. **审核删除**：用户跑完 `bun run video:prepare` 后审核，发现某条 story 不想要，直接说「删掉 topic-XXX」。agent 按 [`rules/review-remove-mode.md`](./rules/review-remove-mode.md) 从 `data-scheme/data.json` 干净地移除该 story、清理孤儿 icon、重跑 TTS 让 audio 和 `data-generate.json` 自愈，再跑校验。
-3. **RSS 补选**：用户已经跑过 `bun run video:prepare`，但觉得自动筛选太少，就让他从 `ingest/rss-state.json` 复制多条想补进视频的记录，直接贴给 `/ai-daily-report`。agent 按 [`rules/rss-pick-mode.md`](./rules/rss-pick-mode.md) 解析这些记录，按 `.env` 里的视觉/TTS 开关补图和生成语音，追加到当前 `data-scheme/data.json`，再跑校验、TTS 和图标生成。
+1. **自动出片**：用户想一条命令生成当天日报，就让他配置 `.env` 后运行 `bun run video:auto-generate`。这会自动抓 RSS、筛选、生成 `data.json`、TTS 和 Tab 图标。
+2. **审核删除**：用户跑完 `bun run video:auto-generate` 后审核，发现某条 story 不想要，直接说「删掉 topic-XXX」。agent 按 [`rules/review-remove-mode.md`](./rules/review-remove-mode.md) 从 `data-scheme/data.json` 干净地移除该 story、清理孤儿 icon、重跑 TTS 让 audio 和 `data-generate.json` 自愈，再跑校验。
+3. **RSS 补选**：用户已经跑过 `bun run video:auto-generate`，但觉得自动筛选太少，就让他从 `ingest/rss-state.json` 复制多条想补进视频的记录，直接贴给 `/ai-daily-report`。agent 按 [`rules/rss-pick-mode.md`](./rules/rss-pick-mode.md) 解析这些记录，按 `.env` 里的视觉/TTS 开关补图和生成语音，追加到当前 `data-scheme/data.json`，再跑校验、TTS 和图标生成。
 4. **完全手动**：用户不想用 RSS，或要做特别篇，才让他自己维护 `data-scheme/data.json`。agent 按 [`rules/manual-mode.md`](./rules/manual-mode.md) 协助。
 
 最常见的日常用法是：**先自动出片，再按需审核删减 / RSS 补选**（删除走 `review-remove-mode.md`，追加走 `rss-pick-mode.md`，两者方向相反）。长期偏好才改 `ingest/preferences.jsonc`；当天临时想加的新闻不要要求用户维护关键词，直接走 RSS 补选。
@@ -54,32 +54,51 @@ bun install
 #    要发 B站 时再单独跑一次 bili 前置（下载 biliup 工具 + 清理扫码产物）：
 #    bun run biliup:prepare
 
-# 1. 跑全流程：archive:rotate → rss → check-data-json → tts → generate-svg（跑完即结束，不自动开预览）
-bun run video:prepare
+# 1. 跑全流程：archive → ingest(run-auto) → check-data-json → tts → generate-svg（跑完即结束，不自动开预览）
+bun run video:auto-generate
 
 # 如果要丢弃当前 data-scheme/ 和 RSS 去重快照后完全重建
 bun run reset
-bun run video:prepare
+bun run video:auto-generate
 ```
 
-`bun run video:prepare`（`scripts/render/prepare-video.mjs`）先按顺序跑生产步骤并显示实时状态，任一步失败会中断。**跑完即结束，不再自动开预览**（要看画面单独 `bun run dev`）：
+`bun run video:auto-generate`（`scripts/render/prepare-video.mjs`）先按顺序跑生产步骤并显示实时状态，任一步失败会中断。**跑完即结束，不再自动开预览**（要看画面单独 `bun run dev`）：
 
 | 步骤              | 做什么                                              | 产物                                             |
 | ----------------- | --------------------------------------------------- | ------------------------------------------------ |
-| `archive:rotate`  | 归档上一天数据（必要时），保证每次都从干净状态开始  | `daily-dates/`                                   |
-| `rss`             | Go 采集器抓 RSS → AI 筛选/聚类 → 生成结构           | `data-scheme/data.json`                          |
+| `archive`         | 归档上一天数据（必要时），保证每次都从干净状态开始  | `daily-dates/`                                   |
+| `ingest(run-auto)`| Go 采集器抓 RSS → AI 筛选/聚类 → 生成结构           | `data-scheme/data.json`                          |
 | `check-data-json` | 校验 Raw 数据（Schema / 重复 ID / 引用 / 资源路径） | （无产物，不通过则中断）                         |
 | `tts`             | 给每个 scene 生成 MiniMax 旁白，算时间线            | `data-scheme/data-generate.json` + `audio/*.mp3` |
 | `generate-svg`    | 调 `bun run generate-svg` 批量生成 tabs 图标        | `data-scheme/icons/*.svg`                        |
 
-`rss` 步骤的网络代理**按来源决定**：`ingest/sources.jsonc` 里标了 `"proxy": true` 的来源抓取时走 `.env` 的小写 `all_proxy`，其他来源直连；AI 模型请求仍受 `all_proxy` 控制（配置后即走代理）。标了 `proxy: true` 的来源若 `all_proxy` 未配或无效会直接报错，不会静默回退直连。它不会读取 `HTTP_PROXY`、`HTTPS_PROXY`、`ALL_PROXY` 等其他代理变量，也不会自动探测本地代理端口。这个代理规则只描述项目命令本身；agent 的 WebFetch/Fetch 不会因为 `.env` 里有 `all_proxy` 就自动走代理。
+`rss` 步骤的网络代理规则见上方「开始前确认」的 `all_proxy` 段，不再赘述。补充两点专属于 `rss` 的：标了 `proxy: true` 的来源（如 linux.do）抓取时**除 `all_proxy` 外还需要 `LINUXDO_CF_CLEARANCE` + `LINUXDO_USER_AGENT` 三件套**才过 Cloudflare（CF 现已覆盖 `.rss` 端点），`ingest/rss2.go` 已内置此逻辑；agent 的 WebFetch/Fetch 不会自动读项目 `.env`，人工补选抓 linux.do 时要用本地 curl 显式带三件套（详见 `rss-pick-mode.md`）。
 
 生产步骤跑完后：
 
 - **图片自动 + 手动两条路**：`CLAUDE_VISION_ENABLED=true` 时，`rss` 视觉识别会处理达到日报入选线（Score ≥7）且含远程图片的 Story；在调用上限/预算内，Claude 会结合 Story 上下文判定相关，相关后自动把该图下载到 `data-scheme/images/` 并写入对应 scene 的 `overlayImg`；`CLAUDE_VISION_ENABLED=false` 时不会写 `overlayImg`，但会下载候选图，方便手动填图。详见下方「把图片放进 data.json」。
 - **预览 / 渲染 / 发布**：`bun run preview` 看完整示例，`bun run preview:notts` 看无 TTS 示例；看当前 `data-scheme/` 用 `bun run dev`（HMR 只同步 data → TTS 并刷新 Studio，**不含 Tab 图标**——新增/改 tab 后图标缺失需单独 `bun run generate-svg`）。导出用 `bun run video:render`，发 B站 用 `bun run all:bili`。
 
-> 关于 `ingest/rss-state.json`：它存的是最近一次完整抓取快照，用于来源失败时保留上次状态，也方便从抓取结果里人工补选新闻；当前采集器会对最近时间窗口内的全部条目重新评分，不再用它做跨次预过滤。日常不用手动编辑；如果想丢弃当前数据与快照后完全重建，先跑 `bun run reset`，再跑 `bun run video:prepare`。
+> 关于 `ingest/rss-state.json`：它存的是最近一次完整抓取快照（候选池），含标题/正文/发布时间等完整字段，供人工 pick（`bun run rss:pick`）和 `video`（picks 路径）使用。日常不用手动编辑；如果想丢弃当前数据与快照后完全重建，先跑 `bun run reset`，再跑 `bun run video:auto-generate`。
+
+### 人工 pick 路径（`rss` → `rss:pick` → `video`）
+
+想人工控制选稿时，把抓取和评分拆开，中间插入挑选窗口：
+
+```bash
+# 1. 只抓取 + 去重，写 rss-state.json（候选池），停下
+bun run rss
+
+# 2. 浏览器勾选想进视频的条目 → 写 picks.json → 服务自动关闭
+bun run rss:pick
+
+# 3. 读 picks.json，每条 picked 独立成一个 Story（跳过评分/聚类/合并）→ tts → svg → check
+bun run video
+```
+
+想一条命令串起来（`rss:pick` 步骤会停住等你勾选保存后才继续）：`bun run video:half-auto`（= `rss` → `rss:pick` → `video`）。
+
+`bun run video`（picks 路径）和 `bun run video:auto-generate`（全自动）终点都是可渲染数据，区别是前者按你 pick 的条目出片、后者按 AI 评分全自动。`bun run video` 找不到 `picks.json` 会报错提示先跑 `rss` + `rss:pick`。
 
 ## B. 手动模式
 
@@ -91,7 +110,7 @@ bun run video:prepare
 
 ## C. RSS 补选模式
 
-适合「已经跑完 `bun run video:prepare`，但自动筛选出来的新闻太少，用户从 `ingest/rss-state.json` 里挑了几条想补进本期视频」。
+适合「已经跑完 `bun run video:auto-generate`，但自动筛选出来的新闻太少，用户从 `ingest/rss-state.json` 里挑了几条想补进本期视频」。
 
 这是**半自动补选**，不是完全手写：用户直接把一段 `rss-state.json` 条目贴给 `/ai-daily-report`，例如：
 
@@ -123,7 +142,7 @@ bun run video:prepare
 
 一句话结论：**把图片丢进 `data-scheme/images/`，给对应的 scene 加 `"overlayImg": "images/文件名"`；`"overlayImgWidth"` / `"overlayImgHeight"` 由构建按文件真实像素自动写入 `data-generate.json`，无需手填。**
 
-- 自动模式（`bun run video:prepare`）下，`rss` 视觉识别开启时会给达到日报入选线（Score ≥7）且含远程图的 Story **自动下载并配图**（写入 `overlayImg`）；视觉关闭时只下载候选图，不写 `overlayImg`。下面讲的是没被自动配上、或手动模式下你自己加图时怎么做。
+- 自动模式（`bun run video:auto-generate`）下，`rss` 视觉识别开启时会给达到日报入选线（Score ≥7）且含远程图的 Story **自动下载并配图**（写入 `overlayImg`）；视觉关闭时只下载候选图，不写 `overlayImg`。下面讲的是没被自动配上、或手动模式下你自己加图时怎么做。
 - 图片是 **scene 级**的（不是 story 级、不是 tab 级），一张图配一句旁白。
 - 允许格式：`.svg .png .jpg/.jpeg .webp .gif .avif`。
 - `overlayImgWidth` / `overlayImgHeight` 是 **generated-only**：rss 只把 `overlayImg` 路径写进 `data.json`，尺寸由 tts 构建期按文件真实像素算进 `data-generate.json`（Remotion 实际读取的 props），**无需手填**；手动写进 raw 也会被构建按文件真相覆盖。
@@ -152,34 +171,22 @@ bunx remotion render AiDailyReport out/AiDailyReport.mp4 \
 
 ## 发布到 B站（投稿 + 评论 + 置顶）
 
-把当期成片自动发到 B站，并发表 + 置顶「今日日报」评论（内容来自 `data-scheme/comments.txt`，由 `comment:generate` 从时间线生成）。一条龙：
+一条龙发布：投稿视频 → 等审核 → 发「今日日报」评论（内容来自 `comment:generate`）→ 置顶。
 
 ```bash
-# 从零到发布：video:prepare → video:render → 渲封面 → comment:generate → video:meta → bili:full（投稿→等审核→发评论→置顶）
+# 从零到发布：video:auto-generate → video:render → 渲封面 → comment:generate → video:meta → bili:full
 bun run all:bili
 
-# 数据已备好、只想发 B站：video:render → 渲封面 → comment:generate → video:meta → bili:full（投稿+评论+置顶）
+# 数据已备好、只想发 B站：video:render → 渲封面 → comment:generate → video:meta → bili:full
 bun run publish:bili
+
+# 首次（一次性）：扫码登录，登录态存 biliup/cookies.json（不进 .env）
+bun run biliup:prepare
 ```
 
-**首次使用（一次性）**——扫码登录 B站，登录态存进 `biliup/cookies.json`（已 gitignore；评论/置顶也直接读它，**不进 `.env`**）。可主动跑 `bun run biliup:prepare`（下载 biliup 工具 + 登录 + 清理扫码产物），bili 命令执行时也会自动触发同一套 ensure 逻辑：
+登录态、标题/标签、单步拆分（`bili:upload` 纯投稿 / `bili:full` 全套 / `bili:comment` / `bili:stick`）、**封面双比例裁切坑（单张封面、4:3 vs 16:9、安全区、自制封面两条手动路）**、固定参数所在文件：**先读 [`rules/publish-bili.md`](./rules/publish-bili.md)** 再动手。
 
-```bash
-bun run biliup:prepare                              # 一键备好 biliup 工具 + 登录态
-# 或手动登录：
-./biliup/biliup.exe -u biliup/cookies.json login   # 用 B站 App 扫码确认
-```
-
-要点：
-
-- **标题 / 标签** 由 `video:meta` 用 LLM 生成（手机短视频风、抓重点、适度夸张），写到 `data-scheme/video-meta.json`——可手改再审。标题 = `前缀【AI日报 - MM - DD】`（≤80 字，中文/字母/符号每个算 1），标签 ≤10 个。
-- **固定参数**（分区 `tid 231` 计算机技术、自制、创作声明 AI 标识、封面帧、评论前等待 3 分钟过审核）在 `config/bilibili.config.json`。
-- **凭据**：评论/置顶的 `SESSDATA` / `bili_jct` 直接从 `biliup/cookies.json` 读（`scripts/publish/bili/bili-api.mjs`），不在 `.env` 重复维护。
-- **biliup 工具**由 `bun run biliup:prepare`（内部走 `download-bili-tool`）下载到 `biliup/`（跨平台、平铺结构，已 gitignore）。首次发 B站 时 bili 命令会自动触发该 ensure 逻辑；升级重跑 `bun run download-bili-tool`，会自动保留登录态。
-- 也可拆开单步：`video:meta`（生成标题/标签）、`bili:upload`（纯投稿，只发视频）、`bili:full`（投稿+评论+置顶 全套，原 `bili:upload` 行为）、`bili:comment` / `bili:stick`（单独发评/置顶）。`publish:bili` / `all:bili` 内部都调 `bili:full`。
-- **封面（默认 16:9；4:3 / 16:9 裁切是重要坑）**：`render:cover` 截主视频第 `coverFrame` 帧（默认 45，配在 `bilibili.config.json`）→ `out/cover.png`——视频是 1920×1080，所以**自动封面固定是 16:9**，`coverFrame` 只决定截哪一帧、**不改比例**。投稿时 `biliup --cover` **只上传这一张**。**B站 每个视频只能传一张封面**——首页推荐按 4:3、播放页/空间按 16:9 显示，是**同一张图被平台自动裁切**，不是两个上传位，也**不能分别传两张不同的图**（平台限制，不是工具限制）。因此封面标题/主体要放在**中央安全区**（1920×1080 帧在首页 4:3 位会被裁掉左右各约 240px）。**想要非 16:9 / 自制封面**有两条手动路：① `bun run render:cover` 之后、`bili:upload` 之前**手动替换 `out/cover.png`**；② 走一键 `all:bili` 发布后，去 **B站 创作中心 → 稿件管理 → 编辑 → 修改封面** 手动重传/调裁切（那里仍是单张封面，但能换图，是 `biliup` 之外唯一的封面定制入口）。
-
-> `bili:full` 会**真实发布**稿件 + 评论 + 置顶到你的 B站 号（对外动作）。`bili:upload` 是纯投稿（已带 `--no-comment`，只发视频，不发评论/置顶）——纯测试可用它发一条试稿，发完记得去创作中心删测试稿。
+> `bili:full` 会**真实发布**稿件 + 评论 + 置顶到你的 B站 号（对外动作）。纯测试用 `bili:upload`（已带 `--no-comment`，只发视频），发完记得去创作中心删测试稿。
 
 ## Read First（按需读的细节）
 
@@ -193,7 +200,6 @@ bun run biliup:prepare                              # 一键备好 biliup 工具
 | 换 TTS 模型或供应商  | [`rules/tts-customize.md`](./rules/tts-customize.md) |
 | 给日报加图片       | [`rules/images.md`](./rules/images.md)               |
 | 把视频渲染导出成 mp4 | [`rules/render-export.md`](./rules/render-export.md) |
-
-发布到 B站 没有独立 rule 文件，主线（登录 / 配置 / 命令 / 注意事项）就在上面的「发布到 B站」一节。
+| 发布到 B站 / 封面坑  | [`rules/publish-bili.md`](./rules/publish-bili.md)   |
 
 要做 Tab 图标，用 `bun run generate-svg`（内部加载 `generate-svg` skill）；要改 Remotion 组件本身（动画、布局、`<Audio>`/`<Img>` 用法），用 `remotion-best-practices` skill。

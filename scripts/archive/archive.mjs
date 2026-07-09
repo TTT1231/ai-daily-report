@@ -60,13 +60,27 @@ const dataPath = resolve(srcDir, "data.json");
 let date;
 try {
   const report = await readJson(dataPath, "data-scheme/data.json");
-  if (typeof report.date !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(report.date)) {
-    throw new Error('data-scheme/data.json "date" must use YYYY-MM-DD format.');
+  if (typeof report.date === "string" && /^\d{4}-\d{2}-\d{2}$/.test(report.date)) {
+    date = report.date;
   }
-  date = report.date;
-} catch (e) {
-  console.error(e.message);
-  process.exit(1);
+} catch {
+  // data.json 缺失或不可读 → 视为全新工作区，无需归档或清空，放行让 ingest 从零抓。
+}
+
+// 全新工作区（无有效 date）：直接放行，不归档不清空。
+if (!date) {
+  console.log("data-scheme/data.json 无有效 date，视为全新工作区，跳过归档。");
+  process.exit(0);
+}
+
+// 该 date 已归档过：当前 data-scheme 是上一轮残留，清空它让 ingest 从零生成。
+const archivePath = resolve(dailyDatesDir, `data-scheme-${date}`);
+if (existsSync(archivePath)) {
+  for (const entry of readdirSync(srcDir)) {
+    rmSync(resolve(srcDir, entry), { recursive: true, force: true });
+  }
+  console.log(`${date} 已归档过，已清空 data-scheme/，ingest 将生成全新数据。`);
+  process.exit(0);
 }
 
 // 归档前清理未引用的 images / icons / audio，让归档副本干净、自洽。

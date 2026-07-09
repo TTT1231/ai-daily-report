@@ -4,6 +4,7 @@ import { createInterface } from "node:readline";
 import { clearInterval, setInterval } from "node:timers";
 import ora from "ora";
 import { rawDataPath, rootDir } from "../lib/paths.mjs";
+import { join } from "node:path";
 import { terminateProcessTree } from "../lib/process-tree.mjs";
 import { classifyStepOutcome } from "../lib/step-outcome.mjs";
 
@@ -11,38 +12,48 @@ const nodeCommand = process.execPath;
 const bunCommand = process.platform === "win32" ? "bun.exe" : "bun";
 const productionEnv = { ...process.env, AI_DAILY_REPORT_RUN_ALL: "1" };
 
-const productionSteps = [
-  {
-    name: "archive:rotate",
-    command: bunCommand,
-    args: ["run", "archive:rotate"],
-  },
-  {
-    name: "rss",
-    command: "go",
-    args: ["-C", "ingest", "run", "."],
-  },
-  {
-    name: "check-data-json",
-    command: bunCommand,
-    args: ["run", "check-data-json"],
-  },
-  {
-    name: "tts",
-    command: bunCommand,
-    args: ["run", "tts"],
-  },
-  {
-    name: "generate-svg",
-    command: nodeCommand,
-    args: ["scripts/render/generate-svg.mjs", "--automation"],
-  },
-  {
-    name: "check-icons",
-    command: bunCommand,
-    args: ["run", "check-icons"],
-  },
-];
+// --picks 走人工 pick 路径（读 picks.json，跳过评分/聚类/合并）；缺省走全自动。
+const usePicks = process.argv.slice(2).includes("--picks");
+const ingestSubcommand = usePicks ? "run-picks" : "run-auto";
+
+function buildProductionSteps() {
+  // 两条路径都先 archive（保护上一期数据）+ 跑 ingest 子命令产 data.json + tts/svg/check。
+  // picks 路径不跑 fetch：rss-state.json 已由 `bun run rss` 生成，video 只负责拿着 picks 跑后半段。
+  return [
+    {
+      name: "archive",
+      command: bunCommand,
+      args: ["run", "archive"],
+    },
+    {
+      name: usePicks ? "ingest (run-picks)" : "ingest (run-auto)",
+      command: "go",
+      args: ["-C", "ingest", "run", ".", ingestSubcommand],
+    },
+    {
+      name: "check-data-json",
+      command: bunCommand,
+      args: ["run", "check-data-json"],
+    },
+    {
+      name: "tts",
+      command: bunCommand,
+      args: ["run", "tts"],
+    },
+    {
+      name: "generate-svg",
+      command: nodeCommand,
+      args: ["scripts/render/generate-svg.mjs", "--automation"],
+    },
+    {
+      name: "check-icons",
+      command: bunCommand,
+      args: ["run", "check-icons"],
+    },
+  ];
+}
+
+const productionSteps = buildProductionSteps();
 
 let activeChild = null;
 let interrupted = false;
@@ -124,15 +135,26 @@ function runProductionStep({ command, args, name }, index) {
 }
 
 function validateProductionStep(name) {
-  if (name !== "rss" || existsSync(rawDataPath)) {
+  // ingest 子命令（run-picks / run-auto）跑完应产出 data-scheme/data.json。
+  const isIngest = name.includes("ingest");
+  if (!isIngest || existsSync(rawDataPath)) {
     return;
+  }
+  if (usePicks) {
+    throw new Error(
+      [
+        "run-picks 已结束但未生成 data-scheme/data.json。",
+        "常见原因：picks.json 为空、或其中的 hash 都不在 rss-state.json 候选池里。",
+        "请确认已跑 bun run rss（抓取）→ bun run rss:pick（挑选），再跑 bun run video。",
+      ].join("\n"),
+    );
   }
   throw new Error(
     [
-      "rss 已结束但未生成 data-scheme/data.json。",
+      "run-auto 已结束但未生成 data-scheme/data.json。",
       "常见原因：最近时间窗口没有抓到内容，或抓到的内容未通过兴趣规则。",
       "可以检查 ingest/sources.jsonc、ingest/preferences.jsonc 与 .env，或放宽筛选后重试。",
-      "如果想丢弃当前数据与 RSS 快照后完全重建，请运行：bun run reset && bun run video:prepare",
+      "如果想丢弃当前数据与 RSS 快照后完全重建，请运行：bun run reset && bun run video:auto-generate",
     ].join("\n"),
   );
 }
@@ -197,6 +219,16 @@ async function main() {
   const totalStart = process.hrtime.bigint();
 
   try {
+    // picks 路径前置检查：picks.json 必须存在且非空。
+    if (usePicks) {
+      const picksPath = join(rootDir, "ingest", "picks.json");
+      if (!existsSync(picksPath)) {
+        throw new Error(
+          "picks.json 不存在。请先跑：bun run rss（抓取）→ bun run rss:pick（挑选），再跑 bun run video。",
+        );
+      }
+    }
+
     console.log("──────── 生产阶段 ────────");
     productionSpinner = ora({
       text: "正在准备生产流程...",
@@ -214,7 +246,7 @@ async function main() {
     productionSpinner = null;
 
     // 默认不再自动进入预览（职责分离：要看预览单独 `bun run dev`）。
-    // 需要老行为时 VIDEO_PREVIEW=1 bun run video:prepare
+    // 需要老行为时 VIDEO_PREVIEW=1 bun run video:auto-generate
     if (process.env.VIDEO_PREVIEW === "1") await runDev();
   } catch (error) {
     productionSpinner?.stop();

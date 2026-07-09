@@ -4,13 +4,26 @@
 
 ## 什么时候用
 
-用户已经跑过：
+用户想人工控制选稿时，走 **`rss` → `rss:pick` → `video`** 三步流程：
 
 ```bash
-bun run video:prepare
+# 1. 抓取 + 去重，写 rss-state.json（候选池），停下
+bun run rss
+
+# 2. 浏览器勾选 → 写 picks.json → 服务自动关闭
+bun run rss:pick
+
+# 3. 读 picks.json，每条 picked 独立成 Story → tts → svg → check → data.json
+bun run video
 ```
 
-当前 `data-scheme/data.json` 已经由自动 RSS 流程生成，但用户觉得自动筛选太少，于是从 `ingest/rss-state.json` 中复制了一批自己感兴趣的条目，要求追加进本期日报。
+`bun run rss:pick` 起一个本地服务（端口 7788），把 `rss-state.json` 渲染成按 `sourceId` 分类的网页并自动打开浏览器。已进本期 `data.json` 的条目带绿标（默认不勾，避免重复），已 pick 的条目会预勾选。勾选后点「保存并关闭」直接写 `ingest/picks.json`（`{hash: true}` 白名单）并自动关服务——不再走复制 JSONC 贴对话的弯路。
+
+`bun run video`（picks 路径）读 `picks.json`，每条 picked **独立成一个单来源 Story**，跳过评分/聚类/合并（人工已挑，不让 AI 再筛/合），直接跑 Tabs(识图) → data.json → tts → svg → check。
+
+### 旧的手动补选（已过时，保留备查）
+
+以下「复制 JSONC 贴对话 → agent 手搓 Story 写 data.json」的流程已被上面的 `rss:pick` → `video` 取代，仅在 `picks.json` 不可用时作为 fallback：
 
 典型输入是用户直接贴一段 JSON 片段：
 
@@ -29,13 +42,9 @@ bun run video:prepare
 
 这不是完全手动模式。不要让用户从零写 `data.json`，也不要要求用户逐条执行命令。
 
-> **挑条目更省事**：手动翻 `rss-state.json` 很累。跑 `bun run rss:vision-pick` 会生成一个按 `sourceId` 分类的网页并自动打开浏览器——
-> 已进本期 `data.json` 的条目会带绿标（默认不勾，避免重复补选），勾选后一键「复制选中为 JSONC」，粘回对话即可进入下面的补选流程。
-> 实现见 `scripts/rss-pick/`。
-
 ## 环境变量一致性
 
-RSS 补选模式必须尽量保持和 `bun run video:prepare` 一致的环境变量语义：
+RSS 补选模式必须尽量保持和 `bun run video:auto-generate` 一致的环境变量语义：
 
 - **TTS**：追加 `data-scheme/data.json` 后必须跑 `bun run tts`。该命令已经在 `package.json` 中带 `node --env-file-if-exists=.env`，所以会继续受 `TTS_REQUIRE`、`MINIMAX_API_KEY`、`MINIMAX_TTS_MODEL`、`MINIMAX_TTS_VOICE_ID`、`MINIMAX_TTS_SPEED`、`REQUIRE_VOICE_QUALITY_FFMPEG` 等变量控制。不要手写 `audioSrc`、`timing` 或 `tts`。
 - **Tab 图标**：TTS 后跑 `bun run generate-svg`，让图标继续按现有 `generate-svg` skill 生成，不手写 icon。
@@ -69,42 +78,42 @@ RSS 补选模式必须尽量保持和 `bun run video:prepare` 一致的环境变
 
 #### 示例：linux.do（`proxy:true`、Discourse + Cloudflare）
 
-linux.do 是 Discourse。主站网页和 `/t/topic/{id}.json` 有 Cloudflare JS challenge，**curl / WebFetch / Playwright 直连都过不去**（表现为"连接被关闭""SSL 失败""拿到 Just a moment 页"）——**这是 CF 防护，不是网络阻断，不要误判放弃**。因为 linux.do 标了 `proxy:true`，正确姿势是全程走 `.env` 的 `all_proxy`，优先用 RSS 端点。`bun run video:prepare` 能成功就是靠 `all_proxy`。
+linux.do 是 Discourse，整站（**含 `.rss` 端点**）都在 Cloudflare 后面。`.rss` 现在也吃 CF challenge——光带 `all_proxy` 拿到的是 "Just a moment..." 假页（约 6KB HTML，不是 RSS）。要拿到真实内容必须**三件套齐全**：`all_proxy`（代理）+ `LINUXDO_CF_CLEARANCE`（cf_clearance cookie）+ `LINUXDO_USER_AGENT`（签发该 cookie 的浏览器 UA），缺一就撞 challenge。这正是 `ingest/rss2.go:217-224` 对 linux.do 域名做的事；`bun run video:auto-generate` 能成功靠的是这三件套，不是只靠代理。详见 `.claude/rules/learn-experience.md` 的 linux.do 条目。
 
-**走了代理仍偶发失败 ≠ 方法错了**：`all_proxy` + `.rss` 这条路本身已验证可用——大写 `ALL_PROXY`、小写 `all_proxy`、显式 `--proxy` 三种 curl 写法在代理健康时**都能拿到 HTTP 200**。但本地代理（`127.0.0.1:7890` 之类）会**瞬时抖动**，典型表现是 curl `exit 35`（SSL 握手失败）、返回 `0 字节`、bun `ECONNRESET`、PowerShell `EOF`，且**即使配了代理也照挂**。正确应对：**用同一条 curl 命令重试 2-3 次、每次间隔 5-10 秒**，代理多半很快自愈。**不要**因此改走 `bun fetch()` 或 PowerShell `Invoke-RestMethod`——它们走的是同一个代理隧道，会以同样方式失败，只白白烧掉几轮迭代；更不要退回直连或 WebFetch（必撞 CF）。只有多次重试仍全失败，才判定代理本身不可用，此时明确告知用户，不要继续猜。
-
-1. **抓正文+图用 `.rss` 端点**（不走 JS challenge，curl+代理秒级拿到；topicId 取自用户贴的 `link`）：
+1. **抓正文+图用 `.rss` 端点**（topicId 取自用户贴的 `link`）。**绝不能 `source .env`**——`LINUXDO_USER_AGENT` 含未转义括号，会让 bash 整文件解析失败、连带 `$all_proxy` 也设不上；用 `grep|cut` 逐个抽值：
    ```bash
-   ALL_PROXY="$(grep -E '^all_proxy=' .env | cut -d= -f2-)" \
-     curl -sL --max-time 15 -H "User-Agent: ai-daily-report-rss/1.0" \
+   ap=$(grep '^all_proxy=' .env | cut -d= -f2-)
+   ck=$(grep '^LINUXDO_CF_CLEARANCE=' .env | cut -d= -f2-)
+   ua=$(grep '^LINUXDO_USER_AGENT=' .env | cut -d= -f2-)
+   ALL_PROXY="$ap" curl -sL --max-time 20 \
+     -H "User-Agent: $ua" -H "Cookie: $ck" \
      "https://linux.do/t/topic/{topicId}.rss"
    ```
-   每个 `<item>` 的 `<description>` 是 cooked HTML，含 `<img>` 和正文。拿到的是真实内容，不是 challenge 页。
+   每个 `<item>` 的 `<description>` 是 cooked HTML，含 `<img>` 和正文。**先 `head -c 5` 判定**：`<?xml` 才是真实 RSS，`<html` 就是 challenge 页，不要当成功。cf_clearance 会过期，且 UA 必须与签发该 cookie 的浏览器一致，否则仍被 challenge。
 
-2. **别用 Playwright 抓单帖**——启动慢、易触发 CF 限流，是最后手段。`.rss`+curl 快几个数量级。WebFetch 也不走代理、过不了 CF，不要用它抓 linux.do。
+2. **瞬时失败就重试，不要换工具**：本地代理偶发抖动时同一命令重试 2-3 次、间隔 5-10 秒多半自愈。**不要**改走 `bun fetch()`、PowerShell `Invoke-RestMethod`、WebFetch 或 Playwright——它们走同一代理隧道、同样会失败（Playwright 还慢、易触发 CF 限流）；更不要退回直连（必撞 CF）。多次重试仍全失败才判定代理/cf_clearance 不可用，明确告知用户。
 
-3. **提取候选图、排除噪声**（以下 `cdn3.ldstatic.com`/`upload://`/post 结构均为 **Discourse 特有，仅适用于 linux.do**；其他 RSS 源的图床域名、引用方式、条目结构各不相同，需按各自结构处理，不要把这套 cdn3/upload:// 规则套到别的源）：
-   - **扫所有 `<item>`，不要只看 post /1**：Discourse topic RSS 把 post /1（楼主）和每条回复各列成一个 `<item>`、倒序排列，正文图**可能在任意一条**（实测有原帖 post /1 是闲聊、真正的图在 post /2 的情况）。直接对**原始 RSS 文本**跑 `grep -oE 'cdn3\.ldstatic\.com/[A-Za-z0-9/._-]+\.(png|jpe?g|webp|gif|avif)'`，把全帖候选 URL 都列出来，别假设图在 post /1。
-   - **提取 img src 前绝不能先删标签**：`sed 's/<[^>]*>/ /g'` 会把 `<img src="…">` 整段连同 URL 一起抹掉，造成"看起来没图"的假象。要先在**含标签的原文**里 grep 出 URL，再单独对正文做去标签。
-   - **优先 cdn3 直链，`upload://` 短链只作兜底**：`upload://xxx` 是 Discourse 内部引用，转 `https://linux.do/uploads/short-url/xxx.ext` 可重定向到真实 CDN，**但 short-url 常返回 403**（实测）。同一张图几乎都在帖子里有 cdn3 直链，**先 grep cdn3 直链**；只有全帖确实没有 cdn3 直链、只剩 `upload://` 引用时，才回退 short-url。
-   - 排除噪声：`/images/emoji/`（含 `cdn.ldstatic.com/images/emoji/` 这类 20×20 表情）、头像、Logo、`<300px` 小图、细长 banner（如 1035×121）、签名/反应图。
-   - 拿全尺寸：把 `optimized/4X/{a}/{b}/{c}/{sha}_2_{W}x{H}.ext` 改写成 `original/4X/{a}/{b}/{c}/{sha}.ext`（去 `_2_WxH`，`optimized`→`original`）。
+3. **提取候选图、排除噪声**（以下 `cdn3.ldstatic.com`/`upload://`/post 结构均为 **Discourse 特有，仅适用于 linux.do**；其他源按各自结构处理，不要套用）：
+   - **扫所有 `<item>`，不要只看 post /1**：Discourse topic RSS 把楼主和每条回复各列成一个 `<item>`、倒序排列，正文图可能在任意一条（实测原帖 post/1 闲聊、真图在 post/2 的情况）。直接对**原始 RSS 文本**跑 `grep -oE 'cdn3\.ldstatic\.com/[A-Za-z0-9/._-]+\.(png|jpe?g|webp|gif|avif)'`，别假设图在 post/1。
+   - **提取 img src 前不能先删标签**：`sed 's/<[^>]*>/ /g'` 会把 `<img src="…">` 整段连同 URL 抹掉。先在含标签原文里 grep URL，再单独去标签。
+   - **优先 cdn3 直链，`upload://` 短链只作兜底**：`upload://xxx` 转 `https://linux.do/uploads/short-url/xxx.ext` 会重定向到 CDN，但 short-url 常返回 403。同一张图几乎都有 cdn3 直链，先 grep cdn3；只有全帖没有 cdn3 直链、只剩 `upload://` 时才回退 short-url。
+   - 排除噪声：`/images/emoji/`、头像、Logo、`<300px` 小图、细长 banner（如 1035×121）、签名/反应图。
+   - 拿全尺寸：`optimized/4X/{a}/{b}/{c}/{sha}_2_{W}x{H}.ext` → `original/4X/{a}/{b}/{c}/{sha}.ext`。
 
-4. **下载图片**（CDN 走代理 + Referer 防盗链，带重试；参考 `ingest/image_assets.go` 的 `downloadVisionOverlayImage`）：
+4. **下载图片**（CDN 走代理 + Referer 防盗链 + 重试；参考 `ingest/image_assets.go` 的 `downloadVisionOverlayImage`）。CDN 图片不在 CF challenge 后，cookie 不需要，但代理和 Referer 要：
    ```bash
-   ALL_PROXY="$(grep -E '^all_proxy=' .env | cut -d= -f2-)" \
-     curl -sL --max-time 25 --retry 3 \
-     -H "User-Agent: ai-daily-report-rss/1.0" \
+   ALL_PROXY="$ap" curl -sL --max-time 25 --retry 3 \
+     -H "User-Agent: $ua" \
      -H "Referer: https://linux.do/t/topic/{topicId}" \
      "{imageUrl}" -o "data-scheme/images/topic-{id}-{hash8}.{ext}"
    ```
-   下完用 `file` 校验是完整横图（首次请求可能截断，靠 `--retry` 兜底；不要把截断的坏图配上去）。
+   下完用 `file` 校验是完整横图（首次请求可能截断，靠 `--retry` 兜底）。
 
-5. **限速**：`.rss` 不要短时间连发（8 条连发会触发 CF challenge），每条间隔 4-8 秒。
+5. **限速**：连发会触发 CF challenge，每条间隔 4-8 秒。
 
-6. **相关性判断**仍按上方 `CLAUDE_VISION_ENABLED` 的逻辑。用户明确说"不分析图片"时，可只按尺寸（横图、≥600px）和帖子上下文筛选，但要在最终说明里告知跳过了视觉确认。
+6. **相关性判断**仍按上方 `CLAUDE_VISION_ENABLED` 的逻辑。用户明确说"不分析图片"时，可只按尺寸（横图、≥600px）和帖子上下文筛选，但在最终说明里告知跳过了视觉确认。
 
-若按上述走 `all_proxy` + `.rss` 仍抓不到（代理真的不可用），只能明确说明依据来自 RSS state 标题、已有快照或用户提供内容，**不要基于标题硬编正文**。
+若三件套齐全仍抓不到（cf_clearance 过期 / 代理不可用），只能明确说明依据来自 RSS state 标题、已有快照或用户提供内容，**不要基于标题硬编正文**。
 
 ## 工作方式
 
@@ -140,7 +149,7 @@ bun run check-data-json:render
 ## 重要约束
 
 - 不要修改 `ingest/preferences.jsonc`。这类补选是当天人工判断，不是长期偏好。
-- 不要重新跑 `bun run video:prepare`。它会重新覆盖 `data-scheme/data.json`，把人工补选结果冲掉。
+- 不要重新跑 `bun run video:auto-generate`。它会重新覆盖 `data-scheme/data.json`，把人工补选结果冲掉。
 - 不要让用户逐条运行 `rss:add --link ...` 之类命令。用户的高效用法就是一次贴多条 RSS 条目。
 - 不要把补选新闻写进 `data-generate.json`。原始维护文件永远是 `data-scheme/data.json`，`data-generate.json` 由 TTS 生成。
 - 不要手写 `audioSrc`、`timing`、`tts`、`icon` 字段。

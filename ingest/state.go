@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"sort"
 	"strings"
 	"time"
 )
@@ -14,10 +15,20 @@ type RSSState struct {
 	Items map[string]StateItem `json:"items"`
 }
 
+// StateItem 存的是 rss-state.json 里每条候选的完整字段。
+// 字段必须足以从 loadRSSStateAsItems 还原出等价的 Item：CanonicalID 是 itemFingerprint 的
+// 命门（hash 由它决定，丢了则 picks.json 的 hash 对不上），Description 是 [5/6] 识图抽图 URL 的来源。
 type StateItem struct {
-	SourceID string `json:"sourceId,omitempty"`
-	Title    string `json:"title"`
-	Link     string `json:"link,omitempty"`
+	SourceID    string    `json:"sourceId,omitempty"`
+	Title       string    `json:"title"`
+	Link        string    `json:"link,omitempty"`
+	ID          string    `json:"id,omitempty"`
+	StableID    string    `json:"stableId,omitempty"`
+	CanonicalID string    `json:"canonicalId,omitempty"`
+	SourceName  string    `json:"sourceName,omitempty"`
+	PubDate     string    `json:"pubDate,omitempty"`
+	PublishedAt time.Time `json:"publishedAt,omitempty"`
+	Description string    `json:"description,omitempty"`
 }
 
 // loadRSSState 读取最近一次抓取快照；文件不存在时返回空状态。
@@ -57,29 +68,59 @@ func snapshotRSSState(items []Item) RSSState {
 	state := RSSState{Items: make(map[string]StateItem, len(items))}
 	for _, item := range items {
 		state.Items[itemFingerprint(item)] = StateItem{
-			SourceID: item.SourceID,
-			Title:    item.Title,
-			Link:     item.Link,
+			SourceID:    item.SourceID,
+			Title:       item.Title,
+			Link:        item.Link,
+			ID:          item.ID,
+			StableID:    item.StableID,
+			CanonicalID: item.CanonicalID,
+			SourceName:  item.SourceName,
+			PubDate:     item.PubDate,
+			PublishedAt: item.PublishedAt,
+			Description: item.Description,
 		}
 	}
 	return state
 }
 
-// mergeRSSState 使用成功抓取来源的完整快照覆盖上次状态，同时保留失败来源的上次状态。
-func mergeRSSState(items []Item, previous RSSState, failures map[string]error) RSSState {
-	next := snapshotRSSState(items)
-	if len(failures) == 0 {
-		return next
+// loadRSSStateAsItems 把 rss-state.json 里的 StateItem 还原成 []Item，供 run-picks 阶段重构候选池。
+// 排序固定为 PublishedAt desc、hash asc：Go map 迭代序不确定，固定排序避免评分 prompt 序号漂移，
+// 与 fetchRecentItems（sources.go 按 PublishedAt desc 排序）保持一致。
+func loadRSSStateAsItems(path string) ([]Item, error) {
+	state, err := loadRSSState(path)
+	if err != nil {
+		return nil, err
 	}
-	for key, item := range previous.Items {
-		if _, exists := next.Items[key]; exists {
-			continue
-		}
-		if _, failed := failures[item.SourceID]; failed {
-			next.Items[key] = item
-		}
+	type entry struct {
+		hash string
+		item Item
 	}
-	return next
+	entries := make([]entry, 0, len(state.Items))
+	for hash, s := range state.Items {
+		entries = append(entries, entry{hash: hash, item: Item{
+			ID:          s.ID,
+			StableID:    s.StableID,
+			CanonicalID: s.CanonicalID,
+			SourceID:    s.SourceID,
+			SourceName:  s.SourceName,
+			Title:       s.Title,
+			Link:        s.Link,
+			PubDate:     s.PubDate,
+			PublishedAt: s.PublishedAt,
+			Description: s.Description,
+		}})
+	}
+	sort.Slice(entries, func(i, j int) bool {
+		if !entries[i].item.PublishedAt.Equal(entries[j].item.PublishedAt) {
+			return entries[i].item.PublishedAt.After(entries[j].item.PublishedAt)
+		}
+		return entries[i].hash < entries[j].hash
+	})
+	items := make([]Item, len(entries))
+	for i, e := range entries {
+		items[i] = e.item
+	}
+	return items, nil
 }
 
 // saveRSSState 原子地覆盖写入最近一次抓取快照：先写同目录临时文件再改名，
