@@ -19,10 +19,9 @@ var (
 	// 用 class 里的 onebox 标记定位（避免误伤属性里恰好含 onebox 的非 onebox 元素）；
 	// 未闭合时退而剥到字符串末尾（论坛 RSS 描述常被截断），避免漏过。
 	oneboxPattern = regexp.MustCompile(`(?is)<(?:aside|div)\b[^>]*\bclass="[^"]*\bonebox\b[^"]*"[^>]*>.*?(?:</(?:aside|div)>|$)`)
-	// 仅接受能可靠解码尺寸的格式（jpeg/png/webp）。avif 无标准库解码器、gif 在静态视频
-	// 场景里只会显示首帧且 image_assets 未注册其解码器，会让宽高解析为 0×0 进而触发渲染层
-	// 除零/异常缩放，故不作为候选 overlay 图。
-	imageURLPattern = regexp.MustCompile(`(?i)^https?://.+\.(?:jpe?g|png|webp)(?:\?.*)?$`)
+	// GIF 在静态视频场景里只会显示首帧，因此不作为候选 overlay；AVIF 的 ispe
+	// 尺寸由 image_assets.go 解析，和 JPEG/PNG/WebP 一样可以安全落盘。
+	imageURLPattern = regexp.MustCompile(`(?i)^https?://.+\.(?:jpe?g|png|webp|avif)(?:\?.*)?$`)
 )
 
 // visionMinStoryScore 是参与视觉识图配图的最低 Story 分数，等于日报入选线 minimumScore（默认 7）：
@@ -93,6 +92,10 @@ func (analyzer *VisionAnalyzer) analyzeItem(sourceIndex int, item Item, group Ne
 		fmt.Printf("   视觉补充：%s\n", imageURL)
 		result, err := analyzeRemoteImageWithClaude(imageURL, storyContext, analyzer)
 		if err != nil {
+			if fallback, ok := retainEmbeddedAVIF(imageURL, sourceIndex, item, "视觉服务未能读取 AVIF"); ok {
+				results = append(results, fallback)
+				continue
+			}
 			fmt.Printf("   ⚠️  警告：Claude 视觉识别失败，继续使用文本材料：%v\n", err)
 			continue
 		}
@@ -100,20 +103,41 @@ func (analyzer *VisionAnalyzer) analyzeItem(sourceIndex int, item Item, group Ne
 		result.SourceTitle = item.Title
 		result.ImageURL = imageURL
 		if !result.Relevant {
+			fmt.Printf("   图片跳过：视觉判断与 Story 无关 %s\n", imageURL)
 			continue
 		}
-		if result.Relevant && len(result.Facts) > 0 {
-			overlay, err := downloadVisionOverlayImage(imageURL, item)
-			if err != nil {
-				fmt.Printf("   ⚠️  警告：图片可作为事实补充，但未写入 overlayImg：%v\n", err)
-			} else {
-				result.OverlayPath = overlay.Path
-			}
-			results = append(results, result)
+		overlay, err := downloadVisionOverlay(imageURL, item)
+		if err != nil {
+			fmt.Printf("   ⚠️  警告：图片与 Story 相关，但未写入 overlayImg：%v\n", err)
 			continue
 		}
+		result.OverlayPath = overlay.Path
+		results = append(results, result)
 	}
 	return results
+}
+
+// retainEmbeddedAVIF 处理视觉服务不能解码 AVIF 的情况。候选已经来自正文中的直接
+// 图片节点（onebox/头像等包装已在 extractRemoteImageURLs 前剥离），因此保留原始 AVIF
+// 作为画面素材，比把产品实拍图静默丢掉更符合自动配图预期；仍会经过尺寸/小图过滤。
+func retainEmbeddedAVIF(imageURL string, sourceIndex int, item Item, reason string) (VisionResult, bool) {
+	if supportedOverlayImageExtensionFromURL(imageURL) != ".avif" {
+		return VisionResult{}, false
+	}
+	overlay, err := downloadVisionOverlay(imageURL, item)
+	if err != nil {
+		fmt.Printf("   ⚠️  AVIF 保留失败（%s）：%v\n", reason, err)
+		return VisionResult{}, false
+	}
+	fmt.Printf("   AVIF 保留：%s，已作为正文原图写入 %s\n", reason, overlay.Path)
+	return VisionResult{
+		Relevant:    true,
+		SourceIndex: sourceIndex,
+		SourceTitle: item.Title,
+		ImageURL:    imageURL,
+		OverlayPath: overlay.Path,
+		Summary:     "正文内 AVIF 原图",
+	}, true
 }
 
 // shouldAnalyze 判断是否应对该条目做图片视觉识别：
@@ -159,6 +183,8 @@ var execClaudeVision = func(args []string, timeout time.Duration) ([]byte, error
 	}
 	return out, err
 }
+
+var downloadVisionOverlay = downloadVisionOverlayImage
 
 // analyzeRemoteImageWithClaude 通过本机 claude CLI 调用图像分析 MCP 直接识别远程图片，
 // 在预算与超时约束下返回结构化的事实/不确定项结果。
@@ -256,9 +282,31 @@ func extractRemoteImageURLs(description string) []string {
 		}
 	}
 	if len(originals) > 0 {
-		return originals
+		orderedOriginals := preferVisionDecodableImages(originals)
+		if supportedOverlayImageExtensionFromURL(orderedOriginals[0]) != ".avif" || len(others) == 0 {
+			return orderedOriginals
+		}
+		// If every original is AVIF, try a decodable article image before spending
+		// the source budget on the format most likely to fail in the vision service.
+		return preferVisionDecodableImages(append(others, originals...))
 	}
-	return others
+	return preferVisionDecodableImages(others)
+}
+
+// preferVisionDecodableImages keeps source order within each class while sending AVIF
+// after formats the vision service can normally decode. This avoids spending the limited
+// per-source budget on a format failure before a PNG/JPEG from the same article.
+func preferVisionDecodableImages(urls []string) []string {
+	ordered := make([]string, 0, len(urls))
+	var avif []string
+	for _, imageURL := range urls {
+		if supportedOverlayImageExtensionFromURL(imageURL) == ".avif" {
+			avif = append(avif, imageURL)
+			continue
+		}
+		ordered = append(ordered, imageURL)
+	}
+	return append(ordered, avif...)
 }
 
 func stripOneboxHTML(description string) string {

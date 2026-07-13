@@ -887,11 +887,18 @@
   var entries = [];
   var entryMap = {};
   var selected = {};
-  // 预勾选：从已保存的 picks.json 回显（上次保存过的 hash 初始置选中）。
+  // 预勾选：仅回显「仍在当前候选池里」的旧 pick。已不在 rss-state.json 的过期 hash
+  // （通常是 24h lookback 之外滚掉的）直接丢弃——否则它们在页面上没有行、看不见也
+  // 取消不掉，却会被原样回写 picks.json，让 video 阶段报"N 条 pick 找不到"的误导性警告。
+  var staleDropped = 0;
   for (var ph in savedPicks) {
     if (Object.prototype.hasOwnProperty.call(savedPicks, ph) && savedPicks[ph]) {
-      selected[ph] = true;
+      if (items[ph]) selected[ph] = true;
+      else staleDropped++;
     }
+  }
+  if (staleDropped > 0) {
+    showToast("已丢弃 " + staleDropped + " 条过期 pick（不在当前候选池，保存时会清出 picks.json）");
   }
   var total = 0;
   var acceptedCount = 0;

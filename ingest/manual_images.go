@@ -33,12 +33,12 @@ func planManualCandidates(report DataJSON, groups []NewsGroup, items []Item, max
 		}
 		for scIdx := range story.Scenes {
 			sceneNum++
-			if !eligible || scIdx >= len(group.Tabs) {
+			if !eligible || scIdx >= len(group.Scenes) {
 				continue
 			}
-			tab := group.Tabs[scIdx]
+			sourceScene := group.Scenes[scIdx]
 			cand := 0
-			for _, index := range tab.EvidenceIndexes {
+			for _, index := range sourceScene.EvidenceIndexes {
 				if index < 1 || index > len(items) {
 					continue
 				}

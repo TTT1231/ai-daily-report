@@ -30,6 +30,7 @@ import {
   navigationMinimumWidth,
 } from "./navigation-layout";
 import {
+  getAutomaticOverlayScale,
   getTabLayout,
   INTRO_GAP,
   INTRO_VIEWPORT_HEIGHT,
@@ -806,6 +807,7 @@ const Tabs: FC<{
     titleFontSize,
     summaryFontSize,
     summaryLineHeight,
+    summaryLineClamp,
   } = getTabLayout(tabCount);
   const hasActiveTab = story.activeTab !== undefined;
   const backgroundOpacity = interpolate(overlayVisibility, [0, 1], [1, 0.24], {
@@ -893,6 +895,9 @@ const Tabs: FC<{
                 display: "flex",
                 alignItems: "center",
                 gap: 12,
+                minWidth: 0,
+                flexShrink: 0,
+                overflow: "hidden",
               }}
             >
               {tab.icon && (
@@ -903,7 +908,16 @@ const Tabs: FC<{
                   size={isDenseLayout ? 52 : 58}
                 />
               )}
-              {tab.title}
+              <span
+                style={{
+                  minWidth: 0,
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
+                  whiteSpace: "nowrap",
+                }}
+              >
+                {tab.title}
+              </span>
             </div>
             <div
               style={{
@@ -912,6 +926,12 @@ const Tabs: FC<{
                 lineHeight: summaryLineHeight,
                 fontWeight: active ? 550 : 500,
                 letterSpacing: ".005em",
+                minHeight: 0,
+                flex: 1,
+                overflow: "hidden",
+                display: "-webkit-box",
+                WebkitBoxOrient: "vertical",
+                WebkitLineClamp: summaryLineClamp,
               }}
             >
               <InlineMarkup text={tab.summary} theme={theme} active={active} />
@@ -1118,7 +1138,7 @@ const IntroOverview: FC<{
 };
 
 export type TabLayoutPreviewProps = {
-  tabCount: 2 | 4 | 5;
+  tabCount: 2 | 4 | 5 | 6;
   theme: Theme;
 };
 
@@ -1242,6 +1262,10 @@ const SourceOverlay: FC<{
   const exitProgress = 1 - hide;
   const translateY = (1 - reveal) * 18 - exitProgress * 14;
   const imageLayout = getOverlayImageLayout(scene);
+  const imageScale =
+    scene.overlayImgScale ??
+    getAutomaticOverlayScale(scene.overlayImgWidth, scene.overlayImgHeight) ??
+    1;
 
   return (
     <div
@@ -1266,7 +1290,7 @@ const SourceOverlay: FC<{
             ? `1px solid ${palette.overlayCardBorder}`
             : "none",
           filter: `drop-shadow(${palette.overlayShadow})`,
-          transform: `scale(${scene.overlayImgScale ?? 1})`,
+          transform: `scale(${imageScale})`,
           transformOrigin: "center center",
         }}
       >

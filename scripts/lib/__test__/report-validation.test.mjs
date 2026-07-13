@@ -17,29 +17,36 @@ function errorsFor(scene) {
 
 test("dims mismatch no longer errors (build owns correctness)", () => {
   assert.deepEqual(
-    errorsFor({overlayImg: "images/x.png", overlayImgWidth: 1158, overlayImgHeight: 1146}),
+    errorsFor({
+      overlayImg: "images/x.png",
+      overlayImgWidth: 1158,
+      overlayImgHeight: 1146,
+    }),
     [],
   );
 });
 
 test("missing dims is fine (optional hint)", () => {
-  assert.deepEqual(errorsFor({overlayImg: "images/x.png"}), []);
+  assert.deepEqual(errorsFor({ overlayImg: "images/x.png" }), []);
 });
 
 test("width without height (or vice versa) still errors", () => {
-  assert.deepEqual(errorsFor({overlayImg: "images/x.png", overlayImgWidth: 100}), [
-    "stories[0].scenes[0].overlayImgWidth/overlayImgHeight: must be set together",
-  ]);
+  assert.deepEqual(
+    errorsFor({ overlayImg: "images/x.png", overlayImgWidth: 100 }),
+    [
+      "stories[0].scenes[0].overlayImgWidth/overlayImgHeight: must be set together",
+    ],
+  );
 });
 
 test("dims without overlayImg still errors", () => {
-  assert.deepEqual(errorsFor({overlayImgWidth: 100, overlayImgHeight: 100}), [
+  assert.deepEqual(errorsFor({ overlayImgWidth: 100, overlayImgHeight: 100 }), [
     "stories[0].scenes[0].overlayImg: is required when dimensions are set",
   ]);
 });
 
 test("scale without overlayImg still errors", () => {
-  assert.deepEqual(errorsFor({overlayImgScale: 1.2}), [
+  assert.deepEqual(errorsFor({ overlayImgScale: 1.2 }), [
     "stories[0].scenes[0].overlayImg: is required when scale is set",
   ]);
 });
@@ -53,25 +60,34 @@ const SCHEMA_REF = "../config/data.schema.json";
 
 /** 调 validateReport 并只取 errors；默认 checkAssets:false（资产另由 asset-check 覆盖）。 */
 const errorsOf = (report, options = {}) =>
-  validateReport(report, {checkAssets: false, ...options}).errors;
+  validateReport(report, { checkAssets: false, ...options }).errors;
 
 const hasError = (errors, needle) => errors.some((e) => e.includes(needle));
 
 // ---------- fixture 工厂（全部 schema-合法）----------
 function tab(overrides = {}) {
-  return {id: "tab-1", title: "标题", summary: "摘要内容。", ...overrides};
+  const id = overrides.id ?? "tab-1";
+  return { id, title: `标题-${id}`, summary: "摘要内容。", ...overrides };
 }
 
 function scene(overrides = {}) {
-  return {id: "scene-1", subtitle: "一段不超过 96 字的口播字幕。", ...overrides};
-}
-
-/** 带 timing + tts + audioSrc 的 scene（Generated 形态）；durationMs 由 audio+tail 派生保证自洽。 */
-function timedScene({audioLengthMs = 1000, tailPaddingMs = 250, ...rest} = {}) {
   return {
     id: "scene-1",
     subtitle: "一段不超过 96 字的口播字幕。",
-    timing: {startMs: 0, durationMs: audioLengthMs + tailPaddingMs},
+    ...overrides,
+  };
+}
+
+/** 带 timing + tts + audioSrc 的 scene（Generated 形态）；durationMs 由 audio+tail 派生保证自洽。 */
+function timedScene({
+  audioLengthMs = 1000,
+  tailPaddingMs = 250,
+  ...rest
+} = {}) {
+  return {
+    id: "scene-1",
+    subtitle: "一段不超过 96 字的口播字幕。",
+    timing: { startMs: 0, durationMs: audioLengthMs + tailPaddingMs },
     audioSrc: "audio/scene-1.mp3",
     tts: {
       provider: "minimax",
@@ -94,14 +110,19 @@ function story(overrides = {}) {
     topTitle: "栏目",
     bottomTitle: "短标",
     contentTitle: "完整标题",
-    tabs: [tab({id: "tab-1"}), tab({id: "tab-2"})],
-    scenes: [scene({id: "scene-1"})],
+    tabs: [tab({ id: "tab-1" }), tab({ id: "tab-2" })],
+    scenes: [scene({ id: "scene-1" })],
     ...overrides,
   };
 }
 
 function rawReport(overrides = {}) {
-  return {$schema: SCHEMA_REF, date: "2026-06-28", stories: [story()], ...overrides};
+  return {
+    $schema: SCHEMA_REF,
+    date: "2026-06-28",
+    stories: [story()],
+    ...overrides,
+  };
 }
 
 /** 按 [intro, ...stories, outro] 顺序累计赋值 startMs，保证时间线连续（渲染期不变量）。 */
@@ -133,20 +154,20 @@ function generatedReport(overrides = {}) {
       topTitle: "概览",
       bottomTitle: "概览",
       contentTitle: "今日概览",
-      tabs: [tab({id: "intro-tab-1"}), tab({id: "intro-tab-2"})],
-      scenes: [timedScene({id: "intro-greeting", audioLengthMs: 1000})],
+      tabs: [tab({ id: "intro-tab-1" }), tab({ id: "intro-tab-2" })],
+      scenes: [timedScene({ id: "intro-greeting", audioLengthMs: 1000 })],
     },
     stories: [
       story({
         id: "story-1",
-        scenes: [timedScene({id: "scene-1", audioLengthMs: 1500})],
+        scenes: [timedScene({ id: "scene-1", audioLengthMs: 1500 })],
       }),
     ],
     outro: {
       id: "outro",
       topTitle: "结束",
       bottomTitle: "结束",
-      scenes: [timedScene({id: "outro-ending", audioLengthMs: 900})],
+      scenes: [timedScene({ id: "outro-ending", audioLengthMs: 900 })],
     },
     ...overrides,
   };
@@ -160,16 +181,31 @@ test("validateReport accepts a minimal Raw report", () => {
 
 test("validateReport accepts a fully-assembled Generated report and reports total duration", () => {
   // Generated 带 intro/outro，必须在 renderMode 下校验（Raw 模式会判 intro/outro 非法）
-  const result = validateReport(generatedReport(), {checkAssets: false, renderMode: true});
+  const result = validateReport(generatedReport(), {
+    checkAssets: false,
+    renderMode: true,
+  });
   assert.deepEqual(result.errors, []);
   assert.equal(result.totalDurationMs, 1250 + 1750 + 1150);
+});
+
+test("generated Intro overview is not constrained by news-card summary limits", () => {
+  const report = generatedReport();
+  report.intro.tabs[0].summary = "一条完整新闻标题。".repeat(20);
+  const result = validateReport(report, {
+    checkAssets: false,
+    renderMode: true,
+  });
+  assert.deepEqual(result.errors, []);
 });
 
 // ---------- $schema ----------
 test("$schema must equal the canonical config path", () => {
   const r = rawReport();
   r.$schema = "https://example.com/wrong.json";
-  assert.ok(hasError(errorsOf(r), '$schema: must equal "../config/data.schema.json"'));
+  assert.ok(
+    hasError(errorsOf(r), '$schema: must equal "../config/data.schema.json"'),
+  );
 });
 
 // ---------- intro / outro 存在性 ----------
@@ -177,14 +213,24 @@ test("renderMode requires intro", () => {
   const r = generatedReport();
   delete r.intro;
   assignContiguousStartMs(r);
-  assert.ok(hasError(errorsOf(r, {renderMode: true}), "intro: is required before rendering"));
+  assert.ok(
+    hasError(
+      errorsOf(r, { renderMode: true }),
+      "intro: is required before rendering",
+    ),
+  );
 });
 
 test("renderMode requires outro", () => {
   const r = generatedReport();
   delete r.outro;
   assignContiguousStartMs(r);
-  assert.ok(hasError(errorsOf(r, {renderMode: true}), "outro: is required before rendering"));
+  assert.ok(
+    hasError(
+      errorsOf(r, { renderMode: true }),
+      "outro: is required before rendering",
+    ),
+  );
 });
 
 test("Raw mode rejects a manually-added intro", () => {
@@ -194,8 +240,8 @@ test("Raw mode rejects a manually-added intro", () => {
     topTitle: "x",
     bottomTitle: "x",
     contentTitle: "x",
-    tabs: [tab({id: "t1"}), tab({id: "t2"})],
-    scenes: [scene({id: "intro-greeting"})],
+    tabs: [tab({ id: "t1" }), tab({ id: "t2" })],
+    scenes: [scene({ id: "intro-greeting" })],
   };
   assert.ok(hasError(errorsOf(r), "intro/outro: are generated automatically"));
 });
@@ -204,35 +250,145 @@ test("Raw mode rejects a manually-added intro", () => {
 test("duplicate story.id is rejected", () => {
   const r = rawReport({
     stories: [
-      story({id: "dup"}),
-      story({id: "dup", scenes: [scene({id: "scene-2"})]}),
+      story({ id: "dup" }),
+      story({ id: "dup", scenes: [scene({ id: "scene-2" })] }),
     ],
   });
   assert.ok(hasError(errorsOf(r), 'stories[1].id: duplicate id "dup"'));
 });
 
 test("Raw mode rejects the reserved story id 'intro'", () => {
-  const r = rawReport({stories: [story({id: "intro"})]});
+  const r = rawReport({ stories: [story({ id: "intro" })] });
   assert.ok(hasError(errorsOf(r), "is reserved and generated automatically"));
 });
 
 test("duplicate tab.id within a story is rejected", () => {
   const r = rawReport({
-    stories: [story({tabs: [tab({id: "dup"}), tab({id: "dup"})]})],
+    stories: [story({ tabs: [tab({ id: "dup" }), tab({ id: "dup" })] })],
   });
   assert.ok(hasError(errorsOf(r), 'tabs[1].id: duplicate id "dup"'));
 });
 
+test("tab summary exceeding the card budget is rejected before TTS", () => {
+  const overlong = "字".repeat(111);
+  const r = rawReport({
+    stories: [
+      story({
+        tabs: [tab({ id: "tab-1", summary: overlong }), tab({ id: "tab-2" })],
+      }),
+    ],
+  });
+  assert.ok(
+    hasError(
+      errorsOf(r),
+      "tabs[0].summary: has 111 visible characters; maximum is 110",
+    ),
+  );
+});
+
+test("plain tab summary may use the full 110-character budget", () => {
+  const exactlyAtLimit = `${"字".repeat(109)}。`;
+  const r = rawReport({
+    stories: [
+      story({
+        tabs: [
+          tab({ id: "tab-1", summary: exactlyAtLimit }),
+          tab({ id: "tab-2" }),
+        ],
+      }),
+    ],
+  });
+  assert.deepEqual(errorsOf(r), []);
+});
+
+test("markdown weight can exceed the visual budget before 110 visible characters", () => {
+  const formattedAtPlainLimit = `**${"字".repeat(100)}**\`${"A".repeat(10)}\``;
+  const r = rawReport({
+    stories: [
+      story({
+        tabs: [
+          tab({ id: "tab-1", summary: formattedAtPlainLimit }),
+          tab({ id: "tab-2" }),
+        ],
+      }),
+    ],
+  });
+  assert.ok(hasError(errorsOf(r), "visual units; maximum is 110"));
+});
+
+test("tab summary allows at most one bold and one inline-code span", () => {
+  const overformatted =
+    "**重点一** 和 **重点二**，涉及 `产品一` 与 `产品二` 的具体变化。";
+  const r = rawReport({
+    stories: [
+      story({
+        tabs: [
+          tab({ id: "tab-1", summary: overformatted }),
+          tab({ id: "tab-2" }),
+        ],
+      }),
+    ],
+  });
+  const errors = errorsOf(r);
+  assert.ok(hasError(errors, "must use at most one bold span"));
+  assert.ok(hasError(errors, "must use at most one inline-code span"));
+});
+
+test("tab titles must be distinct and must not copy contentTitle", () => {
+  const r = rawReport({
+    stories: [
+      story({
+        contentTitle: "完整新闻标题",
+        tabs: [
+          tab({ id: "tab-1", title: "完整新闻标题" }),
+          tab({ id: "tab-2", title: "完整新闻标题" }),
+        ],
+      }),
+    ],
+  });
+  const errors = errorsOf(r);
+  assert.ok(hasError(errors, "must not copy the full story contentTitle"));
+  assert.ok(hasError(errors, "must be unique within its story"));
+});
+
+test("contentTitle must be short and complete instead of ellipsized", () => {
+  const r = rawReport({
+    stories: [story({ contentTitle: "一条看似很长但最后被机械截断的新闻标题…" })],
+  });
+  const errors = errorsOf(r);
+  assert.ok(hasError(errors, "contentTitle"));
+});
+
+test("tab summaries must be complete and non-overlapping", () => {
+  const first = "这是第一张卡片已经完整说明的机器人发布与形态切换事实。";
+  const r = rawReport({
+    stories: [
+      story({
+        tabs: [
+          tab({ id: "tab-1", summary: first }),
+          tab({ id: "tab-2", summary: `${first}这里又复制并追加了其它内容。` }),
+          tab({ id: "tab-3", summary: "这句话被硬截在中间" }),
+        ],
+      }),
+    ],
+  });
+  const errors = errorsOf(r);
+  assert.ok(
+    hasError(errors, "must not contain or duplicate another tab summary"),
+  );
+  assert.ok(hasError(errors, "must end as a complete sentence"));
+});
+
 test("activeTab referencing a non-existent tab is rejected", () => {
-  const r = rawReport({stories: [story({activeTab: "no-such-tab"})]});
+  const r = rawReport({ stories: [story({ activeTab: "no-such-tab" })] });
   assert.ok(hasError(errorsOf(r), 'activeTab: unknown tab id "no-such-tab"'));
 });
 
 test("duplicate global scene.id across stories is rejected", () => {
   const r = rawReport({
     stories: [
-      story({id: "s1", scenes: [scene({id: "dup-scene"})]}),
-      story({id: "s2", scenes: [scene({id: "dup-scene"})]}),
+      story({ id: "s1", scenes: [scene({ id: "dup-scene" })] }),
+      story({ id: "s2", scenes: [scene({ id: "dup-scene" })] }),
     ],
   });
   assert.ok(hasError(errorsOf(r), 'duplicate global scene id "dup-scene"'));
@@ -242,30 +398,35 @@ test("duplicate global scene.id across stories is rejected", () => {
 test("more than one activeIntro is rejected", () => {
   const r = rawReport({
     stories: [
-      story({id: "s1", topTitle: "A", activeIntro: true}),
-      story({id: "s2", topTitle: "B", activeIntro: true}),
+      story({ id: "s1", topTitle: "A", activeIntro: true }),
+      story({ id: "s2", topTitle: "B", activeIntro: true }),
     ],
   });
-  assert.ok(hasError(errorsOf(r), "only one story may set activeIntro to true"));
+  assert.ok(
+    hasError(errorsOf(r), "only one story may set activeIntro to true"),
+  );
 });
 
 test("a topTitle reappearing in a non-adjacent segment is rejected", () => {
   const r = rawReport({
     stories: [
-      story({id: "s1", topTitle: "A"}),
-      story({id: "s2", topTitle: "B"}),
-      story({id: "s3", topTitle: "A"}),
+      story({ id: "s1", topTitle: "A" }),
+      story({ id: "s2", topTitle: "B" }),
+      story({ id: "s3", topTitle: "A" }),
     ],
   });
   assert.ok(
-    hasError(errorsOf(r), 'category "A" appears in multiple non-adjacent segments'),
+    hasError(
+      errorsOf(r),
+      'category "A" appears in multiple non-adjacent segments',
+    ),
   );
 });
 
 test("more than 5 unique topTitle categories is rejected", () => {
   const r = rawReport({
     stories: ["A", "B", "C", "D", "E", "F"].map((t, i) =>
-      story({id: `s${i}`, topTitle: t}),
+      story({ id: `s${i}`, topTitle: t }),
     ),
   });
   assert.ok(hasError(errorsOf(r), "at most 5 unique topTitle categories"));
@@ -280,25 +441,34 @@ test("renderMode flags a scene missing timing", () => {
   delete scene0.audioSrc;
   assignContiguousStartMs(r);
   assert.ok(
-    hasError(errorsOf(r, {renderMode: true}), "timing: is required before rendering"),
+    hasError(
+      errorsOf(r, { renderMode: true }),
+      "timing: is required before rendering",
+    ),
   );
 });
 
 test("renderMode flags a 1ms gap in startMs", () => {
   const r = generatedReport();
   r.stories[0].scenes[0].timing.startMs += 1;
-  const errors = errorsOf(r, {renderMode: true});
+  const errors = errorsOf(r, { renderMode: true });
   const gap = errors.find((e) => e.includes("timing.startMs: expected"));
-  assert.ok(gap, `expected a startMs continuity error, got: ${JSON.stringify(errors)}`);
+  assert.ok(
+    gap,
+    `expected a startMs continuity error, got: ${JSON.stringify(errors)}`,
+  );
   assert.match(gap, /expected 1250, received 1251/);
 });
 
 test("renderMode flags a 1ms overlap in startMs", () => {
   const r = generatedReport();
   r.stories[0].scenes[0].timing.startMs -= 1;
-  const errors = errorsOf(r, {renderMode: true});
+  const errors = errorsOf(r, { renderMode: true });
   const overlap = errors.find((e) => e.includes("timing.startMs: expected"));
-  assert.ok(overlap, `expected a startMs continuity error, got: ${JSON.stringify(errors)}`);
+  assert.ok(
+    overlap,
+    `expected a startMs continuity error, got: ${JSON.stringify(errors)}`,
+  );
   assert.match(overlap, /expected 1250, received 1249/);
 });
 
@@ -307,7 +477,10 @@ test("tts without audioSrc is rejected", () => {
   const r = generatedReport();
   delete r.stories[0].scenes[0].audioSrc;
   assert.ok(
-    hasError(errorsOf(r, {renderMode: true}), "audioSrc: is required when tts metadata exists"),
+    hasError(
+      errorsOf(r, { renderMode: true }),
+      "audioSrc: is required when tts metadata exists",
+    ),
   );
 });
 
@@ -315,7 +488,10 @@ test("tts without timing is rejected", () => {
   const r = generatedReport();
   delete r.stories[0].scenes[0].timing;
   assert.ok(
-    hasError(errorsOf(r, {renderMode: true}), "timing: is required when tts metadata exists"),
+    hasError(
+      errorsOf(r, { renderMode: true }),
+      "timing: is required when tts metadata exists",
+    ),
   );
 });
 
@@ -323,6 +499,9 @@ test("durationMs must equal audioLengthMs + tailPaddingMs", () => {
   const r = generatedReport();
   r.stories[0].scenes[0].timing.durationMs += 1;
   assert.ok(
-    hasError(errorsOf(r, {renderMode: true}), "must equal tts.audioLengthMs + tts.tailPaddingMs"),
+    hasError(
+      errorsOf(r, { renderMode: true }),
+      "must equal tts.audioLengthMs + tts.tailPaddingMs",
+    ),
   );
 });

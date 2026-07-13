@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.9.0
+
+- Changed: 每条 Story 的口播（Scene）与信息卡（Tab）解耦——通常只生成 1 条、最多 2 条整条新闻的精简口播，不再逐张朗读 2～6 张 Tab，视频更短、TTS 更省
+- Changed: 播放区主标题 contentTitle 上限 42→30 字，必须语义完整、禁止省略号截断；短原标题直接复用，超长标题由模型改写而非机械截取前缀
+- Changed: 底部时间线短标签改为模型生成的「主体+事件」标题（navigation_title），不再走品牌推断兜底，避免扎堆退化成「AI 动态」
+- Changed: Tab 摘要校验收紧——粗体与行内代码各最多一段、Markdown 加权后视觉占用也不超过 110 单位、必须完整句结尾、不得复制完整标题或与同 Story 其它卡重复
+- Added: 不合格的 Story 最多触发两轮带拒绝原因的定向重写，仍不达标才逐条跳过；不再用原文碎片静默降级补齐（含人工 pick）
+- Added: 渲染层自动给宽高均不超过 1000px 的小尺寸竖图放大（高窄 1.3／中等 1.2／轻微 1.1），自动值不写回 JSON，手动 overlayImgScale 仍可覆盖
+- Added: AVIF overlay 端到端可用——ingest 解码 AVIF 尺寸（多图画布取最大、跳过缩略图）并接受 .avif，与构建期 JS 解析、schema 声明对齐
+- Added: 新增 SixTabLayout 预览；Tab 摘要按布局行数限位（summaryLineClamp），接近 110 单位的摘要不再在密集布局里提前截断，标题超长时省略号
+- Fixed: 半自动挑选页丢弃已不在当前候选池（24h lookback 之外滚掉）的过期 pick，不再写回 picks.json 触发「N 条 pick 找不到」的误导警告
+- Fixed: linux.do 条目正文剥离 Discourse 统一追加的「X 个帖子 - Y 位参与者 阅读完整话题」页脚
+
 ## 0.8.0
 
 - Added: 新增「半自动挑选」流水线与 `video:half-auto` 一键命令——先抓 RSS 快照，在本地挑选页勾选条目，再喂给 ingest 评分编排出 data.json，想人工干预选题时不再必须全自动跑模型

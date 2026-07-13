@@ -34,14 +34,14 @@ func solidPNG(t *testing.T, width, height int) []byte {
 }
 
 // buildReport builds a DataJSON whose stories are already in final (post-compaction)
-// order, each tagged with the groups index it came from and one scene per tab.
+// order, each tagged with the groups index it came from and the same Story-level scenes.
 func buildReport(groups []NewsGroup) DataJSON {
 	var report DataJSON
 	// Caller pre-arranges the desired final order via the order of `groups` passed in;
 	// we mirror that order and tag sourceGroupIndex so planManualCandidates can map back.
 	for i := range groups {
 		story := DataJSONStory{sourceGroupIndex: i}
-		for range groups[i].Tabs {
+		for range groups[i].Scenes {
 			story.Scenes = append(story.Scenes, DataJSONScene{})
 		}
 		report.Stories = append(report.Stories, story)
@@ -51,8 +51,8 @@ func buildReport(groups []NewsGroup) DataJSON {
 
 func TestPlanManualCandidates_ScoreGate(t *testing.T) {
 	groups := []NewsGroup{
-		{Score: 9, Tabs: []StoryTab{{EvidenceIndexes: []int{1}}}},
-		{Score: 8, Tabs: []StoryTab{{EvidenceIndexes: []int{2}}}}, // below 9 → skipped
+		{Score: 9, Scenes: []StoryScene{{Subtitle: "第一条测试口播内容足够完整并对应来源一。", EvidenceIndexes: []int{1}}}},
+		{Score: 8, Scenes: []StoryScene{{Subtitle: "第二条测试口播内容足够完整并对应来源二。", EvidenceIndexes: []int{2}}}}, // below 9 → skipped
 	}
 	items := []Item{
 		imgItem("https://src/1", `<img src="https://cdn/a.png">`),
@@ -70,9 +70,9 @@ func TestPlanManualCandidates_ScoreGate(t *testing.T) {
 func TestPlanManualCandidates_PerSceneCapAndNumbering(t *testing.T) {
 	// One story, two scenes. Scene 1 has 3 candidate URLs (cap=2); scene 2 has 1.
 	groups := []NewsGroup{
-		{Score: 10, Tabs: []StoryTab{
-			{EvidenceIndexes: []int{1}}, // scene 1
-			{EvidenceIndexes: []int{2}}, // scene 2
+		{Score: 10, Scenes: []StoryScene{
+			{Subtitle: "第一条测试口播内容足够完整并对应来源一。", EvidenceIndexes: []int{1}}, // scene 1
+			{Subtitle: "第二条测试口播内容足够完整并对应来源二。", EvidenceIndexes: []int{2}}, // scene 2
 		}},
 	}
 	items := []Item{
@@ -92,9 +92,9 @@ func TestPlanManualCandidates_PerSceneCapAndNumbering(t *testing.T) {
 
 func TestPlanManualCandidates_DeduplicatesImageURLsAcrossScenes(t *testing.T) {
 	groups := []NewsGroup{
-		{Score: 10, Tabs: []StoryTab{
-			{EvidenceIndexes: []int{1}},
-			{EvidenceIndexes: []int{1}},
+		{Score: 10, Scenes: []StoryScene{
+			{Subtitle: "第一条测试口播内容足够完整并对应同一来源。", EvidenceIndexes: []int{1}},
+			{Subtitle: "第二条测试口播内容足够完整并对应同一来源。", EvidenceIndexes: []int{1}},
 		}},
 	}
 	items := []Item{
@@ -112,8 +112,8 @@ func TestPlanManualCandidates_DeduplicatesImageURLsAcrossScenes(t *testing.T) {
 func TestPlanManualCandidates_FollowsFinalStoryOrder(t *testing.T) {
 	// Two groups; report.Stories is in reversed order (simulating compaction reordering).
 	groups := []NewsGroup{
-		{Score: 9, Tabs: []StoryTab{{EvidenceIndexes: []int{1}}}}, // group 0
-		{Score: 9, Tabs: []StoryTab{{EvidenceIndexes: []int{2}}}}, // group 1
+		{Score: 9, Scenes: []StoryScene{{Subtitle: "第一条测试口播内容足够完整并对应来源一。", EvidenceIndexes: []int{1}}}}, // group 0
+		{Score: 9, Scenes: []StoryScene{{Subtitle: "第二条测试口播内容足够完整并对应来源二。", EvidenceIndexes: []int{2}}}}, // group 1
 	}
 	items := []Item{
 		imgItem("https://src/1", `<img src="https://cdn/a.png">`),
@@ -144,7 +144,7 @@ func TestDownloadManualCandidateImages_WritesSceneFiles(t *testing.T) {
 	defer srv.Close()
 
 	groups := []NewsGroup{
-		{Score: 9, Tabs: []StoryTab{{EvidenceIndexes: []int{1}}}},
+		{Score: 9, Scenes: []StoryScene{{Subtitle: "这是一条用于候选图片规划测试的完整口播。", EvidenceIndexes: []int{1}}}},
 	}
 	items := []Item{
 		imgItem("https://src/1", `<img src="`+srv.URL+`/a.png">`),
@@ -180,7 +180,7 @@ func TestDownloadManualCandidateImages_SkipsDuplicateBytesAndDecorativeSquares(t
 	defer srv.Close()
 
 	groups := []NewsGroup{
-		{Score: 9, Tabs: []StoryTab{{EvidenceIndexes: []int{1}}}},
+		{Score: 9, Scenes: []StoryScene{{Subtitle: "这是一条用于候选图片下载测试的完整口播。", EvidenceIndexes: []int{1}}}},
 	}
 	items := []Item{
 		imgItem("https://src/1", `<img src="`+srv.URL+`/a.png"><img src="`+srv.URL+`/b.png"><img src="`+srv.URL+`/logo.png">`),
@@ -213,6 +213,7 @@ func TestGenerateDataJSON_VisionOffDoesNotAttachAndTriggersNoDownload(t *testing
 			{Title: "要点一", Summary: "这是足够长的摘要内容用于通过字数校验。", EvidenceIndexes: []int{1}},
 			{Title: "要点二", Summary: "这是另一段足够长的摘要内容用于通过字数校验。", EvidenceIndexes: []int{1}},
 		},
+		Scenes: []StoryScene{{Subtitle: "这是一条概括整条新闻的精简测试口播，不逐张朗读信息卡。", EvidenceIndexes: []int{1}}},
 	}}
 	items := []Item{{Title: "来源一", SourceID: "s", Link: "https://example.com/one", Description: "纯文本正文，没有图片"}}
 	path := filepath.Join(t.TempDir(), "data.json")

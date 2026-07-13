@@ -6,6 +6,7 @@ import {
   imagePathSchema,
   audioPathSchema,
   iconPathSchema,
+  dailyTabSchema,
   dailyStorySchema,
   dailyIntroSchema,
   hasDailyReportProps,
@@ -56,6 +57,16 @@ test("iconPathSchema requires the icons/ prefix and svg/png extension", () => {
   assert.equal(iconPathSchema.parse("icons/tab-1.svg"), "icons/tab-1.svg");
 });
 
+test("dailyTabSchema rejects summaries beyond the raw schema safety limit", () => {
+  assert.throws(() =>
+    dailyTabSchema.parse({
+      id: "tab-1",
+      title: "标题",
+      summary: "字".repeat(129),
+    }),
+  );
+});
+
 function validTab(overrides: Record<string, unknown> = {}) {
   return { id: "tab-1", title: "标题", summary: "摘要", ...overrides };
 }
@@ -81,6 +92,28 @@ test("dailyStorySchema rejects a story with fewer than 2 tabs", () => {
   assert.throws(() => dailyStorySchema.parse(oneTabStory));
 });
 
+test("dailyStorySchema requires a complete contentTitle without ellipsis", () => {
+  const base = {
+    id: "story-1",
+    topTitle: "栏目",
+    bottomTitle: "短标",
+    tabs: [validTab({ id: "tab-1" }), validTab({ id: "tab-2" })],
+    scenes: [validScene()],
+  };
+  assert.doesNotThrow(() =>
+    dailyStorySchema.parse({
+      ...base,
+      contentTitle: "31家企业发布智能体个人信息保护公约",
+    }),
+  );
+  assert.throws(() =>
+    dailyStorySchema.parse({
+      ...base,
+      contentTitle: "《智能体个人信息保护自律公约》发布，百度腾讯阿里等…",
+    }),
+  );
+});
+
 test("dailyIntroSchema rejects an intro with fewer than 2 tabs", () => {
   const oneTabIntro = {
     id: "intro",
@@ -91,6 +124,44 @@ test("dailyIntroSchema rejects an intro with fewer than 2 tabs", () => {
     scenes: [validScene()],
   };
   assert.throws(() => dailyIntroSchema.parse(oneTabIntro));
+});
+
+test("dailyIntroSchema allows an aggregated overview longer than a news card", () => {
+  const intro = {
+    id: "intro",
+    topTitle: "Intro",
+    bottomTitle: "Intro",
+    contentTitle: "概览",
+    tabs: [
+      validTab({ id: "tab-1", summary: "完整新闻标题。".repeat(20) }),
+      validTab({ id: "tab-2" }),
+    ],
+    scenes: [validScene()],
+  };
+  assert.doesNotThrow(() => dailyIntroSchema.parse(intro));
+});
+
+test("dailyStorySchema limits Story narration to at most two scenes", () => {
+  const base = {
+    id: "story-1",
+    topTitle: "栏目",
+    bottomTitle: "短标",
+    contentTitle: "完整标题",
+    tabs: [validTab({ id: "tab-1" }), validTab({ id: "tab-2" })],
+  };
+  assert.doesNotThrow(() =>
+    dailyStorySchema.parse({ ...base, scenes: [validScene()] }),
+  );
+  assert.throws(() =>
+    dailyStorySchema.parse({
+      ...base,
+      scenes: [
+        validScene({ id: "scene-1" }),
+        validScene({ id: "scene-2" }),
+        validScene({ id: "scene-3" }),
+      ],
+    }),
+  );
 });
 
 test("dailyStorySchema supports scene-level overlay image scale", () => {

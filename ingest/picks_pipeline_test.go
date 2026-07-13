@@ -19,8 +19,8 @@ import (
 //  1. 命门：picks.json 的 hash 能在 rss-state.json 重构后重新算出且完全相等（CanonicalID 完整还原）。
 //  2. 每条 picked 独立成一个单来源 Story（不合并、不聚类），SourceIndexes 长度恒为 1。
 //  3. 未 pick 的条目不进 Story；picks 里不在候选池的 hash 静默跳过（stale pick 不报错）。
-//  4. 坑A：picked Story 有效 Tab 不足 minStoryTabs 时走 backfillStoryTabs 降级补齐，不剔除、不报错。
-//  5. backfill 出来的 Tab 内容有效（title/summary/subtitle 非空），能过 generateDataJSON 的 minStoryTabs 闸。
+//  4. 每个 picked Story 必须由模型直接给出合格 Tabs 与 1-2 个 Story 级 Scenes，不静默降级拼正文。
+//  5. 最终 data.json 的 Scene 数量与 Tab 数量解耦。
 func TestPicksPathEndToEnd(t *testing.T) {
 	now := time.Date(2026, 7, 9, 10, 0, 0, 0, time.UTC)
 	items := []Item{
@@ -152,15 +152,16 @@ func TestPicksPathEndToEnd(t *testing.T) {
 		pickedGroupIndexes[i] = true
 	}
 
-	// mock AI：第一个 Story 给足 2 个合格 Tab（不触发 backfill），第二个 Story 只给 1 个合格 Tab（触发 backfill 补到 2）。
+	// mock AI：两个 Story 都直接给足合格 Tabs 与一条整条新闻口播。
 	// summary 必须 ≥ minTabSummaryRunes(25) 汉字才能过 normalizeStoryTabs 校验。
 	tabsServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		resp := `[{"group_index":1,"tabs":[
 			{"title":"自研芯片","summary":"DeepSeek 正在自主研发专用芯片以降低对英伟达 GPU 的依赖，这是重要的供应链自主化举措。","subtitle":"DeepSeek 正在自研 AI 芯片以减少对英伟达和华为的芯片依赖。","kind":"fact","evidence_indexes":[1]},
 			{"title":"行业影响","summary":"自研芯片若成功将显著降低推理成本，改变当前算力市场格局，影响整个产业链上下游。","subtitle":"DeepSeek 自研芯片有望降低推理成本并改变算力市场格局。","kind":"impact","evidence_indexes":[1]}
-		]},{"group_index":2,"tabs":[
-			{"title":"营收超预期","summary":"美光最新季度营收超出华尔街分析师一致预期，存储芯片需求强劲推动业绩增长。","subtitle":"美光发布最新季度财报营收超出市场预期，存储芯片需求强劲。","kind":"fact","evidence_indexes":[2]}
-		]}]`
+		],"scenes":[{"subtitle":"DeepSeek 正在研发专用 AI 芯片，以降低对外部 GPU 供应链的依赖。","evidence_indexes":[1]}]},{"group_index":2,"tabs":[
+			{"title":"营收超预期","summary":"美光最新季度营收超出华尔街分析师一致预期，存储芯片需求强劲推动业绩增长。","kind":"fact","evidence_indexes":[2]},
+			{"title":"需求推动增长","summary":"数据中心与 AI 需求继续拉动存储芯片销售，为美光后续业绩提供增长动力。","kind":"impact","evidence_indexes":[2]}
+		],"scenes":[{"subtitle":"美光最新季度营收超出市场预期，AI 与数据中心需求推动存储芯片增长。","evidence_indexes":[2]}]}]`
 		body, _ := json.Marshal(ChatResponse{
 			Choices: []ChatChoice{{Message: ChatMessage{Role: "assistant", Content: resp}}},
 		})
@@ -175,11 +176,10 @@ func TestPicksPathEndToEnd(t *testing.T) {
 		t.Fatalf("generateStoryTabs failed: %v", err)
 	}
 
-	// 关键点 4（坑A）：第二个 Story 原本只有 1 个有效 Tab，picked 路径应降级补齐到 ≥2，不剔除。
+	// 关键点 4：picked 路径保留两个由模型直接生成且通过质量闸的 Story。
 	if len(groups) != 2 {
 		t.Fatalf("picked 路径不应剔除 Story：期望 2 个，实际 %d", len(groups))
 	}
-	// 第二个 Story（美光）应被 backfill 补齐——验证它现在有 ≥2 个 Tab
 	var meiguang *NewsGroup
 	for i := range groups {
 		if strings.Contains(groups[i].Title, "美光") {
@@ -190,21 +190,11 @@ func TestPicksPathEndToEnd(t *testing.T) {
 		t.Fatal("找不到美光 Story")
 	}
 	if len(meiguang.Tabs) < minStoryTabs {
-		t.Fatalf("坑A失败：美光 Story 原本 1 个有效 Tab，应 backfill 到 ≥%d，实际 %d",
-			minStoryTabs, len(meiguang.Tabs))
+		t.Fatalf("美光 Story 只有 %d 个有效 Tab，至少需要 %d",
+			len(meiguang.Tabs), minStoryTabs)
 	}
-
-	// 关键点 5：backfill 出来的 Tab 内容有效（title/summary/subtitle 非空）
-	for i, tab := range meiguang.Tabs {
-		if strings.TrimSpace(tab.Title) == "" {
-			t.Fatalf("美光 Story Tab[%d] title 为空（backfill 产出无效）", i)
-		}
-		if strings.TrimSpace(tab.Summary) == "" {
-			t.Fatalf("美光 Story Tab[%d] summary 为空（backfill 产出无效）", i)
-		}
-		if strings.TrimSpace(tab.Subtitle) == "" {
-			t.Fatalf("美光 Story Tab[%d] subtitle 为空（backfill 产出无效）", i)
-		}
+	if len(meiguang.Scenes) != 1 {
+		t.Fatalf("美光 Story 应只有 1 条整条新闻口播，实际 %d", len(meiguang.Scenes))
 	}
 
 	// 所有 Story 的 Tab 都应 ≥ minStoryTabs（过 generateDataJSON 的硬报错闸）
@@ -231,50 +221,11 @@ func TestPicksPathEndToEnd(t *testing.T) {
 	if len(report.Stories) != 2 {
 		t.Fatalf("期望 data.json 含 2 个 Story，实际 %d", len(report.Stories))
 	}
-	// 每个 Story 的 scenes 数应 ≥ minStoryTabs（Tab 和 scene 一一对应）
+	// 每个 Story 的 Scene 是整条新闻口播，不能与 Tab 一一对应。
 	for i, story := range report.Stories {
-		if len(story.Scenes) < minStoryTabs {
-			t.Fatalf("data.json Story[%d] 只有 %d 个 scene（应 ≥%d）",
-				i, len(story.Scenes), minStoryTabs)
-		}
-	}
-}
-
-// TestBackfillStoryTabsProducesValidTabs 单元测试 backfillStoryTabs：
-// 给一个 0 Tab 的 group，验证补齐到 minStoryTabs 且内容非空。
-func TestBackfillStoryTabsProducesValidTabs(t *testing.T) {
-	items := []Item{
-		{
-			ID: "guid-1", StableID: "topic-111", CanonicalID: "linuxdo:topic:111",
-			SourceID: "linuxdo-news", SourceName: "LinuxDo",
-			Title: "测试标题", Description: "测试正文摘要内容",
-		},
-	}
-	group := NewsGroup{
-		Title:         "测试标题",
-		SourceIndexes: []int{1},
-		Tabs:          []StoryTab{}, // 0 个 Tab，需要补齐
-	}
-
-	result := backfillStoryTabs(group, items, minStoryTabs)
-	if len(result) < minStoryTabs {
-		t.Fatalf("backfillStoryTabs 补齐到 %d 个 Tab，期望 ≥%d", len(result), minStoryTabs)
-	}
-	for i, tab := range result {
-		if strings.TrimSpace(tab.Title) == "" {
-			t.Fatalf("backfill Tab[%d] title 为空", i)
-		}
-		if strings.TrimSpace(tab.Summary) == "" {
-			t.Fatalf("backfill Tab[%d] summary 为空", i)
-		}
-		if strings.TrimSpace(tab.Subtitle) == "" {
-			t.Fatalf("backfill Tab[%d] subtitle 为空", i)
-		}
-		if tab.Kind == "" {
-			t.Fatalf("backfill Tab[%d] kind 为空", i)
-		}
-		if len(tab.EvidenceIndexes) == 0 {
-			t.Fatalf("backfill Tab[%d] evidence_indexes 为空", i)
+		if len(story.Scenes) != 1 || len(story.Scenes) == len(story.Tabs) {
+			t.Fatalf("data.json Story[%d] 应为 1 个精简 Scene 且不等于 %d 个 Tabs，实际 %d",
+				i, len(story.Tabs), len(story.Scenes))
 		}
 	}
 }

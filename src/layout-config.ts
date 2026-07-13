@@ -18,6 +18,7 @@ export interface TabLayout {
   titleFontSize: number;
   summaryFontSize: number;
   summaryLineHeight: number;
+  summaryLineClamp: number;
 }
 
 export const getTabLayout = (tabCount: number): TabLayout => {
@@ -64,6 +65,14 @@ export const getTabLayout = (tabCount: number): TabLayout => {
         : isDenseLayout
           ? 1.38
           : 1.42,
+    // 数据层允许最多 110 个视觉单位；密集三列布局需要 6 行才能完整承载。
+    summaryLineClamp: isTwoCardLayout
+      ? 6
+      : isSingleRow
+        ? 5
+        : isDenseLayout
+          ? 6
+          : 5,
   };
 };
 
@@ -79,6 +88,20 @@ export const OVERLAY_MEDIUM_SCREENSHOT_MIN_WIDTH = 580;
 export const OVERLAY_MEDIUM_SCREENSHOT_MIN_HEIGHT = 500;
 export const OVERLAY_MEDIUM_SCREENSHOT_MIN_AREA = 320000;
 export const OVERLAY_MEDIUM_SCREENSHOT_MAX_ASPECT = 1.15;
+
+// 小尺寸竖图按固定高度 contain 后会偏小。缩放属于渲染决策：根据 generated
+// 数据里的真实尺寸实时计算；raw 显式 overlayImgScale 仍由组件优先采用。
+export const getAutomaticOverlayScale = (
+  width?: number,
+  height?: number,
+): number | undefined => {
+  if (!(width && width > 0) || !(height && height > 0)) return undefined;
+  if (width >= height || width > 1000 || height > 1000) return undefined;
+  const aspectRatio = width / height;
+  if (aspectRatio <= 0.65) return 1.3;
+  if (aspectRatio <= 0.82) return 1.2;
+  return 1.1;
+};
 
 // ── Intro 概览 ──────────────────────────────────────────────────────────
 export const INTRO_GAP = 22;

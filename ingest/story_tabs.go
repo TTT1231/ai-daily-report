@@ -7,12 +7,13 @@ import (
 	"time"
 )
 
-// generateStoryTabs 让模型根据来源正文为每个 Story 编排 2-6 个视频 Tab（含摘要与口播字幕），
-// 分批处理并对结果做校验与保底补齐，最终保证每个 Story 都有足够的 Tab。
+// generateStoryTabs 让模型根据来源正文为每个 Story 编排 2-6 个视频 Tab，并另外
+// 生成 1-2 条 Story 级精简口播。Tab 是画面信息，Scene 是实际朗读，两者不一一对应。
 //
 // pickedGroupIndexes 标记哪些 group 是人工 pick 的（key 是 groups 的下标）：
-//   非 picked 且 Tab 不足 → 直接剔除（不凑数、不重试，原逻辑）。
-//   picked 且 Tab 不足    → 降级补齐到 minStoryTabs（人工挑的不可能是低质，不能丢）。
+//
+//	非 picked 且 Tab 不足 → 直接剔除（不凑数、不重试，原逻辑）。
+//	picked 且质量不达标  → 在两轮定向重写后跳过并明确警告，不让单条失败中止整期。
 func generateStoryTabs(ai AIConfig, groups []NewsGroup, items []Item, pickedGroupIndexes map[int]bool) ([]NewsGroup, error) {
 	vision := newVisionAnalyzer()
 	var materials []storyTabMaterial
@@ -54,6 +55,7 @@ func generateStoryTabs(ai AIConfig, groups []NewsGroup, items []Item, pickedGrou
 			i+1, group.Title, group.Reason, group.SourceIndexes, strings.Join(sources, "\n"),
 		)})
 	}
+	var repairBatch []storyTabMaterial
 	for start := 0; start < len(materials); start += storyTabBatchSize {
 		end := min(start+storyTabBatchSize, len(materials))
 		batch := materials[start:end]
@@ -61,113 +63,57 @@ func generateStoryTabs(ai AIConfig, groups []NewsGroup, items []Item, pickedGrou
 		if err != nil {
 			return groups, err
 		}
-		applyStoryTabsResults(groups, batch, results)
+		repairBatch = append(repairBatch, applyStoryTabsResults(groups, batch, results)...)
+	}
+	for repairAttempt := 1; repairAttempt <= 2 && len(repairBatch) > 0; repairAttempt++ {
+		fmt.Printf("   ↻ %d 个 Story 的内容未通过质量校验，正在进行第 %d 轮定向重写\n", len(repairBatch), repairAttempt)
+		var nextRepairBatch []storyTabMaterial
+		for start := 0; start < len(repairBatch); start += storyTabBatchSize {
+			end := min(start+storyTabBatchSize, len(repairBatch))
+			batch := repairBatch[start:end]
+			repaired, repairErr := requestStoryTabsBatchWithRetry(ai, batch)
+			if repairErr != nil {
+				return groups, repairErr
+			}
+			nextRepairBatch = append(nextRepairBatch, applyStoryTabsResults(groups, batch, repaired)...)
+		}
+		repairBatch = nextRepairBatch
 	}
 
-	// 校验：Tab 不足时，picked group 降级补齐，非 picked group 直接剔除。
-	// 重试对「来源太薄/模型给不出」意义不大；非 picked 剔除既不发低质，又不让单条卡掉整期；
-	// picked 是人工挑的，剔除等于丢用户的选择，改为从标题/正文降级补齐（坑A：否则 generateDataJSON 的 minStoryTabs 硬报错闸会炸）。
+	// 最终质量闸：任何不合格 Story 都不会进入成片。人工 pick 也不使用原文碎片
+	// 静默补齐；两轮定向重写后仍失败则逐条跳过并警告，避免拖垮其它合格 picks。
 	kept := make([]NewsGroup, 0, len(groups))
-	var dropped, backfilled int
+	var dropped int
 	for i, g := range groups {
-		if len(g.Tabs) < minStoryTabs {
-			beforeTabs := len(g.Tabs)
+		if !storyTabsContentReady(g) {
 			if pickedGroupIndexes != nil && pickedGroupIndexes[i] {
-				g.Tabs = backfillStoryTabs(g, items, minStoryTabs)
-				backfilled++
-				fmt.Printf("   ⚠️  pick story %q 只有 %d 个有效 AI Tab，已降级补齐到 %d 个\n",
-					g.Title, beforeTabs, len(g.Tabs))
-			} else {
-				fmt.Printf("   ⚠️  story %q 只有 %d 个有效 AI Tab，已剔除（不凑数、不重试）\n", g.Title, beforeTabs)
+				fmt.Printf("   ⚠️  pick story %q 在两轮定向重写后仍未通过质量线（Tabs=%d，Scenes=%d），已跳过\n",
+					g.Title, len(g.Tabs), len(g.Scenes))
 				dropped++
 				continue
 			}
+			fmt.Printf("   ⚠️  story %q 未达到内容质量线（Tabs=%d，Scenes=%d），已剔除\n", g.Title, len(g.Tabs), len(g.Scenes))
+			dropped++
+			continue
 		}
 		kept = append(kept, g)
 	}
 	if len(kept) == 0 {
-		return groups, fmt.Errorf("所有 Story 的 AI Tabs 均不足 %d 个，无法成片（检查 prompt/模型/来源质量）", minStoryTabs)
+		return nil, fmt.Errorf("所有 Story 的 Tabs/Scenes 均未通过质量线，无法成片（检查 prompt、模型或来源质量）")
 	}
-	if dropped > 0 || backfilled > 0 {
-		fmt.Printf("   完成：保留 %d / %d 个 Story（剔除 %d 个 Tab 不足，降级补齐 %d 个 picked）\n",
-			len(kept), len(groups), dropped, backfilled)
+	if dropped > 0 {
+		fmt.Printf("   完成：保留 %d / %d 个 Story（剔除 %d 个质量不合格项，不做降级补齐）\n",
+			len(kept), len(groups), dropped)
 	} else {
 		fmt.Printf("   完成：保留 %d / %d 个 Story\n", len(kept), len(groups))
 	}
 	return kept, nil
 }
 
-// backfillStoryTabs 为 picked Story 补齐 Tab 到至少 minTabs 个。
-// 当 AI 给出的 Tab 不足时（来源正文太薄/模型给不出），从来源标题与正文摘要合成完整 Tab：
-// Title/Summary 从标题与 cleanRSS2ItemText 正文取，Subtitle 复用 fallbackTabSubtitle 降级生成。
-// 不只用 fallbackTabSubtitle——那只补字幕，补的是完整 Tab（含 title/summary/kind/evidence）。
-func backfillStoryTabs(group NewsGroup, items []Item, minTabs int) []StoryTab {
-	tabs := group.Tabs
-	for _, idx := range group.SourceIndexes {
-		if len(tabs) >= minTabs {
-			break
-		}
-		if idx < 1 || idx > len(items) {
-			continue
-		}
-		item := items[idx-1]
-		title := item.Title
-		if title == "" {
-			title = "详情"
-		}
-		summary := cleanRSS2ItemText(item)
-		if r := []rune(summary); len(r) > maxTabSummaryVisibleRunes {
-			summary = string(r[:maxTabSummaryVisibleRunes])
-		}
-		if summary == "" {
-			summary = title
-		}
-		subtitle := fallbackSubtitleFromText(summary)
-		if subtitle == "" {
-			subtitle = fallbackSubtitleFromText(title)
-		}
-		tabs = append(tabs, StoryTab{
-			Title:           title,
-			Summary:         summary,
-			Subtitle:        subtitle,
-			Kind:            "fact",
-			EvidenceIndexes: []int{idx},
-			subtitleFallback: true,
-		})
-	}
-	// 兜底：来源不足 minTabs 时（理论上 picks 路径每 Story 只有 1 个来源），用标题重复补齐，
-	// 保证过 generateDataJSON 的 minStoryTabs 闸。picks 每条独立成 Story 只有 1 个来源，
-	// 若 AI 一个 Tab 都没给，这里至少补到 2 个。
-	for len(tabs) < minTabs {
-		if len(group.SourceIndexes) == 0 {
-			break
-		}
-		idx := group.SourceIndexes[0]
-		var title, summary string
-		if idx >= 1 && idx <= len(items) {
-			title = items[idx-1].Title
-			summary = cleanRSS2ItemText(items[idx-1])
-		}
-		if title == "" {
-			title = "详情"
-		}
-		if summary == "" {
-			summary = title
-		}
-		subtitle := fallbackSubtitleFromText(summary)
-		if subtitle == "" {
-			subtitle = fallbackSubtitleFromText(title)
-		}
-		tabs = append(tabs, StoryTab{
-			Title:            title,
-			Summary:          summary,
-			Subtitle:         subtitle,
-			Kind:             "fact",
-			EvidenceIndexes:  []int{idx},
-			subtitleFallback: true,
-		})
-	}
-	return tabs
+func storyTabsContentReady(group NewsGroup) bool {
+	return len(group.Tabs) >= minStoryTabs &&
+		len(group.Scenes) >= 1 && len(group.Scenes) <= 2 &&
+		resolvedContentTitle(group) != ""
 }
 
 // storyTabMaterial 缓存单个 Story 送给模型的材料文本及其全局序号，便于重试时复用。
@@ -178,7 +124,7 @@ type storyTabMaterial struct {
 
 // requestStoryTabsBatchWithRetry 调用 requestStoryTabsBatch，对瞬时失败（限流/5xx/网络）
 // 退避重试，避免单批次抖动直接让整段请求失败。
-func requestStoryTabsBatchWithRetry(ai AIConfig, batch []storyTabMaterial) ([][]StoryTab, error) {
+func requestStoryTabsBatchWithRetry(ai AIConfig, batch []storyTabMaterial) ([]StoryTabsResult, error) {
 	const maxAttempts = 3
 	var lastErr error
 	for attempt := 1; attempt <= maxAttempts; attempt++ {
@@ -198,7 +144,7 @@ func requestStoryTabsBatchWithRetry(ai AIConfig, batch []storyTabMaterial) ([][]
 }
 
 // requestStoryTabsBatch 调用模型为一个批次的 Story 生成 Tabs。
-func requestStoryTabsBatch(ai AIConfig, batch []storyTabMaterial) ([][]StoryTab, error) {
+func requestStoryTabsBatch(ai AIConfig, batch []storyTabMaterial) ([]StoryTabsResult, error) {
 	prompt := buildStoryTabsPrompt(batch)
 	content, err := requestModel(ai, []ChatMessage{
 		{Role: "system", Content: storyTabsSystemPrompt},
@@ -212,13 +158,13 @@ func requestStoryTabsBatch(ai AIConfig, batch []storyTabMaterial) ([][]StoryTab,
 		return nil, fmt.Errorf("解析 Story Tabs JSON 失败: %w\n原始内容: %s", err, content)
 	}
 
-	out := make([][]StoryTab, len(batch))
+	out := make([]StoryTabsResult, len(batch))
 	for _, result := range results {
 		pos := batchPositionByIndex(batch, result.GroupIndex)
 		if pos < 0 {
 			continue
 		}
-		out[pos] = result.Tabs
+		out[pos] = result
 	}
 	return out, nil
 }
@@ -236,20 +182,28 @@ func batchPositionByIndex(batch []storyTabMaterial, groupIndex int) int {
 // buildStoryTabsPrompt 构造批次 prompt，要求模型为每个 Story 生成 Tabs。
 func buildStoryTabsPrompt(batch []storyTabMaterial) string {
 	return fmt.Sprintf(`请为以下 %d 个 Story 分别生成 %d 至 %d 个适合短视频展示的 Tabs。
-每个 summary 至少 %d 个汉字，目标长度 25 至 80 个可见字符，硬性上限 110 个可见字符；超过 110 个可见字符会被判为不合格。先完整覆盖来源中的独立事实，再决定 Tabs 数量；只有来源确实不超过两个独立事实时才使用两个 Tabs，不得虚构事实或用重复内容凑数。
+每个 summary 至少 %d 个汉字，目标长度 25 至 80 个可见字符，纯文本硬性上限 %d 个可见字符；Markdown 加权后的视觉占用也不得超过同一上限，每张卡最多一段粗体和一段行内代码。先提炼值得展示的独立事实，再决定 Tabs 数量；一张卡写不完时增加 Tab，禁止硬截句子、复制正文或按原文段落数机械补满 6 张。第一张 Tab 必须直接解释标题里的核心事件，背景信息放后面。
+另外为每个 Story 生成 1 至 2 个 scenes：普通新闻只用 1 个；只有两个独立核心事件才用 2 个。Scene 是整条新闻的简短口播，不对应单张 Tab、不得逐卡朗读。
 遇到多个很长的模型名、API 名或版本号时，不要逐项穷举清单；优先概括系列名、覆盖范围、数量、参数区间和 1 至 2 个代表例，避免行内代码标签堆满卡片。
 
 严格返回以下 JSON，不要返回其他内容：
 [
   {
     "group_index": Story 序号,
+	"content_title": "清洗后的原标题不超过30字符且完整时直接复用；只有超长或不完整时才改写为主体+核心事件或结论的完整短标题，改写目标12至26字符、硬性最多30字符，不得截前缀或使用省略号",
+	"navigation_title": "底部时间线的语义短标题，优先 2 至 8 个汉字或简短英文，必须是主体+事件，不得复制完整新闻标题，不得使用省略号",
     "tabs": [
       {
         "title": "简短 Tab 标题",
         "summary": "25至80个可见字符的完整描述（硬性最多110字）；重要信息（数字/日期/价格/关键结论）用粗体，模型/产品/API/错误码/版本等专有名用行内代码",
-        "subtitle": "28至96个汉字的完整新闻口播，包含主体、事件及范围或结果，禁止提到卡片或详细内容",
         "kind": "fact、impact 或 watch",
         "evidence_indexes": [支撑该 Tab 的来源序号]
+      }
+    ],
+    "scenes": [
+      {
+        "subtitle": "28至80个汉字的一句式 Story 总结，包含主体、核心事件及直接结果或范围",
+        "evidence_indexes": [支撑该口播的来源序号]
       }
     ]
   }
@@ -258,7 +212,7 @@ func buildStoryTabsPrompt(batch []storyTabMaterial) string {
 Story 材料：
 %s
 
-group_index 必须照抄材料中的 Story 序号，不得使用当前批次内的相对序号。`, len(batch), minStoryTabs, maxStoryTabs, minTabSummaryRunes, joinMaterialBodies(batch))
+group_index 必须照抄材料中的 Story 序号，不得使用当前批次内的相对序号。`, len(batch), minStoryTabs, maxStoryTabs, minTabSummaryRunes, maxTabSummaryVisibleRunes, joinMaterialBodies(batch))
 }
 
 // joinMaterialBodies 把批次内各 Story 材料正文用空行拼接。
@@ -270,15 +224,93 @@ func joinMaterialBodies(batch []storyTabMaterial) string {
 	return strings.Join(bodies, "\n\n")
 }
 
-// applyStoryTabsResults 把批次请求结果归一化后写入对应 Story。
-func applyStoryTabsResults(groups []NewsGroup, batch []storyTabMaterial, results [][]StoryTab) {
-	for pos, tabs := range results {
+// applyStoryTabsResults 把批次请求结果归一化后写入对应 Story，并为未达到质量线的
+// Story 生成带精确拒绝原因的重写材料。这样“超长/过短/重复/证据序号错误”会先回到
+// 模型修正，而不是直接进入确定性降级。
+func applyStoryTabsResults(groups []NewsGroup, batch []storyTabMaterial, results []StoryTabsResult) []storyTabMaterial {
+	var repairs []storyTabMaterial
+	for pos, result := range results {
 		if pos < 0 || pos >= len(batch) {
 			continue
 		}
 		group := &groups[batch[pos].GroupIndex-1]
-		group.Tabs = normalizeStoryTabs(*group, tabs)
+		if contentTitle := cleanContentTitle(result.ContentTitle, group.Title); contentTitle != "" {
+			group.ContentTitle = contentTitle
+		}
+		if navigationTitle := cleanNavigationTitle(result.NavigationTitle); navigationTitle != "" {
+			group.NavigationTitle = navigationTitle
+		}
+		normalized, rejected := normalizeStoryTabsWithReasons(*group, result.Tabs)
+		if betterStoryTabs(normalized, group.Tabs) {
+			group.Tabs = normalized
+		}
+		normalizedScenes, rejectedScenes := normalizeStoryScenesWithReasons(*group, result.Scenes)
+		if betterStoryScenes(normalizedScenes, group.Scenes) {
+			group.Scenes = normalizedScenes
+		}
+		resolvedTitle := resolvedContentTitle(*group)
+		tabsReady := len(group.Tabs) >= minStoryTabs
+		scenesReady := len(group.Scenes) >= 1 && len(group.Scenes) <= 2
+		if tabsReady && scenesReady && resolvedTitle != "" {
+			continue
+		}
+		var reasons []string
+		if !tabsReady {
+			for _, rejection := range rejected {
+				title := strings.TrimSpace(rejection.Tab.Title)
+				if title == "" {
+					title = "未命名 Tab"
+				}
+				reasons = append(reasons, fmt.Sprintf("- %s：%s", title, rejection.Reason))
+			}
+			if len(result.Tabs) == 0 {
+				reasons = append(reasons, "- 模型没有返回任何 Tab")
+			}
+			reasons = append(reasons, fmt.Sprintf("- 当前最佳结果仅有 %d 个有效 Tab；至少需要 %d 个互不重复的画面信息卡", len(group.Tabs), minStoryTabs))
+		}
+		if !scenesReady {
+			for _, rejection := range rejectedScenes {
+				reasons = append(reasons, "- Scene："+rejection)
+			}
+			reasons = append(reasons, "- 没有有效 Scene；必须生成 1 条总结整条 Story 的简短口播，不能逐张朗读 Tab")
+		}
+		if resolvedTitle == "" {
+			reasons = append(reasons, fmt.Sprintf("- content_title 不合格：原标题能完整放下时应直接复用；原标题超长或不完整时，必须语义改写为最多 %d 字的完整短标题，不得截取前缀或使用省略号", maxContentTitleRunes))
+		}
+		repairBody := fmt.Sprintf(`%s
+
+上一轮输出未通过程序质量校验：
+%s
+
+请重新生成这个 Story 的完整 content_title、navigation_title、全部 Tabs 和 1 至 2 个 Story 级 Scenes，不要只补缺失项。清洗后的原标题能在 %d 字内完整显示时，content_title 直接复用即可；只有原标题超长、已有省略号或不完整时才语义改写，禁止截取原文前缀或使用省略号；summary 纯文本不得超过 %d 个可见字符，格式化后也不得超过同一视觉容量，粗体和行内代码各最多一段。若内容放不下，增加 Tab 并按独立事实拆分，禁止截断、复制正文或按段落凑满 6 张；Scene 必须总结整条新闻，不得与 Tabs 一一对应；evidence_indexes 只能使用材料给出的来源序号。`,
+			batch[pos].Body, strings.Join(reasons, "\n"), maxContentTitleRunes, maxTabSummaryVisibleRunes)
+		repairs = append(repairs, storyTabMaterial{GroupIndex: batch[pos].GroupIndex, Body: repairBody})
 	}
+	return repairs
+}
+
+func betterStoryTabs(candidate, current []StoryTab) bool {
+	candidateReady := len(candidate) >= minStoryTabs
+	currentReady := len(current) >= minStoryTabs
+	if candidateReady != currentReady {
+		return candidateReady
+	}
+	if currentReady {
+		return false
+	}
+	return len(candidate) > len(current)
+}
+
+func betterStoryScenes(candidate, current []StoryScene) bool {
+	candidateReady := len(candidate) >= 1 && len(candidate) <= 2
+	currentReady := len(current) >= 1 && len(current) <= 2
+	if candidateReady != currentReady {
+		return candidateReady
+	}
+	if currentReady {
+		return false
+	}
+	return len(candidate) > len(current)
 }
 
 // formatVisionMaterial 把图片视觉识别结果格式化为送给模型的事实材料文本，不确定项会标注“[不确定]”。

@@ -21,15 +21,13 @@ export const dateSchema = z
   .regex(/^\d{4}-\d{2}-\d{2}$/, "date must be YYYY-MM-DD");
 // overlay 图片路径正则——TS 侧单一事实源。config/data.schema.json 的 imagePath pattern
 // 必须与此保持一致（手工同步：JSON Schema 无法 import）。支持的格式：svg/png/jpg/jpeg/webp/gif/avif；
-// gif/avif 供手动 overlay 使用（Remotion <Img> 可解码），ingest 自动抓图只产出 png/jpg/webp。
-const OVERLAY_IMAGE_PATH_PATTERN = /^images\/.+\.(svg|png|jpe?g|webp|gif|avif)$/;
+// gif 主要供手动 overlay 使用；ingest 自动抓图支持 png/jpg/webp/avif，并保留正文内 AVIF 原图。
+const OVERLAY_IMAGE_PATH_PATTERN =
+  /^images\/.+\.(svg|png|jpe?g|webp|gif|avif)$/;
 export const imagePathSchema = z
   .string()
   .min(1)
-  .regex(
-    OVERLAY_IMAGE_PATH_PATTERN,
-    "image path must be images/<name>.<ext>",
-  );
+  .regex(OVERLAY_IMAGE_PATH_PATTERN, "image path must be images/<name>.<ext>");
 export const audioPathSchema = z
   .string()
   .min(1)
@@ -45,8 +43,12 @@ export const iconPathSchema = z
 export const dailyTabSchema = z.object({
   id: identifierSchema,
   title: z.string().min(1),
-  summary: z.string().min(1),
+  summary: z.string().min(1).max(128),
   icon: iconPathSchema.optional(),
+});
+
+export const dailyIntroTabSchema = dailyTabSchema.extend({
+  summary: z.string().min(1).max(1024),
 });
 
 export const dailySceneSchema = z.object({
@@ -81,12 +83,18 @@ export const dailyStorySchema = z
     id: identifierSchema,
     topTitle: z.string().min(1),
     bottomTitle: z.string().min(1),
-    contentTitle: z.string().min(1).max(42),
+    contentTitle: z
+      .string()
+      .min(1)
+      .max(30)
+      .refine((value) => !value.includes("…") && !value.includes("..."), {
+        message: "contentTitle must be a complete semantic title without ellipsis",
+      }),
     introTitle: z.string().min(1).optional(),
     activeTab: identifierSchema.optional(),
     activeIntro: z.literal(true).optional(),
     tabs: z.array(dailyTabSchema).min(2).max(6),
-    scenes: z.array(dailySceneSchema).min(1),
+    scenes: z.array(dailySceneSchema).min(1).max(2),
     videoStartMs: z.number().nonnegative().optional(),
   })
   .superRefine((story, context) => {
@@ -114,7 +122,7 @@ export const dailyIntroSchema = z.object({
   bottomTitle: z.string().min(1),
   contentTitle: z.string().min(1),
   activeTab: identifierSchema.optional(),
-  tabs: z.array(dailyTabSchema).min(2),
+  tabs: z.array(dailyIntroTabSchema).min(2),
   scenes: z.array(dailySceneSchema).length(1),
   videoStartMs: z.number().nonnegative().optional(),
 });

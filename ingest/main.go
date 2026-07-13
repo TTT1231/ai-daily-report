@@ -8,10 +8,11 @@ import (
 )
 
 // main 是程序入口。三个子命令对应三种职责：
-//   fetch     — 只抓取 RSS + 去重 + 写 rss-state.json（候选池），停下。供 `bun run rss`。
-//   run-picks — 读 rss-state.json + picks.json，跳过评分/聚类/合并，每条 picked 独立成 Story，
-//               跑 Tabs(识图) → data.json。供 `bun run video`（人工路径）。
-//   run-auto  — 等价原 run()：抓取 → 评分 → 聚类 → 合并 → Tabs(识图) → data.json。供 `bun run video:auto-generate`。
+//
+//	fetch     — 只抓取 RSS + 去重 + 写 rss-state.json（候选池），停下。供 `bun run rss`。
+//	run-picks — 读 rss-state.json + picks.json，跳过评分/聚类/合并，每条 picked 独立成 Story，
+//	            跑 Tabs(识图) → data.json。供 `bun run video`（人工路径）。
+//	run-auto  — 等价原 run()：抓取 → 评分 → 聚类 → 合并 → Tabs(识图) → data.json。供 `bun run video:auto-generate`。
 //
 // 任一 AI 步骤失败即中止（不产出低质兜底成片）——低质成片仍需人工返工，不如直接失败、修好 AI 后重跑。
 func main() {
@@ -164,15 +165,15 @@ func runPicks() int {
 			continue
 		}
 		groups = append(groups, NewsGroup{
-			Title:           item.Title,
-			NavigationTitle: cleanDisplayTitle(item.Title), // 跳过品牌推断兜底，避免退化成"AI动态"扎堆
-			Score:           10,
-			Reason:          "人工 pick",
-			SourceIndexes:   []int{idx},
-			Highlights:      []NewsHighlight{{Index: idx, Point: item.Title}},
+			Title:         item.Title,
+			Score:         10,
+			Reason:        "人工 pick",
+			SourceIndexes: []int{idx},
+			Highlights:    []NewsHighlight{{Index: idx, Point: item.Title}},
 		})
 	}
-	// pickedGroupIndexes 标记所有 group 为 picked：Tab 不足时降级补齐而非剔除（坑A）。
+	// pickedGroupIndexes 标记所有 group 为 picked：质量重写后仍不合格则逐条警告并跳过，
+	// 不把原文碎片静默补进成片，也不让单条失败拖垮其它 picks。
 	pickedGroupIndexes := make(map[int]bool, len(groups))
 	for i := range groups {
 		pickedGroupIndexes[i] = true

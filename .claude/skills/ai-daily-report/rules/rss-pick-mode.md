@@ -130,7 +130,7 @@ linux.do 是 Discourse，整站（**含 `.rss` 端点**）都在 Cloudflare 后�
    - `bottomTitle`：短标签，尽量 2-6 个汉字或短英文。
    - `contentTitle`：保留新闻核心，不超过 schema 限制。
    - `tabs`：2-4 个，避免硬凑；每个 tab 使用具体标题和摘要。
-   - `scenes`：1-3 个，每个 subtitle 是完整口播句，避免标题党和未经证实扩写。
+   - `scenes`：1-2 个，每个 subtitle 是完整口播句，避免标题党和未经证实扩写。
 5. 如果 link 是 Linux.do topic，应主动读取原帖或 RSS 中可见内容来补充事实；只引用可见事实，不编造。
 6. 按上面的“环境变量一致性”处理补选条目的图片与 `overlayImg`。
 7. 把生成的 Story 追加到 `data-scheme/data.json` 的 `stories` 末尾，保持已有自动生成内容不被重写。

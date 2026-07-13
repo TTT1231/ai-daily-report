@@ -75,3 +75,69 @@ func TestAnalyzeRemoteImageWithClaudePropagatesCLINotFound(t *testing.T) {
 		t.Errorf("err = %q, want it to contain %q", err.Error(), "未找到")
 	}
 }
+
+func TestAnalyzeItemSkipsAVIFWhenVisionMarksItIrrelevant(t *testing.T) {
+	oldExec := execClaudeVision
+	oldDownload := downloadVisionOverlay
+	defer func() {
+		execClaudeVision = oldExec
+		downloadVisionOverlay = oldDownload
+	}()
+	execClaudeVision = func(args []string, timeout time.Duration) ([]byte, error) {
+		return []byte(`{"structured_output":{"relevant":false,"facts":[],"uncertain":[],"summary":"format unavailable"}}`), nil
+	}
+	downloadVisionOverlay = func(imageURL string, item Item) (downloadedOverlayImage, error) {
+		t.Fatal("irrelevant AVIF must not be downloaded")
+		return downloadedOverlayImage{}, nil
+	}
+
+	analyzer := &VisionAnalyzer{
+		enabled: true, maxCalls: 2, maxImages: 2, timeout: time.Second,
+		maxBudgetUSD: "1.00", seenURLs: make(map[string]bool),
+	}
+	item := Item{
+		Title:       "启元 T1 亮相",
+		Description: `<p>产品实拍</p><img src="https://cdn.example.com/product.avif">`,
+	}
+	results := analyzer.analyzeItem(1, item, NewsGroup{Title: item.Title, Score: 10})
+	if len(results) != 0 {
+		t.Fatalf("irrelevant AVIF results = %#v, want none", results)
+	}
+}
+
+func TestAnalyzeItemRetainsEmbeddedAVIFOnlyWhenVisionErrors(t *testing.T) {
+	oldExec := execClaudeVision
+	oldDownload := downloadVisionOverlay
+	defer func() {
+		execClaudeVision = oldExec
+		downloadVisionOverlay = oldDownload
+	}()
+	execClaudeVision = func(args []string, timeout time.Duration) ([]byte, error) {
+		return nil, fmt.Errorf("decoder unavailable")
+	}
+	downloadVisionOverlay = func(imageURL string, item Item) (downloadedOverlayImage, error) {
+		return downloadedOverlayImage{Path: "images/topic-1-product.avif", Width: 578, Height: 500}, nil
+	}
+
+	analyzer := &VisionAnalyzer{
+		enabled: true, maxCalls: 2, maxImages: 2, timeout: time.Second,
+		maxBudgetUSD: "1.00", seenURLs: make(map[string]bool),
+	}
+	item := Item{Title: "启元 T1 亮相", Description: `<img src="https://cdn.example.com/product.avif">`}
+	results := analyzer.analyzeItem(1, item, NewsGroup{Title: item.Title, Score: 10})
+	if len(results) != 1 || results[0].OverlayPath != "images/topic-1-product.avif" {
+		t.Fatalf("AVIF error fallback result = %#v", results)
+	}
+}
+
+func TestExtractRemoteImageURLsPlacesAVIFAfterDecodableFormats(t *testing.T) {
+	description := `<img src="https://cdn.example.com/original/product.avif"><img src="https://cdn.example.com/optimized/evidence.png">`
+	got := extractRemoteImageURLs(description)
+	want := []string{
+		"https://cdn.example.com/optimized/evidence.png",
+		"https://cdn.example.com/original/product.avif",
+	}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("extractRemoteImageURLs() = %#v, want %#v", got, want)
+	}
+}

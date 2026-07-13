@@ -51,7 +51,7 @@ bun run dev
       "id": "my-story",                  // ^[a-z0-9][a-z0-9-.]*$
       "topTitle": "模型发布",            // 顶部导航标签（相邻同名会合并）
       "bottomTitle": "GLM 5.2",          // 底部短标签
-      "contentTitle": "智谱发布 GLM 5.2",// ≤42 字
+      "contentTitle": "智谱发布 GLM 5.2",// ≤30 字，完整语义，不用省略号
       "tabs": [                          // 2 ~ 6 张卡片
         {
           "id": "my-story-tab-1",
@@ -60,7 +60,7 @@ bun run dev
         },
         { "id": "my-story-tab-2", "title": "价格", "summary": "..." }
       ],
-      "scenes": [                        // ≥1 段，每段一句口播
+      "scenes": [                        // 1 ~ 2 段，每段一句口播
         {
           "id": "my-story-scene-1",
           "subtitle": "智谱 AI 发布 GLM 5.2，上下文扩展至 128K。"  // 1 ~ 96 字，TTS 的输入文案
@@ -76,7 +76,9 @@ bun run dev
 几个容易踩的约束（来自 schema）：
 
 - `tabs`：**最少 2 张，最多 6 张**。
-- `contentTitle`：**≤ 42 字**。
+- `contentTitle`：**≤ 30 字**，必须是完整语义标题，不能用省略号截断。
+- `summary`：JSON 字符串最多 128 字；去掉 Markdown 后最多 110 个可见字符，视觉占用也不超过 110；粗体和行内代码各最多一段。
+- `scenes`：**最少 1 段，最多 2 段**。
 - `subtitle`：**1 ~ 96 字**，建议 28~96，是 TTS 实际念的文案。
 - `overlayImgWidth` / `overlayImgHeight`：构建期按图片文件真实像素自动写入 `data-generate.json`，无需手填；`overlayImgScale` 手动微调当前 scene 的基础倍率，会叠加正常的聚焦动画。
 - `id`：只能小写字母/数字/`-`/`.`，**必须以小写字母或数字开头**。

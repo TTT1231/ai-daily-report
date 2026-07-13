@@ -48,7 +48,7 @@ func downloadVisionOverlayImage(imageURL string, item Item) (downloadedOverlayIm
 	return saveOverlayImage(data, overlayImageFilename(item, imageURL, extension), root)
 }
 
-// fetchOverlayImage 下载远程图片字节，校验类型与大小，返回字节内容与最终落盘扩展名（.png/.jpg/.webp）。
+// fetchOverlayImage 下载远程图片字节，校验类型与大小，返回字节内容与最终落盘扩展名（.png/.jpg/.webp/.avif）。
 // client 由调用方注入：生产传带 SSRF 防护的 newHTTPClient(defaultFeedRequestTimeout,false,true)，
 // 测试传放行 loopback 的 newHTTPClient(defaultFeedRequestTimeout,false,false)（SSRF 防护会拦 127.0.0.1，httptest 需要放行）。
 // refererLink 非空时作为 Referer 发送，用于绕过部分图床的防盗链。
@@ -157,7 +157,44 @@ func decodeOverlayImageDimensions(data []byte) (int, int) {
 	if err == nil && config.Width > 0 && config.Height > 0 {
 		return config.Width, config.Height
 	}
-	return decodeWebPDimensions(data)
+	if width, height := decodeWebPDimensions(data); width > 0 && height > 0 {
+		return width, height
+	}
+	return decodeAVIFDimensions(data)
+}
+
+// decodeAVIFDimensions reads every structurally valid ImageSpatialExtentsProperty
+// (ispe) FullBox and returns the largest canvas. Multi-image AVIF files can place a
+// thumbnail property before the primary image, so returning the first marker is unsafe.
+// This mirrors the build-time JS parser so raw ingest and generated data agree.
+func decodeAVIFDimensions(data []byte) (int, int) {
+	if len(data) < 20 || string(data[4:8]) != "ftyp" {
+		return 0, 0
+	}
+	marker := []byte("ispe")
+	bestWidth, bestHeight := 0, 0
+	bestArea := uint64(0)
+	for start := 8; start+16 <= len(data); {
+		index := bytes.Index(data[start:], marker)
+		if index < 0 {
+			break
+		}
+		index += start
+		if index >= 4 && index+16 <= len(data) {
+			boxSize := int(bigEndianUint32(data[index-4 : index]))
+			width := int(bigEndianUint32(data[index+8 : index+12]))
+			height := int(bigEndianUint32(data[index+12 : index+16]))
+			boxStart := index - 4
+			if boxSize >= 20 && boxStart+boxSize <= len(data) && width > 0 && height > 0 {
+				area := uint64(width) * uint64(height)
+				if area > bestArea {
+					bestWidth, bestHeight, bestArea = width, height, area
+				}
+			}
+		}
+		start = index + len(marker)
+	}
+	return bestWidth, bestHeight
 }
 
 func decodeWebPDimensions(data []byte) (int, int) {
@@ -211,6 +248,10 @@ func littleEndianUint32(data []byte) uint32 {
 	return uint32(data[0]) | uint32(data[1])<<8 | uint32(data[2])<<16 | uint32(data[3])<<24
 }
 
+func bigEndianUint32(data []byte) uint32 {
+	return uint32(data[0])<<24 | uint32(data[1])<<16 | uint32(data[2])<<8 | uint32(data[3])
+}
+
 func mediaType(value string) string {
 	parsed, _, err := mime.ParseMediaType(strings.TrimSpace(value))
 	if err != nil {
@@ -232,6 +273,8 @@ func supportedOverlayImageExtensionFromURL(rawURL string) string {
 		return ".jpg"
 	case ".webp":
 		return ".webp"
+	case ".avif":
+		return ".avif"
 	default:
 		return ""
 	}
@@ -245,6 +288,8 @@ func supportedOverlayImageExtensionFromContentType(contentType string) string {
 		return ".jpg"
 	case "image/webp":
 		return ".webp"
+	case "image/avif":
+		return ".avif"
 	default:
 		return ""
 	}

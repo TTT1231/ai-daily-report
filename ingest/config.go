@@ -17,12 +17,12 @@ const (
 	maxGroupHighlights        = 6                          // 每个 Story 最多保留的不重复要点数，对应视频的 tab 数。
 	storyTabBatchSize         = 4                          // 生成 Tabs 时每批送入模型的 Story 数量。
 	maxStoryTabSources        = 4                          // 单个 Story 最多引用的代表来源数量。
-	minStoryTabs              = 2                          // 每个 Story 至少需要的 Tab 数量，低于此值走保底补齐。
+	minStoryTabs              = 2                          // 每个 Story 至少需要的 Tab 数量，低于此值触发模型定向重写。
 	maxStoryTabs              = 6                          // 每个 Story 最多允许的 Tab 数量。
 	minTabSummaryRunes        = 25                         // Tab 摘要（summary）的最小汉字长度，过短视为无效。
-	maxTabSummaryVisibleRunes = 110                        // Tab 摘要（summary）的最大可见字符数，超过会撑爆卡片。
+	maxTabSummaryVisibleRunes = 110                        // Tab 摘要的纯文本上限；Markdown 视觉占用另行带权校验。
 	minSceneSubtitleRunes     = 28                         // 场景口播字幕（subtitle）的最小汉字长度。
 	maxSceneSubtitleRunes     = 96                         // 场景口播字幕（subtitle）的最大汉字长度。
 	maxSourceTextRunes        = 5000                       // 送给模型时单条来源正文的最大字符数，超出截断。
-	maxContentTitleRunes      = 42                         // 内容主标题（contentTitle）的最大字符长度。
+	maxContentTitleRunes      = 30                         // 内容主标题（contentTitle）的画面安全上限；超长必须语义改写，禁止截断。
 )

@@ -10,6 +10,7 @@ import (
 	"regexp"
 	"strings"
 	"time"
+	"unicode/utf8"
 )
 
 var validIdentifier = regexp.MustCompile(`^[a-z0-9][a-z0-9-.]*$`)
@@ -86,18 +87,24 @@ func generateDataJSON(path string, groups []NewsGroup, items []Item) error {
 		if len(group.Tabs) < minStoryTabs {
 			return fmt.Errorf("Story %q 只有 %d 个 Tabs，至少需要 %d 个", group.Title, len(group.Tabs), minStoryTabs)
 		}
+		if len(group.Scenes) < 1 || len(group.Scenes) > 2 {
+			return fmt.Errorf("Story %q 有 %d 个 Scenes，必须是 1 至 2 个 Story 级精简口播", group.Title, len(group.Scenes))
+		}
+		contentTitle := resolvedContentTitle(group)
+		if contentTitle == "" {
+			return fmt.Errorf("Story %q 没有语义完整且不超过 %d 字的 contentTitle；禁止用省略号截断", group.Title, maxContentTitleRunes)
+		}
 		storyID := uniqueStoryID(storyID(group, items), usedIDs)
 		displayTitle := cleanDisplayTitle(group.Title)
 		story := DataJSONStory{
 			ID:               storyID,
 			TopTitle:         storyCategory(group),
 			BottomTitle:      navigationTitle(group),
-			ContentTitle:     truncateRunes(displayTitle, maxContentTitleRunes),
+			ContentTitle:     contentTitle,
 			IntroTitle:       displayTitle,
 			ActiveIntro:      i == 0,
 			sourceGroupIndex: i,
 		}
-		usedImages := make(map[string]bool)
 		for tabIndex, tab := range group.Tabs {
 			tabID := fmt.Sprintf("%s-tab-%d", storyID, tabIndex+1)
 			story.Tabs = append(story.Tabs, DataJSONTab{
@@ -105,11 +112,14 @@ func generateDataJSON(path string, groups []NewsGroup, items []Item) error {
 				Title:   tab.Title,
 				Summary: tab.Summary,
 			})
+		}
+		usedImages := make(map[string]bool)
+		for sceneIndex, sourceScene := range group.Scenes {
 			scene := DataJSONScene{
-				ID:       fmt.Sprintf("%s-scene-%d", storyID, tabIndex+1),
-				Subtitle: sceneSubtitle(tab),
+				ID:       fmt.Sprintf("%s-scene-%d", storyID, sceneIndex+1),
+				Subtitle: sourceScene.Subtitle,
 			}
-			if overlay := overlayImageForTab(group, tab, usedImages); overlay.Path != "" {
+			if overlay := overlayImageForEvidence(group, sourceScene.EvidenceIndexes, usedImages); overlay.Path != "" {
 				scene.OverlayImg = overlay.Path
 			}
 			story.Scenes = append(story.Scenes, scene)
@@ -176,6 +186,39 @@ func cleanDisplayTitle(title string) string {
 	return stripForumDecorations(cleaned)
 }
 
+// cleanContentTitle 校验播放区主标题。能完整放下的原标题可以直接复用；超长
+// 原标题必须由模型语义改写，这里绝不裁切字符串。接近 30 字上限且只是超长
+// 原标题前缀的候选通常是机械截断，也会拒绝。
+func cleanContentTitle(candidate, original string) string {
+	title := cleanDisplayTitle(candidate)
+	if title == "" || utf8.RuneCountInString(title) > maxContentTitleRunes ||
+		strings.Contains(title, "…") || strings.Contains(title, "...") {
+		return ""
+	}
+	for _, suffix := range []string{"以及", "并且", "而且", "由于", "因为", "与", "和", "及", "的", "、", "，", ",", "：", ":"} {
+		if strings.HasSuffix(title, suffix) {
+			return ""
+		}
+	}
+
+	original = cleanDisplayTitle(original)
+	if utf8.RuneCountInString(original) > maxContentTitleRunes &&
+		utf8.RuneCountInString(title) >= maxContentTitleRunes-2 &&
+		strings.HasPrefix(normalizeTitle(original), normalizeTitle(title)) {
+		return ""
+	}
+	return title
+}
+
+func resolvedContentTitle(group NewsGroup) string {
+	// 短原标题优先，避免模型为了“优化”而无谓改写。只有原标题放不下或本身
+	// 不完整时，才采用模型生成的语义压缩标题。
+	if title := cleanContentTitle(group.Title, group.Title); title != "" {
+		return title
+	}
+	return cleanContentTitle(group.ContentTitle, group.Title)
+}
+
 func compactStoriesByTopTitle(stories []DataJSONStory) []DataJSONStory {
 	if len(stories) <= 1 {
 		return stories
@@ -227,15 +270,15 @@ func preferredActiveTab(tabs []DataJSONTab) string {
 	return tabs[1].ID
 }
 
-// overlayImageForTab conservatively maps downloaded source images to scenes:
-// an image is inserted only when its source supports the current Tab and it has
+// overlayImageForEvidence conservatively maps downloaded source images to the
+// small Story-level Scene set: an image is inserted only when its source supports the Scene and it has
 // not already appeared in this Story.
-func overlayImageForTab(group NewsGroup, tab StoryTab, used map[string]bool) StoryImage {
-	if len(group.ImageAssets) == 0 || len(tab.EvidenceIndexes) == 0 {
+func overlayImageForEvidence(group NewsGroup, evidenceIndexes []int, used map[string]bool) StoryImage {
+	if len(group.ImageAssets) == 0 || len(evidenceIndexes) == 0 {
 		return StoryImage{}
 	}
-	evidence := make(map[int]bool, len(tab.EvidenceIndexes))
-	for _, index := range tab.EvidenceIndexes {
+	evidence := make(map[int]bool, len(evidenceIndexes))
+	for _, index := range evidenceIndexes {
 		evidence[index] = true
 	}
 	for _, image := range group.ImageAssets {
@@ -403,12 +446,4 @@ func validNavigationTitle(title string) string {
 		return ""
 	}
 	return title
-}
-
-// sceneSubtitle 返回场景口播字幕：模型字幕校验通过即采用，否则从 Tab 内容兜底生成。
-func sceneSubtitle(tab StoryTab) string {
-	if subtitle := normalizeSceneSubtitle(tab.Subtitle); subtitle != "" {
-		return subtitle
-	}
-	return fallbackTabSubtitle(tab)
 }

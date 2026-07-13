@@ -75,6 +75,17 @@ export const RemotionRoot: React.FC = () => {
             { tabCount: 5, theme: "light" } satisfies TabLayoutPreviewProps
           }
         />
+        <Composition
+          id="SixTabLayout"
+          component={TabLayoutPreview}
+          durationInFrames={90}
+          fps={fps}
+          width={videoLayout.width}
+          height={videoLayout.height}
+          defaultProps={
+            { tabCount: 6, theme: "light" } satisfies TabLayoutPreviewProps
+          }
+        />
       </Folder>
     </>
   );

@@ -82,12 +82,14 @@ type ScoredItem struct {
 // NewsGroup 是聚类后的一个 Story（视频主题），由若干来源与不重复要点组成。
 type NewsGroup struct {
 	Title           string          `json:"title"`                      // 合并后的 Story 标题。
+	ContentTitle    string          `json:"content_title,omitempty"`    // 播放区主标题，完整语义短句，不得用省略号截断。
 	NavigationTitle string          `json:"navigation_title,omitempty"` // 底部时间线短标题，最终长度按整条导航容量适配。
 	Score           int             `json:"score"`                      // 主题重要性分数。
 	Reason          string          `json:"reason"`                     // 为何值得关注。
 	SourceIndexes   []int           `json:"source_indexes"`             // 归入本 Story 的全部候选序号（含重复来源）。
 	Highlights      []NewsHighlight `json:"highlights"`                 // 互不重复的关键要点。
 	Tabs            []StoryTab      `json:"tabs,omitempty"`             // 后续编排出的视频 Tabs。
+	Scenes          []StoryScene    `json:"scenes,omitempty"`           // Story 级精简口播；与 Tabs 解耦，通常 1 条、最多 2 条。
 	ImageAssets     []StoryImage    `json:"-"`                          // 已确认相关并可作为画面 overlay 的本地图片素材。
 }
 
@@ -99,12 +101,17 @@ type NewsHighlight struct {
 
 // StoryTab 是 Story 下的一个视频 Tab，包含标题、画面摘要与口播字幕。
 type StoryTab struct {
-	Title            string `json:"title"`            // Tab 标题。
-	Summary          string `json:"summary"`          // 画面中展示的完整摘要（受限 Markdown）。
-	Subtitle         string `json:"subtitle"`         // 底部弹幕与 TTS 口播字幕。
-	Kind             string `json:"kind"`             // 类型：fact（事实）、impact（影响）或 watch（待观察）。
-	EvidenceIndexes  []int  `json:"evidence_indexes"` // 支撑该 Tab 的来源序号。
-	subtitleFallback bool   `json:"-"`                // 运行时质量标记：模型字幕无效，已从 summary/title 降级生成。
+	Title           string `json:"title"`            // Tab 标题。
+	Summary         string `json:"summary"`          // 画面中展示的完整摘要（受限 Markdown）。
+	Kind            string `json:"kind"`             // 类型：fact（事实）、impact（影响）或 watch（待观察）。
+	EvidenceIndexes []int  `json:"evidence_indexes"` // 支撑该 Tab 的来源序号。
+}
+
+// StoryScene 是整条 Story 的精简口播。它总结 Story 的核心新闻，不与单个 Tab
+// 一一对应；evidence_indexes 同时用于把相关来源图片挂到少量 Scene 上。
+type StoryScene struct {
+	Subtitle        string `json:"subtitle"`
+	EvidenceIndexes []int  `json:"evidence_indexes"`
 }
 
 // StoryImage 是从来源远程图片中识别、下载并可安全插入视频的一张素材。
@@ -120,6 +127,9 @@ type StoryImage struct {
 
 // StoryTabsResult 是模型针对某个 Story 返回的 Tabs 集合，GroupIndex 对应 Story 序号。
 type StoryTabsResult struct {
-	GroupIndex int        `json:"group_index"` // Story 序号（1 基）。
-	Tabs       []StoryTab `json:"tabs"`        // 该 Story 的 Tabs。
+	GroupIndex      int          `json:"group_index"`      // Story 序号（1 基）。
+	ContentTitle    string       `json:"content_title"`    // 播放区语义完整短标题。
+	NavigationTitle string       `json:"navigation_title"` // 底部时间线语义短标题。
+	Tabs            []StoryTab   `json:"tabs"`             // 该 Story 的 Tabs。
+	Scenes          []StoryScene `json:"scenes"`           // 该 Story 的 1-2 条精简口播，与 Tabs 数量无关。
 }

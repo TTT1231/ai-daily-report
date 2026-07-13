@@ -20,7 +20,7 @@
 
 `overlayImgWidth` / `overlayImgHeight` 是 **generated-only**：由 tts 构建期按图片文件**真实像素**写入 `data-generate.json`（Remotion 实际读取的 props），**无需手填**；值是原始像素，不是想让它显示成多大，渲染层用它们限制小图放大。rss 只写 `overlayImg` 路径、不写尺寸，手动写进 raw 也会被构建按文件真相覆盖。
 
-如果只有某一张图想再大一点或小一点，在这个 scene 上加 `overlayImgScale`，例如 `1.2`。它是人工微调的基础倍率，只影响当前图片，并会和正常的入场/聚焦动画叠加；不要去改 `SourceOverlay` 里的全局样式，否则后面的所有 overlay 图都会一起变大。
+构建期只把真实尺寸写入 `data-generate.json`；渲染层据此给**宽、高均不超过 `1000px` 的小尺寸竖图**自动应用基础倍率：高窄图为 `1.3`，中等竖图为 `1.2`，轻微竖图为 `1.1`。任一边超过 `1000px` 的大图与横图不自动放大，自动倍率也不会写回 JSON。如果只有某一张图想再大一点或小一点，在 raw `data.json` 的 scene 上手动填写 `overlayImgScale` 即可覆盖自动值。它只影响当前图片，并会和正常的入场/聚焦动画叠加；不要去改 `SourceOverlay` 里的全局样式，否则后面的所有 overlay 图都会一起变大。
 
 ```jsonc
 {
@@ -97,7 +97,7 @@ bun run dev
 
 远程图下载遇到网络错误、HTTP 429 或 5xx 会短暂重试；404、格式不支持、图片过大或疑似头像/Logo 这类永久性问题会直接跳过，不中断整期日报生成。
 
-自动配图不会自动写 `overlayImgScale`；这个字段留给预览后的人工微调。
+自动配图在 raw `data.json` 中仍只写 `overlayImg`；随后构建 `data-generate.json` 时写入图片真实尺寸，Remotion 再为不超过 `1000px` 的小尺寸竖图计算基础倍率。需要人工微调时，在 raw scene 中显式填写 `overlayImgScale` 覆盖自动值。
 
 当前实现的触发条件（`shouldAnalyze`）：视觉开关启用、Story 分数 ≥ `visionMinStoryScore`（当前为 7，等于默认日报入选线）、未超调用上限且条目含远程图片；不看正文长短。不满足条件的 scene 不会自动配图，用上面的手动方式补即可。
 

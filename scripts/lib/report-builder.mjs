@@ -1,13 +1,16 @@
-import {readFileSync} from "node:fs";
-import {resolve} from "node:path";
-import {Lunar} from "lunar-javascript";
-import {dataDir as defaultDataDir} from "./paths.mjs";
-import {readImageDimensions} from "./image-dims.mjs";
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
+import { Lunar } from "lunar-javascript";
+import { dataDir as defaultDataDir } from "./paths.mjs";
+import { readImageDimensions } from "./image-dims.mjs";
 
 // 时间线常量的单一事实源是 video-timeline.json（与 src/AiDailyReport.tsx 渲染侧同源读取）。
 // 改这里即两侧同步，避免此前硬编码常量在 JS/TS 两处各自维护导致的评论与画面错位。
 const videoTimeline = JSON.parse(
-  readFileSync(resolve(import.meta.dirname, "../../config/video-timeline.json"), "utf8"),
+  readFileSync(
+    resolve(import.meta.dirname, "../../config/video-timeline.json"),
+    "utf8",
+  ),
 );
 
 function getGreeting(hour) {
@@ -63,7 +66,9 @@ function buildIntro(report, now) {
     title,
     summary: contentTitles.join("\n"),
   }));
-  const dateText = formatLunarDateWithWeekday(parseReportDate(report.date) ?? now);
+  const dateText = formatLunarDateWithWeekday(
+    parseReportDate(report.date) ?? now,
+  );
 
   return {
     id: "intro",
@@ -183,7 +188,11 @@ export const STORY_TRANSITION_FRAMES = videoTimeline.storyTransitionFrames;
  * data.stories[i] 对应 index i + 1（intro / outro 在 generated 数据中始终存在）。
  */
 export function buildVideoStoryStartMs(report) {
-  const timelineStories = [report.intro, ...(report.stories ?? []), report.outro];
+  const timelineStories = [
+    report.intro,
+    ...(report.stories ?? []),
+    report.outro,
+  ];
   const msToFrames = (ms) => Math.round((ms / 1000) * VIDEO_FPS);
   let cursor = 0;
   const startMs = [];

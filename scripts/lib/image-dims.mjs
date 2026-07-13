@@ -1,22 +1,28 @@
-import {existsSync, readFileSync} from "node:fs";
-import {resolve, sep} from "node:path";
+import { existsSync, readFileSync } from "node:fs";
+import { resolve, sep } from "node:path";
 
 // 从 report-validation.mjs 抽出的图片尺寸读取能力，供 report-builder（构建期写尺寸）共用。
 // readImageDimensions 接收 dataDir 参数（与 collectMissingImageAssets 同约定），便于测试隔离。
 
 function readUint24LE(buffer, offset) {
-  return buffer[offset] | (buffer[offset + 1] << 8) | (buffer[offset + 2] << 16);
+  return (
+    buffer[offset] | (buffer[offset + 1] << 8) | (buffer[offset + 2] << 16)
+  );
 }
 
 function readPngDimensions(buffer) {
-  if (buffer.length < 24 || buffer.toString("hex", 0, 8) !== "89504e470d0a1a0a") {
+  if (
+    buffer.length < 24 ||
+    buffer.toString("hex", 0, 8) !== "89504e470d0a1a0a"
+  ) {
     return null;
   }
-  return {width: buffer.readUInt32BE(16), height: buffer.readUInt32BE(20)};
+  return { width: buffer.readUInt32BE(16), height: buffer.readUInt32BE(20) };
 }
 
 function readJpegDimensions(buffer) {
-  if (buffer.length < 4 || buffer[0] !== 0xff || buffer[1] !== 0xd8) return null;
+  if (buffer.length < 4 || buffer[0] !== 0xff || buffer[1] !== 0xd8)
+    return null;
 
   let offset = 2;
   while (offset + 4 <= buffer.length) {
@@ -107,26 +113,45 @@ function readGifDimensions(buffer) {
   if (buffer.length < 10) return null;
   const signature = buffer.toString("ascii", 0, 6);
   if (signature !== "GIF87a" && signature !== "GIF89a") return null;
-  return {width: buffer.readUInt16LE(6), height: buffer.readUInt16LE(8)};
+  return { width: buffer.readUInt16LE(6), height: buffer.readUInt16LE(8) };
 }
 
 // readAvifDimensions 解析 AVIF/HEIF（ISO BMFF）的画面尺寸：宽高存在 ispe
 // (ImageSpatialExtentsProperty) FullBox 里，布局为
-// [4 size][4 "ispe"][4 版本/标志][4 width 大端][4 height 大端]。这里定位首个 ispe 读取；
-// 对单图 AVIF（overlay 常见形态）可靠，极少数"缩略图属性排在主图之前"的多图 AVIF 可能读到缩略图尺寸。
+// [4 size][4 "ispe"][4 版本/标志][4 width 大端][4 height 大端]。多图 AVIF
+// 可能先列缩略图，因此扫描所有结构完整的 ispe 并取最大画布。
 function readAvifDimensions(buffer) {
   if (buffer.length < 16) return null;
   if (buffer.toString("ascii", 4, 8) !== "ftyp") return null;
-  const index = buffer.indexOf(Buffer.from("ispe", "ascii"), 8);
-  if (index < 0 || index + 16 > buffer.length) return null;
-  const width = buffer.readUInt32BE(index + 8);
-  const height = buffer.readUInt32BE(index + 12);
-  if (width <= 0 || height <= 0) return null;
-  return {width, height};
+  const marker = Buffer.from("ispe", "ascii");
+  let best = null;
+  for (let start = 8; start + 16 <= buffer.length; ) {
+    const index = buffer.indexOf(marker, start);
+    if (index < 0) break;
+    if (index >= 4 && index + 16 <= buffer.length) {
+      const boxStart = index - 4;
+      const boxSize = buffer.readUInt32BE(boxStart);
+      const width = buffer.readUInt32BE(index + 8);
+      const height = buffer.readUInt32BE(index + 12);
+      if (
+        boxSize >= 20 &&
+        boxStart + boxSize <= buffer.length &&
+        width > 0 &&
+        height > 0 &&
+        (!best || width * height > best.width * best.height)
+      ) {
+        best = { width, height };
+      }
+    }
+    start = index + marker.length;
+  }
+  return best;
 }
 
 function numberAttribute(svg, name) {
-  const match = svg.match(new RegExp(`\\s${name}=["']([0-9.]+)(?:px)?["']`, "i"));
+  const match = svg.match(
+    new RegExp(`\\s${name}=["']([0-9.]+)(?:px)?["']`, "i"),
+  );
   if (!match) return null;
   const value = Number(match[1]);
   return Number.isFinite(value) && value > 0 ? value : null;
@@ -138,7 +163,7 @@ function readSvgDimensions(buffer) {
 
   const width = numberAttribute(head, "width");
   const height = numberAttribute(head, "height");
-  if (width && height) return {width, height};
+  if (width && height) return { width, height };
 
   const viewBox = head.match(/\sviewBox=["']([0-9.\s-]+)["']/i);
   if (!viewBox) return null;
@@ -147,7 +172,7 @@ function readSvgDimensions(buffer) {
     return null;
   }
   return values[2] > 0 && values[3] > 0
-    ? {width: values[2], height: values[3]}
+    ? { width: values[2], height: values[3] }
     : null;
 }
 

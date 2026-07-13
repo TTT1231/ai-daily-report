@@ -64,13 +64,13 @@ bun run video:auto-generate
 
 `bun run video:auto-generate`（`scripts/render/prepare-video.mjs`）先按顺序跑生产步骤并显示实时状态，任一步失败会中断。**跑完即结束，不再自动开预览**（要看画面单独 `bun run dev`）：
 
-| 步骤              | 做什么                                              | 产物                                             |
-| ----------------- | --------------------------------------------------- | ------------------------------------------------ |
-| `archive`         | 归档上一天数据（必要时），保证每次都从干净状态开始  | `daily-dates/`                                   |
-| `ingest(run-auto)`| Go 采集器抓 RSS → AI 筛选/聚类 → 生成结构           | `data-scheme/data.json`                          |
-| `check-data-json` | 校验 Raw 数据（Schema / 重复 ID / 引用 / 资源路径） | （无产物，不通过则中断）                         |
-| `tts`             | 给每个 scene 生成 MiniMax 旁白，算时间线            | `data-scheme/data-generate.json` + `audio/*.mp3` |
-| `generate-svg`    | 调 `bun run generate-svg` 批量生成 tabs 图标        | `data-scheme/icons/*.svg`                        |
+| 步骤               | 做什么                                              | 产物                                             |
+| ------------------ | --------------------------------------------------- | ------------------------------------------------ |
+| `archive`          | 归档上一天数据（必要时），保证每次都从干净状态开始  | `daily-dates/`                                   |
+| `ingest(run-auto)` | Go 采集器抓 RSS → AI 筛选/聚类 → 生成结构           | `data-scheme/data.json`                          |
+| `check-data-json`  | 校验 Raw 数据（Schema / 重复 ID / 引用 / 资源路径） | （无产物，不通过则中断）                         |
+| `tts`              | 给每个 scene 生成 MiniMax 旁白，算时间线            | `data-scheme/data-generate.json` + `audio/*.mp3` |
+| `generate-svg`     | 调 `bun run generate-svg` 批量生成 tabs 图标        | `data-scheme/icons/*.svg`                        |
 
 `rss` 步骤的网络代理规则见上方「开始前确认」的 `all_proxy` 段，不再赘述。补充两点专属于 `rss` 的：标了 `proxy: true` 的来源（如 linux.do）抓取时**除 `all_proxy` 外还需要 `LINUXDO_CF_CLEARANCE` + `LINUXDO_USER_AGENT` 三件套**才过 Cloudflare（CF 现已覆盖 `.rss` 端点），`ingest/rss2.go` 已内置此逻辑；agent 的 WebFetch/Fetch 不会自动读项目 `.env`，人工补选抓 linux.do 时要用本地 curl 显式带三件套（详见 `rss-pick-mode.md`）。
 
@@ -143,10 +143,10 @@ bun run video
 一句话结论：**把图片丢进 `data-scheme/images/`，给对应的 scene 加 `"overlayImg": "images/文件名"`；`"overlayImgWidth"` / `"overlayImgHeight"` 由构建按文件真实像素自动写入 `data-generate.json`，无需手填。**
 
 - 自动模式（`bun run video:auto-generate`）下，`rss` 视觉识别开启时会给达到日报入选线（Score ≥7）且含远程图的 Story **自动下载并配图**（写入 `overlayImg`）；视觉关闭时只下载候选图，不写 `overlayImg`。下面讲的是没被自动配上、或手动模式下你自己加图时怎么做。
-- 图片是 **scene 级**的（不是 story 级、不是 tab 级），一张图配一句旁白。
+- 图片是 **scene 级**的（不是 story 级、不是 tab 级）。自动生成时每条 Story 通常只有 1 条、最多 2 条精简口播，Scene 与 2～6 张 Tabs 不一一对应；一条 Scene 最多挂一张图。
 - 允许格式：`.svg .png .jpg/.jpeg .webp .gif .avif`。
 - `overlayImgWidth` / `overlayImgHeight` 是 **generated-only**：rss 只把 `overlayImg` 路径写进 `data.json`，尺寸由 tts 构建期按文件真实像素算进 `data-generate.json`（Remotion 实际读取的 props），**无需手填**；手动写进 raw 也会被构建按文件真相覆盖。
-- 只想让某一张图更大/更小，用当前 scene 的 `overlayImgScale`（如 `1.2`）手动微调基础倍率；它会和正常的入场/聚焦动画叠加，不要改 Remotion 组件里的全局样式。
+- 渲染层会根据 `data-generate.json` 的真实宽高，自动给宽、高均不超过 `1000px` 的小尺寸竖图应用 `1.1`～`1.3` 的基础缩放；这个自动值不写回 JSON。超过 `1000px` 的大图与横图不自动放大。只想让某一张图更大/更小时，仍可在当前 scene 手动填写 `overlayImgScale` 覆盖自动值。它会和正常的入场/聚焦动画叠加，不要改 Remotion 组件里的全局样式。
 - 多张图 = 给同一个 story 写多个 scene，依次播放。
 - 改图片会触发一次 TTS 同步以重算 overlay 尺寸，但音频走缓存复用、**不调 MiniMax、不花钱**（`scripts/render/dev.mjs`）；字幕没变，旁白不会重生成。
 
@@ -192,14 +192,14 @@ bun run biliup:prepare
 
 动手做某件事前，先读对应文件：
 
-| 想做的事             | 读哪个                                               |
-| -------------------- | ---------------------------------------------------- |
-| 手写 / 完全手动出片  | [`rules/manual-mode.md`](./rules/manual-mode.md)     |
-| 审核删除已生成的 story | [`rules/review-remove-mode.md`](./rules/review-remove-mode.md) |
-| 从 RSS 抓取结果补选新闻 | [`rules/rss-pick-mode.md`](./rules/rss-pick-mode.md) |
-| 换 TTS 模型或供应商  | [`rules/tts-customize.md`](./rules/tts-customize.md) |
-| 给日报加图片       | [`rules/images.md`](./rules/images.md)               |
-| 把视频渲染导出成 mp4 | [`rules/render-export.md`](./rules/render-export.md) |
-| 发布到 B站 / 封面坑  | [`rules/publish-bili.md`](./rules/publish-bili.md)   |
+| 想做的事                | 读哪个                                                         |
+| ----------------------- | -------------------------------------------------------------- |
+| 手写 / 完全手动出片     | [`rules/manual-mode.md`](./rules/manual-mode.md)               |
+| 审核删除已生成的 story  | [`rules/review-remove-mode.md`](./rules/review-remove-mode.md) |
+| 从 RSS 抓取结果补选新闻 | [`rules/rss-pick-mode.md`](./rules/rss-pick-mode.md)           |
+| 换 TTS 模型或供应商     | [`rules/tts-customize.md`](./rules/tts-customize.md)           |
+| 给日报加图片            | [`rules/images.md`](./rules/images.md)                         |
+| 把视频渲染导出成 mp4    | [`rules/render-export.md`](./rules/render-export.md)           |
+| 发布到 B站 / 封面坑     | [`rules/publish-bili.md`](./rules/publish-bili.md)             |
 
 要做 Tab 图标，用 `bun run generate-svg`（内部加载 `generate-svg` skill）；要改 Remotion 组件本身（动画、布局、`<Audio>`/`<Img>` 用法），用 `remotion-best-practices` skill。

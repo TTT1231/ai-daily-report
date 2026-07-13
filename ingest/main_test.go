@@ -291,6 +291,7 @@ func TestGenerateDataJSON(t *testing.T) {
 			{Title: "消耗规则", Summary: "智谱非高峰期一倍消耗计划可能持续到九月底。"},
 			{Title: "内测进展", Summary: "GLM-5.2 已开始面向 Max 用户进行小范围内测。"},
 		},
+		Scenes: []StoryScene{{Subtitle: "智谱推进 GLM-5.2 小范围内测，同时调整模型使用成本规则。", EvidenceIndexes: []int{1}}},
 	}}
 
 	items := []Item{{Title: "智谱1倍消耗或持续到九月底，5.2也开始Max用户内测了", Link: "https://linux.do/t/topic/2388502"}}
@@ -329,13 +330,15 @@ func TestGenerateDataJSONStripsTrailingQuestionMarksFromDisplayTitles(t *testing
 	path := filepath.Join(t.TempDir(), "data.json")
 	groups := []NewsGroup{{
 		Title:         "OpenAI 发布首款自研 LLM 推理芯片 Jalapeño？？",
+		ContentTitle:  "OpenAI发布Jalapeño推理芯片",
 		Reason:        "论坛标题带问号时，视频标题应更像日报标题",
 		SourceIndexes: []int{1},
 		Highlights:    []NewsHighlight{{Index: 1, Point: "芯片发布"}},
 		Tabs: []StoryTab{
-			{Title: "事件概览", Summary: "OpenAI 发布自研芯片 Jalapeño。", Subtitle: "OpenAI 发布自研芯片 Jalapeño，面向大模型推理场景。"},
-			{Title: "用户影响", Summary: "自研芯片可能影响推理成本。", Subtitle: "自研芯片未来可能影响推理成本和相关服务价格。"},
+			{Title: "事件概览", Summary: "OpenAI 发布自研芯片 Jalapeño。"},
+			{Title: "用户影响", Summary: "自研芯片可能影响推理成本。"},
 		},
+		Scenes: []StoryScene{{Subtitle: "OpenAI 发布自研推理芯片 Jalapeño，面向大模型推理场景。", EvidenceIndexes: []int{1}}},
 	}}
 	items := []Item{{Title: "OpenAI 发布首款自研 LLM 推理芯片 Jalapeño？？", Link: "https://linux.do/t/topic/2468202"}}
 
@@ -351,11 +354,44 @@ func TestGenerateDataJSONStripsTrailingQuestionMarksFromDisplayTitles(t *testing
 		t.Fatal(err)
 	}
 	got := report.Stories[0]
-	if got.ContentTitle != "OpenAI 发布首款自研 LLM 推理芯片 Jalapeño" {
+	if got.ContentTitle != "OpenAI发布Jalapeño推理芯片" {
 		t.Fatalf("ContentTitle = %q", got.ContentTitle)
 	}
 	if got.IntroTitle != "OpenAI 发布首款自研 LLM 推理芯片 Jalapeño" {
 		t.Fatalf("IntroTitle = %q", got.IntroTitle)
+	}
+}
+
+func TestContentTitleUsesSemanticRewriteInsteadOfEllipsis(t *testing.T) {
+	original := "美国专家：由于人口流动以及应届毕业生技能与雇主需求不匹配，严重的劳动力短缺问题持续"
+	semantic := "美国劳动力短缺：毕业生技能与岗位错配"
+	if got := cleanContentTitle(semantic, original); got != semantic {
+		t.Fatalf("cleanContentTitle() = %q, want semantic rewrite", got)
+	}
+	for _, invalid := range []string{
+		"美国专家：由于人口流动以及应届毕业生技能与雇主需求不匹配…",
+		"美国专家：由于人口流动以及应届毕业生技能与",
+	} {
+		if got := cleanContentTitle(invalid, original); got != "" {
+			t.Fatalf("mechanically truncated content title was accepted: %q", got)
+		}
+	}
+
+	secondOriginal := "《智能体个人信息保护自律公约》发布，百度、腾讯、阿里、火山引擎等31家企业参与"
+	secondSemantic := "31家企业发布智能体个人信息保护公约"
+	if got := cleanContentTitle(secondSemantic, secondOriginal); got != secondSemantic {
+		t.Fatalf("cleanContentTitle() = %q, want %q", got, secondSemantic)
+	}
+}
+
+func TestResolvedContentTitleKeepsCompleteShortOriginal(t *testing.T) {
+	group := NewsGroup{
+		Title:        "Codex 将临时去除 5h 限制",
+		ContentTitle: "Codex临时取消5小时使用限制",
+	}
+	want := "Codex 将临时去除 5h 限制"
+	if got := resolvedContentTitle(group); got != want {
+		t.Fatalf("resolvedContentTitle() = %q, want original %q", got, want)
 	}
 }
 
@@ -375,6 +411,10 @@ func TestGenerateDataJSONAssignsOverlayImagesByEvidence(t *testing.T) {
 			{Title: "第二张", Summary: "第二张图支撑的摘要内容。", EvidenceIndexes: []int{1, 2}},
 			{Title: "无图", Summary: "没有剩余图片时不要重复插入。", EvidenceIndexes: []int{2}},
 		},
+		Scenes: []StoryScene{
+			{Subtitle: "第一条精简口播由来源一支撑，并展示对应的首张图片素材。", EvidenceIndexes: []int{1}},
+			{Subtitle: "第二条精简口播由来源二支撑，并展示另一张不重复的图片素材。", EvidenceIndexes: []int{2}},
+		},
 	}}
 	items := []Item{
 		{Title: "来源一", Link: "https://example.com/one"},
@@ -393,9 +433,8 @@ func TestGenerateDataJSONAssignsOverlayImagesByEvidence(t *testing.T) {
 		t.Fatal(err)
 	}
 	scenes := report.Stories[0].Scenes
-	if scenes[0].OverlayImg != "images/source-one.png" ||
-		scenes[1].OverlayImg != "images/source-two.png" ||
-		scenes[2].OverlayImg != "" {
+	if len(scenes) != 2 || scenes[0].OverlayImg != "images/source-one.png" ||
+		scenes[1].OverlayImg != "images/source-two.png" {
 		t.Fatalf("unexpected overlay assignment: %#v", scenes)
 	}
 }
@@ -573,41 +612,6 @@ func TestNormalizeSceneSubtitleRemovesMarkdownAndLimitsLength(t *testing.T) {
 	}
 }
 
-func TestSceneSubtitleDoesNotRepeatFullSummary(t *testing.T) {
-	tab := StoryTab{
-		Summary:  "`Codex` 推出额度存储与邀请重置机制，用户可以灵活安排使用时间并降低额外支出。",
-		Subtitle: "Codex额度重置现在可以存起来，用户能够按需选择重置时间。",
-	}
-	got := sceneSubtitle(tab)
-	if got != tab.Subtitle {
-		t.Fatalf("sceneSubtitle() = %q, want %q", got, tab.Subtitle)
-	}
-}
-
-func TestSceneSubtitleFallsBackToSummaryFact(t *testing.T) {
-	tab := StoryTab{
-		Title:    "用户影响",
-		Summary:  "新模型上线可能导致 Codex 额度被大量消耗，有用户担心免费额度更快用完。",
-		Subtitle: "用户影响，实际影响请看卡片内容。",
-		Kind:     "impact",
-	}
-	got := sceneSubtitle(tab)
-	if got != "新模型上线可能导致 Codex 额度被大量消耗，有用户担心免费额度更快用完。" {
-		t.Fatalf("sceneSubtitle() = %q", got)
-	}
-}
-
-func TestSceneSubtitleRejectsIncompleteCauseAndUsesFullFact(t *testing.T) {
-	tab := StoryTab{
-		Summary:  "因美国政府出口管制指令，Anthropic 已禁止所有用户使用 `Claude Fable 5` 和 `Claude Mythos 5`，所有渠道均不可用，用户可通过 `/model` 切换到其他模型。",
-		Subtitle: "因美国政府出口管制指令。",
-	}
-	got := sceneSubtitle(tab)
-	if got != "因美国政府出口管制指令，Anthropic 已禁止所有用户使用 Claude Fable 5 和 Claude Mythos 5，所有渠道均不可用，用户可通过 /model 切换到其他模型。" {
-		t.Fatalf("sceneSubtitle() = %q", got)
-	}
-}
-
 func TestNormalizeSceneSubtitleRejectsInterfaceDirections(t *testing.T) {
 	if got := normalizeSceneSubtitle("用户影响，实际影响请看卡片内容。"); got != "" {
 		t.Fatalf("normalizeSceneSubtitle() = %q, want empty", got)
@@ -649,6 +653,24 @@ func TestExtractRemoteImageURLsFallsBackToSrc(t *testing.T) {
 	got := extractRemoteImageURLs(description)
 	if len(got) != 1 || got[0] != "https://cdn.example.com/optimized/abc/image.webp?width=690" {
 		t.Fatalf("extractRemoteImageURLs() = %#v", got)
+	}
+}
+
+func TestExtractRemoteImageURLsAcceptsAVIF(t *testing.T) {
+	description := `<img src="https://cdn.example.com/original/4X/product.avif">`
+	got := extractRemoteImageURLs(description)
+	if len(got) != 1 || got[0] != "https://cdn.example.com/original/4X/product.avif" {
+		t.Fatalf("extractRemoteImageURLs() = %#v", got)
+	}
+}
+
+func TestCleanRSS2ItemTextRemovesDiscourseFooter(t *testing.T) {
+	item := Item{Title: "标题", Description: `<p>这个真的是巨大的好消息</p>
+<p><small>16 个帖子 - 10 位参与者</small></p>
+<p><a href="https://linux.do/t/topic/2572508">阅读完整话题</a></p>`}
+	item = adaptLinuxDoItem(item)
+	if got := cleanRSS2ItemText(item); got != "这个真的是巨大的好消息" {
+		t.Fatalf("cleanRSS2ItemText() = %q", got)
 	}
 }
 
@@ -1292,7 +1314,7 @@ func TestTabRejectionReason(t *testing.T) {
 func TestNormalizeStoryTabsWithReasonsCapturesRejections(t *testing.T) {
 	group := NewsGroup{SourceIndexes: []int{1}}
 	tabs := []StoryTab{
-		{Title: "完整标题", Summary: "这是一段足够长的摘要内容用于通过字数校验，并说明具体影响。", Subtitle: "GLM-5.2 已开启 Max 用户小范围内测，具体参数仍待公布。", EvidenceIndexes: []int{1}},
+		{Title: "完整标题", Summary: "这是一段足够长的摘要内容用于通过字数校验，并说明具体影响。", EvidenceIndexes: []int{1}},
 		{Title: "", Summary: "被丢弃因为标题为空"},
 		{Title: "短摘要", Summary: "太短"},
 	}
