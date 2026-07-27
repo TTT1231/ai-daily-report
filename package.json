@@ -43,7 +43,7 @@
     "generate-svg": "node scripts/render/generate-svg.mjs",
     "video": "node scripts/render/prepare-video.mjs --picks",
     "video:auto-generate": "node scripts/render/prepare-video.mjs",
-    "video:half-auto": "bun run rss && bun run rss:pick && bun run video",
+    "video:half-auto": "bun run archive && bun run rss && bun run rss:pick && bun run video",
     "reset": "node scripts/archive/reset.mjs",
     "archive": "node scripts/archive/archive.mjs",
     "render:cover": "bunx remotion still AiDailyReport out/cover.png --frame=45 --props=data-scheme/data-generate.json --public-dir=data-scheme",

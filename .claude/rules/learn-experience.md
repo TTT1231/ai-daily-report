@@ -147,3 +147,59 @@
   - rss-pick-mode.md 里「`.rss`+`all_proxy` 就够、不走 JS challenge」的结论已过时；抓 linux.do 一律带 `LINUXDO_CF_CLEARANCE` cookie + `LINUXDO_USER_AGENT` + `all_proxy` 三件套（与 `ingest/rss2.go` 同源），别先试光秃 curl。
   - 任何「`curl https://linux.do/...` 拿到 HTML」都要先 `head -c 5` 判 `<?xml` vs `<html`——拿到 HTML 不代表代理生效（直连也能到 CF 边缘拿 challenge 页）。
   - 永远不要 `source` 本项目 `.env`（值未加引号、UA 含括号）；按需 `grep '^VAR=' .env | cut -d= -f2-` 抽单个值。
+
+---
+
+## 手动/少量 story 共用 `topTitle` 会让 `tts` 在生成完音频后抛 `intro.tabs < 2`，失败事务回滚导致**重跑再花一次 MiniMax**
+
+- **Tags**: `#runtime` `#data-integrity` `#tricky-issue` `#cost`
+- **Trigger Context**: 手动模式或任何「整期 story 数量少 / `topTitle` 去重后 < 2」的 data.json（典型：本期只有 2 条新闻，图省事让它们共用同一个 `topTitle` 想合并顶部导航）。`bun run check-data-json`（raw）先过，再跑 `bun run tts`。
+- **Symptoms**: `check-data-json` 报 `raw content is valid: N stories` 通过；`tts` 先把 intro / 各 scene / outro 的旁白**全部合成完**（终端逐行打印 `generated XXXXms`），随后在落盘前的 generated 态校验抛错并整段回滚：
+  ```
+  Error: Generated report is invalid:
+  - intro.tabs: must NOT have fewer than 2 items
+      at scripts/render/generate-tts.mjs:258
+  ```
+  事务 abort → 本次合成的音频**没提交**（不进缓存）；改对 data.json 后重跑 `tts`，日志显示 `generated 4, reused 0`——**MiniMax 被重复计费**。`tsc`/`eslint`/`check-data-json` 全程不报，仅 tts 运行时暴露。
+- **Root Cause**: `scripts/lib/report-builder.mjs` 的 `buildIntro`（:53-68）把 stories **按 `topTitle` 分组**，每组生成一张 intro 卡片（`intro-group-N`）；而 `data.schema.json` 的 `intro.tabs` 硬性 `minItems: 2`。两条 story 共用一个 `topTitle` → 只分出 1 组 → 1 张 intro 卡 → 违反 minItems 2。`topTitle` 在本项目一身二职：既决定**顶部导航的合并**（相邻同名合并成一段），又作为 **intro 概览的分组键**——为省导航宽度而共用，会默默把 intro 压成单卡。raw 校验不构建 intro，抓不到这层耦合；只有 tts 构建出 generated 态后才暴露。
+- **Verified Solution**（实测：把两条 story 的 `topTitle` 从共用的「额度动态」改成各自的「OpenAI」/「Anthropic」后，重跑 `tts` 一次通过，`generated 4` 全成功落盘）：
+  ```jsonc
+  // 错（共用 topTitle）：intro 只有 1 组 → tts 报 intro.tabs < 2
+  { "id": "a", "topTitle": "额度动态", ... },
+  { "id": "b", "topTitle": "额度动态", ... }
+  // 对（≥2 个不同 topTitle）：intro 有 2 组 → 过
+  { "id": "a", "topTitle": "OpenAI",    ... },
+  { "id": "b", "topTitle": "Anthropic", ... }
+  ```
+  分公司/分栏目命名反而更贴合「快报」语义；导航宽度仍宽松（实测 511/1920px）。若本期确只有 1 个栏目、又不想造第 2 个 topTitle，那本期的 intro 概览结构天然凑不齐 2 卡——这是 data.schema 的硬约束，别硬绕。
+- **Prevention Recommendations**:
+  - 跑 `tts` 前先保证整期 stories 的**去重 `topTitle` 数 ≥ 2**；「raw `check-data-json` 通过」**不等于**「tts 会通过」——intro 由构建期派生，raw 校验不构建它。
+  - 这条「生成完音频才在落盘前校验、失败即回滚」的事务语义意味着：第一次 tts 因结构错失败 = 白花一次 MiniMax。结构没把握时，先确保 data.json 满足 intro 的隐含约束（≥2 个不同 topTitle）再调 tts，别拿 tts 当校验器试错。
+  - 任何「共用 topTitle 想合并导航」的优化，都要同时检查它是否把 intro 分组数也压到了 < 2。
+
+---
+
+## `generate-svg` 一次性批量生成 ≥10 个图标时，子进程 Claude 的单段 JSON payload 极易转义/规范崩，脚本「全有或全无」导致零落盘（重试不保证成功）
+
+- **Tags**: `#runtime` `#third-party-library` `#tricky-issue` `#tooling`
+- **Trigger Context**: 一次新增多条 story（如手动补 3 条 story + 新 topTitle 触发 intro 多一组），导致 `bun run generate-svg` 需要一次性补 ≥10 个缺失图标（含 intro 卡片）。
+- **Symptoms**: `bun run generate-svg` 非零退出，每次失败原因不同且随机：
+  - `Claude did not return valid generate-svg JSON: Expected ',' or '}' after property value in JSON at position NNNN`（SVG 字符串里某个 `"` 漏转义成 `\"`，整段 JSON 废）。
+  - `icons/<path>.svg SVG must not contain <text>` / `must have viewBox="0 0 96 96"` / 超 `MAX_SVG_BYTES`（个别 SVG 违反 `validateSvgString` 的硬禁令）。
+  失败时 **一个图标都不落盘**（脚本零增量）。`tsc`/`check-data-json` 全程不报，仅 `generate-svg` 运行时暴露。
+- **Root Cause**:
+  1. `scripts/render/generate-svg.mjs` 把**所有**缺失图标（`buildGenerateSvgTargetPlan` 无数量上限）塞进**一个** prompt，让子进程 Claude 在单次响应里产出全部 SVG。
+  2. 每个 SVG 是含大量 `"` / `<` / `>` 的 XML 字符串，放进 JSON 字符串须把内层 `"` 转义成 `\"`；批量 10+ 个累积到几 KB 后，LLM 漏转义是概率事件（实测 ~10 个时单次全合规概率约 30%）。
+  3. `parseGenerateSvgPayload`（`scripts/lib/generate-svg-payload.mjs`）用整体 `JSON.parse`，**零容错**——一处坏则全废。
+  4. `validatePayloadIcons` 要求 payload 必须包含**全部**期望 path（`missing` 任何一个就 throw），且 `applyGenerateSvgPayload`（写盘）在 validate 之后——所以**部分合规也无法部分落盘**，是"全有或全无"。
+  5. 脚本无分批参数、无内部重试；`--force` 只切换"重生全部 vs 仅缺失"，不降批量。重跑靠的是 LLM 输出随机性，不保证收敛。
+- **Verified Solution**（实测：手写 SVG 兜底后 `bun run check-icons` 33/33 通过、`check-data-json:render` render-ready）：
+  - 不反复赌子进程。直接按 `.agents/skills/generate-svg/rules/{design,semantics,theme}.md` 规范**手写 SVG 文件**落盘到 `data-scheme/icons/`，文件名遵循 `defaultIconPathForTab`（`scripts/lib/icon-validation.mjs`）：普通 story = `icons/{storyId}-{tabId}.svg`，**intro 特殊 = `icons/{tabId}.svg`**（tabId 以 `intro-` 开头，如 `intro-group-3.svg`）。
+  - 手写 SVG 必须满足 `validateSvgString` 全部 **fail 级**硬约束（`check-icons` 跑的是 `icon-validation.mjs`，与之几乎同源）：`viewBox="0 0 96 96"`、`xmlns="http://www.w3.org/2000/svg"`、禁 `<style>`/`<script>`、禁全幅背景 `<rect width="96" height="96">`；`<text>` 在 check-icons 里只是 warn 但在 generate-svg payload 校验里是 fail，**一律避开**（用 path/形状画文字，如 `$` = S 曲线 + 竖线）；主体落在 12-84、`<2048` 字节。light 主题用中深饱和色（深蓝/teal/琥珀/coral/magenta/violet），白只作小高光。
+  - **icon 字段两条来路**（`scripts/lib/report-builder.mjs`）：story tab icon 由 raw `data.json` 深拷贝透传；intro tab icon 由 `restoreIcons` 从**旧 data-generate.json** 按 `storyId:tabId` 恢复。因此：① 给 story tab 加 icon → 改 raw `data.json` 后**重跑 `bun run tts`**（缓存复用、免费）即自动透传到 generated；② **intro 新增的 tab（如新 topTitle 产生的 `intro-group-N`）旧 generated 没记录 → restoreIcons 拿不到 → 必须手动写进 data-generate.json，且要在 tts 之后**（否则被重建覆盖）；手写一次后它成为新 previousReport，以后 tts 自动恢复。
+  - 验证：`bun run check-icons`（icon 文件存在 + SVG 合规）+ `bun run check-data-json:render`（generated 可渲染）。
+- **Prevention Recommendations**:
+  - 别对 `generate-svg` 反复重试赌运气——批量 ≥10 时单次成功率低且失败=零落盘；直接手写兜底更确定，且不烧子进程 Claude 额度。
+  - 手写兜底前先量图标是否真需要 11 个：`buildGenerateSvgTargetPlan` 会把所有缺失（含 intro 新组）算进去，`bun run check-icons` 的输出列清缺哪些 tab。
+  - 长期更优解（未实施）：给 `generate-svg.mjs` 加分批参数（如每批 ≤4 个 icon，逐批请求 + 增量落盘 + 容错跳过坏 icon），把"全有或全无"改成"增量 + 重试单条"；评估后可提改进。
+  - 任何「新 topTitle」改动都会让 intro 多一组卡片、多一个需配 icon 的 intro tab，规划图标时要把这个 intro tab 一并算上（它走 `icons/{tabId}.svg` 命名，不在 raw data.json）。
