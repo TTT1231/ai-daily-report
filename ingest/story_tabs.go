@@ -113,7 +113,8 @@ func generateStoryTabs(ai AIConfig, groups []NewsGroup, items []Item, pickedGrou
 func storyTabsContentReady(group NewsGroup) bool {
 	return len(group.Tabs) >= minStoryTabs &&
 		len(group.Scenes) >= 1 && len(group.Scenes) <= 2 &&
-		resolvedContentTitle(group) != ""
+		resolvedContentTitle(group) != "" &&
+		(!group.NavigationTitleRequired || resolvedNavigationTitle(group) != "")
 }
 
 // storyTabMaterial 缓存单个 Story 送给模型的材料文本及其全局序号，便于重试时复用。
@@ -182,7 +183,7 @@ func batchPositionByIndex(batch []storyTabMaterial, groupIndex int) int {
 // buildStoryTabsPrompt 构造批次 prompt，要求模型为每个 Story 生成 Tabs。
 func buildStoryTabsPrompt(batch []storyTabMaterial) string {
 	return fmt.Sprintf(`请为以下 %d 个 Story 分别生成 %d 至 %d 个适合短视频展示的 Tabs。
-每个 summary 至少 %d 个汉字，目标长度 25 至 80 个可见字符，纯文本硬性上限 %d 个可见字符；Markdown 加权后的视觉占用也不得超过同一上限，每张卡最多一段粗体和一段行内代码。先提炼值得展示的独立事实，再决定 Tabs 数量；一张卡写不完时增加 Tab，禁止硬截句子、复制正文或按原文段落数机械补满 6 张。第一张 Tab 必须直接解释标题里的核心事件，背景信息放后面。
+每个 summary 至少 %d 个汉字，目标长度 25 至 80 个可见字符，纯文本硬性上限 %d 个可见字符；Markdown 加权后的视觉占用也不得超过同一上限。每张卡必须恰当使用一段且最多一段粗体突出核心变化、机制、影响或结论；出现多个英文产品/API/错误码/版本时，可用多段行内代码分别标出实际出现且有辨识价值的专名，不要重复标记或装饰普通英文单词。先提炼值得展示的独立事实，再决定 Tabs 数量；一张卡写不完时增加 Tab，禁止硬截句子、复制正文或按原文段落数机械补满 6 张。第一张 Tab 必须直接解释标题里的核心事件，背景信息放后面。
 另外为每个 Story 生成 1 至 2 个 scenes：普通新闻只用 1 个；只有两个独立核心事件才用 2 个。Scene 是整条新闻的简短口播，不对应单张 Tab、不得逐卡朗读。
 遇到多个很长的模型名、API 名或版本号时，不要逐项穷举清单；优先概括系列名、覆盖范围、数量、参数区间和 1 至 2 个代表例，避免行内代码标签堆满卡片。
 
@@ -191,7 +192,7 @@ func buildStoryTabsPrompt(batch []storyTabMaterial) string {
   {
     "group_index": Story 序号,
 	"content_title": "清洗后的原标题不超过30字符且完整时直接复用；只有超长或不完整时才改写为主体+核心事件或结论的完整短标题，改写目标12至26字符、硬性最多30字符，不得截前缀或使用省略号",
-	"navigation_title": "底部时间线的语义短标题，优先 2 至 8 个汉字或简短英文，必须是主体+事件，不得复制完整新闻标题，不得使用省略号",
+	"navigation_title": "底部时间线语义标签，不是新闻句缩写；只保留最有辨识度的实体、产品或对象，中文通常2至5字，英文按显示宽度可略长，不得添加无必要尾巴、复制完整标题或使用省略号",
     "tabs": [
       {
         "title": "简短 Tab 标题",
@@ -234,11 +235,14 @@ func applyStoryTabsResults(groups []NewsGroup, batch []storyTabMaterial, results
 			continue
 		}
 		group := &groups[batch[pos].GroupIndex-1]
+		group.NavigationTitleRequired = true
 		if contentTitle := cleanContentTitle(result.ContentTitle, group.Title); contentTitle != "" {
 			group.ContentTitle = contentTitle
 		}
-		if navigationTitle := cleanNavigationTitle(result.NavigationTitle); navigationTitle != "" {
-			group.NavigationTitle = navigationTitle
+		if strings.TrimSpace(result.NavigationTitle) != "" {
+			if navigationTitle := cleanNavigationTitle(result.NavigationTitle); navigationTitle != "" {
+				group.NavigationTitle = navigationTitle
+			}
 		}
 		normalized, rejected := normalizeStoryTabsWithReasons(*group, result.Tabs)
 		if betterStoryTabs(normalized, group.Tabs) {
@@ -249,9 +253,11 @@ func applyStoryTabsResults(groups []NewsGroup, batch []storyTabMaterial, results
 			group.Scenes = normalizedScenes
 		}
 		resolvedTitle := resolvedContentTitle(*group)
+		resolvedNavigation := resolvedNavigationTitle(*group)
 		tabsReady := len(group.Tabs) >= minStoryTabs
 		scenesReady := len(group.Scenes) >= 1 && len(group.Scenes) <= 2
-		if tabsReady && scenesReady && resolvedTitle != "" {
+		navigationReady := !group.NavigationTitleRequired || resolvedNavigation != ""
+		if tabsReady && scenesReady && resolvedTitle != "" && navigationReady {
 			continue
 		}
 		var reasons []string
@@ -277,12 +283,15 @@ func applyStoryTabsResults(groups []NewsGroup, batch []storyTabMaterial, results
 		if resolvedTitle == "" {
 			reasons = append(reasons, fmt.Sprintf("- content_title 不合格：原标题能完整放下时应直接复用；原标题超长或不完整时，必须语义改写为最多 %d 字的完整短标题，不得截取前缀或使用省略号", maxContentTitleRunes))
 		}
+		if !navigationReady {
+			reasons = append(reasons, fmt.Sprintf("- navigation_title 不合格：必须改写成可完整显示的语义标签，中文约 2 至 5 字或同等宽度英文（视觉宽度最多 %.1f），只保留实体/产品/对象，不得截断或使用省略号", maxNavigationTitleUnits))
+		}
 		repairBody := fmt.Sprintf(`%s
 
 上一轮输出未通过程序质量校验：
 %s
 
-请重新生成这个 Story 的完整 content_title、navigation_title、全部 Tabs 和 1 至 2 个 Story 级 Scenes，不要只补缺失项。清洗后的原标题能在 %d 字内完整显示时，content_title 直接复用即可；只有原标题超长、已有省略号或不完整时才语义改写，禁止截取原文前缀或使用省略号；summary 纯文本不得超过 %d 个可见字符，格式化后也不得超过同一视觉容量，粗体和行内代码各最多一段。若内容放不下，增加 Tab 并按独立事实拆分，禁止截断、复制正文或按段落凑满 6 张；Scene 必须总结整条新闻，不得与 Tabs 一一对应；evidence_indexes 只能使用材料给出的来源序号。`,
+请重新生成这个 Story 的完整 content_title、navigation_title、全部 Tabs 和 1 至 2 个 Story 级 Scenes，不要只补缺失项。navigation_title 是实体/产品/对象标签，不是新闻标题缩写，必须短到可完整显示；summary 每张至少用一段且最多一段粗体突出核心变化/机制/影响，出现多个英文产品、API、错误码或版本时，可用多段行内代码分别标出实际出现且有辨识价值的专名。清洗后的原标题能在 %d 字内完整显示时，content_title 直接复用即可；只有原标题超长、已有省略号或不完整时才语义改写，禁止截取原文前缀或使用省略号；summary 纯文本不得超过 %d 个可见字符，格式化后也不得超过同一视觉容量。若内容放不下，增加 Tab 并按独立事实拆分，禁止截断、复制正文或按段落凑满 6 张；事实不足以支撑两个独立 Tab 时宁可返回一个让质量闸剔除，不得编造第二个角度；Scene 必须总结整条新闻，不得与 Tabs 一一对应；evidence_indexes 只能使用材料给出的来源序号。`,
 			batch[pos].Body, strings.Join(reasons, "\n"), maxContentTitleRunes, maxTabSummaryVisibleRunes)
 		repairs = append(repairs, storyTabMaterial{GroupIndex: batch[pos].GroupIndex, Body: repairBody})
 	}

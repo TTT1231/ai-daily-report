@@ -94,12 +94,13 @@ func generateDataJSON(path string, groups []NewsGroup, items []Item) error {
 		if contentTitle == "" {
 			return fmt.Errorf("Story %q 没有语义完整且不超过 %d 字的 contentTitle；禁止用省略号截断", group.Title, maxContentTitleRunes)
 		}
+		bottomTitle := navigationTitle(group)
 		storyID := uniqueStoryID(storyID(group, items), usedIDs)
 		displayTitle := cleanDisplayTitle(group.Title)
 		story := DataJSONStory{
 			ID:               storyID,
 			TopTitle:         storyCategory(group),
-			BottomTitle:      navigationTitle(group),
+			BottomTitle:      bottomTitle,
 			ContentTitle:     contentTitle,
 			IntroTitle:       displayTitle,
 			ActiveIntro:      i == 0,
@@ -133,7 +134,9 @@ func generateDataJSON(path string, groups []NewsGroup, items []Item) error {
 	if err != nil {
 		return fmt.Errorf("加载导航布局失败: %w", err)
 	}
-	fitNavigationLabels(report.Stories, layout)
+	if err := fitNavigationLabels(report.Stories, layout); err != nil {
+		return err
+	}
 	if splitTitle := splitTopTitleSegmentLabel(report.Stories); splitTitle != "" {
 		return fmt.Errorf("顶部栏目 %q 出现多个非连续分段，请将同类 Story 放在一起", splitTitle)
 	}
@@ -390,8 +393,9 @@ func storyCategory(group NewsGroup) string {
 	}
 }
 
-// navigationTitle 生成底部时间线短标题：优先校验模型给出的，否则按品牌/事件关键词推断，再退到截断标题。
-func navigationTitle(group NewsGroup) string {
+// resolvedNavigationTitle 生成可完整显示的底部时间线语义标签：优先使用模型给出的
+// 短标签，其次使用少量确定性品牌/事件规则。它绝不裁切字符串或添加省略号。
+func resolvedNavigationTitle(group NewsGroup) string {
 	if title := cleanNavigationTitle(group.NavigationTitle); title != "" &&
 		normalizeTitle(title) != normalizeTitle(group.Title) {
 		return title
@@ -435,14 +439,34 @@ func navigationTitle(group NewsGroup) string {
 	if valid := cleanNavigationTitle(title); valid != "" {
 		return valid
 	}
-	// bottomTitle 是必填字段；确实无法从 Story 推断时才使用通用最终兜底。
+	return ""
+}
+
+// navigationTitle 保留为生成与测试侧的统一入口。正常流水线在 Story Tabs 阶段要求
+// navigation_title 通过严格短标签质量闸；通用兜底只服务于不经过该阶段的旧调用方。
+func navigationTitle(group NewsGroup) string {
+	if title := resolvedNavigationTitle(group); title != "" {
+		return title
+	}
 	return "AI动态"
 }
 
-// validNavigationTitle 只校验短标题非空；最终长度由整条导航的动态容量统一适配。
+// validNavigationTitle 校验短标签可以原样完整显示。中文按 1 单位、ASCII 按 0.62
+// 单位近似渲染宽度；超过上限必须让模型语义改写，不能交给布局层硬截断。
 func validNavigationTitle(title string) string {
 	title = strings.TrimSpace(title)
-	if title == "" {
+	if title == "" || strings.Contains(title, "…") || strings.Contains(title, "...") {
+		return ""
+	}
+	units := 0.0
+	for _, r := range title {
+		if r <= 0xff {
+			units += 0.62
+		} else {
+			units++
+		}
+	}
+	if units > maxNavigationTitleUnits {
 		return ""
 	}
 	return title

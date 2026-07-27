@@ -82,7 +82,12 @@ export const dailyStorySchema = z
   .object({
     id: identifierSchema,
     topTitle: z.string().min(1),
-    bottomTitle: z.string().min(1),
+    bottomTitle: z
+      .string()
+      .min(1)
+      .refine((value) => !value.includes("…") && !value.includes("..."), {
+        message: "bottomTitle must be a complete semantic label without ellipsis",
+      }),
     contentTitle: z
       .string()
       .min(1)

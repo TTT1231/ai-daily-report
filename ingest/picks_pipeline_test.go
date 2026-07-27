@@ -155,10 +155,10 @@ func TestPicksPathEndToEnd(t *testing.T) {
 	// mock AI：两个 Story 都直接给足合格 Tabs 与一条整条新闻口播。
 	// summary 必须 ≥ minTabSummaryRunes(25) 汉字才能过 normalizeStoryTabs 校验。
 	tabsServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-		resp := `[{"group_index":1,"tabs":[
+		resp := `[{"group_index":1,"navigation_title":"DeepSeek","tabs":[
 			{"title":"自研芯片","summary":"DeepSeek 正在自主研发专用芯片以降低对英伟达 GPU 的依赖，这是重要的供应链自主化举措。","subtitle":"DeepSeek 正在自研 AI 芯片以减少对英伟达和华为的芯片依赖。","kind":"fact","evidence_indexes":[1]},
 			{"title":"行业影响","summary":"自研芯片若成功将显著降低推理成本，改变当前算力市场格局，影响整个产业链上下游。","subtitle":"DeepSeek 自研芯片有望降低推理成本并改变算力市场格局。","kind":"impact","evidence_indexes":[1]}
-		],"scenes":[{"subtitle":"DeepSeek 正在研发专用 AI 芯片，以降低对外部 GPU 供应链的依赖。","evidence_indexes":[1]}]},{"group_index":2,"tabs":[
+		],"scenes":[{"subtitle":"DeepSeek 正在研发专用 AI 芯片，以降低对外部 GPU 供应链的依赖。","evidence_indexes":[1]}]},{"group_index":2,"navigation_title":"美光","tabs":[
 			{"title":"营收超预期","summary":"美光最新季度营收超出华尔街分析师一致预期，存储芯片需求强劲推动业绩增长。","kind":"fact","evidence_indexes":[2]},
 			{"title":"需求推动增长","summary":"数据中心与 AI 需求继续拉动存储芯片销售，为美光后续业绩提供增长动力。","kind":"impact","evidence_indexes":[2]}
 		],"scenes":[{"subtitle":"美光最新季度营收超出市场预期，AI 与数据中心需求推动存储芯片增长。","evidence_indexes":[2]}]}]`

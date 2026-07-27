@@ -114,6 +114,18 @@ test("dailyStorySchema requires a complete contentTitle without ellipsis", () =>
   );
 });
 
+test("dailyStorySchema requires a complete bottomTitle without ellipsis", () => {
+  const story = {
+    id: "story-1",
+    topTitle: "栏目",
+    bottomTitle: "中国电信算力…",
+    contentTitle: "中国电信建设算力基础设施",
+    tabs: [validTab({ id: "tab-1" }), validTab({ id: "tab-2" })],
+    scenes: [validScene()],
+  };
+  assert.throws(() => dailyStorySchema.parse(story));
+});
+
 test("dailyIntroSchema rejects an intro with fewer than 2 tabs", () => {
   const oneTabIntro = {
     id: "intro",

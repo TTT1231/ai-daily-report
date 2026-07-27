@@ -81,16 +81,17 @@ type ScoredItem struct {
 
 // NewsGroup 是聚类后的一个 Story（视频主题），由若干来源与不重复要点组成。
 type NewsGroup struct {
-	Title           string          `json:"title"`                      // 合并后的 Story 标题。
-	ContentTitle    string          `json:"content_title,omitempty"`    // 播放区主标题，完整语义短句，不得用省略号截断。
-	NavigationTitle string          `json:"navigation_title,omitempty"` // 底部时间线短标题，最终长度按整条导航容量适配。
-	Score           int             `json:"score"`                      // 主题重要性分数。
-	Reason          string          `json:"reason"`                     // 为何值得关注。
-	SourceIndexes   []int           `json:"source_indexes"`             // 归入本 Story 的全部候选序号（含重复来源）。
-	Highlights      []NewsHighlight `json:"highlights"`                 // 互不重复的关键要点。
-	Tabs            []StoryTab      `json:"tabs,omitempty"`             // 后续编排出的视频 Tabs。
-	Scenes          []StoryScene    `json:"scenes,omitempty"`           // Story 级精简口播；与 Tabs 解耦，通常 1 条、最多 2 条。
-	ImageAssets     []StoryImage    `json:"-"`                          // 已确认相关并可作为画面 overlay 的本地图片素材。
+	Title                   string          `json:"title"`                      // 合并后的 Story 标题。
+	ContentTitle            string          `json:"content_title,omitempty"`    // 播放区主标题，完整语义短句，不得用省略号截断。
+	NavigationTitle         string          `json:"navigation_title,omitempty"` // 底部时间线语义短标签，必须完整显示且不得用省略号。
+	Score                   int             `json:"score"`                      // 主题重要性分数。
+	Reason                  string          `json:"reason"`                     // 为何值得关注。
+	SourceIndexes           []int           `json:"source_indexes"`             // 归入本 Story 的全部候选序号（含重复来源）。
+	Highlights              []NewsHighlight `json:"highlights"`                 // 互不重复的关键要点。
+	Tabs                    []StoryTab      `json:"tabs,omitempty"`             // 后续编排出的视频 Tabs。
+	Scenes                  []StoryScene    `json:"scenes,omitempty"`           // Story 级精简口播；与 Tabs 解耦，通常 1 条、最多 2 条。
+	ImageAssets             []StoryImage    `json:"-"`                          // 已确认相关并可作为画面 overlay 的本地图片素材。
+	NavigationTitleRequired bool            `json:"-"`                          // Story Tabs 模型返回过 navigation_title 后启用严格短标签质量闸。
 }
 
 // NewsHighlight 是 Story 内的一个不重复要点，指向最能代表它的来源序号。

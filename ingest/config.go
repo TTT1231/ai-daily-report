@@ -25,4 +25,5 @@ const (
 	maxSceneSubtitleRunes     = 96                         // 场景口播字幕（subtitle）的最大汉字长度。
 	maxSourceTextRunes        = 5000                       // 送给模型时单条来源正文的最大字符数，超出截断。
 	maxContentTitleRunes      = 30                         // 内容主标题（contentTitle）的画面安全上限；超长必须语义改写，禁止截断。
+	maxNavigationTitleUnits   = 5.0                        // 底部短标签视觉宽度上限；中文约 5 字，ASCII 按 0.62 计。
 )

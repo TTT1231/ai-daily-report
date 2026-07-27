@@ -220,19 +220,20 @@ func fallbackGroupIdentity(title string) (string, string) {
 }
 
 // cleanNavigationTitle 清洗模型给出的底部时间线短标题：
-// 内容过短或空洞（纯栏目名、无信息短语）时清空，交由下游 navigationTitle() 降级推断。
+// 空洞、带省略号或超过短标签视觉宽度时清空，让 Story Tabs 阶段定向重写。
 func cleanNavigationTitle(title string) string {
-	title = strings.TrimSpace(title)
+	title = stripForumDecorations(strings.TrimSpace(title))
 	if validNavigationTitle(title) == "" {
 		return ""
 	}
 	if isVacuousNavigationTitle(title) {
 		return ""
 	}
-	return stripForumDecorations(title)
+	return title
 }
 
-// isVacuousNavigationTitle 判断短标题是否内容空洞：只是栏目名或通用占位词，缺少“主体+事件”。
+// isVacuousNavigationTitle 判断短标题是否内容空洞：只是栏目名或通用占位词，
+// 没有可识别的实体、产品、对象或事件。
 func isVacuousNavigationTitle(title string) bool {
 	lower := strings.ToLower(title)
 	// 纯栏目名（与视频分区/Tab 角色同名的标签），没有具体事件信息。

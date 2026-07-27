@@ -53,6 +53,24 @@ func TestAnalyzeRemoteImageWithClaudeParsesAndCleansStructuredOutput(t *testing.
 	}
 }
 
+func TestBuildClaudeVisionPromptTreatsInlineAnnouncementAsRelevantEvidence(t *testing.T) {
+	prompt := buildClaudeVisionPrompt(
+		"https://cdn.example.com/anuneko-shutdown.png",
+		"米哈游 AI 聊天软件 AnuNeko 下周永久关闭\n· 关闭后删除用户数据",
+	)
+	for _, expected := range []string{
+		"正文证据图",
+		"不要求图片覆盖 Story 的每一个要点",
+		"AnuNeko",
+		"用户数据删除",
+		"只有图片内容清晰可辨且有明确证据",
+	} {
+		if !strings.Contains(prompt, expected) {
+			t.Fatalf("buildClaudeVisionPrompt() missing %q:\n%s", expected, prompt)
+		}
+	}
+}
+
 // TestAnalyzeRemoteImageWithClaudePropagatesCLINotFound 覆盖 claude CLI 未安装：
 // 假 execClaudeVision 返回「未找到 claude CLI」错误，验证它被原样透传（语义与
 // 重构前 LookPath 失败一致），不会被错误地包进「Claude CLI 返回失败」。

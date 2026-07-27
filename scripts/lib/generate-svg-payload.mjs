@@ -126,8 +126,8 @@ export function buildGenerateSvgPayloadPrompt({
     "Structured payload mode:",
     "- Do not call tools. Do not read or write files. Do not run shell commands.",
     "- Generate every SVG in one response. The Node wrapper will write files, update JSON, and run validation.",
-    "- Return only the marked JSON payload. No Markdown, no prose outside the markers.",
-    "- Each SVG must be a compact string with escaped double quotes, include xmlns and viewBox=\"0 0 96 96\", and use a transparent canvas.",
+    "- Return only one object matching the CLI JSON schema, with an icons array. Do not add Markdown, markers, or prose.",
+    "- Each SVG must be a compact string, include xmlns and viewBox=\"0 0 96 96\", and use a transparent canvas. The CLI structured-output encoder will handle JSON escaping.",
     "- Keep each SVG under about 1800 UTF-8 bytes. Avoid <style>, <script>, <text>, external assets, animation, or a full-canvas background shape.",
     "- Use sibling variety: target icons from the same story should have distinct silhouettes and colors.",
     "- Paths must exactly match the requested target paths. Do not add, remove, rename, or reassign paths.",
@@ -149,9 +149,7 @@ export function buildGenerateSvgPayloadPrompt({
     JSON.stringify(compactTargets, null, 2),
     "",
     "Output schema:",
-    `${GENERATE_SVG_PAYLOAD_START}`,
     '{"icons":[{"path":"icons/example.svg","concept":"short semantic concept","svg":"<svg xmlns=\\"http://www.w3.org/2000/svg\\" viewBox=\\"0 0 96 96\\" fill=\\"none\\">...</svg>"}]}',
-    `${GENERATE_SVG_PAYLOAD_END}`,
   );
 
   return promptLines.join("\n");
@@ -184,6 +182,16 @@ export function parseGenerateSvgPayload(output) {
     parsed = JSON.parse(extractJsonPayload(output));
   } catch (error) {
     throw new Error(`Claude did not return valid generate-svg JSON: ${error.message}`);
+  }
+
+  if (parsed?.structured_output && typeof parsed.structured_output === "object") {
+    parsed = parsed.structured_output;
+  } else if (typeof parsed?.result === "string" && parsed.result.trim() !== "") {
+    try {
+      parsed = JSON.parse(extractJsonPayload(parsed.result));
+    } catch (error) {
+      throw new Error(`Claude result did not contain valid generate-svg JSON: ${error.message}`);
+    }
   }
 
   if (!parsed || !Array.isArray(parsed.icons)) {

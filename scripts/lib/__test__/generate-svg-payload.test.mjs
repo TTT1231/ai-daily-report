@@ -42,7 +42,7 @@ test("buildGenerateSvgTargetPlan targets missing generated icons", () => {
   }
 });
 
-test("buildGenerateSvgPayloadPrompt asks Claude for marked JSON only", () => {
+test("buildGenerateSvgPayloadPrompt asks Claude for schema-constrained JSON only", () => {
   const report = loadMock("generated-report.json");
   const dir = seedDataScheme();
 
@@ -56,8 +56,8 @@ test("buildGenerateSvgPayloadPrompt asks Claude for marked JSON only", () => {
       preflightErrors: ['intro.tabs[0]: missing "icon" field'],
     });
 
-    assert.match(prompt, /BEGIN_GENERATE_SVG_JSON/);
-    assert.match(prompt, /END_GENERATE_SVG_JSON/);
+    assert.match(prompt, /CLI JSON schema/);
+    assert.doesNotMatch(prompt, /BEGIN_GENERATE_SVG_JSON/);
     assert.match(prompt, /Do not call tools/);
     assert.match(prompt, /icons\/story-1-tab-1\.svg/);
     assert.match(prompt, /Current report theme: dark/);
@@ -73,6 +73,20 @@ test("parseGenerateSvgPayload extracts marked JSON payload", () => {
 
   assert.equal(payload.icons.length, 1);
   assert.equal(payload.icons[0].path, "icons/a.svg");
+});
+
+test("parseGenerateSvgPayload reads Claude CLI structured_output envelopes", () => {
+  const payload = parseGenerateSvgPayload(
+    JSON.stringify({
+      type: "result",
+      structured_output: {
+        icons: [{path: "icons/a.svg", concept: "triangle", svg: sampleSvg}],
+      },
+    }),
+  );
+
+  assert.equal(payload.icons[0].concept, "triangle");
+  assert.equal(payload.icons[0].svg, sampleSvg);
 });
 
 test("applyGenerateSvgPayload writes SVGs, updates generated data, and mirrors raw story icons", async () => {

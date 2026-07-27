@@ -61,12 +61,12 @@ func TestGenerateStoryTabsDropsStoryWithTooFewValidTabsAndKeepsGoodOne(t *testin
 
 	// 两个 group 同属一个批次（storyTabBatchSize=4），一次 mock 响应覆盖。
 	tabsJSON := `[` +
-		`{"group_index":1,"tabs":[` +
+		`{"group_index":1,"navigation_title":"薄项","tabs":[` +
 		// 摘要够长（>=minTabSummaryRunes=25 字）但 evidence_indexes 全部无效 → 被丢
 		`{"title":"薄Tab一","summary":"这是一段长度足够的摘要内容用于通过字数校验，并保留具体事实。","kind":"fact","evidence_indexes":[99]},` +
 		`{"title":"薄Tab二","summary":"这是另一段长度足够的摘要内容用于通过字数校验，并保留具体事实。","kind":"fact","evidence_indexes":[99]}` +
 		`],"scenes":[{"subtitle":"薄 Story 的测试口播内容完整，但其 Tabs 证据故意无效。","evidence_indexes":[1]}]},` +
-		`{"group_index":2,"tabs":[` +
+		`{"group_index":2,"navigation_title":"合格项","tabs":[` +
 		// 合格：evidence_indexes 命中 group 2 的 SourceIndexes=[2]
 		`{"title":"合格Tab一","summary":"这是合格 Story 的第一段足够长的摘要内容，包含明确事实。","kind":"fact","evidence_indexes":[2]},` +
 		`{"title":"合格Tab二","summary":"这是合格 Story 的第二段足够长的摘要内容，说明用户影响。","kind":"impact","evidence_indexes":[2]}` +
@@ -106,10 +106,10 @@ func TestGenerateStoryTabsErrorsWhenAllStoriesHaveTooFewValidTabs(t *testing.T) 
 	items := tabsDropItems()
 
 	tabsJSON := `[` +
-		`{"group_index":1,"tabs":[` +
+		`{"group_index":1,"navigation_title":"薄项","tabs":[` +
 		`{"title":"无效一","summary":"这是一段长度足够的摘要内容用于通过字数校验，并保留具体事实。","kind":"fact","evidence_indexes":[99]}` +
 		`],"scenes":[{"subtitle":"第一条测试口播有效，但对应的新闻信息卡证据无效。","evidence_indexes":[1]}]},` +
-		`{"group_index":2,"tabs":[` +
+		`{"group_index":2,"navigation_title":"合格项","tabs":[` +
 		`{"title":"无效二","summary":"这是另一段长度足够的摘要内容用于通过字数校验，并保留具体事实。","kind":"fact","evidence_indexes":[99]}` +
 		`],"scenes":[{"subtitle":"第二条测试口播有效，但对应的新闻信息卡证据无效。","evidence_indexes":[2]}]}` +
 		`]`
@@ -134,12 +134,12 @@ func TestGenerateStoryTabsDropsStoryWithShortSummaryTabs(t *testing.T) {
 	items := tabsDropItems()
 
 	tabsJSON := `[` +
-		`{"group_index":1,"tabs":[` +
+		`{"group_index":1,"navigation_title":"薄项","tabs":[` +
 		// summary 过短 → tabRejectionReason 命中「summary 仅 N 字，不足 25 字下限」
 		`{"title":"短一","summary":"太短","kind":"fact","evidence_indexes":[1]},` +
 		`{"title":"短二","summary":"也太短","kind":"fact","evidence_indexes":[1]}` +
 		`],"scenes":[{"subtitle":"薄 Story 的测试口播内容完整，但信息卡摘要故意过短。","evidence_indexes":[1]}]},` +
-		`{"group_index":2,"tabs":[` +
+		`{"group_index":2,"navigation_title":"合格项","tabs":[` +
 		`{"title":"合格一","summary":"这是合格 Story 的第一段足够长的摘要内容，包含明确事实。","kind":"fact","evidence_indexes":[2]},` +
 		`{"title":"合格二","summary":"这是合格 Story 的第二段足够长的摘要内容，说明用户影响。","kind":"impact","evidence_indexes":[2]}` +
 		`],"scenes":[{"subtitle":"合格 Story 使用一条精简口播总结核心事件和直接影响。","evidence_indexes":[2]}]}` +
@@ -164,13 +164,13 @@ func TestGenerateStoryTabsSkipsOneFailedPickAndKeepsTheGoodPick(t *testing.T) {
 	groups := twoPrebuiltGroups()
 	items := tabsDropItems()
 	initial := `[` +
-		`{"group_index":1,"tabs":[{"title":"无效卡片","summary":"太短","kind":"fact","evidence_indexes":[1]}]},` +
-		`{"group_index":2,"tabs":[` +
+		`{"group_index":1,"navigation_title":"薄项","tabs":[{"title":"无效卡片","summary":"太短","kind":"fact","evidence_indexes":[1]}]},` +
+		`{"group_index":2,"navigation_title":"合格项","tabs":[` +
 		`{"title":"合格事实","summary":"这是合格 Story 的第一段足够长的摘要内容，包含明确事实。","kind":"fact","evidence_indexes":[2]},` +
 		`{"title":"合格影响","summary":"这是合格 Story 的第二段足够长的摘要内容，说明用户影响。","kind":"impact","evidence_indexes":[2]}` +
 		`],"scenes":[{"subtitle":"合格 Story 使用一条精简口播总结核心事件和直接影响。","evidence_indexes":[2]}]}` +
 		`]`
-	failedRepair := `[{"group_index":1,"tabs":[{"title":"仍然无效","summary":"仍太短","kind":"fact","evidence_indexes":[1]}]}]`
+	failedRepair := `[{"group_index":1,"navigation_title":"薄项","tabs":[{"title":"仍然无效","summary":"仍太短","kind":"fact","evidence_indexes":[1]}]}]`
 	var calls atomic.Int32
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		content := initial

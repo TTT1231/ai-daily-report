@@ -25,7 +25,6 @@ function tabSummaryMarkdownStats(value) {
     .filter(Boolean);
   let visualUnits = 0;
   let boldSpans = 0;
-  let codeSpans = 0;
   const unitsFor = (content, multiplier) =>
     Array.from(content).reduce(
       (total, character) =>
@@ -37,13 +36,12 @@ function tabSummaryMarkdownStats(value) {
       boldSpans++;
       visualUnits += unitsFor(part.slice(2, -2), 1.08) + 0.35;
     } else if (part.startsWith("`") && part.endsWith("`")) {
-      codeSpans++;
       visualUnits += unitsFor(part.slice(1, -1), 1.02) + 0.55;
     } else {
       visualUnits += unitsFor(part, 1);
     }
   }
-  return { boldSpans, codeSpans, visualUnits };
+  return { boldSpans, visualUnits };
 }
 
 const normalizeComparableText = (value) =>
@@ -221,9 +219,6 @@ export function validateReport(
       }
       if (isNewsStory && markdownStats.boldSpans > 1) {
         fail(`${tabPath}.summary`, "must use at most one bold span");
-      }
-      if (isNewsStory && markdownStats.codeSpans > 1) {
-        fail(`${tabPath}.summary`, "must use at most one inline-code span");
       }
       if (
         isNewsStory &&

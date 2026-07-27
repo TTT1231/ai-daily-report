@@ -135,41 +135,29 @@ func maxStoryGroupsForNavigation() int {
 	return min(maxGroups, layout.storyCapacity())
 }
 
-func fitNavigationLabels(stories []DataJSONStory, layout navigationLayoutConfig) {
-	fitBottomNavigation(stories, layout)
+func fitNavigationLabels(stories []DataJSONStory, layout navigationLayoutConfig) error {
+	if err := fitBottomNavigation(stories, layout); err != nil {
+		return err
+	}
 	fitTopNavigation(stories, layout)
+	return nil
 }
 
-func fitBottomNavigation(stories []DataJSONStory, layout navigationLayoutConfig) {
-	for {
-		labels := []string{"Intro"}
-		for _, story := range stories {
-			labels = append(labels, story.BottomTitle)
-		}
-		labels = append(labels, "再见")
-		if layout.requiredWidth(labels) <= float64(layout.VideoWidth) {
-			return
-		}
-
-		widestIndex := -1
-		widestWidth := 0.0
-		for index, story := range stories {
-			width := layout.minimumWidth(story.BottomTitle, len(labels))
-			if len([]rune(story.BottomTitle)) > 1 && width > widestWidth {
-				widestIndex = index
-				widestWidth = width
-			}
-		}
-		if widestIndex < 0 {
-			return
-		}
-		targetWidth := widestWidth - layout.typography(len(labels)).FontSize
-		stories[widestIndex].BottomTitle = layout.truncateLabel(
-			stories[widestIndex].BottomTitle,
-			len(labels),
-			targetWidth,
-		)
+func fitBottomNavigation(stories []DataJSONStory, layout navigationLayoutConfig) error {
+	labels := []string{"Intro"}
+	for _, story := range stories {
+		labels = append(labels, story.BottomTitle)
 	}
+	labels = append(labels, "再见")
+	required := layout.requiredWidth(labels)
+	if required <= float64(layout.VideoWidth) {
+		return nil
+	}
+	return fmt.Errorf(
+		"底部导航需要 %.0fpx，但视频宽度只有 %dpx；bottomTitle 必须在生成阶段继续做语义缩写，禁止用省略号硬截断",
+		required,
+		layout.VideoWidth,
+	)
 }
 
 func fitTopNavigation(stories []DataJSONStory, layout navigationLayoutConfig) {

@@ -73,7 +73,8 @@
         "bottomTitle": {
           "type": "string",
           "minLength": 1,
-          "description": "底部 Story 时间线短标签，只保留主体与事件。单项没有固定字符上限，整条底部导航的总展示宽度不得超过视频宽度。"
+          "pattern": "^(?!.*(?:…|\\.\\.\\.)).*$",
+          "description": "底部 Story 时间线语义短标签，必须原样完整显示，不得用省略号机械截断；优先只保留实体、产品或对象。整条底部导航的总展示宽度不得超过视频宽度。"
         },
         "contentTitle": {
           "type": "string",

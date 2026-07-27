@@ -5,22 +5,58 @@ import (
 	"testing"
 )
 
-func TestSplitBoldSpanForInlineCodeKeepsMiddleCandidateInSingleBoldSpan(t *testing.T) {
-	input := "官方确认 **现有 Codex 用户继续保留访问资格**，迁移安排稍后公布。"
-	got := splitBoldSpanForInlineCode(input)
-	if got != input {
-		t.Fatalf("splitBoldSpanForInlineCode() = %q, want unchanged %q", got, input)
+func TestAddMissingInlineCodeSpansCompletesMultipleEntities(t *testing.T) {
+	input := "`WordPress` 的 wp2shell 漏洞影响 Cloudflare API 网关的安全状态。"
+	got := addMissingInlineCodeSpans(input)
+	for _, want := range []string{"`WordPress`", "`wp2shell`", "`Cloudflare`", "`API`"} {
+		if !strings.Contains(got, want) {
+			t.Fatalf("addMissingInlineCodeSpans() = %q, missing %s", got, want)
+		}
 	}
-	if spans := tabSummaryBoldSpanPattern.FindAllString(got, -1); len(spans) != 1 {
-		t.Fatalf("bold spans = %d, want 1 in %q", len(spans), got)
+	if spans := tabSummaryCodeSpanPattern.FindAllString(got, -1); len(spans) != 4 {
+		t.Fatalf("code spans = %d, want 4 in %q", len(spans), got)
 	}
 }
 
-func TestEnrichTabSummaryMarkdownDoesNotCreateRejectedMiddleCodeShape(t *testing.T) {
-	input := "官方确认 **现有 Codex 用户继续保留访问资格**，迁移安排稍后公布。"
+func TestEnrichTabSummaryMarkdownKeepsSingleBoldWithMultipleCodeSpans(t *testing.T) {
+	input := "WordPress 的 wp2shell 漏洞允许未认证攻击者远程执行代码，Cloudflare API 网关可能受影响。"
 	got := enrichTabSummaryMarkdown(input)
+	if spans := tabSummaryBoldSpanPattern.FindAllString(got, -1); len(spans) != 1 {
+		t.Fatalf("bold spans = %d, want 1 in %q", len(spans), got)
+	}
+	if spans := tabSummaryCodeSpanPattern.FindAllString(got, -1); len(spans) < 2 {
+		t.Fatalf("code spans = %d, want multiple in %q", len(spans), got)
+	}
 	if reason := tabRejectionReason(StoryTab{Title: "迁移安排", Summary: got}); reason != "" {
 		t.Fatalf("enricher produced a shape rejected by its validator: %q (%s)", got, reason)
+	}
+}
+
+func TestEnrichTabSummaryMarkdownHighlightsDecoyFontMechanism(t *testing.T) {
+	input := "该字体基于混合图像技术，人类正常阅读时看到隐藏信息，而 AI 因依赖近像素信息，优先读取轮廓更清晰的诱饵字母。"
+	got := enrichTabSummaryMarkdown(input)
+	if !strings.Contains(got, "**优先读取轮廓更清晰的诱饵字母**") {
+		t.Fatalf("enrichTabSummaryMarkdown() = %q, want semantic conclusion emphasized", got)
+	}
+	if reason := tabRejectionReason(StoryTab{Title: "混合图像机制", Summary: got}); reason != "" {
+		t.Fatalf("enriched summary rejected: %s (%q)", reason, got)
+	}
+}
+
+func TestEnrichTabSummaryMarkdownDeepensWp2ShellEmphasis(t *testing.T) {
+	input := "WordPress 核心漏洞 `wp2shell` 允许未认证攻击者通过匿名 HTTP 请求远程执行代码，即使未安装插件也受影响。"
+	got := enrichTabSummaryMarkdown(input)
+	if !strings.Contains(got, "`wp2shell`") {
+		t.Fatalf("enrichTabSummaryMarkdown() lost inline code: %q", got)
+	}
+	if !strings.Contains(got, "`WordPress`") {
+		t.Fatalf("enrichTabSummaryMarkdown() did not complete other inline code: %q", got)
+	}
+	if !strings.Contains(got, "**允许未认证攻击者通过匿名 HTTP 请求远程执行代码**") {
+		t.Fatalf("enrichTabSummaryMarkdown() = %q, want impact emphasized", got)
+	}
+	if reason := tabRejectionReason(StoryTab{Title: "核心漏洞", Summary: got}); reason != "" {
+		t.Fatalf("enriched summary rejected: %s (%q)", reason, got)
 	}
 }
 

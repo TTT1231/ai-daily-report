@@ -12,7 +12,7 @@
 
 When `scripts/render/generate-svg.mjs` requests structured payload output:
 
-- Return only the wrapper's requested JSON payload between its markers.
+- Return only the wrapper's requested JSON object. The current wrapper uses Claude CLI structured output, so do not add markers or Markdown fences; legacy marker-wrapped payloads remain parser-compatible only for old callers.
 - Include exactly one `icons[]` entry for each requested target path and no extra paths.
 - Each entry must use:
 

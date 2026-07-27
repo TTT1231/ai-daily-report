@@ -27,7 +27,7 @@ When the prompt says `Structured payload mode`:
 1. Do not call tools, read or write files, run shell commands, start previews, or edit JSON.
 2. Use only the provided target context, sibling tabs, theme, and preflight issues.
 3. Generate every requested SVG in one response.
-4. Return only the marked JSON payload requested by the wrapper, with one entry per exact target path.
+4. Return only the structured JSON object requested by the wrapper, with one entry per exact target path. When the wrapper supplies a CLI JSON schema, do not add marker text or Markdown fences; the CLI handles JSON escaping.
 5. Let the Node wrapper write SVG files, update `icon` fields, mirror `data.json`, prune orphan icons,
    and run `bun run check-icons`, `bun run lint`, and `bun run comment:generate`.
 

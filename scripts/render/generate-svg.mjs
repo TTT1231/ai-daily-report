@@ -223,16 +223,31 @@ async function runStructuredPayloadMode({promptPrefix}) {
     automation,
     theme: report.theme ?? "dark",
   });
-  const output = await requestClaudePayload(prompt);
-  const payload = parseGenerateSvgPayload(output);
-  const result = await applyGenerateSvgPayload({
-    payload,
-    report,
-    targetPlan,
-    dataDir,
-    generatedDataPath,
-    rawDataPath,
-  });
+  const maxPayloadAttempts = 2;
+  let result;
+  let lastError;
+  for (let attempt = 1; attempt <= maxPayloadAttempts; attempt += 1) {
+    try {
+      const output = await requestClaudePayload(prompt);
+      const payload = parseGenerateSvgPayload(output);
+      result = await applyGenerateSvgPayload({
+        payload,
+        report,
+        targetPlan,
+        dataDir,
+        generatedDataPath,
+        rawDataPath,
+      });
+      break;
+    } catch (error) {
+      lastError = error;
+      if (attempt === maxPayloadAttempts) throw error;
+      console.warn(
+        `generate-svg: Claude payload attempt ${attempt} failed validation; retrying once: ${error.message}`,
+      );
+    }
+  }
+  if (!result) throw lastError ?? new Error("Claude SVG payload generation failed.");
 
   console.log(
     `generate-svg: wrote ${result.generated} SVG icon(s) from Claude payload${result.rawUpdated ? " and mirrored data.json" : ""}.`,

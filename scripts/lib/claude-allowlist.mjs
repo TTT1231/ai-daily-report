@@ -4,6 +4,27 @@ export const GENERATE_SVG_PAYLOAD_ALLOWED_TOOLS = [
   "Read",
 ];
 
+export const GENERATE_SVG_OUTPUT_SCHEMA = JSON.stringify({
+  type: "object",
+  properties: {
+    icons: {
+      type: "array",
+      items: {
+        type: "object",
+        properties: {
+          path: {type: "string"},
+          concept: {type: "string"},
+          svg: {type: "string"},
+        },
+        required: ["path", "concept", "svg"],
+        additionalProperties: false,
+      },
+    },
+  },
+  required: ["icons"],
+  additionalProperties: false,
+});
+
 export function buildGenerateSvgPayloadArgs() {
   // prompt 不走 argv（Windows CreateProcess 命令行上限 ~32,767 字符，大量图标会拼出
   // 40K+ 字符的 prompt 触发 spawn ENAMETOOLONG）。调用方需把 prompt 通过 stdin 喂给 claude。
@@ -13,5 +34,10 @@ export function buildGenerateSvgPayloadArgs() {
     "-p",
     "--effort",
     "low",
+    "--no-session-persistence",
+    "--output-format",
+    "json",
+    "--json-schema",
+    GENERATE_SVG_OUTPUT_SCHEMA,
   ];
 }

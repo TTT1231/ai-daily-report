@@ -316,22 +316,40 @@ test("markdown weight can exceed the visual budget before 110 visible characters
   assert.ok(hasError(errorsOf(r), "visual units; maximum is 110"));
 });
 
-test("tab summary allows at most one bold and one inline-code span", () => {
-  const overformatted =
-    "**重点一** 和 **重点二**，涉及 `产品一` 与 `产品二` 的具体变化。";
+test("tab summary allows multiple inline-code spans but at most one bold span", () => {
+  const multipleCodeSpans =
+    "**重点结论**涉及 `产品一` 与 `产品二`，两者均已完成具体功能更新。";
   const r = rawReport({
     stories: [
       story({
         tabs: [
-          tab({ id: "tab-1", summary: overformatted }),
+          tab({ id: "tab-1", summary: multipleCodeSpans }),
           tab({ id: "tab-2" }),
         ],
       }),
     ],
   });
   const errors = errorsOf(r);
-  assert.ok(hasError(errors, "must use at most one bold span"));
-  assert.ok(hasError(errors, "must use at most one inline-code span"));
+  assert.ok(!hasError(errors, "inline-code span"));
+  assert.ok(!hasError(errors, "must use at most one bold span"));
+
+  const tooManyBoldSpans = rawReport({
+    stories: [
+      story({
+        tabs: [
+          tab({
+            id: "tab-1",
+            summary:
+              "**重点一**与**重点二**涉及 `产品一` 和 `产品二` 的具体变化。",
+          }),
+          tab({ id: "tab-2" }),
+        ],
+      }),
+    ],
+  });
+  assert.ok(
+    hasError(errorsOf(tooManyBoldSpans), "must use at most one bold span"),
+  );
 });
 
 test("tab titles must be distinct and must not copy contentTitle", () => {

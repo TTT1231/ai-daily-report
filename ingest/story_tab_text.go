@@ -11,11 +11,12 @@ import (
 // 校验/降级口播字幕。它不涉及批次编排、重试或模型调用（见 story_tabs.go）。
 
 var (
-	tabSummaryCodeCandidatePattern = regexp.MustCompile(`(?i)(ChatGPT(?:\s+(?:Business|Plus|Pro|Team|Enterprise))?|Google Play(?: Store)?|Service Unavailable|AWS(?: Bedrock)?|Hacker News|AlphaWave Semi|Cross-region inference|LinkedIn|Fable\s*\d+|启元\s*T1|红烛故事|FamilyMart|Honda|ANA|Tibo|Claude(?:\s+(?:Code|Design|Fable|Mythos|Opus))?(?:\s*\d+(?:\.\d+)?)?|GPT[-\s]?\d+(?:\.\d+)?(?:[-\s][A-Za-z0-9]+)*|Qwen[A-Za-z0-9.-]*|GLM[-A-Za-z0-9.]*|Gemini(?:[-\s][A-Za-z0-9.]+)*|OpenAI|Anthropic|Codex|DeepSeek|Kimi|Kiro|Qoder|Tabbit|Jalapeño|Broadcom|Celestica|Tomahawk|MiniMax[A-Za-z0-9.-]*|FFmpeg|CVE-\d+-\d+|PixelSmash|MagicYUV|MCP|API|VLC|Jellyfin|Kodi|Nextcloud|OBS|Slack|GitHub|Serverless|Web|Pro|PLUS)`)
-	tabSummaryBoldCandidatePattern = regexp.MustCompile(`(\d{4}\s*年\s*\d{1,2}\s*月\s*\d{1,2}\s*日(?:之前|之后|起|前|后)?|\d{1,2}\s*月\s*\d{1,2}\s*日(?:之前|之后|起|前|后)?|\d+(?:\.\d+)?\s*(?:美元|元|土币|土耳其里拉|TB|GB|MB|K|%|折|倍|x|h|个|天|小时|分钟|月|年)|全球首款|轮足人形与四足|两种形态|自动切换变形|消费级机器人|线下体验门店|降低推理成本|推理成本|全栈平台|服务不可用|服务中断|无法(?:正常)?使用|不可用|停止(?:新购|续费|升级|运营)?|不再提供|移除限制|额度重置|再次延期|支持(?:原生)?多模态|多模态能力|切换至\s*Web\s*订阅|按需调节模型推理程度|周期性或触发性问题|灰色渠道风险|封禁|误封|降价|涨价|折扣|上线|恢复|开源)`)
-	tabSummaryBoldSpanPattern      = regexp.MustCompile(`\*\*[^*]+\*\*`)
-	tabSummaryCodeSpanPattern      = regexp.MustCompile("`[^`]+`")
-	tabSummaryMarkupSpanPattern    = regexp.MustCompile("\\*\\*[^*]+\\*\\*|`[^`]+`")
+	tabSummaryCodeCandidatePattern   = regexp.MustCompile(`(?i)(ChatGPT(?:\s+(?:Business|Plus|Pro|Team|Enterprise))?|Google Play(?: Store)?|Service Unavailable|AWS(?: Bedrock)?|Hacker News|AlphaWave Semi|Cross-region inference|LinkedIn|Decoy\s+Font|AnuNeko|Patreon|Cloudflare|WordPress|wp2shell|iCloud\+|Apple\s+Music|SpaceX|Intern-S2[A-Za-z0-9.-]*|Monolith-[A-Za-z0-9.-]+|Fable\s*\d+|启元\s*T1|红烛故事|FamilyMart|Honda|ANA|Tibo|Claude(?:\s+(?:Code|Design|Fable|Mythos|Opus))?(?:\s*\d+(?:\.\d+)?)?|GPT[-\s]?\d+(?:\.\d+)?(?:[-\s][A-Za-z0-9]+)*|Qwen[A-Za-z0-9.-]*|GLM[-A-Za-z0-9.]*|Gemini(?:[-\s][A-Za-z0-9.]+)*|OpenAI|Anthropic|Codex|DeepSeek|Kimi|Kiro|Qoder|Tabbit|Jalapeño|Broadcom|Celestica|Tomahawk|MiniMax[A-Za-z0-9.-]*|FFmpeg|CVE-\d+-\d+|PixelSmash|MagicYUV|MCP|API|VLC|Jellyfin|Kodi|Nextcloud|OBS|Slack|GitHub|Serverless|Web|Pro|PLUS)`)
+	tabSummaryBoldCandidatePattern   = regexp.MustCompile(`(\d{4}\s*年\s*\d{1,2}\s*月\s*\d{1,2}\s*日(?:之前|之后|起|前|后)?|\d{1,2}\s*月\s*\d{1,2}\s*日(?:之前|之后|起|前|后)?|\d+(?:\.\d+)?\s*(?:美元|元|土币|土耳其里拉|TB|GB|MB|K|%|折|倍|x|h|个|天|小时|分钟|月|年)|全球首款|轮足人形与四足|两种形态|自动切换变形|消费级机器人|线下体验门店|降低推理成本|推理成本|全栈平台|服务不可用|服务中断|无法(?:正常)?使用|不可用|停止(?:新购|续费|升级|运营)?|不再提供|移除限制|额度重置|再次延期|支持(?:原生)?多模态|多模态能力|切换至\s*Web\s*订阅|按需调节模型推理程度|周期性或触发性问题|灰色渠道风险|封禁|误封|降价|涨价|折扣|上线|恢复|开源)`)
+	tabSummaryActionCandidatePattern = regexp.MustCompile(`(?:允许|导致|造成|使得|实现|支持|禁止|阻止|保护|关闭|停止|保留|恢复|开放|发布|开源|覆盖|上涨|下降|增长|减少|提升|降低|达到|超过|降至|升至|面临|看到|优先读取)[^，。；;！？!?\n]{2,32}`)
+	tabSummaryBoldSpanPattern        = regexp.MustCompile(`\*\*[^*]+\*\*`)
+	tabSummaryCodeSpanPattern        = regexp.MustCompile("`[^`]+`")
+	tabSummaryMarkupSpanPattern      = regexp.MustCompile("\\*\\*[^*]+\\*\\*|`[^`]+`")
 )
 
 // normalizeStoryTabs 校正模型返回的 Tabs：丢弃标题空、摘要过短或无有效证据的项，补全 kind，去重并截断到上限。
@@ -120,8 +121,6 @@ func tabRejectionReason(tab StoryTab) string {
 		return fmt.Sprintf("summary 有 %d 个可见字符，超过 %d 字上限", visibleRunes, maxTabSummaryVisibleRunes)
 	case len(tabSummaryBoldSpanPattern.FindAllString(tab.Summary, -1)) > 1:
 		return "summary 粗体超过一段；只保留一个最重要结论，其余内容用普通文本或拆到新 Tab"
-	case len(tabSummaryCodeSpanPattern.FindAllString(tab.Summary, -1)) > 1:
-		return "summary 行内代码超过一段；只保留一个核心产品名，其余内容用普通文本或拆到新 Tab"
 	case tabSummaryVisualUnits(tab.Summary) > float64(maxTabSummaryVisibleRunes):
 		return fmt.Sprintf("summary 格式化后视觉占用 %.1f，超过 %d 单位上限；请缩短或拆成更多 Tab", tabSummaryVisualUnits(tab.Summary), maxTabSummaryVisibleRunes)
 	case !hasCompleteSummaryEnding(tab.Summary):
@@ -251,30 +250,42 @@ func tabSummaryVisibleRuneCount(summary string) int {
 }
 
 // enrichTabSummaryMarkdown 轻量补齐 Tab 摘要里的受限 Markdown：
-// 生成模型有时会稳定加粗，但漏掉模型/产品/错误码的行内代码标记。
-// 这里只补第一个明显候选，避免把 summary 变成满屏装饰。
+// 粗体只补一个核心结论；模型/产品/API/错误码等专名可分别补多个行内代码。
 func enrichTabSummaryMarkdown(summary string) string {
-	summary = addInlineCodeIfMissing(summary)
 	summary = addBoldIfMissing(summary)
+	summary = addMissingInlineCodeSpans(summary)
 	return summary
 }
 
-func addInlineCodeIfMissing(summary string) string {
-	if strings.Contains(summary, "`") {
-		return summary
+func addMissingInlineCodeSpans(summary string) string {
+	original := summary
+	offset := 0
+	for _, loc := range tabSummaryCodeCandidatePattern.FindAllStringIndex(original, -1) {
+		if len(loc) != 2 || loc[0] >= loc[1] {
+			continue
+		}
+		if isInsideSummaryMarkdown(original, loc[0]) || isInsideSummaryMarkdown(original, loc[1]-1) {
+			continue
+		}
+		start, end := loc[0]+offset, loc[1]+offset
+		candidate := summary[:start] + "`" + summary[start:end] + "`" + summary[end:]
+		if tabSummaryVisualUnits(candidate) > float64(maxTabSummaryVisibleRunes) {
+			continue
+		}
+		summary = candidate
+		offset += 2
 	}
-	enriched := wrapFirstMarkdownCandidate(summary, tabSummaryCodeCandidatePattern, "`", "`")
-	if enriched != summary {
-		return enriched
-	}
-	return splitBoldSpanForInlineCode(summary)
+	return summary
 }
 
 func addBoldIfMissing(summary string) string {
 	if strings.Contains(summary, "**") {
 		return summary
 	}
-	return wrapFirstMarkdownCandidate(summary, tabSummaryBoldCandidatePattern, "**", "**")
+	if enriched := wrapFirstMarkdownCandidate(summary, tabSummaryBoldCandidatePattern, "**", "**"); enriched != summary {
+		return enriched
+	}
+	return wrapBestMarkdownCandidate(summary, tabSummaryActionCandidatePattern, "**", "**")
 }
 
 func wrapFirstMarkdownCandidate(summary string, pattern *regexp.Regexp, prefix, suffix string) string {
@@ -290,44 +301,37 @@ func wrapFirstMarkdownCandidate(summary string, pattern *regexp.Regexp, prefix, 
 	return summary
 }
 
+// wrapBestMarkdownCandidate 用于结论型粗体兜底：同一句里可能有多个动作短语，
+// 选择信息量最大的完整候选，而不是机械加粗第一个短动词。
+func wrapBestMarkdownCandidate(summary string, pattern *regexp.Regexp, prefix, suffix string) string {
+	bestStart, bestEnd, bestRunes := -1, -1, 0
+	for _, loc := range pattern.FindAllStringIndex(summary, -1) {
+		if len(loc) != 2 || loc[0] >= loc[1] {
+			continue
+		}
+		if isInsideSummaryMarkdown(summary, loc[0]) || isInsideSummaryMarkdown(summary, loc[1]-1) {
+			continue
+		}
+		candidate := strings.TrimSpace(summary[loc[0]:loc[1]])
+		runes := utf8.RuneCountInString(candidate)
+		if runes > bestRunes {
+			bestStart = loc[0]
+			bestEnd = loc[1]
+			bestRunes = runes
+		}
+	}
+	if bestStart < 0 {
+		return summary
+	}
+	return summary[:bestStart] + prefix + summary[bestStart:bestEnd] + suffix + summary[bestEnd:]
+}
+
 func isInsideSummaryMarkdown(summary string, index int) bool {
 	if index <= 0 {
 		return false
 	}
 	before := summary[:index]
 	return strings.Count(before, "`")%2 == 1 || strings.Count(before, "**")%2 == 1
-}
-
-func splitBoldSpanForInlineCode(summary string) string {
-	for _, span := range tabSummaryBoldSpanPattern.FindAllStringIndex(summary, -1) {
-		contentStart, contentEnd := span[0]+2, span[1]-2
-		content := summary[contentStart:contentEnd]
-		loc := tabSummaryCodeCandidatePattern.FindStringIndex(content)
-		if len(loc) != 2 || loc[0] >= loc[1] {
-			continue
-		}
-		candidate := strings.TrimSpace(content[loc[0]:loc[1]])
-		if candidate == "" {
-			continue
-		}
-		before := strings.TrimSpace(content[:loc[0]])
-		after := strings.TrimSpace(content[loc[1]:])
-		// 把中间候选拆出来会制造两个 bold span，而下游契约只允许一个。
-		// 此时保留原有单段粗体，比 enrich 后立刻自我拒绝更稳妥。
-		if before != "" && after != "" {
-			return summary
-		}
-		var parts []string
-		if before != "" {
-			parts = append(parts, "**"+before+"**")
-		}
-		parts = append(parts, "`"+candidate+"`")
-		if after != "" {
-			parts = append(parts, "**"+after+"**")
-		}
-		return summary[:span[0]] + strings.Join(parts, " ") + summary[span[1]:]
-	}
-	return summary
 }
 
 // normalizeSceneSubtitle 校验并清洗口播字幕：去 Markdown、拒绝界面提示词与不完整短句、限制长度，不合格时返回空串。

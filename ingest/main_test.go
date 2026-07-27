@@ -585,10 +585,20 @@ func TestNavigationTitleAcceptsNarrowEnglishBrand(t *testing.T) {
 	}
 }
 
-func TestNavigationTitleAllowsLongerSuggestionForGlobalFitting(t *testing.T) {
+func TestNavigationTitleRejectsSentenceLikeSuggestionBeforeLayout(t *testing.T) {
 	input := "Claude退款资格说明"
-	if got := validNavigationTitle(input); got != input {
-		t.Fatalf("validNavigationTitle() = %q, want %q", got, input)
+	if got := validNavigationTitle(input); got != "" {
+		t.Fatalf("validNavigationTitle() = %q, want empty", got)
+	}
+	for _, concise := range []string{"中国电信", "数据中心", "AI爬虫", "Fable 5", "wp2shell"} {
+		if got := validNavigationTitle(concise); got != concise {
+			t.Fatalf("validNavigationTitle(%q) = %q, want unchanged", concise, got)
+		}
+	}
+	for _, bad := range []string{"中国电信算力…", "Patreon禁AI…", "Fable 5 订阅…"} {
+		if got := validNavigationTitle(bad); got != "" {
+			t.Fatalf("validNavigationTitle(%q) = %q, want empty", bad, got)
+		}
 	}
 }
 
@@ -1110,10 +1120,10 @@ func TestCleanNavigationTitleRejectsMissingInformation(t *testing.T) {
 	}
 }
 
-func TestCleanNavigationTitleKeepsLongerConcreteLabelForGlobalFitting(t *testing.T) {
+func TestCleanNavigationTitleRejectsSentenceLikeLabelBeforeGlobalFitting(t *testing.T) {
 	input := "Claude退款资格说明"
-	if got := cleanNavigationTitle(input); got != input {
-		t.Fatalf("cleanNavigationTitle(%q) = %q, want unchanged", input, got)
+	if got := cleanNavigationTitle(input); got != "" {
+		t.Fatalf("cleanNavigationTitle(%q) = %q, want empty", input, got)
 	}
 }
 
@@ -1152,7 +1162,9 @@ func TestFitNavigationLabelsKeepsLongLabelWhenThereIsRoom(t *testing.T) {
 		TopTitle:    "模型产品与开发工具",
 		BottomTitle: "Claude退款资格说明",
 	}}
-	fitNavigationLabels(stories, layout)
+	if err := fitNavigationLabels(stories, layout); err != nil {
+		t.Fatal(err)
+	}
 	if stories[0].BottomTitle != "Claude退款资格说明" {
 		t.Fatalf("bottom title unexpectedly shortened to %q", stories[0].BottomTitle)
 	}
@@ -1161,7 +1173,7 @@ func TestFitNavigationLabelsKeepsLongLabelWhenThereIsRoom(t *testing.T) {
 	}
 }
 
-func TestFitNavigationLabelsShortensCrowdedNavigation(t *testing.T) {
+func TestFitNavigationLabelsRejectsCrowdedBottomNavigationWithoutTruncating(t *testing.T) {
 	layout, err := loadNavigationLayout()
 	if err != nil {
 		t.Fatal(err)
@@ -1173,21 +1185,21 @@ func TestFitNavigationLabelsShortensCrowdedNavigation(t *testing.T) {
 			BottomTitle: fmt.Sprintf("Claude退款资格说明与处理范围%d", index),
 		}
 	}
-	fitNavigationLabels(stories, layout)
+	err = fitNavigationLabels(stories, layout)
+	if err == nil {
+		t.Fatal("fitNavigationLabels() error = nil, want semantic-shortening error")
+	}
 
 	bottomLabels := []string{"Intro"}
 	for _, story := range stories {
 		bottomLabels = append(bottomLabels, story.BottomTitle)
+		if strings.Contains(story.BottomTitle, "…") {
+			t.Fatalf("bottom title was mechanically truncated: %q", story.BottomTitle)
+		}
 	}
 	bottomLabels = append(bottomLabels, "再见")
-	if required := layout.requiredWidth(bottomLabels); required > float64(layout.VideoWidth) {
-		t.Fatalf("bottom navigation requires %.0fpx after fitting, available %dpx", required, layout.VideoWidth)
-	}
-	if stories[0].BottomTitle == "Claude退款资格说明与处理范围0" {
-		t.Fatalf("crowded navigation did not shorten any bottom titles")
-	}
-	if required := layout.requiredWidth(topNavigationLabels(stories)); required > float64(layout.VideoWidth) {
-		t.Fatalf("top navigation requires %.0fpx after fitting, available %dpx", required, layout.VideoWidth)
+	if required := layout.requiredWidth(bottomLabels); required <= float64(layout.VideoWidth) {
+		t.Fatalf("fixture unexpectedly fits in %.0fpx", required)
 	}
 }
 

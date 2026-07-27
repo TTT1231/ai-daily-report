@@ -1,6 +1,10 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import {buildGenerateSvgPayloadArgs, GENERATE_SVG_PAYLOAD_ALLOWED_TOOLS} from "../claude-allowlist.mjs";
+import {
+  buildGenerateSvgPayloadArgs,
+  GENERATE_SVG_OUTPUT_SCHEMA,
+  GENERATE_SVG_PAYLOAD_ALLOWED_TOOLS,
+} from "../claude-allowlist.mjs";
 
 test("generate-svg payload mode only allows read access for Claude", () => {
   assert.deepEqual(GENERATE_SVG_PAYLOAD_ALLOWED_TOOLS, ["Read"]);
@@ -12,6 +16,17 @@ test("buildGenerateSvgPayloadArgs omits the prompt from argv (prompt goes via st
   const args = buildGenerateSvgPayloadArgs();
 
   // 固定 flags，prompt 绝不出现在 argv 里。
-  assert.deepEqual(args, ["--allowedTools", "Read", "-p", "--effort", "low"]);
+  assert.deepEqual(args, [
+    "--allowedTools",
+    "Read",
+    "-p",
+    "--effort",
+    "low",
+    "--no-session-persistence",
+    "--output-format",
+    "json",
+    "--json-schema",
+    GENERATE_SVG_OUTPUT_SCHEMA,
+  ]);
   assert.ok(!args.some((arg) => /^Write|^Edit|^Bash/.test(arg)));
 });
