@@ -1295,28 +1295,28 @@ func TestTabRejectionReason(t *testing.T) {
 	// 合格返回空串。
 	got := tabRejectionReason(StoryTab{
 		Title:   "事件概览",
-		Summary: "这是一段足够长的摘要内容用于通过字数校验，并说明具体影响。",
+		Summary: "这是一段足够长的摘要内容用于通过字数校验，并**说明具体影响**。",
 	})
 	if got != "" {
 		t.Fatalf("tabRejectionReason() for valid tab = %q, want empty", got)
 	}
 	got = tabRejectionReason(StoryTab{
 		Title:   "Business 方案取消 Codex 席位",
-		Summary: "OpenAI 更新文档，ChatGPT Business 方案将不再提供 Codex 席位，现有 Business 用户可能失去该功能，具体影响尚未明确。",
+		Summary: "`OpenAI` 更新文档，`ChatGPT Business` 方案**将不再提供** `Codex` 席位，现有 Business 用户可能失去该功能，具体影响尚未明确。",
 	})
 	if got != "" {
 		t.Fatalf("tabRejectionReason() rejected concrete tab with uncertainty qualifier: %q", got)
 	}
 	got = tabRejectionReason(StoryTab{
 		Title:   "GLM-5.2 内测启动",
-		Summary: "GLM-5.2 已开启 Max 用户小范围内测，具体参数仍待公布；这会影响高频用户是否提前准备迁移或测试。",
+		Summary: "`GLM-5.2` **已开启 Max 用户小范围内测**，具体参数仍待公布；这会影响高频用户是否提前准备迁移或测试。",
 	})
 	if got != "" {
 		t.Fatalf("tabRejectionReason() rejected concrete tab with pending details: %q", got)
 	}
 	got = tabRejectionReason(StoryTab{
 		Title:   "后续观察：Issue #123",
-		Summary: "需关注 Issue #123 的修复状态；官方文档已列出当前规则，具体执行时间尚未给出明确时间表。",
+		Summary: "需关注 **Issue #123 的修复状态**；官方文档已列出当前规则，具体执行时间尚未给出明确时间表。",
 	})
 	if got != "" {
 		t.Fatalf("tabRejectionReason() rejected concrete watch tab with anchor: %q", got)

@@ -142,8 +142,8 @@ export function validateReport(
   }
 
   let expectedStartMs = 0;
-  const storyIds = new Set();
-  const sceneIds = new Set();
+  const storyIds = new Map();
+  const sceneIds = new Map();
   const topTitles = new Set();
   const closedTopTitleSegments = new Set();
   let previousTopTitle;
@@ -163,9 +163,14 @@ export function validateReport(
       }));
 
   for (const { story, path: storyPath } of timelineEntries) {
-    if (storyIds.has(story.id))
-      fail(`${storyPath}.id`, `duplicate id "${story.id}"`);
-    storyIds.add(story.id);
+    if (storyIds.has(story.id)) {
+      fail(
+        `${storyPath}.id`,
+        `duplicate id "${story.id}" (first used at ${storyIds.get(story.id)})`,
+      );
+    } else {
+      storyIds.set(story.id, `${storyPath}.id`);
+    }
     if (!renderMode && ["intro", "outro"].includes(story.id)) {
       fail(
         `${storyPath}.id`,
@@ -189,14 +194,20 @@ export function validateReport(
       previousTopTitle = story.topTitle;
     }
 
-    const tabIds = new Set();
+    const tabIds = new Map();
     const tabTitles = new Set();
     const tabSummaries = [];
     const isNewsStory = !["intro", "outro"].includes(story.id);
     for (const [tabIndex, tab] of (story.tabs ?? []).entries()) {
       const tabPath = `${storyPath}.tabs[${tabIndex}]`;
-      if (tabIds.has(tab.id)) fail(`${tabPath}.id`, `duplicate id "${tab.id}"`);
-      tabIds.add(tab.id);
+      if (tabIds.has(tab.id)) {
+        fail(
+          `${tabPath}.id`,
+          `duplicate id "${tab.id}" (first used at ${tabIds.get(tab.id)})`,
+        );
+      } else {
+        tabIds.set(tab.id, `${tabPath}.id`);
+      }
       const summaryLength = tabSummaryVisibleLength(tab.summary);
       const markdownStats = tabSummaryMarkdownStats(tab.summary);
       const titleKey = normalizeComparableText(tab.title);
@@ -217,7 +228,12 @@ export function validateReport(
           `has ${summaryLength} visible characters; maximum is ${MAX_TAB_SUMMARY_VISIBLE_CHARACTERS}`,
         );
       }
-      if (isNewsStory && markdownStats.boldSpans > 1) {
+      if (isNewsStory && markdownStats.boldSpans === 0) {
+        fail(
+          `${tabPath}.summary`,
+          "must use exactly one bold span for the core change, mechanism, impact, or conclusion",
+        );
+      } else if (isNewsStory && markdownStats.boldSpans > 1) {
         fail(`${tabPath}.summary`, "must use at most one bold span");
       }
       if (
@@ -249,9 +265,13 @@ export function validateReport(
     for (const [sceneIndex, scene] of (story.scenes ?? []).entries()) {
       const scenePath = `${storyPath}.scenes[${sceneIndex}]`;
       if (sceneIds.has(scene.id)) {
-        fail(`${scenePath}.id`, `duplicate global scene id "${scene.id}"`);
+        fail(
+          `${scenePath}.id`,
+          `duplicate global scene id "${scene.id}" (first used at ${sceneIds.get(scene.id)})`,
+        );
+      } else {
+        sceneIds.set(scene.id, `${scenePath}.id`);
       }
-      sceneIds.add(scene.id);
 
       if (renderMode && !scene.timing) {
         fail(`${scenePath}.timing`, "is required before rendering");

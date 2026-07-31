@@ -67,7 +67,12 @@ const hasError = (errors, needle) => errors.some((e) => e.includes(needle));
 // ---------- fixture 工厂（全部 schema-合法）----------
 function tab(overrides = {}) {
   const id = overrides.id ?? "tab-1";
-  return { id, title: `标题-${id}`, summary: "摘要内容。", ...overrides };
+  return {
+    id,
+    title: `标题-${id}`,
+    summary: "这张卡片**包含一条明确的核心事实**。",
+    ...overrides,
+  };
 }
 
 function scene(overrides = {}) {
@@ -254,7 +259,12 @@ test("duplicate story.id is rejected", () => {
       story({ id: "dup", scenes: [scene({ id: "scene-2" })] }),
     ],
   });
-  assert.ok(hasError(errorsOf(r), 'stories[1].id: duplicate id "dup"'));
+  assert.ok(
+    hasError(
+      errorsOf(r),
+      'stories[1].id: duplicate id "dup" (first used at stories[0].id)',
+    ),
+  );
 });
 
 test("Raw mode rejects the reserved story id 'intro'", () => {
@@ -266,7 +276,12 @@ test("duplicate tab.id within a story is rejected", () => {
   const r = rawReport({
     stories: [story({ tabs: [tab({ id: "dup" }), tab({ id: "dup" })] })],
   });
-  assert.ok(hasError(errorsOf(r), 'tabs[1].id: duplicate id "dup"'));
+  assert.ok(
+    hasError(
+      errorsOf(r),
+      'tabs[1].id: duplicate id "dup" (first used at stories[0].tabs[0].id)',
+    ),
+  );
 });
 
 test("tab summary exceeding the card budget is rejected before TTS", () => {
@@ -286,8 +301,8 @@ test("tab summary exceeding the card budget is rejected before TTS", () => {
   );
 });
 
-test("plain tab summary may use the full 110-character budget", () => {
-  const exactlyAtLimit = `${"字".repeat(109)}。`;
+test("required bold summary may stay just below the 110-unit visual budget", () => {
+  const exactlyAtLimit = `**字**${"字".repeat(107)}。`;
   const r = rawReport({
     stories: [
       story({
@@ -299,6 +314,28 @@ test("plain tab summary may use the full 110-character budget", () => {
     ],
   });
   assert.deepEqual(errorsOf(r), []);
+});
+
+test("news tab summary requires exactly one bold span", () => {
+  const r = rawReport({
+    stories: [
+      story({
+        tabs: [
+          tab({
+            id: "tab-1",
+            summary: "这张卡片虽然有完整句子，但没有突出核心变化或结论。",
+          }),
+          tab({ id: "tab-2" }),
+        ],
+      }),
+    ],
+  });
+  assert.ok(
+    hasError(
+      errorsOf(r),
+      "must use exactly one bold span for the core change",
+    ),
+  );
 });
 
 test("markdown weight can exceed the visual budget before 110 visible characters", () => {
@@ -409,7 +446,12 @@ test("duplicate global scene.id across stories is rejected", () => {
       story({ id: "s2", scenes: [scene({ id: "dup-scene" })] }),
     ],
   });
-  assert.ok(hasError(errorsOf(r), 'duplicate global scene id "dup-scene"'));
+  assert.ok(
+    hasError(
+      errorsOf(r),
+      'duplicate global scene id "dup-scene" (first used at stories[0].scenes[0].id)',
+    ),
+  );
 });
 
 // ---------- activeIntro / topTitle 分段 ----------

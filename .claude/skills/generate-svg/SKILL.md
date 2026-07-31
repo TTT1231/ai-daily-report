@@ -27,9 +27,9 @@ When the prompt says `Structured payload mode`:
 1. Do not call tools, read or write files, run shell commands, start previews, or edit JSON.
 2. Use only the provided target context, sibling tabs, theme, and preflight issues.
 3. Generate every requested SVG in one response.
-4. Return only the marked JSON payload requested by the wrapper, with one entry per exact target path.
+4. Return only the structured JSON object requested by the wrapper, with one entry per exact target path. When the wrapper supplies a CLI JSON schema, do not add marker text or Markdown fences; the CLI handles JSON escaping.
 5. Let the Node wrapper write SVG files, update `icon` fields, mirror `data.json`, prune orphan icons,
-   and run `bun run check-icons`, `bun run lint`, and `bun run comment:generate`.
+   and run `bun run check-icons` and `bun run lint`.
 
 ## Manual Execute
 
@@ -46,7 +46,7 @@ wrapper asks for structured payload output.
 5. Generate transparent SVGs at `data-scheme/icons/{storyId}-{tabId}.svg`.
 6. Update only the corresponding `icon` fields in `data-generate.json`. If the user is manually maintaining or replacing a story in `data-scheme/data.json`, mirror those same `icon` fields there too so the next `bun run tts` keeps them.
 7. Remove orphan icons only when they are no longer referenced.
-8. Run `bun run check-icons` and `bun run lint` and `bun run comment:generate`.
+8. Run `bun run check-icons` and `bun run lint`.
 9. For visual changes, open a representative Remotion frame and verify icon scale, contrast, and
    distinction from sibling icons.
 

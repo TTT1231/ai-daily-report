@@ -1,0 +1,4 @@
+interface:
+  display_name: "AI Daily Report"
+  short_description: "快速生成、排错、渲染并发布完整的 AI 日报短视频"
+  default_prompt: "Use $ai-daily-report to diagnose the current report and complete the smallest safe next step."

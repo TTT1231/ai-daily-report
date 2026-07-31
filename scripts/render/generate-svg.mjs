@@ -200,7 +200,6 @@ async function runPostGenerationChecks() {
   const bunCommand = process.platform === "win32" ? "bun.exe" : "bun";
   await runCommand(bunCommand, ["run", "check-icons"], "bun run check-icons");
   await runCommand(bunCommand, ["run", "lint"], "bun run lint");
-  await runCommand(bunCommand, ["run", "comment:generate"], "bun run comment:generate");
 }
 
 async function runStructuredPayloadMode({promptPrefix}) {

@@ -50,7 +50,7 @@ function formatLunarDateWithWeekday(date) {
   return `农历${lunar.getMonthInChinese()}月${lunar.getDayInChinese()}，${weekdays[date.getDay()]}`;
 }
 
-function buildIntro(report, now) {
+function buildIntro(report, now, previousReport) {
   const groups = new Map();
   let activeTitle;
 
@@ -69,6 +69,14 @@ function buildIntro(report, now) {
   const dateText = formatLunarDateWithWeekday(
     parseReportDate(report.date) ?? now,
   );
+  const previousDefaultGreeting =
+    !report.introContent &&
+    !previousReport?.introContent &&
+    previousReport?.date === report.date
+      ? previousReport.intro?.scenes?.find(
+          (scene) => scene.id === "intro-greeting",
+        )?.subtitle
+      : undefined;
 
   return {
     id: "intro",
@@ -84,6 +92,7 @@ function buildIntro(report, now) {
         id: "intro-greeting",
         subtitle:
           report.introContent ??
+          previousDefaultGreeting ??
           `大家${getGreeting(now.getHours())}，今天是${dateText}，欢迎收看今天的 AI 日报。`,
       },
     ],
@@ -137,7 +146,7 @@ export function buildGeneratedReport(
   const report = JSON.parse(JSON.stringify(rawReport));
   report.theme ??=
     now.getHours() >= 6 && now.getHours() < 18 ? "light" : "dark";
-  report.intro = buildIntro(report, now);
+  report.intro = buildIntro(report, now, previousReport);
   report.outro = buildOutro(report);
   restoreIcons(report, previousReport);
   applyOverlayDimensions(report, dataDir);

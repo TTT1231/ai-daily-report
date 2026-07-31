@@ -9,6 +9,7 @@
  * 用法：
  *   bun run comment:generate          # 生成到 comments.txt 并预览
  *   bun run comment:generate --copy    # 同时复制到剪贴板
+ *   bun run video:meta                # 日常入口：评论 + 标题/标签一起生成
  */
 
 import { writeFileSync } from "node:fs";

@@ -6,27 +6,19 @@
  * 读当天 data.json 的新闻，调 LLM(复用 ingest 同款 OpenAI 兼容接口)
  * 生成视频标题前缀 + 标签，拼上固定后缀，校验后写到
  * data-scheme/video-meta.json。产物是与发布平台无关的视频元数据，
- * 供投稿脚本读取；只取 contentTitle/introTitle，这两个字段 data.json 与
- * data-generate.json 完全一致，因此不依赖 generate-svg 产出的 data-generate.json，可独立运行。
+ * 供投稿脚本读取。标题模型会读取完整 stories，理解整期 AI 日报后再选主打点。
+ * package.json 的 video:meta 会先生成时间轴评论，再运行本文件。
  *
- * 用法：bun run video:meta   (package.json 已带 --env-file-if-exists=.env)
+ * 用法：bun run video:meta（一次生成 comments.txt + video-meta.json）
  */
 
 import { writeFileSync } from "node:fs";
 import { resolve } from "node:path";
+import { pathToFileURL } from "node:url";
 import { dataDir, rawDataPath, readJson } from "./paths.mjs";
 
 // ── LLM 配置（复用 rss 的 AI_API_KEY / AI_BASE_URL / AI_MODEL）──────────
 const { AI_API_KEY: API_KEY, AI_BASE_URL: BASE_URL, AI_MODEL: MODEL } = process.env;
-const missing = [
-  !API_KEY && "AI_API_KEY",
-  !BASE_URL && "AI_BASE_URL",
-  !MODEL && "AI_MODEL",
-].filter(Boolean);
-if (missing.length) {
-  console.error(`❌ 缺少环境变量 ${missing.join("、")}，请在 .env 配置（与 rss 同源）`);
-  process.exit(1);
-}
 
 // ── 标题规则 ─────────────────────────────────────────────────────────
 const SUFFIX_LEN = 16; // 【AI日报 - MM - DD】
@@ -37,6 +29,19 @@ const buildSuffix = (date) => {
   const [, mm, dd] = String(date).split("-"); // YYYY-MM-DD
   return `【AI日报 - ${mm} - ${dd}】`;
 };
+
+function assertLlmConfig() {
+  const missing = [
+    !API_KEY && "AI_API_KEY",
+    !BASE_URL && "AI_BASE_URL",
+    !MODEL && "AI_MODEL",
+  ].filter(Boolean);
+  if (missing.length) {
+    throw new Error(
+      `缺少环境变量 ${missing.join("、")}，请在 .env 配置（与 rss 同源）`,
+    );
+  }
+}
 
 // ── 调 LLM ────────────────────────────────────────────────────────────
 const LLM_TIMEOUT_MS = 60000;
@@ -104,50 +109,51 @@ function parseLoose(text) {
   return JSON.parse(cleaned.slice(start, end + 1));
 }
 
+export function buildVideoMetaPrompt(stories, prefixMax = PREFIX_MAX) {
+  return `你在为一期“AI 日报类短视频”制作发布元数据。视频用 1 分钟左右快速播报多条 AI/科技新闻，面向手机信息流用户；当前发布到 B站，但标题和标签应描述整期内容，而不是假装成单条新闻。
+
+下面是本期 data.json 中完整的 stories JSON，数组顺序就是视频播放顺序。你必须先理解全部 Story 的标题、Tabs 事实卡和 Scenes 口播，再判断整期最值得主打的内容。图标、图片路径和 id 只是制作字段，不是新闻事实：
+
+${JSON.stringify(stories, null, 2)}
+
+请输出：
+1. 标题【前缀】（后缀【AI日报 - MM - DD】由程序自动拼接，你只写前缀）。
+   要求：
+   - 这是 AI 日报短视频标题，要让观众知道“本期最重要的 AI 动态是什么”，不能写成单一产品发布会标题。
+   - 通读全部 Stories 后只挑 1~2 个最重磅、最有冲击力的点主打；标题可以聚焦，但不能与整期内容或具体事实矛盾。
+   - 只能使用 Tabs/Scenes 明确提供的事实。不得把“参与评测、发现问题、传闻、预览”改写成“刚发布、正式上线、官方确认”等更强结论。
+   - 严禁用顿号或逗号堆砌三条以上新闻；宁可把 1~2 个强点写透。
+   - 适合手机信息流：主体明确、事件明确、自然有冲击力，不写空泛的“AI 又有大动作”。
+2. 前缀不超过 ${prefixMax} 字符（中文、字母、标点每个都算 1 个字符）。
+3. 给 5~8 个相关标签，逗号分隔，不带 #。
+   - 标签要覆盖整期的主要内容与 AI 日报应用场景，至少包含一个宽主题词（如 AI日报、人工智能、大模型、AI工具）。
+   - 合并同主体/同公司的标签；同系产品只保留一个最有搜索价值的写法。
+   - 冷门跑分、内部代号、过细平台名，除非是标题主打点，否则不要单独成标签。
+
+只返回 JSON，不要解释：{"titlePrefix":"标题前缀","tag":"标签1,标签2,标签3"}`;
+}
+
+export function buildVideoMetaMessages(stories, prefixMax = PREFIX_MAX) {
+  return [
+    {
+      role: "system",
+      content:
+        "你是 AI 日报类短视频的资深内容运营。先理解整期 Stories，再写准确、有点击力的标题和标签；严格遵守事实边界与字符限制，只输出 JSON。",
+    },
+    { role: "user", content: buildVideoMetaPrompt(stories, prefixMax) },
+  ];
+}
+
 // ── 主流程 ────────────────────────────────────────────────────────────
 async function main() {
+  assertLlmConfig();
   const report = await readJson(rawDataPath, "data-scheme/data.json");
   const { date, stories = [] } = report;
   if (!date) throw new Error("data.json 缺 date");
   if (!stories.length) throw new Error("data.json 没有 stories");
 
-  const newsList = stories
-    .map((s, i) => `${i + 1}. ${s.contentTitle || s.introTitle || ""}`)
-    .join("\n");
-
-  const prompt = `你是B站短视频运营，擅长写手机信息流里高点击的标题。
-
-以下是今日的 AI 新闻（顺序为视频播放顺序，不代表重要性）：
-${newsList}
-
-请据此输出：
-1. 标题【前缀】（后缀【AI日报 - MM - DD】会由程序自动拼接，你只写前缀）。
-   要求：
-   - 从当天新闻里**只挑 1~2 个最重磅、最有冲击力的点**写进标题，其余内容不要塞进来。
-   - **严禁用顿号/逗号罗列多条新闻**（如“A发布、B涨价、C登顶”这种堆砌式标题）；
-     宁可只聚焦 1 个最强的点，把它写透、写出冲击感。
-   - 这是手机竖屏信息流里展示的标题——必须让人停下划动、一眼看懂今天最重要的点；
-   - 可以适度夸张、渲染情绪、制造冲击感来吸引点击，但绝不能编造事实或与新闻内容矛盾。
-2. 前缀 ≤ ${PREFIX_MAX} 字符（中文 / 字母 / 标点每个都算 1 个字符）。
-3. 再给 **5~8 个**相关标签，逗号分隔，不要带 #。标签要求：
-   - **合并同主体/同公司的标签**：同一家公司或同系产品只保留一个最熟的写法
-     （例：Claude 与 Anthropic 二选一；GPT 与 OpenAI 二选一；国产模型可合并成“国产大模型”之类的主题词，而不是把智谱、Qwen 逐个列出）。
-   - **用宽主题词代替逐个牌子罗列**：宁可写“AI 模型 / 大模型 / AI 工具”这类有人搜的主题词，
-     也不要把当天每条新闻的牌子都塞一遍。
-   - **不要堆过冷门、过细的标签**：具体跑分名（如 DeepSWE）、具体平台名（如 Polymarket）这类
-     几乎没人搜的词不要单独成标签，除非它是标题主打的那 1~2 个点。
-   - 重质不重量，标签数可以少于上限，关键是每个都有搜索价值。
-
-只返回 JSON，不要任何多余解释：{"titlePrefix":"标题前缀","tag":"标签1,标签2,标签3"}`;
-
   console.log(`[LLM] 模型 ${MODEL}，生成标题/标签 …`);
-  const raw = await llm([
-    {
-      role: "system",
-      content: "你是B站短视频标题写手，严格遵守字符限制，只输出 JSON。",
-    },
-    { role: "user", content: prompt },
-  ]);
+  const raw = await llm(buildVideoMetaMessages(stories));
 
   let parsed;
   try {
@@ -160,9 +166,12 @@ ${newsList}
   let titlePrefix = String(parsed.titlePrefix || "").trim();
   const tagRaw = String(parsed.tag || "");
 
-  // 前缀超长就截断（BMP 字符按 UTF-16 码元算，中文各占 1）
-  if (titlePrefix.length > PREFIX_MAX)
-    titlePrefix = titlePrefix.slice(0, PREFIX_MAX);
+  if (!titlePrefix) throw new Error("AI 返回的标题前缀为空");
+  if (titlePrefix.length > PREFIX_MAX) {
+    throw new Error(
+      `AI 返回的标题前缀超长（${titlePrefix.length} > ${PREFIX_MAX}），为避免硬截断坏标题，已停止写入，请重试`,
+    );
+  }
 
   const title = titlePrefix + buildSuffix(date);
   if (title.length > MAX_TITLE) {
@@ -192,7 +201,13 @@ ${newsList}
   console.log(`标签 (${tags.length}/10 个): ${tags.join(", ")}`);
 }
 
-main().catch((err) => {
-  console.error(`❌ ${err.message}`);
-  process.exit(1);
-});
+const isDirectRun =
+  process.argv[1] &&
+  import.meta.url === pathToFileURL(resolve(process.argv[1])).href;
+
+if (isDirectRun) {
+  main().catch((err) => {
+    console.error(`❌ ${err.message}`);
+    process.exit(1);
+  });
+}

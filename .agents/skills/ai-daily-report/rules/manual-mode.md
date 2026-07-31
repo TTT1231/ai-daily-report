@@ -56,7 +56,7 @@ bun run dev
         {
           "id": "my-story-tab-1",
           "title": "能力",
-          "summary": "支持 **128K** 上下文，`函数调用` 更稳。"  // 受限 Markdown：**粗体** 和 `行内代码`
+          "summary": "`GLM 5.2` **支持 128K 上下文**，并提升函数调用与长文本任务的稳定性。"  // 必须一段粗体；英文专名用行内代码
         },
         { "id": "my-story-tab-2", "title": "价格", "summary": "..." }
       ],
@@ -77,7 +77,7 @@ bun run dev
 
 - `tabs`：**最少 2 张，最多 6 张**。
 - `contentTitle`：**≤ 30 字**，必须是完整语义标题，不能用省略号截断。
-- `summary`：JSON 字符串最多 128 字；去掉 Markdown 后最多 110 个可见字符，视觉占用也不超过 110；粗体和行内代码各最多一段。
+- `summary`：JSON 字符串最多 128 字；去掉 Markdown 后最多 110 个可见字符，视觉占用也不超过 110；必须且只能有一段粗体，英文模型/产品/API/错误码/版本专名使用行内代码且可有多段。
 - `scenes`：**最少 1 段，最多 2 段**。
 - `subtitle`：**1 ~ 96 字**，建议 28~96，是 TTS 实际念的文案。
 - `overlayImgWidth` / `overlayImgHeight`：构建期按图片文件真实像素自动写入 `data-generate.json`，无需手填；`overlayImgScale` 手动微调当前 scene 的基础倍率，会叠加正常的聚焦动画。

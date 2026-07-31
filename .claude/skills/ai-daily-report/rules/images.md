@@ -28,17 +28,15 @@
   "topTitle": "模型发布",
   "bottomTitle": "GLM 5.2",
   "contentTitle": "智谱发布 GLM 5.2",
-  "tabs": [
-    /* ... */
-  ],
+  "tabs": [ /* ... */ ],
   "scenes": [
     {
       "id": "topic-glm52-scene-1",
       "subtitle": "智谱 AI 发布 GLM 5.2，上下文窗口扩展至 128K。",
       "overlayImg": "images/glm5.2.png",
-      "overlayImgScale": 1.15,
-    },
-  ],
+      "overlayImgScale": 1.15
+    }
+  ]
 }
 ```
 
@@ -57,7 +55,7 @@
 
 ## 关键行为：改图片会触发一次缓存复用的 TTS 同步
 
-`scripts/render/dev.mjs` 的监听逻辑里，`data.json` / schema / `video-layout.json` / `video-timeline.json` / `.env` 变化会重新跑 TTS；图片文件变化也会触发一次 TTS 同步，**但音频走缓存复用、不调 MiniMax、不花钱**——目的是让构建按新文件重算 overlay 尺寸。字幕没变，所以旁白不会重生成。
+`scripts/render/dev.mjs` 的监听逻辑里，`data.json` / schema / `video-layout.json` / `video-timeline.json` / `.env` 变化会重新跑 TTS；图片文件变化也会触发一次 TTS 同步，**但音频走缓存复用、不调 MiniMax、不花钱**——目的是让构建按新文件重算 overlay 尺寸。同一报告日期的默认开场也会复用上一份文案，不会因为早/中/晚时段变化而重生。字幕没变，所以旁白不会重生成。
 
 日常迭代图片很安全：加图、换图保存后，尺寸自动重算、预览自己就更新了。
 
@@ -95,7 +93,7 @@ bun run dev
 自动模式（`bun run video:auto-generate`）下，`CLAUDE_VISION_ENABLED=true` 时，`ingest/vision.go` 会对达到日报入选线（Score ≥7）且含远程图的 Story 做视觉识别和自动配图。Story 按分数降序处理，分数高的先消耗预算；总量仍由 `CLAUDE_VISION_MAX_CALLS`、`CLAUDE_VISION_MAX_IMAGES_PER_SOURCE` 和 `CLAUDE_VISION_MAX_BUDGET_USD` 封顶。
 
 1. **提取事实**：调 `claude` 识别图片内容，补充到文案。Claude 子进程只允许 `mcp__*` 和 `WebFetch`，不放行 `Bash`、`Write`、`Edit`。
-2. **自动配图**：用聚类后的 Story 标题、重要性和要点做相关性判断。证据图、示意图、数据/评测图、产品截图、官方物料都算相关；纯表情包、头像、签名装饰图、与 Story 无关的截图会被判不相关。相关后，把该图下载到 `data-scheme/images/` 并写入对应 scene 的 `overlayImg` 路径；原始宽高由 tts 构建期按文件算进 `data-generate.json`、供 `SourceOverlay` 布局用（rss 不把尺寸写进 `data.json`）。
+2. **自动配图**：用聚类后的 Story 标题、重要性和要点做相关性判断。候选已经来自来源正文的直接内嵌图片并排除了 onebox，因此按“正文证据图”处理：证据/公告截图、示意图、数据/评测图、产品截图、官方物料都算相关，不要求覆盖 Story 的每一个要点；只要产品/机构名、核心事件、日期、数字或用户影响能明确对应即可。只有内容清晰可辨且能确认是纯表情包、头像、签名装饰、广告或另一个无关主题时才判不相关。相关后，把该图下载到 `data-scheme/images/` 并写入对应 scene 的 `overlayImg` 路径；原始宽高由 tts 构建期按文件算进 `data-generate.json`、供 `SourceOverlay` 布局用（rss 不把尺寸写进 `data.json`）。
 
 远程图下载遇到网络错误、HTTP 429 或 5xx 会短暂重试；404、格式不支持、图片过大或疑似头像/Logo 这类永久性问题会直接跳过，不中断整期日报生成。
 

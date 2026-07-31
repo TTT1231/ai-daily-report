@@ -55,7 +55,7 @@
 
 ## 关键行为：改图片会触发一次缓存复用的 TTS 同步
 
-`scripts/render/dev.mjs` 的监听逻辑里，`data.json` / schema / `video-layout.json` / `video-timeline.json` / `.env` 变化会重新跑 TTS；图片文件变化也会触发一次 TTS 同步，**但音频走缓存复用、不调 MiniMax、不花钱**——目的是让构建按新文件重算 overlay 尺寸。字幕没变，所以旁白不会重生成。
+`scripts/render/dev.mjs` 的监听逻辑里，`data.json` / schema / `video-layout.json` / `video-timeline.json` / `.env` 变化会重新跑 TTS；图片文件变化也会触发一次 TTS 同步，**但音频走缓存复用、不调 MiniMax、不花钱**——目的是让构建按新文件重算 overlay 尺寸。同一报告日期的默认开场也会复用上一份文案，不会因为早/中/晚时段变化而重生。字幕没变，所以旁白不会重生成。
 
 日常迭代图片很安全：加图、换图保存后，尺寸自动重算、预览自己就更新了。
 

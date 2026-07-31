@@ -71,7 +71,7 @@ ai-daily-report/
 │       ├── claude-allowlist.mjs         # generate-svg 的 claude 权限 allowlist 单一数据源
 │       ├── generate-svg-preflight.mjs   # generate-svg 前置检查
 │       ├── image-dims.mjs               # 按图片真实像素写入 overlayImgWidth/Height
-│       ├── video-meta.mjs               # LLM 生成视频标题+标签 → data-scheme/video-meta.json（投稿元数据，与平台无关）
+│       ├── video-meta.mjs               # 读取完整 stories，按 AI 日报场景生成视频标题+标签 → video-meta.json
 │       ├── icon-validation.mjs          # 图标资源校验逻辑
 │       ├── asset-check.mjs              # 资源存在性校验
 │       ├── audio-quality.mjs            # 音频质量检查
@@ -131,4 +131,3 @@ ai-daily-report/
 
 > 注意：`test:e2e` 起点是 fixture JSON，**不跑 ingest**；RSS/Go 改动跑 `rss:test`，别错跑 e2e。
 > CI（公开仓库，Actions 免费无限额）跑 `test:unit` + `test:integration` + `test:render` + go test；e2e 仅本地手动跑。
-

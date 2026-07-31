@@ -60,6 +60,35 @@ func TestEnrichTabSummaryMarkdownDeepensWp2ShellEmphasis(t *testing.T) {
 	}
 }
 
+func TestEnrichTabSummaryMarkdownFormatsCurrentReportStyle(t *testing.T) {
+	input := "模型还在7轮AES-128及Serpent、Salsa20、SHA-1等算法上找到弱点，其中AES攻击提速200到800倍，但均未破解完整算法。"
+	got := enrichTabSummaryMarkdown(input)
+	for _, want := range []string{"`AES-128`", "`Serpent`", "`Salsa20`", "`SHA-1`"} {
+		if !strings.Contains(got, want) {
+			t.Fatalf("enrichTabSummaryMarkdown() = %q, missing %s", got, want)
+		}
+	}
+	if spans := tabSummaryBoldSpanPattern.FindAllString(got, -1); len(spans) != 1 {
+		t.Fatalf("bold spans = %d, want 1 in %q", len(spans), got)
+	}
+	if reason := tabRejectionReason(StoryTab{Title: "更多发现", Summary: got}); reason != "" {
+		t.Fatalf("enriched summary rejected: %s (%q)", reason, got)
+	}
+}
+
+func TestNormalizeStoryTabsAddsFallbackBoldForPlainFactualSummary(t *testing.T) {
+	group := NewsGroup{Title: "测试新闻", SourceIndexes: []int{1}}
+	tabs := []StoryTab{{
+		Title:           "背景",
+		Summary:         "这是一段只有背景描述但没有明确核心变化机制影响结论的完整摘要。",
+		EvidenceIndexes: []int{1},
+	}}
+	normalized, rejected := normalizeStoryTabsWithReasons(group, tabs)
+	if len(normalized) != 1 || len(rejected) != 0 || len(tabSummaryBoldSpanPattern.FindAllString(normalized[0].Summary, -1)) != 1 {
+		t.Fatalf("normalizeStoryTabsWithReasons() = %#v / %#v", normalized, rejected)
+	}
+}
+
 func TestNormalizeStoryTabsRejectsTitleMatchingResolvedContentTitle(t *testing.T) {
 	group := NewsGroup{
 		Title:         "这是一个超过三十个字符并且需要模型语义改写后才能放入视频播放区的新闻原标题",
@@ -68,7 +97,7 @@ func TestNormalizeStoryTabsRejectsTitleMatchingResolvedContentTitle(t *testing.T
 	}
 	tabs := []StoryTab{{
 		Title:           group.ContentTitle,
-		Summary:         "这是一段长度足够的完整摘要，用于验证跨层标题重复会被准确拒绝。",
+		Summary:         "这是一段长度足够的完整摘要，**用于验证跨层标题重复会被准确拒绝**。",
 		EvidenceIndexes: []int{1},
 	}}
 	normalized, rejected := normalizeStoryTabsWithReasons(group, tabs)
@@ -84,8 +113,8 @@ func TestApplyStoryTabsResultsKeepsBestComponentsAcrossRepairRounds(t *testing.T
 	}}
 	batch := []storyTabMaterial{{GroupIndex: 1, Body: "Story 1"}}
 	validTabs := []StoryTab{
-		{Title: "事件事实", Summary: "这是第一段长度足够的完整摘要，包含明确事实和具体结果。", EvidenceIndexes: []int{1}},
-		{Title: "用户影响", Summary: "这是第二段长度足够的完整摘要，说明变化会怎样影响用户。", EvidenceIndexes: []int{1}},
+		{Title: "事件事实", Summary: "这是第一段长度足够的完整摘要，**包含明确事实和具体结果**。", EvidenceIndexes: []int{1}},
+		{Title: "用户影响", Summary: "这是第二段长度足够的完整摘要，**说明变化会怎样影响用户**。", EvidenceIndexes: []int{1}},
 	}
 	validScenes := []StoryScene{{
 		Subtitle:        "这是一条长度足够的完整口播，概括新闻主体、核心事件和直接结果。",

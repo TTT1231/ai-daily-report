@@ -28,8 +28,8 @@
       "bottomTitle": "GLM",
       "contentTitle": "GLM 模型更新动态",
       "tabs": [
-        {"id": "tab-1", "title": "事件概览", "summary": "摘要三。"},
-        {"id": "tab-2", "title": "用户影响", "summary": "摘要四。"}
+        {"id": "tab-1", "title": "事件概览", "summary": "**摘要三**。"},
+        {"id": "tab-2", "title": "用户影响", "summary": "**摘要四**。"}
       ],
       "scenes": [
         {

@@ -41,7 +41,7 @@ bun run video:auto-generate
    bun run tts
    ```
 
-   `tts` 已带 `node --env-file-if-exists=.env`，仍受 `TTS_REQUIRE`、`MINIMAX_*`、`REQUIRE_VOICE_QUALITY_FFMPEG` 等变量控制。已有 scene 通常可复用缓存，不会重复花钱。
+   `tts` 已带 `node --env-file-if-exists=.env`，仍受 `TTS_REQUIRE`、`MINIMAX_*`、`REQUIRE_VOICE_QUALITY_FFMPEG` 等变量控制。同一报告日期的默认开场口播会沿用上一份 Generated 文案，未改字幕的 scene 可复用缓存，不会因重跑时段变化而重新合成。
 
 5. **跑校验**：
 

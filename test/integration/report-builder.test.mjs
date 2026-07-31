@@ -96,6 +96,29 @@ test("buildGeneratedReport default intro says lunar date and weekday", () => {
   );
 });
 
+test("buildGeneratedReport reuses the same report date greeting across later edits", () => {
+  const raw = {
+    $schema: "../config/data.schema.json",
+    date: "2026-06-24",
+    stories: [],
+  };
+  const evening = buildGeneratedReport(
+    raw,
+    undefined,
+    new Date(2026, 5, 24, 20),
+  );
+  const morningRebuild = buildGeneratedReport(
+    raw,
+    evening,
+    new Date(2026, 5, 25, 9),
+  );
+
+  assert.equal(
+    morningRebuild.intro.scenes[0].subtitle,
+    evening.intro.scenes[0].subtitle,
+  );
+});
+
 function rawReportWithOverlay(overlayImg, sceneExtra = {}) {
   return {
     $schema: "../config/data.schema.json",

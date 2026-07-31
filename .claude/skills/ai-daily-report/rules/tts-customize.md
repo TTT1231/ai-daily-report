@@ -15,7 +15,7 @@
 
 ### 情况一：只想换 MiniMax 的模型 / 音色 / 语速
 
-**纯改 `.env`，不动代码。** 改完 `bun run tts:force`（强制重生，因为 hash 会变，`--force` 更省心）或 `bun run tts`（按 hash 自动判断）。
+**纯改 `.env`，不动代码。** 改完运行 `bun run tts`；模型、音色或语速参与缓存 hash，变化后会自动重生。只有配置没变但明确要丢弃缓存重做时才用 `bun run tts:force`。
 
 ```ini
 MINIMAX_TTS_MODEL=speech-2.8-hd        # 模型
