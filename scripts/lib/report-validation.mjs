@@ -44,6 +44,48 @@ function tabSummaryMarkdownStats(value) {
   return { boldSpans, visualUnits };
 }
 
+function tabSummaryMarkdownIssue(value) {
+  const text = String(value ?? "");
+  const boldSpans = [...text.matchAll(/\*\*[^*]+\*\*/g)];
+  const codeSpans = [...text.matchAll(/`[^`]+`/g)];
+  if ((text.match(/\*\*/g) ?? []).length !== boldSpans.length * 2) {
+    return "bold markers must be paired and must not contain nested asterisks";
+  }
+  if ((text.match(/`/g) ?? []).length !== codeSpans.length * 2) {
+    return "inline-code markers must be paired";
+  }
+
+  for (const bold of boldSpans) {
+    const boldStart = bold.index;
+    const boldEnd = boldStart + bold[0].length;
+    const content = bold[0].slice(2, -2).trim();
+    if (
+      /[“‘（(《【]$/.test(content) ||
+      /^[”’）)》】]/.test(content)
+    ) {
+      return "bold boundaries must not split paired punctuation";
+    }
+    for (const code of codeSpans) {
+      const codeStart = code.index;
+      const codeEnd = codeStart + code[0].length;
+      if (boldStart < codeEnd && codeStart < boldEnd) {
+        return "bold and inline-code spans must not overlap or nest";
+      }
+    }
+  }
+
+  for (const code of codeSpans) {
+    const start = code.index;
+    const end = start + code[0].length;
+    const previous = start > 0 ? text[start - 1] : "";
+    const next = end < text.length ? text[end] : "";
+    if (/[A-Za-z0-9_.+-]/.test(previous) || /[A-Za-z0-9_.+-]/.test(next)) {
+      return "inline code must not split one English identifier";
+    }
+  }
+  return "";
+}
+
 const normalizeComparableText = (value) =>
   String(value ?? "")
     .toLowerCase()
@@ -210,6 +252,7 @@ export function validateReport(
       }
       const summaryLength = tabSummaryVisibleLength(tab.summary);
       const markdownStats = tabSummaryMarkdownStats(tab.summary);
+      const markdownIssue = tabSummaryMarkdownIssue(tab.summary);
       const titleKey = normalizeComparableText(tab.title);
       const summaryKey = normalizeComparableText(tab.summary);
       if (tabTitles.has(titleKey)) {
@@ -228,7 +271,9 @@ export function validateReport(
           `has ${summaryLength} visible characters; maximum is ${MAX_TAB_SUMMARY_VISIBLE_CHARACTERS}`,
         );
       }
-      if (isNewsStory && markdownStats.boldSpans === 0) {
+      if (isNewsStory && markdownIssue) {
+        fail(`${tabPath}.summary`, `has malformed Markdown: ${markdownIssue}`);
+      } else if (isNewsStory && markdownStats.boldSpans === 0) {
         fail(
           `${tabPath}.summary`,
           "must use exactly one bold span for the core change, mechanism, impact, or conclusion",

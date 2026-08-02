@@ -110,6 +110,8 @@ func tabRejectionReason(tab StoryTab) string {
 	switch {
 	case tab.Title == "":
 		return "Tab 标题为空"
+	case tabSummaryMarkdownIssue(tab.Summary) != "":
+		return "summary Markdown 不合法：" + tabSummaryMarkdownIssue(tab.Summary)
 	case visibleRunes < minTabSummaryRunes:
 		return fmt.Sprintf("summary 仅 %d 个可见字符，不足 %d 字下限", visibleRunes, minTabSummaryRunes)
 	case visibleRunes > maxTabSummaryVisibleRunes:
@@ -130,6 +132,47 @@ func tabRejectionReason(tab StoryTab) string {
 		return "空信息不确定性 Tab：不要把“等待官方确认/尚未公布”单独做成内容，请改为具体事实或用户影响"
 	}
 	return ""
+}
+
+// tabSummaryMarkdownIssue 校验项目支持的受限 Markdown。粗体和行内代码必须
+// 成对、互不交叉或嵌套，也不能把同一个英文专名拆在反引号两侧。
+func tabSummaryMarkdownIssue(value string) string {
+	boldLocations := tabSummaryBoldSpanPattern.FindAllStringIndex(value, -1)
+	codeLocations := tabSummaryCodeSpanPattern.FindAllStringIndex(value, -1)
+	if strings.Count(value, "**") != len(boldLocations)*2 {
+		return "粗体标记未成对或包含嵌套星号"
+	}
+	if strings.Count(value, "`") != len(codeLocations)*2 {
+		return "行内代码标记未成对"
+	}
+	for _, bold := range boldLocations {
+		content := strings.TrimSpace(value[bold[0]+2 : bold[1]-2])
+		if strings.HasSuffix(content, "“") || strings.HasSuffix(content, "‘") ||
+			strings.HasSuffix(content, "（") || strings.HasSuffix(content, "(") ||
+			strings.HasSuffix(content, "《") || strings.HasSuffix(content, "【") ||
+			strings.HasPrefix(content, "”") || strings.HasPrefix(content, "’") ||
+			strings.HasPrefix(content, "）") || strings.HasPrefix(content, ")") ||
+			strings.HasPrefix(content, "》") || strings.HasPrefix(content, "】") {
+			return "粗体边界截断了成对标点"
+		}
+		for _, code := range codeLocations {
+			if bold[0] < code[1] && code[0] < bold[1] {
+				return "粗体与行内代码发生交叉或嵌套"
+			}
+		}
+	}
+	for _, code := range codeLocations {
+		if code[0] > 0 && isASCIIMarkdownTokenByte(value[code[0]-1]) ||
+			code[1] < len(value) && isASCIIMarkdownTokenByte(value[code[1]]) {
+			return "行内代码拆开了同一个英文专名"
+		}
+	}
+	return ""
+}
+
+func isASCIIMarkdownTokenByte(value byte) bool {
+	return value >= 'a' && value <= 'z' || value >= 'A' && value <= 'Z' ||
+		value >= '0' && value <= '9' || strings.ContainsRune("-_.+", rune(value))
 }
 
 func hasTruncationArtifact(value string) bool {

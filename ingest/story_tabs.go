@@ -191,7 +191,7 @@ func buildStoryTabsPrompt(batch []storyTabMaterial) string {
 [
   {
     "group_index": Story 序号,
-	"content_title": "清洗后的原标题不超过30字符且完整时直接复用；只有超长或不完整时才改写为主体+核心事件或结论的完整短标题，改写目标12至26字符、硬性最多30字符，不得截前缀或使用省略号",
+	"content_title": "先剥离快讯、慢讯、详细对比了一下等论坛前缀及无意义句尾标点；清洗后不超过30字符、完整且为新闻标题风格时直接复用，否则改写为主体+核心事件或结论的完整短标题，改写目标12至26字符、硬性最多30字符，不得截前缀或使用省略号",
 	"navigation_title": "底部时间线语义标签，不是新闻句缩写；只保留最有辨识度的实体、产品或对象，中文通常2至5字，英文按显示宽度可略长，不得添加无必要尾巴、复制完整标题或使用省略号",
     "tabs": [
       {
@@ -281,7 +281,7 @@ func applyStoryTabsResults(groups []NewsGroup, batch []storyTabMaterial, results
 			reasons = append(reasons, "- 没有有效 Scene；必须生成 1 条总结整条 Story 的简短口播，不能逐张朗读 Tab")
 		}
 		if resolvedTitle == "" {
-			reasons = append(reasons, fmt.Sprintf("- content_title 不合格：原标题能完整放下时应直接复用；原标题超长或不完整时，必须语义改写为最多 %d 字的完整短标题，不得截取前缀或使用省略号", maxContentTitleRunes))
+			reasons = append(reasons, fmt.Sprintf("- content_title 不合格：先剥离快讯、慢讯、第一人称叙述等论坛前缀；清洗后为完整新闻标题且能放下时直接复用，否则必须语义改写为最多 %d 字的完整短标题，不得截取前缀或使用省略号", maxContentTitleRunes))
 		}
 		if !navigationReady {
 			reasons = append(reasons, fmt.Sprintf("- navigation_title 不合格：必须改写成可完整显示的语义标签，中文约 2 至 5 字或同等宽度英文（视觉宽度最多 %.1f），只保留实体/产品/对象，不得截断或使用省略号", maxNavigationTitleUnits))
@@ -291,7 +291,7 @@ func applyStoryTabsResults(groups []NewsGroup, batch []storyTabMaterial, results
 上一轮输出未通过程序质量校验：
 %s
 
-请重新生成这个 Story 的完整 content_title、navigation_title、全部 Tabs 和 1 至 2 个 Story 级 Scenes，不要只补缺失项。navigation_title 是实体/产品/对象标签，不是新闻标题缩写，必须短到可完整显示；summary 每张至少用一段且最多一段粗体突出核心变化/机制/影响，出现多个英文产品、API、错误码或版本时，可用多段行内代码分别标出实际出现且有辨识价值的专名。清洗后的原标题能在 %d 字内完整显示时，content_title 直接复用即可；只有原标题超长、已有省略号或不完整时才语义改写，禁止截取原文前缀或使用省略号；summary 纯文本不得超过 %d 个可见字符，格式化后也不得超过同一视觉容量。若内容放不下，增加 Tab 并按独立事实拆分，禁止截断、复制正文或按段落凑满 6 张；事实不足以支撑两个独立 Tab 时宁可返回一个让质量闸剔除，不得编造第二个角度；Scene 必须总结整条新闻，不得与 Tabs 一一对应；evidence_indexes 只能使用材料给出的来源序号。`,
+请重新生成这个 Story 的完整 content_title、navigation_title、全部 Tabs 和 1 至 2 个 Story 级 Scenes，不要只补缺失项。navigation_title 是实体/产品/对象标签，不是新闻标题缩写，必须短到可完整显示；summary 每张至少用一段且最多一段粗体突出核心变化/机制/影响，出现多个英文产品、API、错误码或版本时，可用多段行内代码分别标出实际出现且有辨识价值的专名，但粗体和行内代码不得交叉、嵌套或拆开同一英文专名。先剝离快讯、慢讯、详细对比了一下等论坛前缀及无意义句尾标点；清洗后的原标题是完整新闻标题且能在 %d 字内完整显示时，content_title 直接复用；否则必须语义改写，禁止截取原文前缀或使用省略号；summary 纯文本不得超过 %d 个可见字符，格式化后也不得超过同一视觉容量。若内容放不下，增加 Tab 并按独立事实拆分，禁止截断、复制正文或按段落凑满 6 张；事实不足以支撑两个独立 Tab 时宁可返回一个让质量闸剔除，不得编造第二个角度；Scene 必须总结整条新闻，不得与 Tabs 一一对应；evidence_indexes 只能使用材料给出的来源序号。`,
 			batch[pos].Body, strings.Join(reasons, "\n"), maxContentTitleRunes, maxTabSummaryVisibleRunes)
 		repairs = append(repairs, storyTabMaterial{GroupIndex: batch[pos].GroupIndex, Body: repairBody})
 	}

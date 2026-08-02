@@ -18,6 +18,8 @@ var validIdentifier = regexp.MustCompile(`^[a-z0-9][a-z0-9-.]*$`)
 var (
 	forumBracketRe = regexp.MustCompile(`^【[^】]*】\s*`)
 	forumSaluteRe  = regexp.MustCompile(`^各位佬[，,]?\s*|^佬们?[，,]?\s*`)
+	forumNewsRe    = regexp.MustCompile(`^(?:快讯|慢讯)[：:]\s*`)
+	forumNarrateRe = regexp.MustCompile(`^(?:详细)?对比了一下\s*`)
 	forumMetaRe    = regexp.MustCompile(`省流|长文总结|博客长文|个人省流`)
 	forumArrowRe   = regexp.MustCompile(`→`)
 	repeatBangRe   = regexp.MustCompile(`！{2,}`)
@@ -170,7 +172,7 @@ func generateDataJSON(path string, groups []NewsGroup, items []Item) error {
 // stripForumDecorations 剥离 linuxdo 等论坛源的口语/装饰：前缀【】、各位佬/佬们称呼、
 // 省流/长文总结等元描述、→ 箭头、以及连续重复的！？。作为 LLM 标题清洗的确定性兜底。
 func stripForumDecorations(title string) string {
-	for _, re := range []*regexp.Regexp{forumBracketRe, forumSaluteRe} {
+	for _, re := range []*regexp.Regexp{forumBracketRe, forumSaluteRe, forumNewsRe, forumNarrateRe} {
 		title = re.ReplaceAllString(title, "")
 	}
 	title = forumMetaRe.ReplaceAllString(title, "")
@@ -182,7 +184,7 @@ func stripForumDecorations(title string) string {
 
 func cleanDisplayTitle(title string) string {
 	title = strings.TrimSpace(title)
-	cleaned := strings.TrimRight(title, " \t\r\n?？")
+	cleaned := strings.TrimRight(title, " \t\r\n?？。.!！")
 	if cleaned == "" {
 		return title
 	}
@@ -380,11 +382,12 @@ func storyCategory(group NewsGroup) string {
 	case containsAny(text, "网信办", "监管行动", "清朗", "举报专区", "专项行动", "合规治理", "执法"):
 		return "AI监管"
 	case containsAny(title, "额度", "限额", "重置", "价格", "涨价", "降价", "消耗", "倍率", "套餐") &&
-		!containsAny(title, "发布", "开源", "内测", "上线", "模型"):
+		!containsAny(title, "开源", "内测", "上线", "模型"):
 		return "额度价格"
 	case containsAny(text, "封号", "被封", "风控", "杀号", "账号", "跑路", "诈骗"):
 		return "账号风险"
-	case containsAny(text, "发布", "开源", "模型", "内测", "api", "开发者模式", "浏览器模式"):
+	case containsAny(text, "开源", "模型", "内测", "api", "开发者模式", "浏览器模式",
+		"openai", "anthropic", "deepseek", "chatgpt", "claude", "qwen", "kimi", "gemini", "minimax", "glm-", "gpt-"):
 		return "模型产品"
 	case containsAny(text, "额度", "限额", "重置", "价格", "涨价", "降价", "消耗", "倍率", "套餐"):
 		return "额度价格"

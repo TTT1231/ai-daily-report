@@ -106,6 +106,28 @@ func TestNormalizeStoryTabsRejectsTitleMatchingResolvedContentTitle(t *testing.T
 	}
 }
 
+func TestTabRejectionReasonRejectsMalformedMarkdownBoundaries(t *testing.T) {
+	cases := []string{
+		"研究者认为，模型**已把表达习惯与“**`Claude`”绑定，因此更容易认错身份。",
+		"套餐把 `pro`mpts 额度改为**积分制**，并增加每周使用限制。",
+		"当前 V4-`Pro` API **本次没有升级**，正式版将在后续发布。",
+		"模型使用 **嵌套 `Claude` 专名** 来描述身份迁移现象。",
+	}
+	for _, summary := range cases {
+		reason := tabRejectionReason(StoryTab{Title: "格式检查", Summary: summary})
+		if !strings.Contains(reason, "Markdown 不合法") {
+			t.Errorf("tabRejectionReason(%q) = %q", summary, reason)
+		}
+	}
+}
+
+func TestTabRejectionReasonAcceptsSeparateBoldAndCodeSpans(t *testing.T) {
+	summary := "`Qwen` 学会了 `Claude` 的表达方式，**被问身份时更容易认错自己**。"
+	if reason := tabRejectionReason(StoryTab{Title: "身份迁移", Summary: summary}); reason != "" {
+		t.Fatalf("valid Markdown rejected: %s", reason)
+	}
+}
+
 func TestApplyStoryTabsResultsKeepsBestComponentsAcrossRepairRounds(t *testing.T) {
 	groups := []NewsGroup{{
 		Title:         "这是一个超过三十个字符并且需要模型语义改写后才能放入视频播放区的新闻原标题",

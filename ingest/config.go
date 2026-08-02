@@ -11,7 +11,7 @@ const (
 	picksRelativePath         = "ingest/picks.json"        // 固定保存人工 pick 的白名单（{hash: true}）。
 	defaultSourcesPath        = "ingest/sources.jsonc"     // 默认 RSS 来源配置。
 	defaultPreferencesPath    = "ingest/preferences.jsonc" // 默认用户兴趣画像配置。
-	defaultRequestTimeout     = 90 * time.Second           // 调用 AI 模型 chat/completions 接口的默认超时。
+	defaultRequestTimeout     = 200 * time.Second          // 调用 AI 模型 chat/completions 接口的默认超时。
 	defaultFeedRequestTimeout = 20 * time.Second           // 抓取 RSS 2.0 源的默认 HTTP 超时。
 	maxGroups                 = 15                         // 聚类后最多保留的 Story（视频主题）数量上限。
 	maxGroupHighlights        = 6                          // 每个 Story 最多保留的不重复要点数，对应视频的 tab 数。

@@ -389,6 +389,23 @@ test("tab summary allows multiple inline-code spans but at most one bold span", 
   );
 });
 
+test("tab summary rejects Markdown that splits punctuation or English identifiers", () => {
+  for (const summary of [
+    "模型把表达习惯与 **“**`Claude` 绑定，最终更容易认错自己的身份。",
+    "套餐把 `pro`mpts 额度改成**积分制**，并增加每周使用限制。",
+    "当前 V4-`Pro` API **本次没有升级**，正式版将在后续发布。",
+  ]) {
+    const r = rawReport({
+      stories: [
+        story({
+          tabs: [tab({ id: "tab-1", summary }), tab({ id: "tab-2" })],
+        }),
+      ],
+    });
+    assert.ok(hasError(errorsOf(r), "has malformed Markdown"), summary);
+  }
+});
+
 test("tab titles must be distinct and must not copy contentTitle", () => {
   const r = rawReport({
     stories: [

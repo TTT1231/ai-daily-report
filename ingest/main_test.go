@@ -567,6 +567,26 @@ func TestStoryCategoryPrioritizesQuotaOverModelMention(t *testing.T) {
 	}
 }
 
+func TestStoryCategoryDoesNotTreatGenericAnnouncementAsModelProduct(t *testing.T) {
+	group := NewsGroup{
+		Title:  "三大运营商发布公告：第三方互联网渠道停办号卡",
+		Reason: "公告规范互联网渠道售卡并保护用户个人信息",
+	}
+	if got := storyCategory(group); got != "行业动态" {
+		t.Fatalf("storyCategory() = %q, want 行业动态", got)
+	}
+}
+
+func TestStoryCategoryStillRecognizesModelAndAPINews(t *testing.T) {
+	group := NewsGroup{
+		Title:  "DeepSeek-V4-Flash正式版开始公测",
+		Reason: "正式版增强 Agent 能力并开始公开测试",
+	}
+	if got := storyCategory(group); got != "模型产品" {
+		t.Fatalf("storyCategory() = %q, want 模型产品", got)
+	}
+}
+
 func TestNavigationTitleIsShort(t *testing.T) {
 	group := NewsGroup{Title: "OpenAI Codex 额度重置规则大更新：可储存、免费重置、邀请新人重置"}
 	got := navigationTitle(group)
