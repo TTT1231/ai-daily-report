@@ -7,6 +7,7 @@ import {
   applyGenerateSvgPayload,
   buildGenerateSvgPayloadPrompt,
   buildGenerateSvgTargetPlan,
+  formatRetryReason,
   parseGenerateSvgPayload,
 } from "../generate-svg-payload.mjs";
 
@@ -87,6 +88,28 @@ test("parseGenerateSvgPayload reads Claude CLI structured_output envelopes", () 
 
   assert.equal(payload.icons[0].concept, "triangle");
   assert.equal(payload.icons[0].svg, sampleSvg);
+});
+
+test("formatRetryReason classifies spawn/timeout/exit kinds and falls back for plain errors", () => {
+  const spawn = new Error("enoent");
+  spawn.kind = "claude-spawn";
+  assert.equal(formatRetryReason(spawn).retryable, false);
+  assert.match(formatRetryReason(spawn).label, /无法启动/);
+
+  const timeout = new Error("5min");
+  timeout.kind = "claude-timeout";
+  assert.equal(formatRetryReason(timeout).retryable, true);
+  assert.match(formatRetryReason(timeout).label, /超时/);
+
+  const exit = new Error("exit 1");
+  exit.kind = "claude-exit";
+  assert.equal(formatRetryReason(exit).retryable, true);
+  assert.match(formatRetryReason(exit).label, /非零退出/);
+
+  // payload 解析 / SVG 校验抛的是普通 Error（无 kind），视为可重试的校验失败。
+  const plain = new Error("missing icon: icons/x.svg");
+  assert.equal(formatRetryReason(plain).retryable, true);
+  assert.match(formatRetryReason(plain).label, /校验失败/);
 });
 
 test("applyGenerateSvgPayload writes SVGs, updates generated data, and mirrors raw story icons", async () => {

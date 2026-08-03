@@ -12,9 +12,14 @@ import {
   applyGenerateSvgPayload,
   buildGenerateSvgPayloadPrompt,
   buildGenerateSvgTargetPlan,
+  formatRetryReason,
   parseGenerateSvgPayload,
 } from "../lib/generate-svg-payload.mjs";
 import {dataDir, generatedDataPath, rawDataPath, readJson, rootDir} from "../lib/paths.mjs";
+
+// 20 图标一次性生成实测 ~140s（首 token ~105s）。给 claude.exe 留足完成空间，同时防止
+// API 偶发卡死让 generate-svg 无限挂起、阻塞整个 video 流水线。可用环境变量覆盖。
+const CLAUDE_PAYLOAD_TIMEOUT_MS = Number(process.env.AI_DAILY_SVG_TIMEOUT_MS) || 5 * 60 * 1000;
 
 const args = process.argv.slice(2);
 const automation = args.includes("--automation");
@@ -143,6 +148,25 @@ function requestClaudePayload(prompt) {
 
     let stdout = "";
     let stderr = "";
+    let settled = false;
+
+    const fail = (error) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      try {
+        child.kill("SIGKILL");
+      } catch {
+        // 子进程可能已退出；忽略清理错误。
+      }
+      reject(error);
+    };
+
+    const timer = setTimeout(() => {
+      const error = new Error(`claude payload 超过 ${CLAUDE_PAYLOAD_TIMEOUT_MS}ms 无响应`);
+      error.kind = "claude-timeout";
+      fail(error);
+    }, CLAUDE_PAYLOAD_TIMEOUT_MS);
 
     // 子进程提前退出会让 stdin 写入抛 EPIPE/ERR_STREAM_DESTROYED；挂个 error 监听吸收掉，
     // 真正的退出语义由 close 事件接管。
@@ -160,15 +184,21 @@ function requestClaudePayload(prompt) {
     });
 
     child.on("error", (error) => {
-      reject(new Error(`无法启动 claude (${claudeCommand}): ${error.message}`));
+      const wrapped = new Error(`无法启动 claude (${claudeCommand}): ${error.message}`);
+      wrapped.kind = "claude-spawn";
+      fail(wrapped);
     });
 
     child.on("close", (code) => {
+      if (settled) return;
+      clearTimeout(timer);
       if (code === 0) {
         resolve(stdout);
-      } else {
-        reject(new Error(`claude payload exited ${code ?? "null"}${stderr ? `\n${stderr}` : ""}`));
+        return;
       }
+      const wrapped = new Error(`claude payload exited ${code ?? "null"}${stderr ? `\n${stderr}` : ""}`);
+      wrapped.kind = "claude-exit";
+      reject(wrapped);
     });
   });
 }
@@ -222,7 +252,9 @@ async function runStructuredPayloadMode({promptPrefix}) {
     automation,
     theme: report.theme ?? "dark",
   });
-  const maxPayloadAttempts = 2;
+  // claude.exe 实测 20 图标 ~140s 且偶发非零退出（exit 1）。2 次重试不足以覆盖偶发抖动，
+  // 提到 3 次；claude-spawn（CLI 缺失等）不可恢复，立即中止避免无谓重试。
+  const maxPayloadAttempts = 3;
   let result;
   let lastError;
   for (let attempt = 1; attempt <= maxPayloadAttempts; attempt += 1) {
@@ -240,9 +272,19 @@ async function runStructuredPayloadMode({promptPrefix}) {
       break;
     } catch (error) {
       lastError = error;
-      if (attempt === maxPayloadAttempts) throw error;
+      const reason = formatRetryReason(error);
+      if (!reason.retryable) {
+        console.error(`generate-svg: 放弃生成 — ${reason.label}`);
+        throw error;
+      }
+      if (attempt === maxPayloadAttempts) {
+        console.error(
+          `generate-svg: 已重试 ${maxPayloadAttempts} 次仍失败 — ${reason.label}`,
+        );
+        throw error;
+      }
       console.warn(
-        `generate-svg: Claude payload attempt ${attempt} failed validation; retrying once: ${error.message}`,
+        `generate-svg: 第 ${attempt}/${maxPayloadAttempts} 次失败，将重试 — ${reason.label}`,
       );
     }
   }

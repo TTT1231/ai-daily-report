@@ -176,6 +176,24 @@ function extractJsonPayload(output) {
   return trimmed;
 }
 
+// 把 requestClaudePayload / payload 校验抛出的错误归类成可读的「重试原因」。
+// requestClaudePayload 在 reject 前会给 Error 打上 kind 标签（claude-spawn / claude-timeout /
+// claude-exit）；payload 解析与 SVG 校验抛的是普通 Error，落到 default 分支视为校验失败。
+// 返回 {label, retryable}：retryable=false 表示重试无意义（如 CLI 缺失），调用方应立即中止。
+export function formatRetryReason(error) {
+  const message = error?.message ?? String(error);
+  switch (error?.kind) {
+    case "claude-spawn":
+      return {label: `claude 无法启动（${message}）`, retryable: false};
+    case "claude-timeout":
+      return {label: `claude 子进程超时（${message}）`, retryable: true};
+    case "claude-exit":
+      return {label: `claude 子进程非零退出（${message}）`, retryable: true};
+    default:
+      return {label: `payload 校验失败（${message}）`, retryable: true};
+  }
+}
+
 export function parseGenerateSvgPayload(output) {
   let parsed;
   try {
