@@ -13,6 +13,9 @@ import (
 
 type RSSState struct {
 	Items map[string]StateItem `json:"items"`
+	// Picked 只保存用户手动挑选过的稳定指纹。单纯抓到但未勾选的条目不进入这里，
+	// 所以下一次半自动抓取仍会展示它们；只有已经人工选过的内容会被跨次去重。
+	Picked map[string]bool `json:"picked,omitempty"`
 }
 
 // StateItem 存的是 rss-state.json 里每条候选的完整字段。
@@ -33,7 +36,10 @@ type StateItem struct {
 
 // loadRSSState 读取最近一次抓取快照；文件不存在时返回空状态。
 func loadRSSState(path string) (RSSState, error) {
-	state := RSSState{Items: make(map[string]StateItem)}
+	state := RSSState{
+		Items:  make(map[string]StateItem),
+		Picked: make(map[string]bool),
+	}
 	data, err := os.ReadFile(path)
 	if os.IsNotExist(err) {
 		return state, nil
@@ -47,27 +53,35 @@ func loadRSSState(path string) (RSSState, error) {
 	if state.Items == nil {
 		state.Items = make(map[string]StateItem)
 	}
+	if state.Picked == nil {
+		state.Picked = make(map[string]bool)
+	}
 	return state, nil
 }
 
-// filterUnseenItems 返回本次抓取中未出现在上一次快照里的条目。
-// 主流程已不再用它做跨次预过滤；保留给快照语义测试和调试场景使用。
-func filterUnseenItems(items []Item, state RSSState) []Item {
-	unseen := make([]Item, 0, len(items))
+// filterUnpickedItems 返回尚未被用户手动挑选过的条目。
+// 是否曾被 RSS 抓到不影响结果，只有 Picked 中的稳定指纹会参与跨次去重。
+func filterUnpickedItems(items []Item, state RSSState) []Item {
+	unpicked := make([]Item, 0, len(items))
 	for _, item := range items {
-		if _, exists := state.Items[itemFingerprint(item)]; exists {
+		hash := itemFingerprint(item)
+		if state.Picked[hash] {
 			continue
 		}
-		unseen = append(unseen, item)
+		unpicked = append(unpicked, item)
 	}
-	return unseen
+	return unpicked
 }
 
-// snapshotRSSState 用本次完整抓取结果创建下一次运行可复用的快照。
+// snapshotRSSState 用给定条目创建可复用候选快照；抓取本身不会把条目标记为已挑选。
 func snapshotRSSState(items []Item) RSSState {
-	state := RSSState{Items: make(map[string]StateItem, len(items))}
+	state := RSSState{
+		Items:  make(map[string]StateItem, len(items)),
+		Picked: make(map[string]bool),
+	}
 	for _, item := range items {
-		state.Items[itemFingerprint(item)] = StateItem{
+		hash := itemFingerprint(item)
+		state.Items[hash] = StateItem{
 			SourceID:    item.SourceID,
 			Title:       item.Title,
 			Link:        item.Link,
@@ -81,6 +95,40 @@ func snapshotRSSState(items []Item) RSSState {
 		}
 	}
 	return state
+}
+
+// mergePickedHistory 把已经人工挑选过的历史并入新候选快照。
+func mergePickedHistory(next *RSSState, previous RSSState) {
+	if next.Picked == nil {
+		next.Picked = make(map[string]bool)
+	}
+	for hash, picked := range previous.Picked {
+		if picked {
+			next.Picked[hash] = true
+		}
+	}
+}
+
+// rememberPickedHashes 把 picks.json 中仍属于当前候选池的人工选择写入去重历史。
+// 返回新增记录数；过期或伪造的 hash 不进入历史。
+func rememberPickedHashes(state *RSSState, picks Picks) int {
+	if state.Picked == nil {
+		state.Picked = make(map[string]bool)
+	}
+	added := 0
+	for hash, picked := range picks {
+		if !picked {
+			continue
+		}
+		if _, exists := state.Items[hash]; !exists {
+			continue
+		}
+		if !state.Picked[hash] {
+			added++
+		}
+		state.Picked[hash] = true
+	}
+	return added
 }
 
 // loadRSSStateAsItems 把 rss-state.json 里的 StateItem 还原成 []Item，供 run-picks 阶段重构候选池。

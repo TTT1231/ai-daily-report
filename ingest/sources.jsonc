@@ -33,7 +33,7 @@
       "proxy": true,
 
       // maxPages: 最多抓取页数。linuxdo 翻页用、必须 ≥ 1；rss2 单页抓取、可省略（默认 1）。
-      "maxPages": 2,
+      "maxPages": 3,
 
       // pageStart: 第一页使用的页码。LinuxDo RSS 从 0 开始。
       "pageStart": 0,

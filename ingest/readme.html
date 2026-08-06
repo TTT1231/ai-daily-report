@@ -211,7 +211,7 @@
   "adapter": "linuxdo",
   "url": "https://linux.do/c/example/123.rss",
   "enabled": true,
-  "maxPages": 2,
+  "maxPages": 3,
   "pageStart": 0,
   "pageDelaySeconds": 10
 }</code></pre>
@@ -408,13 +408,13 @@
             <div class="state-main">
               <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M4 7c0-2 3.6-4 8-4s8 2 8 4-3.6 4-8 4-8-2-8-4Z" /><path d="M4 7v5c0 2 3.6 4 8 4s8-2 8-4V7M4 12v5c0 2 3.6 4 8 4s8-2 8-4v-5" /></svg>
               <div>
-                <strong>保存最近一次完整抓取记录</strong>
-                <p>用于人工补选新闻和来源失败时保留上次状态；评分仍会处理最近时间窗口内的全部条目。</p>
+                <strong>保存本次人工候选与已选记录</strong>
+                <p>半自动模式只过滤你过去手动勾选过的内容；仅仅被 RSS 抓到但没有勾选的条目，下次仍会留在候选池。</p>
               </div>
             </div>
             <div class="state-facts">
-              <div><strong>删除后</strong><span>只会丢弃快照；下一次运行会重新抓取并自动重建。</span></div>
-              <div><strong>来源失败时</strong><span>保留该来源上一次运行状态，避免短暂故障清空快照。</span></div>
+              <div><strong>删除后</strong><span>会丢弃候选池和人工选择历史；下一次运行会重新抓取。</span></div>
+              <div><strong>隔夜重跑时</strong><span>手动选过的内容会被跳过，未选内容仍可再次考虑。</span></div>
               <div><strong>跨栏目时</strong><span>LinuxDo 同一 Topic 只处理一次。</span></div>
             </div>
           </div>
@@ -436,7 +436,7 @@
 ├── linuxdo_adapter.go      # LinuxDo 分页与 Topic ID
 ├── rss2.go                 # 通用 RSS 2.0 下载与解析
 ├── vpnproxy.go             # 按来源 all_proxy 策略（sources.jsonc 的 proxy 字段）
-├── state.go                # 快照读写与失败来源保留
+├── state.go                # 候选快照读写与人工 pick 去重历史
 ├── ranking.go              # 本地评分与组合排除规则
 ├── grouping.go             # 合并相似新闻
 ├── story_tabs.go           # 生成视频 Tabs 和字幕

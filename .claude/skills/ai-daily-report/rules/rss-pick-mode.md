@@ -7,7 +7,7 @@
 用户想人工控制选稿时，走 **`rss` → `rss:pick` → `video`** 三步流程：
 
 ```bash
-# 1. 抓取 + 去重，写 rss-state.json（候选池），停下
+# 1. 抓取 + 按历史人工 pick 去重，写 rss-state.json（候选池），停下
 bun run rss
 
 # 2. 浏览器勾选 → 写 picks.json → 服务自动关闭
@@ -17,7 +17,9 @@ bun run rss:pick
 bun run video
 ```
 
-`bun run rss:pick` 起一个本地服务（端口 7788），把 `rss-state.json` 渲染成按 `sourceId` 分类的网页并自动打开浏览器。已进本期 `data.json` 的条目带绿标（默认不勾，避免重复），已 pick 的条目会预勾选。勾选后点「保存并关闭」直接写 `ingest/picks.json`（`{hash: true}` 白名单）并自动关服务——不再走复制 JSONC 贴对话的弯路。
+`bun run rss:pick` 起一个本地服务（端口 7788），把 `rss-state.json` 渲染成按 `sourceId` 分类的网页并自动打开浏览器。已进本期 `data.json` 的条目带绿标（默认不勾，避免重复）；已 pick 过的条目在 `bun run rss` 阶段就被跨次去重过滤掉，不会出现在挑选页，因此无需预勾选。勾选后点「保存并关闭」直接写 `ingest/picks.json`（`{hash: true}` 白名单）并自动关服务——不再走复制 JSONC 贴对话的弯路。
+
+跨次去重只认用户已经手动勾选并保存过的 hash：仅仅被 RSS 抓到、但没有勾选的条目不会进入去重历史，下一次运行仍可继续选择。`run-picks` 成功生成视频后会把本次 picks 记入 `rss-state.json` 的 `picked` 历史，下一次 `rss` 抓取时这些条目会被 `filterUnpickedItems` 直接剔除，不再进入候选池；若上一次停在保存选择后、尚未成功生成视频，下一次 `rss` 也会先从 `picks.json` 把这些人工选择补记进历史（随后同样被去重过滤，不会再次展示）。
 
 `bun run video`（picks 路径）读 `picks.json`，每条 picked **独立成一个单来源 Story**，跳过评分/聚类/合并（人工已挑，不让 AI 再筛/合），直接跑 Tabs(识图) → data.json → tts → svg → check。
 

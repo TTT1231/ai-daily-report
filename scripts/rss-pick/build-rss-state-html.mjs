@@ -92,7 +92,7 @@ const esc = (obj) => JSON.stringify(obj).replace(/<\/script>/gi, "<\\/script>");
 
 function renderHtml() {
   return templateSource
-    .replace("__RSS_STATE__", esc(items))
+    .replace("__RSS_STATE__", esc(rssState))
     .replace("__REPORT_STORIES__", esc(stories))
     .replace("__PICKS__", esc(savedPicks));
 }

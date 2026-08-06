@@ -45,6 +45,25 @@ func runFetch() int {
 		fmt.Println("   请检查项目根目录 .env、ingest/sources.jsonc 和 ingest/preferences.jsonc。")
 		return 1
 	}
+	previousState, err := loadRSSState(config.StatePath)
+	if err != nil {
+		fmt.Printf("失败：无法读取上次 RSS 快照，不能安全去重：%v\n", err)
+		fmt.Println("   请修复或移走 ingest/rss-state.json 后重试；移走后会从本次抓取重新建立历史。")
+		return 1
+	}
+	// picks.json 是旧版状态没有 Picked 字段时的迁移来源，也覆盖“已保存选择但 video
+	// 尚未成功”的中断场景：只有用户亲手勾选的 hash 才进入跨次去重历史。
+	picksPath, err := defaultPicksPath()
+	if err != nil {
+		fmt.Printf("失败：无法确定 picks.json 位置：%v\n", err)
+		return 1
+	}
+	previousPicks, err := loadPicks(picksPath)
+	if err != nil {
+		fmt.Printf("失败：读取 picks.json 失败，不能安全恢复人工选择历史：%v\n", err)
+		return 1
+	}
+	rememberPickedHashes(&previousState, previousPicks)
 
 	printRunOverview(config, config.StatePath)
 
@@ -57,10 +76,17 @@ func runFetch() int {
 		fmt.Println("失败：所有 RSS 来源均抓取失败。")
 		return 1
 	}
-	fmt.Printf("   完成：时间窗口内共 %d 条\n\n", len(fetchedItems))
+	candidateItems := filterUnpickedItems(fetchedItems, previousState)
+	duplicateCount := len(fetchedItems) - len(candidateItems)
+	fmt.Printf("   完成：时间窗口内共 %d 条，可选候选 %d 条", len(fetchedItems), len(candidateItems))
+	if duplicateCount > 0 {
+		fmt.Printf("，跳过已人工挑选 %d 条", duplicateCount)
+	}
+	fmt.Print("\n\n")
 
 	fmt.Println("[2/2] 保存抓取快照")
-	nextState := snapshotRSSState(fetchedItems)
+	nextState := snapshotRSSState(candidateItems)
+	mergePickedHistory(&nextState, previousState)
 	if err := saveRSSState(config.StatePath, nextState); err != nil {
 		fmt.Printf("失败：无法保存本次 RSS 快照：%v\n", err)
 		return 1
@@ -68,8 +94,11 @@ func runFetch() int {
 	fmt.Printf("   完成：写入 %s\n", config.StatePath)
 	if len(fetchedItems) == 0 {
 		fmt.Printf("\n提示：成功抓取的来源在最近 %s内没有内容。\n", formatDuration(config.Lookback))
+	} else if len(candidateItems) == 0 {
+		fmt.Printf("\n提示：最近 %s内抓到的 %d 条内容均已被你手动挑选过，本次没有可选候选。\n",
+			formatDuration(config.Lookback), len(fetchedItems))
 	} else {
-		fmt.Printf("\n全部完成：抓取 %d 条。\n", len(fetchedItems))
+		fmt.Printf("\n全部完成：保留 %d 条候选，跳过 %d 条已人工挑选内容。\n", len(candidateItems), duplicateCount)
 		fmt.Println("下一步：bun run rss:pick（人工挑选）→ bun run video（生成视频）")
 	}
 	return 0
@@ -194,6 +223,17 @@ func runPicks() int {
 		return 1
 	}
 	fmt.Printf("   完成：写入 %s\n", reportPath)
+	state, err := loadRSSState(config.StatePath)
+	if err != nil {
+		fmt.Printf("失败：data.json 已生成，但无法读取 RSS 状态以保存人工选择历史：%v\n", err)
+		return 1
+	}
+	remembered := rememberPickedHashes(&state, picks)
+	if err := saveRSSState(config.StatePath, state); err != nil {
+		fmt.Printf("失败：data.json 已生成，但无法保存人工选择去重历史：%v\n", err)
+		return 1
+	}
+	fmt.Printf("   完成：新增记录 %d 条人工 pick 到跨次去重历史\n", remembered)
 	fmt.Printf("\n全部完成：人工 pick %d 条，生成 %d 个新闻主题。\n",
 		len(pickedIndexes), len(groups))
 	return 0
@@ -207,6 +247,11 @@ func runAuto() int {
 		fmt.Printf("失败：启动配置无效：%v\n", err)
 		fmt.Println("   请检查项目根目录 .env、ingest/sources.jsonc 和 ingest/preferences.jsonc。")
 		return 1
+	}
+	previousState, historyErr := loadRSSState(config.StatePath)
+	if historyErr != nil {
+		fmt.Printf("⚠️  警告：无法读取旧人工 pick 去重历史，将从空历史继续：%v\n", historyErr)
+		previousState = RSSState{Items: make(map[string]StateItem), Picked: make(map[string]bool)}
 	}
 
 	reportPath, err := defaultDataJSONPath()
@@ -230,6 +275,7 @@ func runAuto() int {
 
 	fmt.Println("[2/6] 保存抓取快照")
 	nextState := snapshotRSSState(fetchedItems)
+	mergePickedHistory(&nextState, previousState)
 	if len(fetchedItems) == 0 {
 		if err := saveRSSState(config.StatePath, nextState); err != nil {
 			fmt.Printf("失败：无法保存本次 RSS 快照：%v\n", err)

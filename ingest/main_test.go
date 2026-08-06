@@ -945,19 +945,29 @@ func TestValidatePreferencesRejectsEmptyAlias(t *testing.T) {
 	}
 }
 
-func TestRSSStateOnlyComparesWithPreviousSnapshot(t *testing.T) {
+func TestRSSStateFiltersOnlyManuallyPickedItems(t *testing.T) {
 	a1 := Item{ID: "a1", SourceID: "source", Title: "A1"}
 	a2 := Item{ID: "a2", SourceID: "source", Title: "A2"}
 	b1 := Item{ID: "b1", SourceID: "source", Title: "B1"}
 	state := snapshotRSSState([]Item{a1, a2})
 
-	got := filterUnseenItems([]Item{a2, b1}, state)
+	// 抓到过但没勾选的 a2 仍应继续出现。
+	got := filterUnpickedItems([]Item{a2, b1}, state)
+	if len(got) != 2 || got[0].ID != "a2" || got[1].ID != "b1" {
+		t.Fatalf("filterUnpickedItems() before picks = %#v", got)
+	}
+
+	picks := Picks{itemFingerprint(a2): true}
+	if added := rememberPickedHashes(&state, picks); added != 1 {
+		t.Fatalf("rememberPickedHashes() added %d, want 1", added)
+	}
+	got = filterUnpickedItems([]Item{a2, b1}, state)
 	if len(got) != 1 || got[0].ID != "b1" {
-		t.Fatalf("filterUnseenItems() = %#v", got)
+		t.Fatalf("filterUnpickedItems() after pick = %#v", got)
 	}
 
 	path := filepath.Join(t.TempDir(), "rss-state.json")
-	if err := saveRSSState(path, snapshotRSSState([]Item{a2, b1})); err != nil {
+	if err := saveRSSState(path, state); err != nil {
 		t.Fatal(err)
 	}
 	loaded, err := loadRSSState(path)
@@ -967,9 +977,8 @@ func TestRSSStateOnlyComparesWithPreviousSnapshot(t *testing.T) {
 	if len(loaded.Items) != 2 {
 		t.Fatalf("loaded state contains %d items, want 2", len(loaded.Items))
 	}
-	got = filterUnseenItems([]Item{a1, b1}, loaded)
-	if len(got) != 1 || got[0].ID != "a1" {
-		t.Fatalf("filterUnseenItems() should forget items absent from previous snapshot: %#v", got)
+	if !loaded.Picked[itemFingerprint(a2)] {
+		t.Fatalf("picked history was not persisted: %#v", loaded.Picked)
 	}
 	entries, err := os.ReadDir(filepath.Dir(path))
 	if err != nil {
@@ -977,6 +986,41 @@ func TestRSSStateOnlyComparesWithPreviousSnapshot(t *testing.T) {
 	}
 	if len(entries) != 1 || entries[0].Name() != "rss-state.json" {
 		t.Fatalf("state directory contains unexpected files: %#v", entries)
+	}
+}
+
+func TestRSSStateKeepsPickedHistoryButNotUnpickedFetchHistory(t *testing.T) {
+	unpicked := Item{ID: "unpicked", SourceID: "source", Title: "抓到但没选"}
+	picked := Item{ID: "picked", SourceID: "source", Title: "已经手动选中"}
+	newItem := Item{ID: "new", SourceID: "source", Title: "本次新内容"}
+
+	previous := snapshotRSSState([]Item{unpicked, picked})
+	rememberPickedHashes(&previous, Picks{itemFingerprint(picked): true})
+	candidates := filterUnpickedItems([]Item{unpicked, picked, newItem}, previous)
+	if len(candidates) != 2 || candidates[0].ID != "unpicked" || candidates[1].ID != "new" {
+		t.Fatalf("manual candidates = %#v, want unpicked + new", candidates)
+	}
+
+	next := snapshotRSSState(candidates)
+	mergePickedHistory(&next, previous)
+	if !next.Picked[itemFingerprint(picked)] {
+		t.Fatalf("picked history was lost across snapshots: %#v", next.Picked)
+	}
+	if next.Picked[itemFingerprint(unpicked)] {
+		t.Fatalf("unpicked fetched item polluted picked history: %#v", next.Picked)
+	}
+}
+
+func TestRememberPickedHashesIgnoresStaleAndFalseEntries(t *testing.T) {
+	item := Item{ID: "current", SourceID: "source", Title: "当前候选"}
+	state := snapshotRSSState([]Item{item})
+	added := rememberPickedHashes(&state, Picks{
+		itemFingerprint(item): true,
+		"stale-hash":          true,
+		"false-hash":          false,
+	})
+	if added != 1 || len(state.Picked) != 1 || !state.Picked[itemFingerprint(item)] {
+		t.Fatalf("remembered picks = %#v, added %d", state.Picked, added)
 	}
 }
 
