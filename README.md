@@ -6,7 +6,7 @@
 
 从 RSS 内容采集、AI 筛选，到 TTS 旁白与视频生成，一条流水线完成每日内容生产。
 
-[使用导览](./demo/overview.html) · [RSS 配置](./ingest/readme.html) · [项目结构与流程](./docs/architecture.html)
+[使用导览](./demo/overview.html)
 
 <br />
 
@@ -103,8 +103,6 @@ bun run dev
 | 文档 | 内容 |
 | ---- | ---- |
 | [可视化使用导览](./demo/overview.html) | 图文版使用指南，最直观 |
-| [项目结构与流程](./docs/architecture.html) | 目录组织、数据流、文件职责、时间线规则 |
-| [RSS 配置](./ingest/readme.html) | 添加来源、兴趣偏好、筛选阈值 |
 
 ## 🐛 Bug / 使用问题
 

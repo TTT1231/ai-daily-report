@@ -102,7 +102,7 @@ ai-daily-report/
 │   ├── navigation_layout.go             # Story/Tabs 容量与导航排版（与 config/video-layout.json 同源规则）
 │   ├── generate_datajson.go             # 组装并写出 data.json（带内容哈希）
 │   ├── atomicfile.go                    # 原子写文件
-│   ├── output.go                        # 终端报告输出（readme.html/rss-state.html 生成）
+│   ├── output.go                        # 终端报告输出（printNewsGroups 打印聚类结果）
 │   ├── state.go / rss-state.json        # 自动生成：最近抓取快照，可供补选，不要人工修改
 │   ├── ssrf.go / vpnproxy.go            # SSRF 防护 / 代理（all_proxy）抓取
 │   ├── text.go                          # 文本工具
@@ -110,7 +110,6 @@ ai-daily-report/
 │   └── *_test.go                        # 各模块测试（bun run rss:test 即 go -C ingest test ./...）
 ├── biliup/                              # biliup-rs 工具 + 登录态 cookies.json（按需下载，已 gitignore）
 ├── daily-dates/                         # archive.mjs 按日期归档的历史日报数据包
-├── docs/                                # 架构文档与可视化说明（architecture.html 等）
 ├── .agents/skills/                      # 项目级 Skill 定义（generate-svg / remotion-best-practices 等）
 ├── .vscode/                             # 编辑器配置
 ├── remotion.config.ts                   # Remotion 配置（JPEG、publicDir、Tailwind）
