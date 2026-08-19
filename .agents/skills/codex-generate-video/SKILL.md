@@ -25,6 +25,9 @@ skill as the orchestration layer; do not reimplement or bypass project validatio
 6. Default "generate video" to producing `out/AiDailyReport.mp4`. Stop earlier only when the user
    explicitly asks for data preparation, icons, TTS, or preview without rendering.
 7. Never publish or upload. Run Bilibili publishing commands only after a separate explicit request.
+8. Write all audience-facing titles, tabs, and narration in a direct short-video news voice. Never
+   mention the ingestion platform, the user-supplied input, or the generation process in report
+   content. Do not emit phrases such as “贴文称”, “用户提供”, “据标题”, “来源提示”, or “以官方为准”.
 
 ## Map inputs to stories
 
@@ -45,21 +48,32 @@ Parse everything after the invocation as ordered source units:
   合成一个 story" overrides the default and produces one combined story.
 
 Use linked primary material to verify or enrich the same source unit, but do not silently turn another
-user-supplied source unit into supporting material for a different story. Preserve uncertainty and
-attribute claims when the supplied material is unconfirmed.
+user-supplied source unit into supporting material for a different story. When a claim needs
+attribution, name the primary actor, document, researcher, or reporting outlet in one concise clause;
+never attribute the news to the ingestion platform. Express material uncertainty as a useful fact,
+such as “官方尚未公布发布日期”, rather than instructing viewers to verify it themselves.
 
 ## Build rich report content
 
 Write `data-scheme/data.json` according to the current schema and `$ai-daily-report` manual-mode
 rules. Keep navigation labels compact while making the story body detailed.
 
+- Treat `introTitle` as an edited headline for the opening overview, not a verbatim source title.
+  Rewrite every source title for a general short-video audience: remove forum prefixes, brackets,
+  clickbait questions, emotional wording, redundant punctuation, source names, and inconsistent
+  product casing. Keep the core actor, event, number, and date when they matter.
+- Use `contentTitle` as the compact headline for the individual story screen. It may be shorter than
+  `introTitle`, but both must read as finished editorial headlines rather than copied post titles.
 - Aim for 4-6 meaningful tabs per story whenever the source supports them. Do not settle for a terse
   2-3 tab summary merely for speed.
 - Prefer concrete tab dimensions such as the core event, figures and dates, mechanism or product
-  details, evidence or source boundary, user or market impact, and what happens next.
+  details, user or market impact, and what happens next.
 - Use 2-3 tabs only when the source truly lacks enough distinct facts. Never invent content to reach a
   target count.
 - Make tab titles specific and complementary. Avoid filler headings such as "重点" or "更多".
+- Never spend a tab on source disclaimers, verification instructions, or explaining what the input
+  did not contain. Provenance belongs in `overlayImg`; a genuine unknown belongs in a factual tab only
+  when that unknown materially changes the news.
 - Keep every summary within the schema limits, include exactly one bold span, and wrap English model,
   product, API, error-code, and version names in inline code.
 - Prefer two non-redundant scenes for a dense story and one scene for a short story. Keep each subtitle

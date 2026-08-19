@@ -86,7 +86,7 @@
         "introTitle": {
           "type": "string",
           "minLength": 1,
-          "description": "可选。Intro 资讯概览使用的来源完整标题，不主动截断；播放区主标题使用语义改写后的 contentTitle。"
+          "description": "可选。Intro 资讯概览使用的编辑标题，应面向短视频观众重写，保留主体、事件及关键数字或日期；不得机械复制论坛标题，不带平台前缀、标题党措辞、来源免责声明或多余标点。省略时使用 contentTitle。"
         },
         "activeTab": {
           "$ref": "#/$defs/identifier",
