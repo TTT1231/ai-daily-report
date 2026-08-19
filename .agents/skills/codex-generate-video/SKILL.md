@@ -1,6 +1,6 @@
 ---
 name: codex-generate-video
-description: "Orchestrate the ai-daily-report project from mixed user inputs into a rendered report video. Use when the user invokes /codex-generate-video or $codex-generate-video, or asks Codex to turn JSON objects, URLs, raw HTML, pasted text, or local files into AI Daily Report stories with rich tabs, TTS, directly authored SVG icons, validation, and MP4 rendering."
+description: "Orchestrate the ai-daily-report project from mixed user inputs into a rendered, evidence-backed report video. Use when the user invokes /codex-generate-video or $codex-generate-video, or asks Codex to turn JSON objects, URLs, raw HTML, pasted text, or local files into AI Daily Report stories with rich tabs, source-evidence overlay images, TTS, directly authored SVG icons, validation, and MP4 rendering."
 ---
 
 # Codex Generate Video
@@ -11,17 +11,20 @@ skill as the orchestration layer; do not reimplement or bypass project validatio
 ## Hard rules
 
 1. Activate `$ai-daily-report` first and follow its production and safety rules. Read its
-   `rules/manual-mode.md` because supplied objects, URLs, HTML, text, and files use the manual data
-   path rather than RSS ingest.
+   `rules/manual-mode.md` for supplied-source data and `rules/images.md` for evidence overlays; this
+   orchestration requires both manual content and images rather than RSS ingest.
 2. Treat this skill as authoritative when it conflicts with `$ai-daily-report` only for source-to-story
-   mapping, tab density, the exact Chinese keyword replacement rule, and SVG generation.
+   mapping, tab density, evidence-overlay coverage, the exact Chinese keyword replacement rule, and
+   SVG generation.
 3. Never run `bun run generate-svg`, invoke `$generate-svg`, or use a command that calls it
    indirectly. Forbidden aggregate commands include `bun run video`, `bun run video:auto-generate`,
    `bun run video:half-auto`, and `bun run all:bili`.
 4. Generate and edit every required SVG directly with Codex file-editing tools.
-5. Default "generate video" to producing `out/AiDailyReport.mp4`. Stop earlier only when the user
+5. Give every story at least one source-derived `overlayImg`; never substitute a decorative or
+   AI-generated illustration for evidence.
+6. Default "generate video" to producing `out/AiDailyReport.mp4`. Stop earlier only when the user
    explicitly asks for data preparation, icons, TTS, or preview without rendering.
-6. Never publish or upload. Run Bilibili publishing commands only after a separate explicit request.
+7. Never publish or upload. Run Bilibili publishing commands only after a separate explicit request.
 
 ## Map inputs to stories
 
@@ -61,11 +64,48 @@ rules. Keep navigation labels compact while making the story body detailed.
   product, API, error-code, and version names in inline code.
 - Prefer two non-redundant scenes for a dense story and one scene for a short story. Keep each subtitle
   a natural spoken sentence within the schema limit.
-- Save useful source visuals locally under `data-scheme/images/` and reference them with `overlayImg`
-  when they improve understanding. Omit weak or irrelevant decoration.
+- Pair scenes with the source-evidence overlays described below; use the scene narration to explain
+  the fact visible in its image rather than showing an unrelated visual.
 
 Give every story tab a stable semantic icon path in Raw, for example
 `icons/{storyId}-{semantic-name}.svg`, so subsequent TTS rebuilds retain the reference.
+
+## Use overlayImg as source evidence
+
+Treat `overlayImg` as the visual proof layer, not optional decoration. Actively inspect each source
+unit and attach at least one readable evidence image to every story.
+
+- Prefer, in order: an original announcement or document excerpt, product/UI screenshot, source data
+  chart or benchmark, source-page excerpt containing the central claim/date/number, then an original
+  event photo that directly proves the subject.
+- For URLs and HTML, download a relevant original image or capture the exact useful page region. For
+  local files and objects, use their embedded visual; when the source is text-only, render a clearly
+  labeled source-extract card from its actual fields or excerpt. Do not invent facts or present a
+  generated illustration as evidence.
+- Save evidence under `data-scheme/images/` with semantic names such as
+  `images/{storyId}-evidence-1.png`. Put `overlayImg` on the matching scene, never on a story or tab.
+- Use two scenes with two complementary evidence images when the source contains distinct proofs,
+  such as an announcement plus a product screen or a claim plus its data chart.
+- Inspect every asset before use. Crop long pages or chat/article screenshots to the claim and enough
+  surrounding source context to remain trustworthy and readable at 1920x1080. Never use a full long
+  screenshot that will collapse into a thin strip; `overlayImgScale` is not a substitute for cropping.
+- Exclude avatars, logos by themselves, ads, unrelated stock art, thumbnails with unreadable text,
+  and decorative images that do not support the corresponding scene.
+- Do not write `overlayImgWidth` or `overlayImgHeight` in Raw; TTS derives true dimensions. Use
+  `overlayImgScale` only after inspecting the rendered size.
+- If a source image visibly contains the forbidden exact keyword, do not doctor the screenshot.
+  Select another evidence region or make a clearly labeled, faithful paraphrased source-extract card
+  that follows the wording rule below.
+
+Before TTS, verify that every story has at least one evidence overlay:
+
+```powershell
+node -e "const d=require('./data-scheme/data.json');const m=d.stories.filter(s=>!s.scenes?.some(x=>x.overlayImg));if(m.length){console.error('Missing evidence overlay:',m.map(s=>s.id).join(', '));process.exit(1)}"
+```
+
+Treat a missing overlay as an incomplete story. If the source cannot be retrieved or represented
+faithfully, stop and report that source as blocked instead of silently rendering an evidence-free
+story.
 
 ## Replace the exact keyword
 
@@ -91,9 +131,10 @@ Treat any match in generated human-facing content as a blocking validation failu
 
 1. Inspect the current `data-scheme/`. If it contains a different report, preserve it with
    `bun run archive` before replacing Raw; do not use `reset` as a shortcut.
-2. Read every source unit, decide the story mapping, and write the complete `data-scheme/data.json`
-   plus any local image assets.
-3. Run `bun run check-data-json`. Fix the first error and repeat until Raw passes.
+2. Read every source unit, decide the story mapping, inspect or capture its evidence, and write the
+   complete `data-scheme/data.json` plus source-derived assets in `data-scheme/images/`.
+3. Run the overlay-coverage check and `bun run check-data-json`. Fix the first error and repeat until
+   Raw and every evidence path pass.
 4. State that TTS may use the configured paid API, then run `bun run tts` once. Do not use
    `bun run video:render`, because it repeats TTS.
 5. Read `data-scheme/data-generate.json` and collect all `intro.tabs` and `stories[].tabs`. Directly
@@ -102,8 +143,8 @@ Treat any match in generated human-facing content as a blocking validation failu
 6. Run the keyword scan, `bun run check-data-json:render`, and `bun run check-icons`. Fix every error
    before continuing.
 7. Run `bun run render:mp4` and confirm that `out/AiDailyReport.mp4` exists and is non-empty.
-8. Report the number of source units, stories, tabs, generated icons, and the final MP4 path. Mention
-   any explicit merge/split override or intentionally sparse story.
+8. Report the number of source units, stories, tabs, evidence overlays, generated icons, and the final
+   MP4 path. Mention any explicit merge/split override or intentionally sparse story.
 
 ## Author SVGs directly
 
