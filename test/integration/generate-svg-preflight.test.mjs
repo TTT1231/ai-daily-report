@@ -91,8 +91,8 @@ test("getGenerateSvgPreflight returns skip:false (cannot be preflighted) when da
 test("getGenerateSvgPreflight returns skip:true with empty iconTargets when every referenced icon exists", () => {
   const dir = seedDataScheme({
     "data-generate.json": generatedIconsJson,
-    // generated-icons.json 里 tab.icon 全指向 icons/test-icon-sample-1.svg，铺一份即覆盖所有引用。
     "icons/test-icon-sample-1.svg": "mock:test-icon-sample-1.svg",
+    "icons/test-icon-sample-2.svg": "mock:test-icon-sample-2.svg",
   });
   try {
     const result = runPreflight(dir, {force: false});
@@ -120,14 +120,14 @@ test("getGenerateSvgPreflight returns skip:false with errors and iconTargets whe
   }
 });
 
-// ---------- 防御性自检：fixture 仍指向预期的单一 svg ----------
-test("generated-icons.json fixture references test-icon-sample-1.svg", () => {
+// ---------- 防御性自检：fixture 维持两份结构不同的 svg ----------
+test("generated-icons.json fixture references two distinct SVGs", () => {
   const fixture = JSON.parse(generatedIconsJson);
   const icons = new Set();
   for (const story of [fixture.intro, ...(fixture.stories ?? [])]) {
     for (const tab of story.tabs ?? []) icons.add(tab.icon);
   }
   assert.ok(icons.has("icons/test-icon-sample-1.svg"), "fixture drift: expected test-icon-sample-1.svg reference");
-  // 用例 4 依赖「不铺 svg 即全缺」，确认 fixture 只引用这一个文件。
-  assert.equal(icons.size, 1);
+  assert.ok(icons.has("icons/test-icon-sample-2.svg"), "fixture drift: expected test-icon-sample-2.svg reference");
+  assert.equal(icons.size, 2);
 });

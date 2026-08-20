@@ -56,6 +56,33 @@ function addEntry(targetsByPath, iconPath, entry, story, dataDir) {
   });
 }
 
+function sharedIconKeepers(story, dataDir) {
+  const ownersByPath = new Map();
+  for (const tab of story.tabs ?? []) {
+    if (
+      typeof tab.icon !== "string" ||
+      !ICON_PATTERN.test(tab.icon) ||
+      !safeIconPath(tab.icon, dataDir)
+    ) {
+      continue;
+    }
+    const owners = ownersByPath.get(tab.icon) ?? [];
+    owners.push(tab);
+    ownersByPath.set(tab.icon, owners);
+  }
+
+  const keepers = new Map();
+  for (const [iconPath, owners] of ownersByPath) {
+    if (owners.length < 2) continue;
+    const keeper =
+      owners.find(
+        (tab) => defaultIconPathForTab(story.id, tab.id) === iconPath,
+      ) ?? owners[0];
+    keepers.set(iconPath, keeper.id);
+  }
+  return keepers;
+}
+
 export function buildGenerateSvgTargetPlan(report, {force = false, dataDir = defaultDataDir} = {}) {
   const validation = validateReportIcons(report, {
     dataDir,
@@ -73,6 +100,7 @@ export function buildGenerateSvgTargetPlan(report, {force = false, dataDir = def
 
   for (const {story, path: storyPath} of timelineEntries) {
     if (!Array.isArray(story.tabs)) continue;
+    const keepersBySharedPath = sharedIconKeepers(story, dataDir);
 
     for (const [tabIndex, tab] of story.tabs.entries()) {
       const entry = {
@@ -88,6 +116,21 @@ export function buildGenerateSvgTargetPlan(report, {force = false, dataDir = def
       }
 
       const existingIcon = typeof tab.icon === "string" && ICON_PATTERN.test(tab.icon) ? tab.icon : null;
+      const sharedPathKeeper = existingIcon
+        ? keepersBySharedPath.get(existingIcon)
+        : undefined;
+      if (sharedPathKeeper !== undefined) {
+        // 同一 Story 的多个 Tab 不能继续共用一个文件：保留一个稳定 owner，
+        // 其余 Tab 改回各自语义默认路径。即使旧共用文件缺失或无效，也能一次修复。
+        addEntry(
+          targetsByPath,
+          tab.id === sharedPathKeeper ? existingIcon : defaultIcon,
+          entry,
+          story,
+          dataDir,
+        );
+        continue;
+      }
       if (existingIcon && targetPaths.has(existingIcon)) {
         addEntry(targetsByPath, existingIcon, entry, story, dataDir);
       } else if (defaultIcon && targetPaths.has(defaultIcon)) {
@@ -336,19 +379,72 @@ async function pruneIconOrphans({dataDir, reports}) {
     if (referencedIcons.has(ref)) continue;
 
     try {
+      // 回滚需要被删文件的原始内容；按 Buffer 读写，兼容 png 等二进制孤儿。
+      const content = await readFile(resolve(iconsDir, entry.name)).catch(() => null);
       await unlink(resolve(iconsDir, entry.name));
-      deleted.push(ref);
+      deleted.push({ref, content});
     } catch {
       // Best effort: a locked orphan should not fail icon generation.
     }
   }
 
-  return deleted.sort();
+  return deleted.sort((a, b) => a.ref.localeCompare(b.ref));
 }
 
 async function readJsonIfExists(path) {
   if (!existsSync(path)) return null;
   return JSON.parse(await readFile(path, "utf8"));
+}
+
+function cloneReport(report) {
+  return JSON.parse(JSON.stringify(report));
+}
+
+async function captureIconWriteSnapshot({dataDir, generatedDataPath, rawDataPath, targetPaths}) {
+  const iconFiles = new Map();
+  for (const iconPath of targetPaths) {
+    const absolute = resolve(dataDir, iconPath);
+    iconFiles.set(iconPath, existsSync(absolute) ? await readFile(absolute) : null);
+  }
+  return {
+    iconFiles,
+    generatedJson: existsSync(generatedDataPath)
+      ? await readFile(generatedDataPath, "utf8")
+      : null,
+    rawJson: existsSync(rawDataPath) ? await readFile(rawDataPath, "utf8") : null,
+  };
+}
+
+async function restoreIconWriteSnapshot(
+  snapshot,
+  {dataDir, generatedDataPath, rawDataPath, prunedIcons},
+) {
+  // Best effort：回滚失败不应掩盖原始错误，但要把可恢复的都恢复掉。
+  try {
+    for (const {ref, content} of prunedIcons) {
+      if (content !== null) await writeFile(resolve(dataDir, ref), content);
+    }
+    for (const [iconPath, content] of snapshot.iconFiles) {
+      const absolute = resolve(dataDir, iconPath);
+      if (content === null) {
+        if (existsSync(absolute)) await unlink(absolute);
+      } else {
+        await writeFile(absolute, content);
+      }
+    }
+    for (const [path, content] of [
+      [generatedDataPath, snapshot.generatedJson],
+      [rawDataPath, snapshot.rawJson],
+    ]) {
+      if (content === null) {
+        if (existsSync(path)) await unlink(path);
+      } else {
+        await writeFile(path, content, "utf8");
+      }
+    }
+  } catch (rollbackError) {
+    console.error(`generate-svg: 回滚失败 — ${rollbackError.message}`);
+  }
 }
 
 export async function applyGenerateSvgPayload({
@@ -361,31 +457,65 @@ export async function applyGenerateSvgPayload({
 }) {
   validatePayloadIcons(payload, targetPlan.targetPaths, {dataDir});
 
-  for (const icon of payload.icons) {
-    const svg = `${icon.svg.trim()}\n`;
-    const absolute = resolve(dataDir, icon.path);
-    await mkdir(dirname(absolute), {recursive: true});
-    await writeFile(absolute, svg, "utf8");
+  // 写盘前先在候选状态上跑完整校验（含同故事重复图形/配色）：所有逻辑性失败都
+  // 发生在任何磁盘变更之前，三次重试都失败也不会留下无效或半更新状态。
+  const candidateReport = cloneReport(report);
+  updateGeneratedReportIcons(candidateReport, targetPlan);
+  const rawReport = await readJsonIfExists(rawDataPath);
+  const candidateRaw = rawReport ? cloneReport(rawReport) : null;
+  const rawUpdated = candidateRaw
+    ? mirrorRawStoryIcons(candidateRaw, targetPlan)
+    : false;
+  const preflightValidation = validateReportIcons(candidateReport, {
+    dataDir,
+    includeOrphanWarnings: false,
+    contentOverrides: new Map(payload.icons.map((icon) => [icon.path, icon.svg.trim()])),
+  });
+  if (preflightValidation.errors.length > 0) {
+    throw new Error(`Generated SVG payload failed icon validation:\n${preflightValidation.errors.join("\n")}`);
+  }
+
+  // 写盘阶段：先快照旧状态，任何一步失败（含写盘后的复核）都完整回滚。
+  const snapshot = await captureIconWriteSnapshot({
+    dataDir,
+    generatedDataPath,
+    rawDataPath,
+    targetPaths: targetPlan.targetPaths,
+  });
+  let prunedEntries = [];
+  let validation;
+  try {
+    for (const icon of payload.icons) {
+      const svg = `${icon.svg.trim()}\n`;
+      const absolute = resolve(dataDir, icon.path);
+      await mkdir(dirname(absolute), {recursive: true});
+      await writeFile(absolute, svg, "utf8");
+    }
+
+    await writeFile(generatedDataPath, `${JSON.stringify(candidateReport, null, 2)}\n`, "utf8");
+    if (rawUpdated) {
+      await writeFile(rawDataPath, `${JSON.stringify(candidateRaw, null, 2)}\n`, "utf8");
+    }
+    prunedEntries = await pruneIconOrphans({dataDir, reports: [candidateReport, candidateRaw]});
+
+    validation = validateReportIcons(candidateReport, {dataDir, includeOrphanWarnings: false});
+    if (validation.errors.length > 0) {
+      throw new Error(`Generated SVG payload failed icon validation after write:\n${validation.errors.join("\n")}`);
+    }
+  } catch (error) {
+    await restoreIconWriteSnapshot(snapshot, {
+      dataDir,
+      generatedDataPath,
+      rawDataPath,
+      prunedIcons: prunedEntries,
+    });
+    throw error;
   }
 
   updateGeneratedReportIcons(report, targetPlan);
-  await writeFile(generatedDataPath, `${JSON.stringify(report, null, 2)}\n`, "utf8");
-
-  const rawReport = await readJsonIfExists(rawDataPath);
-  const rawUpdated = mirrorRawStoryIcons(rawReport, targetPlan);
-  if (rawUpdated) {
-    await writeFile(rawDataPath, `${JSON.stringify(rawReport, null, 2)}\n`, "utf8");
-  }
-  const prunedIcons = await pruneIconOrphans({dataDir, reports: [report, rawReport]});
-
-  const validation = validateReportIcons(report, {dataDir, includeOrphanWarnings: false});
-  if (validation.errors.length > 0) {
-    throw new Error(`Generated SVG payload failed icon validation:\n${validation.errors.join("\n")}`);
-  }
-
   return {
     generated: payload.icons.length,
-    prunedIcons,
+    prunedIcons: prunedEntries.map((entry) => entry.ref),
     rawUpdated,
     validation,
   };

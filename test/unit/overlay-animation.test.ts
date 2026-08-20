@@ -38,6 +38,21 @@ for (const duration of CRASH_DURATIONS) {
       );
     }
   });
+
+  test(`getOverlayAnimation stays in range on a ${duration}-frame scene followed by another scene`, () => {
+    const scene = overlayScene();
+    for (let frame = 0; frame < duration; frame++) {
+      const result = getOverlayAnimation(scene, frame, duration, true);
+      assert.ok(
+        result.opacity >= 0 && result.opacity <= 1,
+        `opacity out of [0,1] at frame ${frame}: ${result.opacity}`,
+      );
+      assert.ok(
+        Number.isFinite(result.scale),
+        `scale not finite at frame ${frame}: ${result.scale}`,
+      );
+    }
+  });
 }
 
 test("getOverlayAnimation returns zero opacity when the scene has no overlay image", () => {
@@ -114,9 +129,10 @@ test("getOverlayAnimation reveals, holds, then hides on a long scene", () => {
   const duration = 120;
   assert.equal(getOverlayAnimation(scene, 0, duration).opacity, 0);
   assert.equal(getOverlayAnimation(scene, 60, duration).opacity, 1);
-  assert.ok(
-    getOverlayAnimation(scene, 60, duration).scale > 1,
-    "scale should zoom past 1 mid-scene",
+  assert.equal(
+    getOverlayAnimation(scene, 60, duration).scale,
+    1,
+    "scale should settle at 1 mid-scene without zooming in",
   );
   assert.ok(
     getOverlayAnimation(scene, duration - 1, duration).opacity < 1,
@@ -124,19 +140,41 @@ test("getOverlayAnimation reveals, holds, then hides on a long scene", () => {
   );
 });
 
-test("getOverlayAnimation keeps the zoom on a medium-length scene (43-66 frame band that previously lost it)", () => {
+test("getOverlayAnimation clears a source overlay early so tabs remain visible", () => {
+  const scene = overlayScene();
+  const duration = 240;
+  assert.equal(getOverlayAnimation(scene, 120, duration).opacity, 0);
+  assert.equal(getOverlayAnimation(scene, duration - 1, duration).opacity, 0);
+});
+
+test("getOverlayAnimation holds the overlay for the whole scene when another scene follows", () => {
+  const scene = overlayScene();
+  const duration = 240;
+  assert.equal(getOverlayAnimation(scene, 120, duration, true).opacity, 1);
+  assert.equal(getOverlayAnimation(scene, 180, duration, true).opacity, 1);
+  const nearEnd = getOverlayAnimation(scene, duration - 1, duration, true);
+  assert.ok(
+    nearEnd.opacity < 1,
+    "overlay should be exiting by the last frame of the scene",
+  );
+  assert.equal(nearEnd.opacity, 0);
+});
+
+test("getOverlayAnimation stays render-safe on medium-length scenes (43-66 frame band that previously crashed)", () => {
   for (const duration of [43, 50, 60, 66]) {
     const scene = overlayScene();
-    let zoomed = false;
+    let settled = false;
     for (let frame = 0; frame < duration; frame++) {
-      if (getOverlayAnimation(scene, frame, duration).scale > 1.0001) {
-        zoomed = true;
-        break;
-      }
+      const { scale } = getOverlayAnimation(scene, frame, duration);
+      assert.ok(
+        Number.isFinite(scale) && scale >= 0.94 && scale <= 1,
+        `scale out of settle range at frame ${frame} of ${duration}: ${scale}`,
+      );
+      if (scale === 1) settled = true;
     }
     assert.ok(
-      zoomed,
-      `scale should exceed 1 at some frame of a ${duration}-frame overlay scene`,
+      settled,
+      `scale should settle at exactly 1 during a ${duration}-frame overlay scene`,
     );
   }
 });

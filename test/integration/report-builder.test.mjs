@@ -79,7 +79,7 @@ test("buildVideoStoryStartMs aligns with [intro, ...stories, outro] and starts i
 // overlay 图片样本来自 test/mock/images/（与其它 mock 资产同源），不依赖 demo/ 目录。
 const overlaySampleDir = resolve(import.meta.dirname, "../mock");
 
-test("buildGeneratedReport default intro says lunar date and weekday", () => {
+test("buildGeneratedReport default intro says gregorian date and weekday", () => {
   const gen = buildGeneratedReport(
     {
       $schema: "../config/data.schema.json",
@@ -92,7 +92,7 @@ test("buildGeneratedReport default intro says lunar date and weekday", () => {
 
   assert.equal(
     gen.intro.scenes[0].subtitle,
-    "大家晚上好，今天是农历五月初十，星期三，欢迎收看今天的 AI 日报。",
+    "大家晚上好，今天是2026年6月24号，星期三，欢迎收看今天的 AI 日报。",
   );
 });
 

@@ -6,6 +6,12 @@
     "minimumItemWidth": 82,
     "edgeInset": 0,
     "itemGap": 4,
+    "bottomWindowItems": 5,
+    "bottomInactiveFontSize": 22,
+    "bottomActiveFontSize": 26,
+    "bottomHorizontalPadding": 18,
+    "bottomActiveExtraGap": 12,
+    "bottomCounterWidth": 92,
     "asciiWidthFactor": 0.62,
     "itemChromeWidth": 18,
     "layouts": [

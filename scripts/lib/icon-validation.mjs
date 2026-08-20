@@ -6,6 +6,28 @@ export const ICON_PATTERN = /^icons\/.+\.svg$/;
 export const MAX_SVG_BYTES = 2048;
 const SAFE_ICON_SEGMENT = /^[A-Za-z0-9_-]+$/;
 
+export function canonicalizeSvgArtwork(content) {
+  return content
+    .replace(/\s(?:aria-label|role)="[^"]*"/gi, "")
+    .replace(/#[0-9a-f]{3,8}\b/gi, "#color")
+    .replace(/>\s+</g, "><")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+export function svgPaletteSignature(content) {
+  const colors = content.match(/#[0-9a-f]{3,8}\b/gi) ?? [];
+  return [
+    ...new Set(
+      colors
+        .map((color) => color.toLowerCase())
+        .filter((color) => color !== "#fff" && color !== "#ffffff"),
+    ),
+  ]
+    .sort()
+    .join(",");
+}
+
 export function defaultIconPathForTab(storyId, tabId) {
   if (!SAFE_ICON_SEGMENT.test(storyId ?? "") || !SAFE_ICON_SEGMENT.test(tabId ?? "")) {
     return null;
@@ -45,7 +67,7 @@ export function collectTabIconEntries(report) {
 
 export function validateReportIcons(
   report,
-  {dataDir = defaultDataDir, includeOrphanWarnings = true} = {},
+  {dataDir = defaultDataDir, includeOrphanWarnings = true, contentOverrides = null} = {},
 ) {
   const iconsDir = resolve(dataDir, "icons");
   const errors = [];
@@ -98,7 +120,10 @@ export function validateReportIcons(
 
     referencedIcons.add(tab.icon);
 
-    if (!existsSync(absolute)) {
+    // 写盘前校验通过 contentOverrides 提供载荷里的 SVG 内容；此时目标文件可能尚不存在。
+    const override = contentOverrides ? contentOverrides.get(tab.icon) : undefined;
+
+    if (override === undefined && !existsSync(absolute)) {
       fail(jsonPath, `icon file not found: ${tab.icon}`, {
         kind: "missing-icon-file",
         storyId,
@@ -111,7 +136,7 @@ export function validateReportIcons(
     if (svgCache.has(tab.icon)) continue;
 
     try {
-      const content = readFileSync(absolute, "utf8");
+      const content = override !== undefined ? override : readFileSync(absolute, "utf8");
       svgCache.set(tab.icon, content);
 
       const byteLength = Buffer.byteLength(content, "utf8");
@@ -165,6 +190,55 @@ export function validateReportIcons(
         tabId: tab.id,
         targetIcon: tab.icon,
       });
+    }
+  }
+
+  const tabsByStory = new Map();
+  for (const entry of allTabs) {
+    const group = tabsByStory.get(entry.storyId) ?? [];
+    group.push(entry);
+    tabsByStory.set(entry.storyId, group);
+  }
+
+  for (const [storyId, entries] of tabsByStory) {
+    const artworkOwners = new Map();
+    const paletteOwners = new Map();
+    for (const {tab, jsonPath} of entries) {
+      if (typeof tab.icon !== "string" || !svgCache.has(tab.icon)) continue;
+      const content = svgCache.get(tab.icon);
+      const signature = canonicalizeSvgArtwork(content);
+      const previous = artworkOwners.get(signature);
+      if (previous) {
+        fail(
+          jsonPath,
+          "icon artwork duplicates " + previous.jsonPath + ' within story "' + storyId + '"',
+          {
+            kind: "duplicate-icon-artwork",
+            storyId,
+            tabId: tab.id,
+            targetIcon: tab.icon,
+          },
+        );
+      } else {
+        artworkOwners.set(signature, {jsonPath, icon: tab.icon});
+      }
+
+      const paletteSignature = svgPaletteSignature(content);
+      const previousPalette = paletteOwners.get(paletteSignature);
+      if (paletteSignature && previousPalette) {
+        fail(
+          jsonPath,
+          "icon palette duplicates " + previousPalette.jsonPath + ' within story "' + storyId + '"',
+          {
+            kind: "duplicate-icon-palette",
+            storyId,
+            tabId: tab.id,
+            targetIcon: tab.icon,
+          },
+        );
+      } else if (paletteSignature) {
+        paletteOwners.set(paletteSignature, {jsonPath, icon: tab.icon});
+      }
     }
   }
 

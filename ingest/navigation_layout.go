@@ -10,13 +10,19 @@ import (
 )
 
 type navigationLayoutConfig struct {
-	VideoWidth       int
-	MinimumItemWidth float64
-	EdgeInset        float64
-	ItemGap          float64
-	ASCIIWidthFactor float64
-	ItemChromeWidth  float64
-	Layouts          []navigationTypography
+	VideoWidth             int
+	MinimumItemWidth       float64
+	EdgeInset              float64
+	ItemGap                float64
+	ASCIIWidthFactor       float64
+	ItemChromeWidth        float64
+	BottomWindowItems      int
+	BottomInactiveFontSize float64
+	BottomActiveFontSize   float64
+	BottomHorizontalPad    float64
+	BottomActiveExtraGap   float64
+	BottomCounterWidth     float64
+	Layouts                []navigationTypography
 }
 
 type navigationTypography struct {
@@ -28,12 +34,18 @@ type navigationTypography struct {
 type videoLayoutFile struct {
 	Width      int `json:"width"`
 	Navigation struct {
-		MinimumItemWidth float64                `json:"minimumItemWidth"`
-		EdgeInset        float64                `json:"edgeInset"`
-		ItemGap          float64                `json:"itemGap"`
-		ASCIIWidthFactor float64                `json:"asciiWidthFactor"`
-		ItemChromeWidth  float64                `json:"itemChromeWidth"`
-		Layouts          []navigationTypography `json:"layouts"`
+		MinimumItemWidth       float64                `json:"minimumItemWidth"`
+		EdgeInset              float64                `json:"edgeInset"`
+		ItemGap                float64                `json:"itemGap"`
+		ASCIIWidthFactor       float64                `json:"asciiWidthFactor"`
+		ItemChromeWidth        float64                `json:"itemChromeWidth"`
+		BottomWindowItems      int                    `json:"bottomWindowItems"`
+		BottomInactiveFontSize float64                `json:"bottomInactiveFontSize"`
+		BottomActiveFontSize   float64                `json:"bottomActiveFontSize"`
+		BottomHorizontalPad    float64                `json:"bottomHorizontalPadding"`
+		BottomActiveExtraGap   float64                `json:"bottomActiveExtraGap"`
+		BottomCounterWidth     float64                `json:"bottomCounterWidth"`
+		Layouts                []navigationTypography `json:"layouts"`
 	} `json:"navigation"`
 }
 
@@ -53,14 +65,29 @@ func loadNavigationLayout() (navigationLayoutConfig, error) {
 	if file.Width <= 0 || file.Navigation.MinimumItemWidth <= 0 || len(file.Navigation.Layouts) == 0 {
 		return navigationLayoutConfig{}, fmt.Errorf("video-layout.json 的导航尺寸配置无效")
 	}
+	// 底部窗口规格是渲染层的单一事实源（激活项放大字号 + 序号胶囊），缺失会让宽度估算失真。
+	if file.Navigation.BottomWindowItems <= 0 ||
+		file.Navigation.BottomInactiveFontSize <= 0 ||
+		file.Navigation.BottomActiveFontSize <= 0 ||
+		file.Navigation.BottomHorizontalPad < 0 ||
+		file.Navigation.BottomActiveExtraGap < 0 ||
+		file.Navigation.BottomCounterWidth < 0 {
+		return navigationLayoutConfig{}, fmt.Errorf("video-layout.json 的底部窗口导航配置无效")
+	}
 	return navigationLayoutConfig{
-		VideoWidth:       file.Width,
-		MinimumItemWidth: file.Navigation.MinimumItemWidth,
-		EdgeInset:        file.Navigation.EdgeInset,
-		ItemGap:          file.Navigation.ItemGap,
-		ASCIIWidthFactor: file.Navigation.ASCIIWidthFactor,
-		ItemChromeWidth:  file.Navigation.ItemChromeWidth,
-		Layouts:          file.Navigation.Layouts,
+		VideoWidth:             file.Width,
+		MinimumItemWidth:       file.Navigation.MinimumItemWidth,
+		EdgeInset:              file.Navigation.EdgeInset,
+		ItemGap:                file.Navigation.ItemGap,
+		ASCIIWidthFactor:       file.Navigation.ASCIIWidthFactor,
+		ItemChromeWidth:        file.Navigation.ItemChromeWidth,
+		BottomWindowItems:      file.Navigation.BottomWindowItems,
+		BottomInactiveFontSize: file.Navigation.BottomInactiveFontSize,
+		BottomActiveFontSize:   file.Navigation.BottomActiveFontSize,
+		BottomHorizontalPad:    file.Navigation.BottomHorizontalPad,
+		BottomActiveExtraGap:   file.Navigation.BottomActiveExtraGap,
+		BottomCounterWidth:     file.Navigation.BottomCounterWidth,
+		Layouts:                file.Navigation.Layouts,
 	}, nil
 }
 
@@ -99,6 +126,56 @@ func (layout navigationLayoutConfig) requiredWidth(labels []string) float64 {
 	}
 	for _, label := range labels {
 		width += layout.minimumWidth(label, len(labels))
+	}
+	return width
+}
+
+// 底部窗口导航不使用 layouts 的响应式字号；当前项字号更大并附带序号胶囊。
+// 口径必须与 src/navigation-layout.ts 的 navigationBottomItemMinimumWidth 一致。
+func (layout navigationLayoutConfig) bottomItemMinimumWidth(label string, active bool) float64 {
+	fontSize := layout.BottomInactiveFontSize
+	activeExtras := 0.0
+	if active {
+		fontSize = layout.BottomActiveFontSize
+		activeExtras = layout.BottomActiveExtraGap + layout.BottomCounterWidth
+	}
+	textWidth := layout.labelWidthUnits(label)*fontSize +
+		layout.BottomHorizontalPad*2 + layout.ItemChromeWidth + activeExtras
+	return math.Max(layout.MinimumItemWidth, math.Ceil(textWidth))
+}
+
+func slidingWindows(labels []string, windowItems int) [][]string {
+	if windowItems <= 0 || len(labels) <= windowItems {
+		return [][]string{labels}
+	}
+	windows := make([][]string, 0, len(labels)-windowItems+1)
+	for start := 0; start+windowItems <= len(labels); start++ {
+		windows = append(windows, labels[start:start+windowItems])
+	}
+	return windows
+}
+
+// requiredBottomWidth 取所有滑动窗口中最宽的一行。渲染时窗口内恰有一项激活，
+// 这里按最坏情况把增量最大的项当作激活项，避免"估算通过但画面越界"。
+func (layout navigationLayoutConfig) requiredBottomWidth(labels []string) float64 {
+	width := 0.0
+	for _, window := range slidingWindows(labels, layout.BottomWindowItems) {
+		rowWidth := layout.EdgeInset * 2
+		if len(window) > 1 {
+			rowWidth += float64(len(window)-1) * layout.ItemGap
+		}
+		inactiveTotal := 0.0
+		maxActiveDelta := 0.0
+		for _, label := range window {
+			inactive := layout.bottomItemMinimumWidth(label, false)
+			inactiveTotal += inactive
+			if delta := layout.bottomItemMinimumWidth(label, true) - inactive; delta > maxActiveDelta {
+				maxActiveDelta = delta
+			}
+		}
+		if row := rowWidth + inactiveTotal + maxActiveDelta; row > width {
+			width = row
+		}
 	}
 	return width
 }
@@ -149,12 +226,17 @@ func fitBottomNavigation(stories []DataJSONStory, layout navigationLayoutConfig)
 		labels = append(labels, story.BottomTitle)
 	}
 	labels = append(labels, "再见")
-	required := layout.requiredWidth(labels)
+	required := layout.requiredBottomWidth(labels)
 	if required <= float64(layout.VideoWidth) {
 		return nil
 	}
+	windowCount := layout.BottomWindowItems
+	if len(labels) < windowCount {
+		windowCount = len(labels)
+	}
 	return fmt.Errorf(
-		"底部导航需要 %.0fpx，但视频宽度只有 %dpx；bottomTitle 必须在生成阶段继续做语义缩写，禁止用省略号硬截断",
+		"底部导航最宽的 %d 项窗口需要 %.0fpx，但视频宽度只有 %dpx；bottomTitle 必须在生成阶段继续做语义缩写，禁止用省略号硬截断",
+		windowCount,
 		required,
 		layout.VideoWidth,
 	)

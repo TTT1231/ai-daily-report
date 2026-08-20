@@ -13,7 +13,7 @@ test("accepts the current video layout", () => {
 
 test("rejects navigation layouts that are not ordered by descending minItems", () => {
   const layout = clone(currentLayout);
-  layout.navigation.layouts[1].minItems = 13;
+  layout.navigation.layouts[1].minItems = layout.navigation.layouts[0].minItems;
 
   assert.match(
     validateVideoLayoutValue(layout).errors.join("\n"),

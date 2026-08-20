@@ -8,7 +8,7 @@
     "contentTitle": "今日概览",
     "tabs": [
       {"id": "i1", "title": "A", "summary": "摘要一。", "icon": "icons/test-icon-sample-1.svg"},
-      {"id": "i2", "title": "B", "summary": "摘要二。", "icon": "icons/test-icon-sample-1.svg"}
+      {"id": "i2", "title": "B", "summary": "摘要二。", "icon": "icons/test-icon-sample-2.svg"}
     ],
     "scenes": [{"id": "intro-greeting", "subtitle": "开场口播文案足够长的一句话。"}]
   },
@@ -20,7 +20,7 @@
       "contentTitle": "GLM 模型更新",
       "tabs": [
         {"id": "tab-1", "title": "事件概览", "summary": "摘要三。", "icon": "icons/test-icon-sample-1.svg"},
-        {"id": "tab-2", "title": "用户影响", "summary": "摘要四。", "icon": "icons/test-icon-sample-1.svg"}
+        {"id": "tab-2", "title": "用户影响", "summary": "摘要四。", "icon": "icons/test-icon-sample-2.svg"}
       ],
       "scenes": [{"id": "scene-1", "subtitle": "一句足够长的旁白口播文案。"}]
     }

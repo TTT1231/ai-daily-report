@@ -158,7 +158,7 @@ export const dailyReportSchema = z
       ),
     };
     for (const [name, labels] of Object.entries(navigations)) {
-      const requiredWidth = navigationRequiredWidth(labels);
+      const requiredWidth = navigationRequiredWidth(labels, name === "bottom");
       if (requiredWidth > navigationAvailableWidth) {
         context.addIssue({
           code: "custom",

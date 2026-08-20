@@ -33,6 +33,12 @@
         "minimumItemWidth",
         "edgeInset",
         "itemGap",
+        "bottomWindowItems",
+        "bottomInactiveFontSize",
+        "bottomActiveFontSize",
+        "bottomHorizontalPadding",
+        "bottomActiveExtraGap",
+        "bottomCounterWidth",
         "asciiWidthFactor",
         "itemChromeWidth",
         "layouts"
@@ -53,6 +59,37 @@
           "type": "number",
           "minimum": 0,
           "description": "相邻导航标签之间的间距，单位为像素。"
+        },
+        "bottomWindowItems": {
+          "type": "integer",
+          "minimum": 3,
+          "maximum": 7,
+          "description": "底部 Story 导航单排显示的相邻标签数；渲染时以当前 Story 为中心滑动窗口，避免全量标题挤成多排。"
+        },
+        "bottomInactiveFontSize": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "description": "底部导航窗口内非当前 Story 标签的字号，单位为像素。窗口内不使用 layouts 的响应式字号。"
+        },
+        "bottomActiveFontSize": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "description": "底部导航窗口内当前 Story 标签的字号，单位为像素。宽度估算按窗口内最长标签取此字号计算最坏情况。"
+        },
+        "bottomHorizontalPadding": {
+          "type": "number",
+          "minimum": 0,
+          "description": "底部导航每个标签左右两侧各自的内边距，单位为像素。"
+        },
+        "bottomActiveExtraGap": {
+          "type": "number",
+          "minimum": 0,
+          "description": "底部导航当前 Story 标签内文字与序号胶囊之间的间距，单位为像素。"
+        },
+        "bottomCounterWidth": {
+          "type": "number",
+          "minimum": 0,
+          "description": "底部导航当前 Story 标签尾部的序号胶囊（如“5 / 17”）的估算宽度，单位为像素，含其内边距与边框。"
         },
         "asciiWidthFactor": {
           "type": "number",

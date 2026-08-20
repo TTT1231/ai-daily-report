@@ -71,6 +71,47 @@ test("validateReportIcons reports invalid SVG content", async () => {
   ]);
 });
 
+test("validateReportIcons rejects repeated artwork within one story even when colors differ", async () => {
+  const dataDir = await createDataDir();
+  const recoloredSvg = validSvg.replace("#2563eb", "#f97316");
+  await writeFile(join(dataDir, "icons", "first.svg"), validSvg);
+  await writeFile(join(dataDir, "icons", "second.svg"), recoloredSvg);
+
+  const result = validateReportIcons(
+    reportWithTabs([
+      {id: "intro-group-1", icon: "icons/first.svg"},
+      {id: "intro-group-2", icon: "icons/second.svg"},
+    ]),
+    {dataDir},
+  );
+
+  assert.equal(result.errors.length, 1);
+  assert.match(result.errors[0], /icon artwork duplicates intro\.tabs\[0\]/);
+  assert.equal(result.issues[0].kind, "duplicate-icon-artwork");
+});
+
+test("validateReportIcons rejects repeated sibling palettes even when artwork differs", async () => {
+  const dataDir = await createDataDir();
+  const circleSvg = validSvg.replace(
+    '<path d="M20 76 48 16l28 60Z"',
+    '<circle cx="48" cy="48" r="30"',
+  );
+  await writeFile(join(dataDir, "icons", "triangle.svg"), validSvg);
+  await writeFile(join(dataDir, "icons", "circle.svg"), circleSvg);
+
+  const result = validateReportIcons(
+    reportWithTabs([
+      {id: "intro-group-1", icon: "icons/triangle.svg"},
+      {id: "intro-group-2", icon: "icons/circle.svg"},
+    ]),
+    {dataDir},
+  );
+
+  assert.equal(result.errors.length, 1);
+  assert.match(result.errors[0], /icon palette duplicates intro\.tabs\[0\]/);
+  assert.equal(result.issues[0].kind, "duplicate-icon-palette");
+});
+
 test("validateReportIcons warns about orphan SVG files", async () => {
   const dataDir = await createDataDir();
   await writeFile(join(dataDir, "icons", "used.svg"), validSvg);

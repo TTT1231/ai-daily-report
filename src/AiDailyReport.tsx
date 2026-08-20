@@ -24,7 +24,14 @@ import {
   type DailyTab,
 } from "./daily-report-data";
 import {
+  getNavigationWindow,
   getNavigationTypography,
+  navigationBottomActiveExtraGap,
+  navigationBottomActiveFontSize,
+  navigationBottomHorizontalPadding,
+  navigationBottomInactiveFontSize,
+  navigationBottomItemMinimumWidth,
+  navigationBottomWindowItems,
   navigationEdgeInset,
   navigationItemGap,
   navigationMinimumWidth,
@@ -165,9 +172,11 @@ const STORY_ENTER_DELAY_FRAMES = 0; // story 入场淡入开始前停留的帧�
 const STORY_ENTER_FADE_FRAMES = 10; // story 入场淡入持续的帧数
 const STORY_TRANSITION_FRAMES = videoTimeline.storyTransitionFrames;
 const IMAGE_TRANSITION_FRAMES = 16;
+const IMAGE_EXIT_TRANSITION_FRAMES = 20;
 const IMAGE_PRE_ROLL_FRAMES = 12;
 const IMAGE_POST_ROLL_FRAMES = 10;
-const IMAGE_FOCUS_SCALE = 1.12;
+const IMAGE_MAX_VISIBLE_FRAMES = 96;
+const IMAGE_FOCUS_SCALE = 1; // 证据图不推近：用户反馈截图卡片放大观感差，入场仅 95%→100% 落定
 const IMAGE_FOCUS_ZOOM_END = 0.42;
 const IMAGE_FOCUS_RETURN_START = 0.72;
 const IMAGE_FOCUS_RETURN_END = 0.9;
@@ -419,12 +428,19 @@ export const getOverlayAnimation = (
   scene: DailyScene,
   sceneFrame: number,
   sceneDuration: number,
+  hasFollowingScene = false,
 ): OverlayAnimation => {
   if (!scene.overlayImg) {
     return { reveal: 0, hide: 0, opacity: 0, scale: 1 };
   }
 
-  const lastSceneFrame = Math.max(1, sceneDuration - 1);
+  // 单场景 story 里 overlay 与 tabs 抢同一块屏幕，必须提前退场给 tabs 让位；
+  // 当 story 还有下一段场景时，tabs 在下一场必然全程可见，overlay 可以占满整场，
+  // 退场恰好落在场景边界，与字幕切换形成同一个节拍，而不是口播中途凭空消失。
+  const visibleDuration = hasFollowingScene
+    ? sceneDuration
+    : Math.min(sceneDuration, IMAGE_MAX_VISIBLE_FRAMES);
+  const lastSceneFrame = Math.max(1, visibleDuration - 1);
   const revealStart = Math.min(
     IMAGE_PRE_ROLL_FRAMES,
     Math.max(
@@ -437,14 +453,14 @@ export const getOverlayAnimation = (
     revealStart + IMAGE_TRANSITION_FRAMES,
   );
   const hideEnd = Math.max(revealEnd, lastSceneFrame - IMAGE_POST_ROLL_FRAMES);
-  const hideStart = Math.max(revealEnd, hideEnd - IMAGE_TRANSITION_FRAMES);
+  const hideStart = Math.max(revealEnd, hideEnd - IMAGE_EXIT_TRANSITION_FRAMES);
   const reveal = interpolateRange(sceneFrame, revealStart, revealEnd, 0, 1, {
     easing: Easing.bezier(0.16, 1, 0.3, 1),
     extrapolateLeft: "clamp",
     extrapolateRight: "clamp",
   });
   const hide = interpolateRange(sceneFrame, hideStart, hideEnd, 1, 0, {
-    easing: Easing.in(Easing.cubic),
+    easing: Easing.inOut(Easing.cubic),
     extrapolateLeft: "clamp",
     extrapolateRight: "clamp",
   });
@@ -452,7 +468,7 @@ export const getOverlayAnimation = (
     sceneFrame,
     revealStart,
     revealEnd,
-    sceneDuration,
+    visibleDuration,
   );
 
   return { reveal, hide, opacity: reveal * hide, scale };
@@ -726,12 +742,22 @@ const TabIcon: FC<{
   />
 );
 
+type NavigationItem = { label: string; duration: number; active: boolean };
+
 const Navigation: FC<{
-  items: { label: string; duration: number; active: boolean }[];
+  items: NavigationItem[];
   theme: Theme;
-}> = ({ items, theme }) => {
+  windowed?: boolean;
+}> = ({ items, theme, windowed = false }) => {
   const palette = themes[theme];
-  const { fontSize, horizontalPadding } = getNavigationTypography(items.length);
+  const activeIndex = items.findIndex((item) => item.active);
+  const visibleItems = windowed
+    ? getNavigationWindow(items, activeIndex, navigationBottomWindowItems)
+    : items;
+  const { fontSize, horizontalPadding } = getNavigationTypography(
+    visibleItems.length,
+  );
+
   return (
     <div
       style={{
@@ -746,39 +772,67 @@ const Navigation: FC<{
         borderBottom: `1px solid ${palette.border}`,
       }}
     >
-      {items.map((item, index) => {
-        // Reserve readable label width first, then distribute remaining width by duration.
-        const minimumWidth = navigationMinimumWidth(item.label, items.length);
+      {visibleItems.map((item) => {
+        const itemIndex = items.indexOf(item);
+        const minimumWidth = windowed
+          ? navigationBottomItemMinimumWidth(item.label, item.active)
+          : navigationMinimumWidth(item.label, visibleItems.length);
         return (
           <div
-            key={`${item.label}-${index}`}
+            key={`${item.label}-${itemIndex}`}
             style={{
-              flexGrow: item.duration,
+              flexGrow: windowed ? 1 : item.duration,
               flexShrink: 0,
               flexBasis: minimumWidth,
               minWidth: minimumWidth,
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
+              gap:
+                item.active && windowed
+                  ? navigationBottomActiveExtraGap
+                  : 0,
               color: item.active ? palette.text : palette.muted,
               borderLeft: `1px solid ${palette.border}`,
               borderRight:
-                index === items.length - 1
+                item === visibleItems[visibleItems.length - 1]
                   ? `1px solid ${palette.border}`
                   : "none",
               borderBottom: `4px solid ${item.active ? palette.blue : "transparent"}`,
               background: item.active ? palette.navActive : palette.navInactive,
               boxShadow: item.active ? palette.navActiveShadow : "none",
-              fontSize,
+              fontSize:
+                windowed
+                  ? item.active
+                    ? navigationBottomActiveFontSize
+                    : navigationBottomInactiveFontSize
+                  : fontSize,
               fontWeight: item.active ? 760 : 560,
-              letterSpacing: ".02em",
+              letterSpacing: windowed ? ".005em" : ".02em",
               whiteSpace: "nowrap",
-              overflow: "hidden",
-              textOverflow: "ellipsis",
-              padding: `0 ${horizontalPadding}px`,
+              lineHeight: 1,
+              textAlign: "center",
+              padding: `0 ${windowed ? navigationBottomHorizontalPadding : horizontalPadding}px`,
             }}
           >
-            {item.label}
+            <span>{item.label}</span>
+            {item.active && windowed ? (
+              <span
+                style={{
+                  flexShrink: 0,
+                  padding: "5px 9px",
+                  color: palette.blue,
+                  background: palette.canvas,
+                  border: `1px solid ${palette.border}`,
+                  borderRadius: 999,
+                  fontSize: 15,
+                  fontWeight: 760,
+                  letterSpacing: ".03em",
+                }}
+              >
+                {itemIndex + 1} / {items.length}
+              </span>
+            ) : null}
           </div>
         );
       })}
@@ -1299,10 +1353,8 @@ const SourceOverlay: FC<{
           style={{
             width: imageLayout?.width ?? "auto",
             height: imageLayout?.height ?? "auto",
-
             maxWidth: imageLayout?.maxWidth ?? OVERLAY_MAX_WIDTH,
             maxHeight: imageLayout?.maxHeight ?? OVERLAY_MAX_HEIGHT,
-
             display: "block",
             objectFit: "contain",
             borderRadius: imageLayout?.small ? 8 : 10,
@@ -1447,10 +1499,14 @@ const AiDailyReportContent: FC<AiDailyReportContentProps> = ({
     extrapolateRight: "clamp",
   });
   const subtitleCue = getSubtitleCue(scene, sceneFrame, sceneDuration);
+  const sceneIndexInStory = story.scenes.indexOf(scene);
+  const hasFollowingScene =
+    sceneIndexInStory !== -1 && sceneIndexInStory < story.scenes.length - 1;
   const overlayAnimation = getOverlayAnimation(
     scene,
     sceneFrame,
     sceneDuration,
+    hasFollowingScene,
   );
   const overlayVisibility = overlayAnimation.opacity;
   const storyVisibility = storyPause * storyExit;
@@ -1700,7 +1756,7 @@ const AiDailyReportContent: FC<AiDailyReportContentProps> = ({
           </div>
         </div>
 
-        <Navigation items={storyDurations} theme={theme} />
+        <Navigation items={storyDurations} theme={theme} windowed />
       </div>
     </AbsoluteFill>
   );

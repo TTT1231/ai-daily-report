@@ -59,10 +59,7 @@ function tabSummaryMarkdownIssue(value) {
     const boldStart = bold.index;
     const boldEnd = boldStart + bold[0].length;
     const content = bold[0].slice(2, -2).trim();
-    if (
-      /[“‘（(《【]$/.test(content) ||
-      /^[”’）)》】]/.test(content)
-    ) {
+    if (/[“‘（(《【]$/.test(content) || /^[”’）)》】]/.test(content)) {
       return "bold boundaries must not split paired punctuation";
     }
     for (const code of codeSpans) {
@@ -383,7 +380,9 @@ export function validateReport(
   const navigationLabels = reportNavigationLabels(report);
   const navigationStats = {};
   for (const [name, labels] of Object.entries(navigationLabels)) {
-    const { availableWidth, requiredWidth } = navigationCapacity(labels);
+    const { availableWidth, requiredWidth } = navigationCapacity(labels, {
+      windowed: name === "bottom",
+    });
     navigationStats[name] = {
       availableWidth,
       itemCount: labels.length,

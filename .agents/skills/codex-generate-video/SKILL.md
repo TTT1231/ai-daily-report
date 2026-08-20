@@ -50,8 +50,11 @@ Parse everything after the invocation as ordered source units:
 Use linked primary material to verify or enrich the same source unit, but do not silently turn another
 user-supplied source unit into supporting material for a different story. When a claim needs
 attribution, name the primary actor, document, researcher, or reporting outlet in one concise clause;
-never attribute the news to the ingestion platform. Express material uncertainty as a useful fact,
-such as “官方尚未公布发布日期”, rather than instructing viewers to verify it themselves.
+never attribute the news to the ingestion platform. This is a short-video daily report: viewers watch
+it to learn facts, so narration and tabs state only what is known. Never end a narration beat with a
+missing-data clause such as “仍待公布”, “完整数据待披露”, or “官方尚未公布发布时间”, and never spend a
+tab on pending data. If an unknown materially changes the news, state it once as a plain fact inside
+a factual tab — not as the closing beat of a scene and not as its own “待披露” tab.
 
 ## Build rich report content
 
@@ -64,20 +67,29 @@ rules. Keep navigation labels compact while making the story body detailed.
   product casing. Keep the core actor, event, number, and date when they matter.
 - Use `contentTitle` as the compact headline for the individual story screen. It may be shorter than
   `introTitle`, but both must read as finished editorial headlines rather than copied post titles.
-- Aim for 4-6 meaningful tabs per story whenever the source supports them. Do not settle for a terse
-  2-3 tab summary merely for speed.
-- Prefer concrete tab dimensions such as the core event, figures and dates, mechanism or product
-  details, user or market impact, and what happens next.
-- Use 2-3 tabs only when the source truly lacks enough distinct facts. Never invent content to reach a
-  target count.
+- Scale tab count and summary density to what the source actually supports. Tab count follows the
+  source's distinct factual dimensions: 2-3 for a thin single-fact source, 4-6 for a rich one — never a
+  uniform 4 everywhere. Summary density should use most of the ~110-visual-unit budget (aim 70-105)
+  with concrete sourced facts: numbers, dates, names, mechanisms, and attributed community, analyst, or
+  official reactions. Forum threads count as source material — quoted primary articles inside the post
+  and informative replies are usable facts, clearly attributed. Re-read the source (or its evidence
+  image) before enriching; a summary the source cannot back is fabrication. For a genuinely thin
+  source, fewer and shorter tabs is the correct outcome, not padded text.
+- Prefer concrete, complementary dimensions such as the core event, figures and dates, mechanism or
+  product details, user or market impact, and what happens next. Never invent content to reach a
+  target count or stop at 2-3 tabs merely for speed when the source supports more.
 - Make tab titles specific and complementary. Avoid filler headings such as "重点" or "更多".
 - Never spend a tab on source disclaimers, verification instructions, or explaining what the input
   did not contain. Provenance belongs in `overlayImg`; a genuine unknown belongs in a factual tab only
   when that unknown materially changes the news.
 - Keep every summary within the schema limits, include exactly one bold span, and wrap English model,
   product, API, error-code, and version names in inline code.
-- Prefer two non-redundant scenes for a dense story and one scene for a short story. Keep each subtitle
-  a natural spoken sentence within the schema limit.
+- Default to two non-redundant scenes whenever a story has an evidence overlay and enough narration:
+  the evidence scene first (its narration explains the fact visible in the image), then a tabs scene
+  without an overlay so tabs own that beat unobstructed. Use one scene only for genuinely short
+  stories. Keep each subtitle a natural spoken sentence within the schema limit. Do not stretch one
+  long scene to carry both the overlay and the tabs: on single-scene stories the renderer must cap
+  overlay visibility so tabs stay readable, which cuts the image off mid-narration and feels abrupt.
 - Pair scenes with the source-evidence overlays described below; use the scene narration to explain
   the fact visible in its image rather than showing an unrelated visual.
 
@@ -88,6 +100,14 @@ Give every story tab a stable semantic icon path in Raw, for example
 
 Treat `overlayImg` as the visual proof layer, not optional decoration. Actively inspect each source
 unit and attach at least one readable evidence image to every story.
+
+- Evaluate the full source chain before capturing evidence. A forum or aggregator post is a middleman:
+  read the post body and the links it cites, identify the primary source (the original outlet, official
+  blog, announcement, or first-party chart), and capture the evidence region from that primary page.
+  Never present a screenshot of the forum thread page itself as evidence — it reads like quoting the
+  intermediary and inherits whatever outlet watermark the post copied. Exception: an image attached to
+  the post (benchmark chart, official screenshot, event photo) is a primary artifact — use the
+  attachment itself, never a screenshot of the forum page around it.
 
 - Prefer, in order: an original announcement or document excerpt, product/UI screenshot, source data
   chart or benchmark, source-page excerpt containing the central claim/date/number, then an original
@@ -168,6 +188,14 @@ For each tab, design one distinct semantic icon that remains legible at small si
   `viewBox="0 0 96 96"`, and a transparent canvas.
 - Prefer bold geometric shapes, rounded strokes, and 2-4 harmonious colors. Make sibling icons
   visually consistent but conceptually distinct.
+- Derive each glyph from that tab's title and summary (or the tab-specific semantic suffix). Never
+  feed the full story-prefixed tab ID into a broad keyword matcher: shared story words can collapse
+  every sibling into the same glyph.
+- Treat recolored copies as duplicates. Before rendering, ensure no two tabs in one story have the
+  same canonical SVG artwork; `bun run check-icons` must fail when sibling artwork repeats.
+- Give sibling tabs clearly different dominant palettes so viewers can distinguish them by both
+  silhouette and color at a glance. Keep stroke weight and overall rendering style consistent, but
+  do not reuse one complete palette across a story.
 - Avoid a full-size background rectangle, `<style>`, `<script>`, and preferably `<text>`.
 - Keep the file below 2048 bytes when practical.
 - Use exactly the path stored in the tab's `icon` field. For generated intro tabs, use

@@ -13,6 +13,12 @@ import {
 
 const sampleSvg =
   '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 96" fill="none"><path d="M48 12L84 84H12Z" fill="#F59E0B"/></svg>';
+const distinctSampleSvgs = [
+  sampleSvg,
+  '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 96"><circle cx="48" cy="48" r="30" fill="#2563EB"/></svg>',
+  '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 96"><rect x="18" y="24" width="60" height="48" rx="8" fill="#10B981"/></svg>',
+  '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 96"><path d="m48 12 36 36-36 36-36-36Z" fill="#EC4899"/></svg>',
+];
 
 function loadMock(name) {
   return JSON.parse(readFileSync(join(import.meta.dirname, "..", "..", "..", "test", "mock", name), "utf8"));
@@ -126,10 +132,10 @@ test("applyGenerateSvgPayload writes SVGs, updates generated data, and mirrors r
   try {
     const plan = buildGenerateSvgTargetPlan(report, {dataDir: dir});
     const payload = {
-      icons: plan.targetPaths.map((path) => ({
+      icons: plan.targetPaths.map((path, index) => ({
         path,
-        concept: "test triangle",
-        svg: sampleSvg,
+        concept: "test distinct artwork",
+        svg: distinctSampleSvgs[index],
       })),
     };
 
@@ -152,6 +158,136 @@ test("applyGenerateSvgPayload writes SVGs, updates generated data, and mirrors r
     assert.equal(updatedRaw.stories[0].tabs[0].icon, "icons/story-1-tab-1.svg");
     assert.equal(updatedRaw.stories[1].tabs[0].icon, undefined);
     assert.equal(existsSync(join(dir, "icons", "orphan.svg")), false);
+  } finally {
+    rmSync(dir, {recursive: true, force: true});
+  }
+});
+
+test("applyGenerateSvgPayload splits a shared same-story icon path into independent targets", async () => {
+  const report = loadMock("generated-report.json");
+  report.stories = [];
+  report.intro.tabs[0].icon = "icons/shared.svg";
+  report.intro.tabs[1].icon = "icons/shared.svg";
+  const rawReport = {stories: []};
+  const dir = seedDataScheme();
+  const generatedDataPath = join(dir, "data-generate.json");
+  const rawDataPath = join(dir, "data.json");
+
+  writeFileSync(generatedDataPath, `${JSON.stringify(report, null, 2)}\n`);
+  writeFileSync(rawDataPath, `${JSON.stringify(rawReport, null, 2)}\n`);
+
+  try {
+    const plan = buildGenerateSvgTargetPlan(report, {dataDir: dir});
+    assert.deepEqual(plan.targetPaths, [
+      "icons/shared.svg",
+      "icons/intro-i2.svg",
+    ]);
+    assert.deepEqual(
+      plan.targets.map((target) => target.tabs.map((tab) => tab.id)),
+      [["i1"], ["i2"]],
+    );
+
+    const payload = {
+      icons: plan.targetPaths.map((path, index) => ({
+        path,
+        concept: "shared-path repair fixture",
+        svg: distinctSampleSvgs[index],
+      })),
+    };
+    await applyGenerateSvgPayload({
+      payload,
+      report,
+      targetPlan: plan,
+      dataDir: dir,
+      generatedDataPath,
+      rawDataPath,
+    });
+
+    const updated = JSON.parse(readFileSync(generatedDataPath, "utf8"));
+    assert.equal(updated.intro.tabs[0].icon, "icons/shared.svg");
+    assert.equal(updated.intro.tabs[1].icon, "icons/intro-i2.svg");
+    assert.notEqual(updated.intro.tabs[0].icon, updated.intro.tabs[1].icon);
+  } finally {
+    rmSync(dir, {recursive: true, force: true});
+  }
+});
+
+test("applyGenerateSvgPayload rejects duplicate same-story palettes before touching disk", async () => {
+  const report = loadMock("generated-report.json");
+  const rawReport = loadMock("raw-report.json");
+  const dir = seedDataScheme();
+  const generatedDataPath = join(dir, "data-generate.json");
+  const rawDataPath = join(dir, "data.json");
+
+  const generatedBefore = `${JSON.stringify(report, null, 2)}\n`;
+  const rawBefore = `${JSON.stringify(rawReport, null, 2)}\n`;
+  writeFileSync(generatedDataPath, generatedBefore);
+  writeFileSync(rawDataPath, rawBefore);
+  writeFileSync(join(dir, "icons", "orphan.svg"), sampleSvg);
+
+  try {
+    const plan = buildGenerateSvgTargetPlan(report, {dataDir: dir});
+    // intro 的两个 tab 使用完全相同的图形与配色：必须在校验阶段被拒，
+    // 且不写入任何 SVG、不改写两份 JSON、不删除孤儿文件。
+    const payload = {
+      icons: plan.targetPaths.map((path, index) => ({
+        path,
+        concept: "duplicate palette fixture",
+        svg: index < 2 ? sampleSvg : distinctSampleSvgs[index],
+      })),
+    };
+
+    await assert.rejects(
+      applyGenerateSvgPayload({payload, report, targetPlan: plan, dataDir: dir, generatedDataPath, rawDataPath}),
+      /icon (artwork|palette) duplicates/,
+    );
+    for (const iconPath of plan.targetPaths) {
+      assert.equal(existsSync(join(dir, iconPath)), false, `${iconPath} must not be written`);
+    }
+    assert.equal(readFileSync(generatedDataPath, "utf8"), generatedBefore);
+    assert.equal(readFileSync(rawDataPath, "utf8"), rawBefore);
+    assert.equal(existsSync(join(dir, "icons", "orphan.svg")), true);
+  } finally {
+    rmSync(dir, {recursive: true, force: true});
+  }
+});
+
+test("applyGenerateSvgPayload rolls back written files when a later step fails", async () => {
+  const report = loadMock("generated-report.json");
+  const rawReport = loadMock("raw-report.json");
+  const dir = seedDataScheme();
+  // 指向不存在目录的 JSON 路径让"写 SVG 之后、收尾之前"的一步失败，触发回滚。
+  const generatedDataPath = join(dir, "missing-dir", "data-generate.json");
+  const rawDataPath = join(dir, "data.json");
+
+  const oldIconPath = join(dir, "icons", "intro-i1.svg");
+  const oldIconContent = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 96 96\"/><!--old-->";
+  const rawBefore = `${JSON.stringify(rawReport, null, 2)}\n`;
+  writeFileSync(oldIconPath, oldIconContent);
+  writeFileSync(rawDataPath, rawBefore);
+  writeFileSync(join(dir, "icons", "orphan.svg"), sampleSvg);
+
+  try {
+    const plan = buildGenerateSvgTargetPlan(report, {dataDir: dir});
+    const payload = {
+      icons: plan.targetPaths.map((path, index) => ({
+        path,
+        concept: "rollback fixture",
+        svg: distinctSampleSvgs[index],
+      })),
+    };
+
+    await assert.rejects(
+      applyGenerateSvgPayload({payload, report, targetPlan: plan, dataDir: dir, generatedDataPath, rawDataPath}),
+    );
+    // 已存在的目标图标恢复旧内容，新写的目标图标被删除，孤儿与 raw JSON 保持原样。
+    assert.equal(readFileSync(oldIconPath, "utf8"), oldIconContent);
+    for (const iconPath of plan.targetPaths) {
+      if (iconPath === "icons/intro-i1.svg") continue;
+      assert.equal(existsSync(join(dir, iconPath)), false, `${iconPath} must be rolled back`);
+    }
+    assert.equal(existsSync(join(dir, "icons", "orphan.svg")), true);
+    assert.equal(readFileSync(rawDataPath, "utf8"), rawBefore);
   } finally {
     rmSync(dir, {recursive: true, force: true});
   }

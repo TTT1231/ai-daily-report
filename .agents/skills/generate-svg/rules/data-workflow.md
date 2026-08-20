@@ -56,6 +56,8 @@ The icon must:
 - Include `xmlns` and `viewBox="0 0 96 96"`
 - Use a transparent canvas without a full-size background rectangle
 - Avoid `<style>`, `<script>`, and preferably `<text>`
+- Use an independent icon path for every tab within one story
+- Avoid repeated canonical artwork or a repeated complete palette within one story
 - Remain under the validator's recommended file-size limit
 
 When changing icon design, sizing, or the report theme, preview at least one representative frame in

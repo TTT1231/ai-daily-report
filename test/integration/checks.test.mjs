@@ -101,6 +101,7 @@ test("check-icons exits 0 when every referenced icon is a valid on-disk SVG", ()
   const dir = seedDataScheme({
     "data-generate.json": JSON.stringify(generatedIcons()),
     "icons/test-icon-sample-1.svg": "mock:test-icon-sample-1.svg",
+    "icons/test-icon-sample-2.svg": "mock:test-icon-sample-2.svg",
   });
   try {
     const {code, stdout, stderr} = runCli(checkIcons, [], dir);

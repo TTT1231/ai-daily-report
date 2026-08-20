@@ -1262,8 +1262,58 @@ func TestFitNavigationLabelsRejectsCrowdedBottomNavigationWithoutTruncating(t *t
 		}
 	}
 	bottomLabels = append(bottomLabels, "再见")
-	if required := layout.requiredWidth(bottomLabels); required <= float64(layout.VideoWidth) {
+	if required := layout.requiredBottomWidth(bottomLabels); required <= float64(layout.VideoWidth) {
 		t.Fatalf("fixture unexpectedly fits in %.0fpx", required)
+	}
+}
+
+func TestFitBottomNavigationAcceptsFifteenShortStories(t *testing.T) {
+	// 渲染层底栏是 bottomWindowItems 项滑动窗口：15 个五字标题的合法报告
+	// 不能再按全量单排估算被拒绝（旧口径 17 项全排约 1954px > 1920px）。
+	layout, err := loadNavigationLayout()
+	if err != nil {
+		t.Fatal(err)
+	}
+	stories := make([]DataJSONStory, maxGroups)
+	for index := range stories {
+		stories[index] = DataJSONStory{
+			TopTitle:    "短栏",
+			BottomTitle: "五字标题甲",
+		}
+	}
+	if err := fitBottomNavigation(stories, layout); err != nil {
+		t.Fatalf("fitBottomNavigation() error = %v, want nil for windowed layout", err)
+	}
+}
+
+func TestRequiredBottomWidthCoversActiveItemExtras(t *testing.T) {
+	layout, err := loadNavigationLayout()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// 窗口内最长标题作为激活项（更大字号 + 序号胶囊 + 间距），
+	// 最坏情况宽度必须严格高于全部按非激活项估算的宽度。
+	window := []string{"一二三四五六", "甲乙", "一二三四五六七八九", "丙", "丁"}
+	allInactive := layout.EdgeInset*2 + float64(len(window)-1)*layout.ItemGap
+	for _, label := range window {
+		allInactive += layout.bottomItemMinimumWidth(label, false)
+	}
+	if worst := layout.requiredBottomWidth(window); worst <= allInactive {
+		t.Fatalf("requiredBottomWidth = %.0f, want > all-inactive %.0f to cover active extras", worst, allInactive)
+	}
+
+	// 5 个 14 字标题曾是校验盲区：旧模型（layouts 字号、忽略胶囊）算出 1886px 通过，
+	// 但实际渲染约 1964px 越界；新口径必须拒绝。
+	extreme := []string{
+		strings.Repeat("字", 14),
+		strings.Repeat("字", 14),
+		strings.Repeat("字", 14),
+		strings.Repeat("字", 14),
+		strings.Repeat("字", 14),
+	}
+	if required := layout.requiredBottomWidth(extreme); required <= float64(layout.VideoWidth) {
+		t.Fatalf("extreme window unexpectedly fits in %.0fpx", required)
 	}
 }
 

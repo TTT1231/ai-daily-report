@@ -1,6 +1,5 @@
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
-import { Lunar } from "lunar-javascript";
 import { dataDir as defaultDataDir } from "./paths.mjs";
 import { readImageDimensions } from "./image-dims.mjs";
 
@@ -45,9 +44,8 @@ function parseReportDate(date) {
   return reportDate;
 }
 
-function formatLunarDateWithWeekday(date) {
-  const lunar = Lunar.fromDate(date);
-  return `农历${lunar.getMonthInChinese()}月${lunar.getDayInChinese()}，${weekdays[date.getDay()]}`;
+function formatGregorianDateWithWeekday(date) {
+  return `${date.getFullYear()}年${date.getMonth() + 1}月${date.getDate()}号，${weekdays[date.getDay()]}`;
 }
 
 function buildIntro(report, now, previousReport) {
@@ -66,7 +64,7 @@ function buildIntro(report, now, previousReport) {
     title,
     summary: contentTitles.join("\n"),
   }));
-  const dateText = formatLunarDateWithWeekday(
+  const dateText = formatGregorianDateWithWeekday(
     parseReportDate(report.date) ?? now,
   );
   const previousDefaultGreeting =

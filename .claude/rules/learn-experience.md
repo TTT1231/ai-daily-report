@@ -220,3 +220,57 @@
   - 手写兜底前先量图标是否真需要 11 个：`buildGenerateSvgTargetPlan` 会把所有缺失（含 intro 新组）算进去，`bun run check-icons` 的输出列清缺哪些 tab。
   - 长期更优解（未实施）：给 `generate-svg.mjs` 加分批参数（如每批 ≤4 个 icon，逐批请求 + 增量落盘 + 容错跳过坏 icon），把"全有或全无"改成"增量 + 重试单条"；评估后可提改进。
   - 任何「新 topTitle」改动都会让 intro 多一组卡片、多一个需配 icon 的 intro tab，规划图标时要把这个 intro tab 一并算上（它走 `icons/{tabId}.svg` 命名，不在 raw data.json）。
+
+## IAB（ZCode 内置浏览器）截图采集证据图的三连坑
+
+- **Tags**: `#runtime` `#third-party-library` `#tricky-issue` `#environment`
+- **Trigger Context**: Windows + ZCode IAB（browser-use:control-browser），用 `tab.screenshot()` 采集新闻证据截图（1920x1080 视口）
+- **Symptoms**:
+  1. `tab.screenshot()` 间歇性抛 `browser screenshot activity capture failed for guest`（同一页面同一调用模式，时而成功时而失败）。
+  2. `tab.screenshot({clip})` 按元素坐标裁剪截图直接失败（本环境 guest 不支持该路径）。
+  3. 同一页面多次加载返回**完全相同的 PNG 字节数**，极易误诊为"返回了陈旧缓存帧"。
+- **Root Cause**:
+  1. guest 截图通道需要"预热"：新内核里 `tabs.get()` 后立刻截图易失败，先做几次只读交互（`title()`、`evaluate(readyState)`）+ 600ms 间隔再截，成功率显著提高。
+  2. clip 截图在 IAB guest 上未实现/不稳定，报同样的 activity capture 失败。
+  3. PNG 编码是确定性的：同一页面相同渲染 → 字节级相同的 PNG；同 tab 重复加载字节数恒等（跨新 tab 会差几十~几百字节，广告/字体变体）。字节相等 ≠ 缓存陈旧。
+- **Verified Solution**:
+  ```js
+  // 1) 预热 + 重试截图（已验证可产出有效帧）
+  async function warmShot(tab) {
+    for (let i = 0; i < 4; i++) {
+      await tab.title().catch(() => {});
+      await tab.playwright.evaluate(() => document.readyState).catch(() => {});
+      await tab.playwright.waitForTimeout(600);
+      try {
+        const b = await tab.screenshot();       // 整屏截图，不用 clip
+        if (b.length > 100_000) return b;       // 空白页字节数下限校验
+      } catch {}
+    }
+    throw new Error("screenshot unavailable");
+  }
+  // 2) 页面身份在同一调用内用 title + DOM 几何双重确认（getBoundingClientRect 的 h1 坐标），
+  //    不要靠字节数判断帧新旧。
+  // 3) 裁剪交给本地 ffmpeg：ffmpeg -i full.png -vf "crop=W:H:X:Y" out.png
+  ```
+- **Prevention Recommendations**:
+  - 证据截图一律"整屏截取 + 字节数下限 + 同调用内 title/DOM 校验 + 本地 ffmpeg 裁剪到标题+导语区域"。
+  - 判定页面身份看 DOM 几何/文本，不看 PNG 字节数；字节恒等是确定性编码的正常现象。
+  - `goto` 后 `waitForLoadState` 可能在旧文档上提前返回：必须轮询 `title()` 出现目标关键字再等待 settle（1200ms+），否则会拍到上一个页面。
+
+## IAB 截图"低密度渲染"——用户肉眼看糊、视觉模型却判锐利（续前条）
+
+- **Tags**: `#runtime` `#third-party-library` `#tricky-issue` `#environment`
+- **Trigger Context**: 同一 IAB 截图问题更深一层的根因：用户反馈"浏览器里打开页面清晰，但截出的 PNG 模糊"
+- **Symptoms**:
+  1. IAB 截出的 PNG 尺寸正确（如 1920x1080）但内容发虚——guest 以低于视口的光栅密度渲染后放大输出。
+  2. 视觉模型（analyze_image）会判其"锐利清晰"，不可信；用户肉眼才是真相。
+  3. 无头 Chrome 直采（--headless=new --force-device-scale-factor=2）在新闻站基本不可用：CNBC 弹直播页、IT之家重定向首页、Phoronix 人机验证墙。
+- **Root Cause**: IAB 内嵌 guest 的有效渲染分辨率低于声明的 CSS 视口；量化证据：对截图做"高斯模糊前后差异能量"（ffmpeg avgblur+blend difference 的 YAVG），IAB 采集为 3.06-3.27，同项目 agent-browser（真 Chrome）采集的验收图为 3.64-4.26——软了 10-39%。
+- **Verified Solution**:
+  1. 用 **agent-browser（真 Chrome via CDP）** 采集：`agent-browser set viewport 1920 1080 2` 开 2x 视网膜 → 截图为 3840x2160 真实像素密度，实测高频能量 4.7-7.6（全项目最锐）。
+  2. Phoronix 等有 Cloudflare 墙的站点：真 Chrome 打开后验证页会**自动通过**（等 10-30 秒再 `get title` 确认），不要用 networkidle 等待（广告页永远等不到，命令会挂死）。
+  3. 裁剪只留文章栏（按 h1/正文 getBoundingClientRect × 2 坐标），文字填满卡片。
+- **Prevention Recommendations**:
+  - 证据图采集一律走 agent-browser 2x，不走 IAB 截图；IAB 仅用于读 DOM/文本。
+  - 判断"糊不糊"用 ffmpeg 高频能量量化对比，不信视觉模型的主观"锐利"结论。
+  - `agent-browser eval "JSON.stringify({...getBoundingClientRect()})"` 拿坐标，配合本地 ffmpeg crop，别用截图工具自带的 clip。
