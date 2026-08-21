@@ -45,7 +45,6 @@
     "video:half-auto": "bun run archive && bun run rss && bun run rss:pick && bun run video",
     "reset": "node scripts/archive/reset.mjs",
     "archive": "node scripts/archive/archive.mjs",
-    "render:cover": "bunx remotion still AiDailyReport out/cover.png --frame=45 --props=data-scheme/data-generate.json --public-dir=data-scheme",
     "render:mp4": "bunx remotion render AiDailyReport out/AiDailyReport.mp4 --props=data-scheme/data-generate.json --public-dir=data-scheme",
     "video:render": "bun run tts && bun run render:mp4",
     "dev": "node scripts/render/dev.mjs",
