@@ -68,16 +68,13 @@ const themes = {
       "radial-gradient(circle at 12% -18%, rgba(91,115,135,.17), transparent 40%), radial-gradient(circle at 92% 0%, rgba(151,89,69,.10), transparent 38%), linear-gradient(180deg, #171c21 0%, #11161b 78%)",
     ambient: "linear-gradient(180deg, rgba(255,247,238,.022), transparent 42%)",
     nav: "rgba(24,29,34,.90)",
-    navInactive: "rgba(38,44,49,.54)",
-    navActive:
-      "linear-gradient(to top, rgba(91,58,49,.68), rgba(52,45,43,.72))",
+    navChapterActive:
+      "linear-gradient(90deg, transparent 0%, rgba(189,116,92,.08) 10%, rgba(189,116,92,.12) 50%, rgba(189,116,92,.08) 90%, transparent 100%)",
     navDockActive:
       "linear-gradient(90deg, transparent 0%, rgba(189,116,92,.08) 14%, rgba(189,116,92,.18) 50%, rgba(189,116,92,.08) 86%, transparent 100%)",
     navDockShadow:
       "0 -10px 26px rgba(0,0,0,.18), inset 0 1px 0 rgba(255,255,255,.02)",
     border: "rgba(183,179,170,.18)",
-    navActiveShadow:
-      "inset 0 0 0 1px rgba(189,116,92,.42), inset 0 0 20px rgba(189,116,92,.07)",
     activeCard:
       "linear-gradient(145deg, rgba(48,46,45,.99), rgba(39,39,39,.99))",
     inactiveCard:
@@ -125,16 +122,13 @@ const themes = {
       "radial-gradient(circle at 10% -16%, rgba(90,135,182,.09), transparent 40%), radial-gradient(circle at 94% 2%, rgba(196,112,84,.08), transparent 38%), linear-gradient(180deg, #fbfaf7 0%, #f1f3f2 100%)",
     ambient: "linear-gradient(180deg, rgba(255,255,255,.42), transparent 42%)",
     nav: "rgba(252,251,248,.92)",
-    navInactive: "rgba(241,241,237,.68)",
-    navActive:
-      "linear-gradient(to top, rgba(242,222,214,.96), rgba(253,248,244,.94))",
+    navChapterActive:
+      "linear-gradient(90deg, transparent 0%, rgba(184,95,73,.04) 10%, rgba(184,95,73,.11) 50%, rgba(184,95,73,.04) 90%, transparent 100%)",
     navDockActive:
       "linear-gradient(90deg, transparent 0%, rgba(184,95,73,.04) 14%, rgba(184,95,73,.13) 50%, rgba(184,95,73,.04) 86%, transparent 100%)",
     navDockShadow:
       "0 -10px 28px rgba(42,50,56,.06), inset 0 1px 0 rgba(255,255,255,.66)",
     border: "rgba(91,103,113,.19)",
-    navActiveShadow:
-      "inset 0 0 0 1px rgba(184,95,73,.34), inset 0 0 20px rgba(184,95,73,.06)",
     activeCard:
       "linear-gradient(145deg, rgba(255,251,247,.99), rgba(248,237,231,.99))",
     inactiveCard:
@@ -767,11 +761,11 @@ const Navigation: FC<{
         display: "flex",
         height: "100%",
         alignItems: "stretch",
-        gap: navigationItemGap,
+        gap: windowed ? navigationItemGap : 0,
         padding: `0 ${navigationEdgeInset}px`,
         boxSizing: "border-box",
         background: palette.nav,
-        borderTop: `1px solid ${palette.border}`,
+        borderTop: windowed ? `1px solid ${palette.border}` : "none",
         borderBottom: windowed ? "none" : `1px solid ${palette.border}`,
         boxShadow: windowed ? palette.navDockShadow : "none",
       }}
@@ -794,31 +788,26 @@ const Navigation: FC<{
               alignItems: "center",
               justifyContent: "center",
               gap: item.active && windowed ? navigationBottomActiveExtraGap : 0,
-              color: item.active ? palette.text : palette.muted,
-              borderLeft: windowed ? "none" : `1px solid ${palette.border}`,
-              borderRight: windowed
-                ? "none"
-                : item === visibleItems[visibleItems.length - 1]
-                  ? `1px solid ${palette.border}`
-                  : "none",
-              borderBottom: windowed
-                ? "none"
-                : `4px solid ${item.active ? palette.blue : "transparent"}`,
+              color: item.active
+                ? windowed
+                  ? palette.text
+                  : palette.strong
+                : palette.muted,
+              borderLeft: "none",
+              borderRight: "none",
+              borderBottom: "none",
               background: item.active
                 ? windowed
                   ? palette.navDockActive
-                  : palette.navActive
-                : windowed
-                  ? "transparent"
-                  : palette.navInactive,
-              boxShadow:
-                item.active && !windowed ? palette.navActiveShadow : "none",
+                  : palette.navChapterActive
+                : "transparent",
+              boxShadow: "none",
               fontSize: windowed
                 ? item.active
                   ? navigationBottomActiveFontSize
                   : navigationBottomInactiveFontSize
                 : fontSize,
-              fontWeight: item.active ? 760 : 560,
+              fontWeight: item.active ? (windowed ? 760 : 700) : 560,
               letterSpacing: windowed ? ".005em" : ".02em",
               whiteSpace: "nowrap",
               lineHeight: 1,
@@ -828,34 +817,34 @@ const Navigation: FC<{
           >
             <span>{item.label}</span>
             {item.active && windowed ? (
-              <>
-                <span
-                  style={{
-                    flexShrink: 0,
-                    padding: "5px 9px",
-                    color: palette.blue,
-                    background: palette.canvas,
-                    border: `1px solid ${palette.border}`,
-                    borderRadius: 999,
-                    fontSize: 15,
-                    fontWeight: 760,
-                    letterSpacing: ".03em",
-                  }}
-                >
-                  {itemIndex + 1} / {items.length}
-                </span>
-                <span
-                  style={{
-                    position: "absolute",
-                    left: "18%",
-                    right: "18%",
-                    bottom: 0,
-                    height: 4,
-                    borderRadius: "4px 4px 0 0",
-                    background: palette.blue,
-                  }}
-                />
-              </>
+              <span
+                style={{
+                  flexShrink: 0,
+                  padding: "5px 9px",
+                  color: palette.blue,
+                  background: palette.canvas,
+                  border: `1px solid ${palette.border}`,
+                  borderRadius: 999,
+                  fontSize: 15,
+                  fontWeight: 760,
+                  letterSpacing: ".03em",
+                }}
+              >
+                {itemIndex + 1} / {items.length}
+              </span>
+            ) : null}
+            {item.active ? (
+              <span
+                style={{
+                  position: "absolute",
+                  left: windowed ? "18%" : "6%",
+                  right: windowed ? "18%" : "6%",
+                  bottom: windowed ? 0 : -1,
+                  height: windowed ? 4 : 3,
+                  borderRadius: windowed ? "4px 4px 0 0" : "3px 3px 0 0",
+                  background: palette.blue,
+                }}
+              />
             ) : null}
           </div>
         );
@@ -1382,6 +1371,7 @@ const SourceOverlay: FC<{
             display: "block",
             objectFit: "contain",
             borderRadius: imageLayout?.small ? 8 : 10,
+            translate: "0px -1.7px",
           }}
         />
       </div>
