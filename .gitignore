@@ -42,5 +42,7 @@ ingest/picks.json
 
 .superpowers
 .zcode/
+.pi/tasks
+
 # webhint local config (do not track)
 .hintrc

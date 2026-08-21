@@ -1,0 +1,7 @@
+{
+  "packages": [
+    "npm:@vigolium/piolium",
+    "npm:pi-subagents",
+    "npm:pi-background-tasks"
+  ]
+}
