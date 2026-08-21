@@ -18,13 +18,13 @@ skill as the orchestration layer; do not reimplement or bypass project validatio
    SVG generation.
 3. Never run `bun run generate-svg`, invoke `$generate-svg`, or use a command that calls it
    indirectly. Forbidden aggregate commands include `bun run video`, `bun run video:auto-generate`,
-   `bun run video:half-auto`, and `bun run all:bili`.
+   and `bun run video:half-auto`.
 4. Generate and edit every required SVG directly with Codex file-editing tools.
 5. Give every story at least one source-derived `overlayImg`; never substitute a decorative or
    AI-generated illustration for evidence.
 6. Default "generate video" to producing `out/AiDailyReport.mp4`. Stop earlier only when the user
    explicitly asks for data preparation, icons, TTS, or preview without rendering.
-7. Never publish or upload. Run Bilibili publishing commands only after a separate explicit request.
+7. Never publish or upload to any platform; publishing stays fully manual outside this skill.
 8. Write all audience-facing titles, tabs, and narration in a direct short-video news voice. Never
    mention the ingestion platform, the user-supplied input, or the generation process in report
    content. Do not emit phrases such as “贴文称”, “用户提供”, “据标题”, “来源提示”, or “以官方为准”.

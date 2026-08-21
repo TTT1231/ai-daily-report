@@ -29,7 +29,6 @@ ai-daily-report/
 │   ├── video-layout.schema.json         # video-layout.json 的字段说明、取值范围与编辑器提示
 │   ├── video-timeline.json              # 视频时间线常量（fps / story 间过渡帧），渲染侧与评论侧同源读取的单一事实源
 │   ├── video-timeline.schema.json       # video-timeline.json 的字段说明与校验
-│   └── bilibili.config.json             # B 站投稿固定配置：分区 tid / 自制 / 创作声明 / 封面帧 / 评论前等待
 ├── demo/                                # 演示素材、示例数据与可视化导览
 │   ├── data-scheme-sample-1/            # 完整示例，含 TTS 音频；bun run preview
 │   ├── data-scheme-sample-2/            # 无 TTS 示例；bun run preview:notts
@@ -52,14 +51,6 @@ ai-daily-report/
 │   ├── rss-pick/                        # RSS 快照人工补选工具链
 │   │   ├── build-rss-state-html.mjs     # Bun.serve 本地服务：渲染 rss-state.json 为挑选页，POST 写 picks.json
 │   │   └── template.html                # 挑选页固定模板（CSS/JS 内联，脚本只注入运行期数据）
-│   ├── publish/bili/                    # B 站发布工具链
-│   │   ├── generate-comment.mjs         # 从时间线数据生成 B 站风格跳转评论 → data-scheme/comments.txt
-│   │   ├── download-bili.mjs            # 下载/更新 biliup-rs（按需触发，保留登录态）
-│   │   ├── ensure-biliup.mjs            # bili 命令前按需补齐 biliup：缺 exe 下载、缺登录态扫码
-│   │   ├── biliup-prepare.mjs           # biliup:prepare 显式入口（换机器/重装后主动备齐工具）
-│   │   ├── bili-upload.mjs              # bili:upload（纯投稿）/ bili:full（投稿+评论+置顶）（调 biliup + bili-api）
-│   │   ├── bili-comment.mjs / bili-stick.mjs  # 单独 发评论 / 置顶
-│   │   └── bili-api.mjs                 # B 站 评论/置顶 web API（凭据从 biliup/cookies.json 读，不走 .env）
 │   └── lib/                             # 多个入口脚本共享的内部模块，不直接执行
 │       ├── paths.mjs                    # 集中路径定义与 JSON 读取（rootDir 锚定，与入口目录深度无关）
 │       ├── report-validation.mjs        # JSON Schema 与跨字段业务校验
@@ -72,10 +63,10 @@ ai-daily-report/
 │       ├── generate-svg-preflight.mjs   # generate-svg 前置检查
 │       ├── image-dims.mjs               # 按图片真实像素写入 overlayImgWidth/Height
 │       ├── video-meta.mjs               # 读取完整 stories，按 AI 日报场景生成视频标题+标签 → video-meta.json
+│       ├── generate-comment.mjs         # 从时间线数据生成 B 站风格跳转评论 → data-scheme/comments.txt
 │       ├── icon-validation.mjs          # 图标资源校验逻辑
 │       ├── asset-check.mjs              # 资源存在性校验
 │       ├── audio-quality.mjs            # 音频质量检查
-│       ├── biliup-readiness.mjs         # biliup 就绪判定纯函数（要不要下载/登录）
 │       ├── prune-assets.mjs             # 清理无用资源
 │       ├── process-tree.mjs             # 进程树管理
 │       ├── step-outcome.mjs             # 步骤结果抽象（统一成功/失败语义）
@@ -108,12 +99,11 @@ ai-daily-report/
 │   ├── text.go                          # 文本工具
 │   ├── types.go / jsonc.go              # 类型定义 / JSONC（带注释 JSON）解析
 │   └── *_test.go                        # 各模块测试（bun run rss:test 即 go -C ingest test ./...）
-├── biliup/                              # biliup-rs 工具 + 登录态 cookies.json（按需下载，已 gitignore）
 ├── daily-dates/                         # archive.mjs 按日期归档的历史日报数据包
 ├── .agents/skills/                      # 项目级 Skill 定义（generate-svg / remotion-best-practices 等）
 ├── .vscode/                             # 编辑器配置
 ├── remotion.config.ts                   # Remotion 配置（JPEG、publicDir、Tailwind）
-└── package.json                         # 脚本入口（rss / tts / generate-svg / video:auto-generate / bili:* 等）
+└── package.json                         # 脚本入口（rss / tts / generate-svg / video:auto-generate 等）
 ```
 
 ## 测试

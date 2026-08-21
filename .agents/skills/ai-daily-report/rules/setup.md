@@ -42,5 +42,3 @@ bun install
 - 固定示例：`demo/data-scheme-sample-1/2`
 - 当前正式数据预览：`bun run dev`
 - 固定示例预览：`bun run preview` / `bun run preview:notts`
-
-发布 B站 需要单独执行一次 `bun run biliup:prepare` 完成工具下载与扫码登录；登录态位于 `biliup/cookies.json`。
