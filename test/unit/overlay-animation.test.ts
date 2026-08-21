@@ -1,6 +1,9 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { getOverlayAnimation, getOverlayImageLayout } from "../../src/AiDailyReport";
+import {
+  getOverlayAnimation,
+  getOverlayImageLayout,
+} from "../../src/AiDailyReport";
 import type { DailyScene } from "../../src/daily-report-data";
 
 // 这些时长曾经让 interpolate() 抛出
@@ -32,21 +35,6 @@ for (const duration of CRASH_DURATIONS) {
           `${name} out of [0,1] at frame ${frame}: ${value}`,
         );
       }
-      assert.ok(
-        Number.isFinite(result.scale),
-        `scale not finite at frame ${frame}: ${result.scale}`,
-      );
-    }
-  });
-
-  test(`getOverlayAnimation stays in range on a ${duration}-frame scene followed by another scene`, () => {
-    const scene = overlayScene();
-    for (let frame = 0; frame < duration; frame++) {
-      const result = getOverlayAnimation(scene, frame, duration, true);
-      assert.ok(
-        result.opacity >= 0 && result.opacity <= 1,
-        `opacity out of [0,1] at frame ${frame}: ${result.opacity}`,
-      );
       assert.ok(
         Number.isFinite(result.scale),
         `scale not finite at frame ${frame}: ${result.scale}`,
@@ -140,24 +128,19 @@ test("getOverlayAnimation reveals, holds, then hides on a long scene", () => {
   );
 });
 
-test("getOverlayAnimation clears a source overlay early so tabs remain visible", () => {
+test("getOverlayAnimation follows a long subtitle instead of stopping at a fixed duration", () => {
   const scene = overlayScene();
   const duration = 240;
-  assert.equal(getOverlayAnimation(scene, 120, duration).opacity, 0);
-  assert.equal(getOverlayAnimation(scene, duration - 1, duration).opacity, 0);
-});
+  assert.equal(getOverlayAnimation(scene, 120, duration).opacity, 1);
+  assert.equal(getOverlayAnimation(scene, 208, duration).opacity, 1);
 
-test("getOverlayAnimation holds the overlay for the whole scene when another scene follows", () => {
-  const scene = overlayScene();
-  const duration = 240;
-  assert.equal(getOverlayAnimation(scene, 120, duration, true).opacity, 1);
-  assert.equal(getOverlayAnimation(scene, 180, duration, true).opacity, 1);
-  const nearEnd = getOverlayAnimation(scene, duration - 1, duration, true);
+  const fading = getOverlayAnimation(scene, 219, duration).opacity;
   assert.ok(
-    nearEnd.opacity < 1,
-    "overlay should be exiting by the last frame of the scene",
+    fading > 0 && fading < 1,
+    "overlay should fade during the final second",
   );
-  assert.equal(nearEnd.opacity, 0);
+  assert.equal(getOverlayAnimation(scene, 229, duration).opacity, 0);
+  assert.equal(getOverlayAnimation(scene, duration - 1, duration).opacity, 0);
 });
 
 test("getOverlayAnimation stays render-safe on medium-length scenes (43-66 frame band that previously crashed)", () => {

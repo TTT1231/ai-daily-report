@@ -71,6 +71,10 @@ const themes = {
     navInactive: "rgba(38,44,49,.54)",
     navActive:
       "linear-gradient(to top, rgba(91,58,49,.68), rgba(52,45,43,.72))",
+    navDockActive:
+      "linear-gradient(90deg, transparent 0%, rgba(189,116,92,.08) 14%, rgba(189,116,92,.18) 50%, rgba(189,116,92,.08) 86%, transparent 100%)",
+    navDockShadow:
+      "0 -10px 26px rgba(0,0,0,.18), inset 0 1px 0 rgba(255,255,255,.02)",
     border: "rgba(183,179,170,.18)",
     navActiveShadow:
       "inset 0 0 0 1px rgba(189,116,92,.42), inset 0 0 20px rgba(189,116,92,.07)",
@@ -124,6 +128,10 @@ const themes = {
     navInactive: "rgba(241,241,237,.68)",
     navActive:
       "linear-gradient(to top, rgba(242,222,214,.96), rgba(253,248,244,.94))",
+    navDockActive:
+      "linear-gradient(90deg, transparent 0%, rgba(184,95,73,.04) 14%, rgba(184,95,73,.13) 50%, rgba(184,95,73,.04) 86%, transparent 100%)",
+    navDockShadow:
+      "0 -10px 28px rgba(42,50,56,.06), inset 0 1px 0 rgba(255,255,255,.66)",
     border: "rgba(91,103,113,.19)",
     navActiveShadow:
       "inset 0 0 0 1px rgba(184,95,73,.34), inset 0 0 20px rgba(184,95,73,.06)",
@@ -175,7 +183,6 @@ const IMAGE_TRANSITION_FRAMES = 16;
 const IMAGE_EXIT_TRANSITION_FRAMES = 20;
 const IMAGE_PRE_ROLL_FRAMES = 12;
 const IMAGE_POST_ROLL_FRAMES = 10;
-const IMAGE_MAX_VISIBLE_FRAMES = 96;
 const IMAGE_FOCUS_SCALE = 1; // 证据图不推近：用户反馈截图卡片放大观感差，入场仅 95%→100% 落定
 const IMAGE_FOCUS_ZOOM_END = 0.42;
 const IMAGE_FOCUS_RETURN_START = 0.72;
@@ -428,19 +435,15 @@ export const getOverlayAnimation = (
   scene: DailyScene,
   sceneFrame: number,
   sceneDuration: number,
-  hasFollowingScene = false,
 ): OverlayAnimation => {
   if (!scene.overlayImg) {
     return { reveal: 0, hide: 0, opacity: 0, scale: 1 };
   }
 
-  // 单场景 story 里 overlay 与 tabs 抢同一块屏幕，必须提前退场给 tabs 让位；
-  // 当 story 还有下一段场景时，tabs 在下一场必然全程可见，overlay 可以占满整场，
-  // 退场恰好落在场景边界，与字幕切换形成同一个节拍，而不是口播中途凭空消失。
-  const visibleDuration = hasFollowingScene
-    ? sceneDuration
-    : Math.min(sceneDuration, IMAGE_MAX_VISIBLE_FRAMES);
-  const lastSceneFrame = Math.max(1, visibleDuration - 1);
+  // Overlay 必须跟随当前 subtitle/scene 的完整时长，不能用固定帧数截断长旁白。
+  // 末尾 20 帧淡出 + 10 帧留白：在 30fps 下约提前 1 秒开始退场，
+  // 并在字幕结束前约 0.3 秒完全消失，让 tabs 自然重新显露。
+  const lastSceneFrame = Math.max(1, sceneDuration - 1);
   const revealStart = Math.min(
     IMAGE_PRE_ROLL_FRAMES,
     Math.max(
@@ -468,7 +471,7 @@ export const getOverlayAnimation = (
     sceneFrame,
     revealStart,
     revealEnd,
-    visibleDuration,
+    sceneDuration,
   );
 
   return { reveal, hide, opacity: reveal * hide, scale };
@@ -769,7 +772,8 @@ const Navigation: FC<{
         boxSizing: "border-box",
         background: palette.nav,
         borderTop: `1px solid ${palette.border}`,
-        borderBottom: `1px solid ${palette.border}`,
+        borderBottom: windowed ? "none" : `1px solid ${palette.border}`,
+        boxShadow: windowed ? palette.navDockShadow : "none",
       }}
     >
       {visibleItems.map((item) => {
@@ -785,28 +789,35 @@ const Navigation: FC<{
               flexShrink: 0,
               flexBasis: minimumWidth,
               minWidth: minimumWidth,
+              position: "relative",
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
-              gap:
-                item.active && windowed
-                  ? navigationBottomActiveExtraGap
-                  : 0,
+              gap: item.active && windowed ? navigationBottomActiveExtraGap : 0,
               color: item.active ? palette.text : palette.muted,
-              borderLeft: `1px solid ${palette.border}`,
-              borderRight:
-                item === visibleItems[visibleItems.length - 1]
+              borderLeft: windowed ? "none" : `1px solid ${palette.border}`,
+              borderRight: windowed
+                ? "none"
+                : item === visibleItems[visibleItems.length - 1]
                   ? `1px solid ${palette.border}`
                   : "none",
-              borderBottom: `4px solid ${item.active ? palette.blue : "transparent"}`,
-              background: item.active ? palette.navActive : palette.navInactive,
-              boxShadow: item.active ? palette.navActiveShadow : "none",
-              fontSize:
-                windowed
-                  ? item.active
-                    ? navigationBottomActiveFontSize
-                    : navigationBottomInactiveFontSize
-                  : fontSize,
+              borderBottom: windowed
+                ? "none"
+                : `4px solid ${item.active ? palette.blue : "transparent"}`,
+              background: item.active
+                ? windowed
+                  ? palette.navDockActive
+                  : palette.navActive
+                : windowed
+                  ? "transparent"
+                  : palette.navInactive,
+              boxShadow:
+                item.active && !windowed ? palette.navActiveShadow : "none",
+              fontSize: windowed
+                ? item.active
+                  ? navigationBottomActiveFontSize
+                  : navigationBottomInactiveFontSize
+                : fontSize,
               fontWeight: item.active ? 760 : 560,
               letterSpacing: windowed ? ".005em" : ".02em",
               whiteSpace: "nowrap",
@@ -817,21 +828,34 @@ const Navigation: FC<{
           >
             <span>{item.label}</span>
             {item.active && windowed ? (
-              <span
-                style={{
-                  flexShrink: 0,
-                  padding: "5px 9px",
-                  color: palette.blue,
-                  background: palette.canvas,
-                  border: `1px solid ${palette.border}`,
-                  borderRadius: 999,
-                  fontSize: 15,
-                  fontWeight: 760,
-                  letterSpacing: ".03em",
-                }}
-              >
-                {itemIndex + 1} / {items.length}
-              </span>
+              <>
+                <span
+                  style={{
+                    flexShrink: 0,
+                    padding: "5px 9px",
+                    color: palette.blue,
+                    background: palette.canvas,
+                    border: `1px solid ${palette.border}`,
+                    borderRadius: 999,
+                    fontSize: 15,
+                    fontWeight: 760,
+                    letterSpacing: ".03em",
+                  }}
+                >
+                  {itemIndex + 1} / {items.length}
+                </span>
+                <span
+                  style={{
+                    position: "absolute",
+                    left: "18%",
+                    right: "18%",
+                    bottom: 0,
+                    height: 4,
+                    borderRadius: "4px 4px 0 0",
+                    background: palette.blue,
+                  }}
+                />
+              </>
             ) : null}
           </div>
         );
@@ -1499,14 +1523,10 @@ const AiDailyReportContent: FC<AiDailyReportContentProps> = ({
     extrapolateRight: "clamp",
   });
   const subtitleCue = getSubtitleCue(scene, sceneFrame, sceneDuration);
-  const sceneIndexInStory = story.scenes.indexOf(scene);
-  const hasFollowingScene =
-    sceneIndexInStory !== -1 && sceneIndexInStory < story.scenes.length - 1;
   const overlayAnimation = getOverlayAnimation(
     scene,
     sceneFrame,
     sceneDuration,
-    hasFollowingScene,
   );
   const overlayVisibility = overlayAnimation.opacity;
   const storyVisibility = storyPause * storyExit;
