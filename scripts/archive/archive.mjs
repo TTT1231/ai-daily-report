@@ -12,7 +12,7 @@ const dryRun = process.argv.slice(2).includes("--dry-run");
 // Windows 下「重命名含打开文件的目录」会被内核拒（EPERM/EACCES/EBUSY）——
 // 任何常驻进程（编辑器文件监视、Remotion Studio、Defender 实时扫描）持有目录内某文件句柄即触发。
 // rename 失败时退到 cpSync(recursive) + rmSync(force)：Node 以 FILE_SHARE_WRITE|FILE_SHARE_DELETE
-// 打开文件，持句柄仍可复制/解链。与 scripts/publish/bili/download-bili.mjs 同一兜底形态。
+// 打开文件，持句柄仍可复制/解链。
 function moveDir(src, dst) {
   try {
     renameSync(src, dst);

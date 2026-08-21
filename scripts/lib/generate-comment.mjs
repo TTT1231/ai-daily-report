@@ -15,9 +15,9 @@
 import { writeFileSync } from "node:fs";
 import { execFileSync } from "node:child_process";
 import { resolve } from "node:path";
-import {collectTimelineScenes} from "../../lib/report-builder.mjs";
-import { dataDir, generatedDataPath, readJson } from "../../lib/paths.mjs";
-import { validateReport } from "../../lib/report-validation.mjs";
+import {collectTimelineScenes} from "./report-builder.mjs";
+import { dataDir, generatedDataPath, readJson } from "./paths.mjs";
+import { validateReport } from "./report-validation.mjs";
 
 // ── 路径 ──────────────────────────────────────────────
 const OUTPUT_PATH = resolve(dataDir, "comments.txt");

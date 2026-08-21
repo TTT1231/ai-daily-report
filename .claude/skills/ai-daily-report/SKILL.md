@@ -1,6 +1,6 @@
 ---
 name: ai-daily-report
-description: "Operate and troubleshoot the ai-daily-report project end to end: setup, automatic or half-automatic RSS workflows, data.json editing and validation, duplicate-ID and stale-generated-data fixes, TTS, images, SVG tab icons, preview, render, video metadata/comments, and Bilibili publishing. Use for any request about running, fixing, editing, rendering, or publishing this project."
+description: "Operate and troubleshoot the ai-daily-report project end to end: setup, automatic or half-automatic RSS workflows, data.json editing and validation, duplicate-ID and stale-generated-data fixes, TTS, images, SVG tab icons, preview, render, and video metadata/comments. Use for any request about running, fixing, editing, or rendering this project."
 ---
 
 # AI Daily Report
@@ -14,7 +14,7 @@ description: "Operate and troubleshoot the ai-daily-report project end to end: s
 3. 用户要求修复或修改时直接检查并执行，不要先复述整套教程。
 4. 先跑最窄、最快且无外部副作用的命令。结构错误不要先跑 RSS、TTS、SVG、渲染或浏览器。
 5. 修改 `data.json` 后先跑 `bun run check-data-json`；只有 Raw 通过后才重建需要的派生产物。
-6. 调用付费 API、覆盖/归档当前一期或真实发布到 B站前，说明副作用；普通本地校验无需确认。
+6. 调用付费 API 或覆盖/归档当前一期前，说明副作用；普通本地校验无需确认。
 
 ## 快速路由
 
@@ -29,7 +29,7 @@ description: "Operate and troubleshoot the ai-daily-report project end to end: s
 | 配图或修改图片显示 | 修改 scene 的 `overlayImg` | [`rules/images.md`](./rules/images.md) |
 | 更换 TTS 模型或供应商 | 先区分 MiniMax 配置与新供应商代码改造 | [`rules/tts-customize.md`](./rules/tts-customize.md) |
 | 导出 mp4 | `bun run video:render` | [`rules/render-export.md`](./rules/render-export.md) |
-| 生成标题/标签/评论或发布 B站 | `bun run video:meta` 或发布命令 | [`rules/publish-bili.md`](./rules/publish-bili.md) |
+| 生成标题/标签/评论 | `bun run video:meta` | 本文件“生产主线” |
 
 ## 生产主线
 
@@ -87,7 +87,6 @@ bun run generate-svg
 - `icons/`：由 `bun run generate-svg` 管理。
 - 每张新闻 Tab 必须且只能有一段粗体；英文模型、产品、API、错误码、版本专名使用行内代码，可有多段。
 - `video:meta` 读取完整 `stories` 后生成标题/标签，并同时生成时间轴评论。
-- `bili:full`、`publish:bili`、`all:bili` 会触发真实外部发布；执行前必须让用户明确知道。
 
 ## 规则索引
 
@@ -99,6 +98,5 @@ bun run generate-svg
 - 图片：[`rules/images.md`](./rules/images.md)
 - TTS：[`rules/tts-customize.md`](./rules/tts-customize.md)
 - 渲染：[`rules/render-export.md`](./rules/render-export.md)
-- B站发布：[`rules/publish-bili.md`](./rules/publish-bili.md)
 
 Tab 图标内容设计由 `generate-svg` skill 负责；Remotion 组件改造由 `remotion-best-practices` skill 负责。
