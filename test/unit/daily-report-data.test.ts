@@ -153,7 +153,7 @@ test("dailyIntroSchema allows an aggregated overview longer than a news card", (
   assert.doesNotThrow(() => dailyIntroSchema.parse(intro));
 });
 
-test("dailyStorySchema limits Story narration to at most two scenes", () => {
+test("dailyStorySchema limits Story narration to at most four scenes", () => {
   const base = {
     id: "story-1",
     topTitle: "栏目",
@@ -162,7 +162,15 @@ test("dailyStorySchema limits Story narration to at most two scenes", () => {
     tabs: [validTab({ id: "tab-1" }), validTab({ id: "tab-2" })],
   };
   assert.doesNotThrow(() =>
-    dailyStorySchema.parse({ ...base, scenes: [validScene()] }),
+    dailyStorySchema.parse({
+      ...base,
+      scenes: [
+        validScene({ id: "scene-1" }),
+        validScene({ id: "scene-2" }),
+        validScene({ id: "scene-3" }),
+        validScene({ id: "scene-4" }),
+      ],
+    }),
   );
   assert.throws(() =>
     dailyStorySchema.parse({
@@ -171,6 +179,8 @@ test("dailyStorySchema limits Story narration to at most two scenes", () => {
         validScene({ id: "scene-1" }),
         validScene({ id: "scene-2" }),
         validScene({ id: "scene-3" }),
+        validScene({ id: "scene-4" }),
+        validScene({ id: "scene-5" }),
       ],
     }),
   );

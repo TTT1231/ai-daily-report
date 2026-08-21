@@ -112,7 +112,7 @@ func generateStoryTabs(ai AIConfig, groups []NewsGroup, items []Item, pickedGrou
 
 func storyTabsContentReady(group NewsGroup) bool {
 	return len(group.Tabs) >= minStoryTabs &&
-		len(group.Scenes) >= 1 && len(group.Scenes) <= 2 &&
+		len(group.Scenes) >= 1 && len(group.Scenes) <= maxStoryScenes &&
 		resolvedContentTitle(group) != "" &&
 		(!group.NavigationTitleRequired || resolvedNavigationTitle(group) != "")
 }
@@ -184,7 +184,7 @@ func batchPositionByIndex(batch []storyTabMaterial, groupIndex int) int {
 func buildStoryTabsPrompt(batch []storyTabMaterial) string {
 	return fmt.Sprintf(`请为以下 %d 个 Story 分别生成 %d 至 %d 个适合短视频展示的 Tabs。
 每个 summary 至少 %d 个汉字，目标长度 25 至 80 个可见字符，纯文本硬性上限 %d 个可见字符；Markdown 加权后的视觉占用也不得超过同一上限。每张卡必须恰当使用一段且最多一段粗体突出核心变化、机制、影响或结论；出现多个英文产品/API/错误码/版本时，可用多段行内代码分别标出实际出现且有辨识价值的专名，不要重复标记或装饰普通英文单词。先提炼值得展示的独立事实，再决定 Tabs 数量；一张卡写不完时增加 Tab，禁止硬截句子、复制正文或按原文段落数机械补满 6 张。第一张 Tab 必须直接解释标题里的核心事件，背景信息放后面。
-另外为每个 Story 生成 1 至 2 个 scenes：普通新闻只用 1 个；只有两个独立核心事件才用 2 个。Scene 是整条新闻的简短口播，不对应单张 Tab、不得逐卡朗读。
+另外为每个 Story 生成 1 至 %d 个 scenes：普通新闻只用 1 个；两个独立核心事件才用 2 个；只有来源证据链确实需要更多独立证据口播段时才用 3 至 %d 个，不按图片数量机械配额。Scene 是整条新闻的简短口播，不对应单张 Tab、不得逐卡朗读。
 遇到多个很长的模型名、API 名或版本号时，不要逐项穷举清单；优先概括系列名、覆盖范围、数量、参数区间和 1 至 2 个代表例，避免行内代码标签堆满卡片。
 
 严格返回以下 JSON，不要返回其他内容：
@@ -213,7 +213,7 @@ func buildStoryTabsPrompt(batch []storyTabMaterial) string {
 Story 材料：
 %s
 
-group_index 必须照抄材料中的 Story 序号，不得使用当前批次内的相对序号。`, len(batch), minStoryTabs, maxStoryTabs, minTabSummaryRunes, maxTabSummaryVisibleRunes, joinMaterialBodies(batch))
+group_index 必须照抄材料中的 Story 序号，不得使用当前批次内的相对序号。`, len(batch), minStoryTabs, maxStoryTabs, minTabSummaryRunes, maxTabSummaryVisibleRunes, maxStoryScenes, maxStoryScenes, joinMaterialBodies(batch))
 }
 
 // joinMaterialBodies 把批次内各 Story 材料正文用空行拼接。
@@ -255,7 +255,7 @@ func applyStoryTabsResults(groups []NewsGroup, batch []storyTabMaterial, results
 		resolvedTitle := resolvedContentTitle(*group)
 		resolvedNavigation := resolvedNavigationTitle(*group)
 		tabsReady := len(group.Tabs) >= minStoryTabs
-		scenesReady := len(group.Scenes) >= 1 && len(group.Scenes) <= 2
+		scenesReady := len(group.Scenes) >= 1 && len(group.Scenes) <= maxStoryScenes
 		navigationReady := !group.NavigationTitleRequired || resolvedNavigation != ""
 		if tabsReady && scenesReady && resolvedTitle != "" && navigationReady {
 			continue

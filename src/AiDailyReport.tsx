@@ -177,10 +177,12 @@ const IMAGE_TRANSITION_FRAMES = 16;
 const IMAGE_EXIT_TRANSITION_FRAMES = 20;
 const IMAGE_PRE_ROLL_FRAMES = 12;
 const IMAGE_POST_ROLL_FRAMES = 10;
-const IMAGE_FOCUS_SCALE = 1; // 证据图不推近：用户反馈截图卡片放大观感差，入场仅 95%→100% 落定
-const IMAGE_FOCUS_ZOOM_END = 0.42;
-const IMAGE_FOCUS_RETURN_START = 0.72;
-const IMAGE_FOCUS_RETURN_END = 0.9;
+// 放大镜式温和推近：reveal 后固定 IMAGE_ZOOM_IN_FRAMES 帧推到 1.12，帮助观众
+// 读清证据图里的小字；完全不推（1.0）会让长旁白下图片全程静止、失去阅读引导。
+// 早期版本被反馈"截图卡片放大观感差"后整体禁用，这里恢复的是温和幅度 + 固定
+// 短窗，不是当年的大幅整体放大。
+const IMAGE_FOCUS_SCALE = 1.12;
+const IMAGE_ZOOM_IN_FRAMES = 60; // 推近窗口约 2 秒（30fps），固定时长、不随旁白长度拉伸
 const OVERLAY_MAX_WIDTH = 1640;
 const OVERLAY_MAX_HEIGHT = 760;
 const OVERLAY_MAX_UPSCALE = 2.25;
@@ -378,35 +380,28 @@ const interpolateRange = (
   return interpolate(frame, [start, end], [from, to], options);
 };
 
-// Overlay zoom keyframes. On short scenes the full "zoom in then settle back"
-// arc no longer fits between the reveal and the scene end, which would hand
-// interpolate() a non-monotonic range and crash the render. Whenever there is
-// room for a peak between revealEnd and returnStart we keep the zoom, clamping
-// the peak into the valid window so the 5-point range stays strictly
-// increasing; only when even that doesn't fit do we degrade to a plain reveal.
+// Overlay zoom keyframes. 推近是固定短窗（revealEnd → zoomEnd），回落绑定退场
+// 窗口（returnStart=hideStart → returnEnd=hideEnd）。早先按 sceneDuration 比例
+// 拉伸的窗口在长旁白下会把动效摊得几乎不可见。interpolate() 要求关键帧严格
+// 递增：放不下完整"推近→保持→回落"弧线时压缩推近窗口，仍放不下就退化为
+// 仅入场 95%→100%，绝不让 range 塌缩搞崩渲染。
 const getOverlayScale = (
   frame: number,
   revealStart: number,
   revealEnd: number,
-  sceneDuration: number,
+  zoomEnd: number,
+  returnStart: number,
+  returnEnd: number,
 ) => {
-  const lastSceneFrame = Math.max(1, sceneDuration - 1);
-  const zoomEnd = sceneDuration * IMAGE_FOCUS_ZOOM_END;
-  const returnStart = sceneDuration * IMAGE_FOCUS_RETURN_START;
-  const returnEnd = sceneDuration * IMAGE_FOCUS_RETURN_END;
-  const fullZoomFits =
+  if (
     revealStart < revealEnd &&
-    revealEnd + 1 < returnStart &&
-    returnStart < returnEnd &&
-    returnEnd <= lastSceneFrame;
-  if (fullZoomFits) {
-    // Clamp the peak so it always sits strictly between revealEnd and
-    // returnStart — never collapses the range, no matter where 0.42*duration
-    // lands relative to the reveal window.
-    const peak = Math.min(Math.max(zoomEnd, revealEnd + 1), returnStart - 1);
+    revealEnd < zoomEnd &&
+    zoomEnd < returnStart &&
+    returnStart < returnEnd
+  ) {
     return interpolate(
       frame,
-      [revealStart, revealEnd, peak, returnStart, returnEnd],
+      [revealStart, revealEnd, zoomEnd, returnStart, returnEnd],
       [0.95, 1, IMAGE_FOCUS_SCALE, IMAGE_FOCUS_SCALE, 1],
       {
         easing: Easing.inOut(Easing.cubic),
@@ -461,11 +456,18 @@ export const getOverlayAnimation = (
     extrapolateLeft: "clamp",
     extrapolateRight: "clamp",
   });
+  // 推近窗口固定 ~2s，放不下时压缩到退场前；回落与淡出同步开始、同步结束。
+  const zoomEnd = Math.min(
+    revealEnd + IMAGE_ZOOM_IN_FRAMES,
+    Math.max(revealEnd + 1, hideStart - 1),
+  );
   const scale = getOverlayScale(
     sceneFrame,
     revealStart,
     revealEnd,
-    sceneDuration,
+    zoomEnd,
+    hideStart,
+    hideEnd,
   );
 
   return { reveal, hide, opacity: reveal * hide, scale };

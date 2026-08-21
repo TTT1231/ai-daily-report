@@ -89,7 +89,7 @@ type NewsGroup struct {
 	SourceIndexes           []int           `json:"source_indexes"`             // 归入本 Story 的全部候选序号（含重复来源）。
 	Highlights              []NewsHighlight `json:"highlights"`                 // 互不重复的关键要点。
 	Tabs                    []StoryTab      `json:"tabs,omitempty"`             // 后续编排出的视频 Tabs。
-	Scenes                  []StoryScene    `json:"scenes,omitempty"`           // Story 级精简口播；与 Tabs 解耦，通常 1 条、最多 2 条。
+	Scenes                  []StoryScene    `json:"scenes,omitempty"`           // Story 级精简口播；与 Tabs 解耦，通常 1 条、最多 maxStoryScenes 条。
 	ImageAssets             []StoryImage    `json:"-"`                          // 已确认相关并可作为画面 overlay 的本地图片素材。
 	NavigationTitleRequired bool            `json:"-"`                          // Story Tabs 模型返回过 navigation_title 后启用严格短标签质量闸。
 }

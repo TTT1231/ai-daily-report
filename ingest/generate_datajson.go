@@ -89,8 +89,8 @@ func generateDataJSON(path string, groups []NewsGroup, items []Item) error {
 		if len(group.Tabs) < minStoryTabs {
 			return fmt.Errorf("Story %q 只有 %d 个 Tabs，至少需要 %d 个", group.Title, len(group.Tabs), minStoryTabs)
 		}
-		if len(group.Scenes) < 1 || len(group.Scenes) > 2 {
-			return fmt.Errorf("Story %q 有 %d 个 Scenes，必须是 1 至 2 个 Story 级精简口播", group.Title, len(group.Scenes))
+		if len(group.Scenes) < 1 || len(group.Scenes) > maxStoryScenes {
+			return fmt.Errorf("Story %q 有 %d 个 Scenes，必须是 1 至 %d 个 Story 级精简口播", group.Title, len(group.Scenes), maxStoryScenes)
 		}
 		contentTitle := resolvedContentTitle(group)
 		if contentTitle == "" {

@@ -76,7 +76,7 @@ RSS 补选模式必须尽量保持和 `bun run video:auto-generate` 一致的环
 
 > agent 工具（WebFetch / Fetch）不会自动读项目 `.env`，所以补选抓取一律用本地 `curl` 显式带代理；不要用 WebFetch（它既不走代理、也过不了 CF）。
 
-> **输入不完整时**：只要拿到 `link` 就按上面规则抓（定位不到来源就走步骤 3 的「直连优先 + 代理兜底」，**不做复杂的格式归一化或 rss-state 反查**）；完全没 `link`（只有标题/描述）才抓不了，直接问用户要 link，不要凭标题硬编正文。
+> **输入不完整时**：只要拿到 `link` 就按上面规则抓（先按下方「工作方式」反查 `rss-state.json`，定位不到来源就走步骤 3 的「直连优先 + 代理兜底」，不做多余的格式归一化）；完全没 `link`（只有标题/描述）才抓不了，直接问用户要 link，不要凭标题硬编正文。
 
 #### 示例：linux.do（`proxy:true`、Discourse + Cloudflare）
 
@@ -123,8 +123,8 @@ linux.do 是 Discourse，整站（**含 `.rss` 端点**）都在 Cloudflare 后�
 
 执行时：
 
-1. 解析用户粘贴的多条 RSS state 记录，提取 `hash`、`sourceId`、`title`、`link`；用 `sourceId`（或 link 域名）查 `ingest/sources.jsonc` 里对应来源的 `proxy`——查得到按配置走、查不到按「直连优先 + 代理兜底」探测（详见上方「抓取规则」）。
-2. 读取 `ingest/rss-state.json`，确认这些 hash 或 link 确实存在；不存在时用用户粘贴的 title/link 继续，但要说明无法从 state 反查更多上下文。
+1. 解析用户粘贴的多条 RSS state 记录，提取 `hash`、`sourceId`、`title`、`link`；先按 `hash` 查 `ingest/rss-state.json`，未命中再按规范化 `link`（去参数、比 topic id）查；用 `sourceId`（或 link 域名）查 `ingest/sources.jsonc` 里对应来源的 `proxy`——查得到按配置走、查不到按「直连优先 + 代理兜底」探测（详见上方「抓取规则」）。
+2. state 命中的条目优先直接使用其 `description`（cooked HTML，通常已含正文、CDN 原图链接和外部原文链接），从 `description` 提取图片候选，不再进帖子页面或重抓 topic `.rss`；state 确实过期/缺失的条目用用户粘贴的 title/link 继续，但要说明无法从 state 反查更多上下文。
 3. 读取当前 `data-scheme/data.json`，检查是否已经包含相同 `link`、相同 topic id 或相似标题，避免重复追加。
 4. 对每条补选新闻生成一个 `DailyStory`：
    - `id`：优先用 Linux.do topic id，例如 `topic-2463889`；否则用标题 slug。
@@ -132,7 +132,7 @@ linux.do 是 Discourse，整站（**含 `.rss` 端点**）都在 Cloudflare 后�
    - `bottomTitle`：短标签，尽量 2-6 个汉字或短英文。
    - `contentTitle`：保留新闻核心，不超过 schema 限制。
    - `tabs`：目标 2-4 个，避免硬凑；每个 tab 使用具体标题和摘要。人工 pick 只覆盖“是否值得选”，不会降低事实证据门槛：若来源只有一句话、无法支撑至少 2 个互不重复的事实角度，两轮定向重写后仍应跳过该 Story，绝不能凭常识编出第二张卡。
-   - `scenes`：1-2 个，每个 subtitle 是完整口播句，避免标题党和未经证实扩写。
+   - `scenes`：1-4 个，普通新闻 1 个、独立核心事件或独立证据段才增加；带证据图的条目最后一个 scene 应不带 `overlayImg`，给观众一段无遮挡读 Tabs 的时间；每个 subtitle 是完整口播句，避免标题党和未经证实扩写。
 5. 如果 link 是 Linux.do topic，应主动读取原帖或 RSS 中可见内容来补充事实；只引用可见事实，不编造。
 6. 按上面的“环境变量一致性”处理补选条目的图片与 `overlayImg`。
 7. 把生成的 Story 追加到 `data-scheme/data.json` 的 `stories` 末尾，保持已有自动生成内容不被重写。
@@ -157,7 +157,7 @@ bun run check-data-json:render
 - 不要手写 `audioSrc`、`timing`、`tts`、`icon` 字段。
 - 不要把视觉识图和配图丢给用户手动做；它必须受 `CLAUDE_VISION_ENABLED` 控制，并由 agent 在补选流程里处理。
 - 如果用户贴了明显非 AI 或社会新闻，也按用户选择追加；但文案要诚实表达其与 AI 日报的关系，不强行包装成 AI 行业大事件。
-- 如果补选数量很多，优先保持每条 2 个 tab、1-2 个 scene，避免视频过长。
+- 如果补选数量很多，优先保持每条 2 个 tab、1-2 个 scene，避免视频过长；证据确实充分的条目可按 schema 上限放宽到 4 个 scene。
 - 人工 pick 被质量闸剔除是允许且预期的结果：重要性不能替代事实材料；宁可少一条，也不要把一句话扩写成没有依据的完整新闻。
 
 ## 输出给用户

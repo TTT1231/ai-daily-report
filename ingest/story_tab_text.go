@@ -182,7 +182,8 @@ func hasTruncationArtifact(value string) bool {
 }
 
 // normalizeStoryScenesWithReasons 校验 Story 级口播。Scene 总结整条新闻，与 Tab
-// 数量无关；普通 Story 一条即可，最多两条，避免把信息卡逐张念给观众。
+// 数量无关；普通 Story 一条即可，证据充分需要更多口播段时最多 maxStoryScenes 条，
+// 避免把信息卡逐张念给观众。
 func normalizeStoryScenesWithReasons(group NewsGroup, scenes []StoryScene) ([]StoryScene, []string) {
 	validEvidence := make(map[int]bool, len(group.SourceIndexes))
 	for _, index := range group.SourceIndexes {
@@ -190,7 +191,7 @@ func normalizeStoryScenesWithReasons(group NewsGroup, scenes []StoryScene) ([]St
 	}
 
 	seen := make(map[string]bool)
-	result := make([]StoryScene, 0, 2)
+	result := make([]StoryScene, 0, maxStoryScenes)
 	var rejected []string
 	for _, scene := range scenes {
 		subtitle := normalizeSceneSubtitle(scene.Subtitle)
@@ -221,7 +222,7 @@ func normalizeStoryScenesWithReasons(group NewsGroup, scenes []StoryScene) ([]St
 		}
 		seen[key] = true
 		result = append(result, StoryScene{Subtitle: subtitle, EvidenceIndexes: evidence})
-		if len(result) == 2 {
+		if len(result) >= maxStoryScenes {
 			break
 		}
 	}

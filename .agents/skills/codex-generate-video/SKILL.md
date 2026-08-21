@@ -5,180 +5,72 @@ description: "Orchestrate the ai-daily-report project from mixed user inputs int
 
 # Codex Generate Video
 
-Use `$ai-daily-report` as the base project workflow, then apply the overrides in this skill. Keep this
-skill as the orchestration layer; do not reimplement or bypass project validation.
+Thin wrapper over the real production layer. All sourcing, content-density, evidence, and
+keyword rules live in `$ai-daily-report`; this skill only adds three things:
+
+1. Route the mixed invocation inputs into the real layer's supplied-source workflow.
+2. Author SVG tab icons directly with Codex file-editing tools instead of running
+   `bun run generate-svg`.
+3. Run the real layer's existing validation and MP4 rendering, then report.
+
+Why this skill exists: the fully-automatic and native half-auto paths run under a
+text-only model, where `bun run generate-svg` is slow and image understanding has to go
+through MCP vision tooling, which is slower still. Codex is multimodal — it reads evidence
+images and writes SVGs directly, so this path exists to keep that speed advantage. Keep
+the wrapper thin; never let content-production rules grow back into it, and never route
+SVG generation or image understanding back through the text-model commands.
+
+Do not reimplement or bypass project validation, and do not grow content-production rules
+back into this skill.
 
 ## Hard rules
 
 1. Activate `$ai-daily-report` first and follow its production and safety rules. Read its
-   `rules/manual-mode.md` for supplied-source data and `rules/images.md` for evidence overlays; this
-   orchestration requires both manual content and images rather than RSS ingest.
-2. Treat this skill as authoritative when it conflicts with `$ai-daily-report` only for source-to-story
-   mapping, tab density, evidence-overlay coverage, the exact Chinese keyword replacement rule, and
-   SVG generation.
-3. Never run `bun run generate-svg`, invoke `$generate-svg`, or use a command that calls it
-   indirectly. Forbidden aggregate commands include `bun run video`, `bun run video:auto-generate`,
-   and `bun run video:half-auto`.
-4. Generate and edit every required SVG directly with Codex file-editing tools.
-5. Give every story at least one source-derived `overlayImg`; never substitute a decorative or
-   AI-generated illustration for evidence.
-6. Default "generate video" to producing `out/AiDailyReport.mp4`. Stop earlier only when the user
-   explicitly asks for data preparation, icons, TTS, or preview without rendering.
-7. Never publish or upload to any platform; publishing stays fully manual outside this skill.
-8. Write all audience-facing titles, tabs, and narration in a direct short-video news voice. Never
-   mention the ingestion platform, the user-supplied input, or the generation process in report
-   content. Do not emit phrases such as “贴文称”, “用户提供”, “据标题”, “来源提示”, or “以官方为准”.
+   `rules/supplied-source-mode.md` in full — it owns input routing (RSS state first),
+   source-quality and link-chasing decisions, screenshot/evidence rules, single-image
+   inputs, story/tab scaling, and the keyword-replacement floor. Also read
+   `rules/images.md` for overlay display rules. When anything here seems to conflict with
+   those files, they win; only the direct-SVG exception below is unique to this skill.
+2. Never run `bun run generate-svg`, invoke `$generate-svg`, or use a command that calls it
+   indirectly. Forbidden aggregate commands include `bun run video`,
+   `bun run video:auto-generate`, and `bun run video:half-auto` — besides SVG they would
+   re-ingest and overwrite `data.json`.
+3. Generate and edit every required SVG directly with Codex file-editing tools.
+4. Follow the real layer's evidence floor: every story carries at least one source-derived
+   `overlayImg`; a source that cannot be retrieved or faithfully represented is reported
+   as blocked, never silently rendered evidence-free.
+5. Default "generate video" to producing `out/AiDailyReport.mp4`. Stop earlier only when
+   the user explicitly asks for data preparation, icons, TTS, or preview without rendering.
+6. Never publish or upload to any platform; publishing stays fully manual outside this skill.
 
-## Map inputs to stories
-
-Parse everything after the invocation as ordered source units:
-
-- Treat each top-level JSON object as one source unit. Treat every object in a top-level array as its
-  own source unit unless the user describes the array as one object.
-- Treat each standalone URL as one source unit. Fetch and read the actual page; do not rely only on a
-  search snippet. Use an authenticated browser session when the page requires it and one is available.
-- Treat each complete HTML document or clearly separated HTML block as one source unit. Extract its
-  visible text, headings, metadata, links, and useful image candidates.
-- Treat each local file, attachment, or clearly separated pasted-text block as one source unit.
-- Keep a source unit atomic even when it contains several subtopics. Explain those subtopics through
-  tabs or scenes inside the same story.
-- Create exactly one story per source unit and preserve input order. Do not automatically cluster,
-  deduplicate, or merge similar units.
-- Merge or split units only when the user explicitly requests it. For example, "网站 1 和网站 2
-  合成一个 story" overrides the default and produces one combined story.
-
-Use linked primary material to verify or enrich the same source unit, but do not silently turn another
-user-supplied source unit into supporting material for a different story. When a claim needs
-attribution, name the primary actor, document, researcher, or reporting outlet in one concise clause;
-never attribute the news to the ingestion platform. This is a short-video daily report: viewers watch
-it to learn facts, so narration and tabs state only what is known. Never end a narration beat with a
-missing-data clause such as “仍待公布”, “完整数据待披露”, or “官方尚未公布发布时间”, and never spend a
-tab on pending data. If an unknown materially changes the news, state it once as a plain fact inside
-a factual tab — not as the closing beat of a scene and not as its own “待披露” tab.
-
-## Build rich report content
-
-Write `data-scheme/data.json` according to the current schema and `$ai-daily-report` manual-mode
-rules. Keep navigation labels compact while making the story body detailed.
-
-- Treat `introTitle` as an edited headline for the opening overview, not a verbatim source title.
-  Rewrite every source title for a general short-video audience: remove forum prefixes, brackets,
-  clickbait questions, emotional wording, redundant punctuation, source names, and inconsistent
-  product casing. Keep the core actor, event, number, and date when they matter.
-- Use `contentTitle` as the compact headline for the individual story screen. It may be shorter than
-  `introTitle`, but both must read as finished editorial headlines rather than copied post titles.
-- Scale tab count and summary density to what the source actually supports. Tab count follows the
-  source's distinct factual dimensions: 2-3 for a thin single-fact source, 4-6 for a rich one — never a
-  uniform 4 everywhere. Summary density should use most of the ~110-visual-unit budget (aim 70-105)
-  with concrete sourced facts: numbers, dates, names, mechanisms, and attributed community, analyst, or
-  official reactions. Forum threads count as source material — quoted primary articles inside the post
-  and informative replies are usable facts, clearly attributed. Re-read the source (or its evidence
-  image) before enriching; a summary the source cannot back is fabrication. For a genuinely thin
-  source, fewer and shorter tabs is the correct outcome, not padded text.
-- Prefer concrete, complementary dimensions such as the core event, figures and dates, mechanism or
-  product details, user or market impact, and what happens next. Never invent content to reach a
-  target count or stop at 2-3 tabs merely for speed when the source supports more.
-- Make tab titles specific and complementary. Avoid filler headings such as "重点" or "更多".
-- Never spend a tab on source disclaimers, verification instructions, or explaining what the input
-  did not contain. Provenance belongs in `overlayImg`; a genuine unknown belongs in a factual tab only
-  when that unknown materially changes the news.
-- Keep every summary within the schema limits, include exactly one bold span, and wrap English model,
-  product, API, error-code, and version names in inline code.
-- Default to two non-redundant scenes whenever a story has an evidence overlay and enough narration:
-  the evidence scene first (its narration explains the fact visible in the image), then a tabs scene
-  without an overlay so tabs own that beat unobstructed. Use one scene only for genuinely short
-  stories. Keep each subtitle a natural spoken sentence within the schema limit. Do not stretch one
-  long scene to carry both the overlay and the tabs: on single-scene stories the renderer must cap
-  overlay visibility so tabs stay readable, which cuts the image off mid-narration and feels abrupt.
-- Pair scenes with the source-evidence overlays described below; use the scene narration to explain
-  the fact visible in its image rather than showing an unrelated visual.
-
-Give every story tab a stable semantic icon path in Raw, for example
-`icons/{storyId}-{semantic-name}.svg`, so subsequent TTS rebuilds retain the reference.
-
-## Use overlayImg as source evidence
-
-Treat `overlayImg` as the visual proof layer, not optional decoration. Actively inspect each source
-unit and attach at least one readable evidence image to every story.
-
-- Evaluate the full source chain before capturing evidence. A forum or aggregator post is a middleman:
-  read the post body and the links it cites, identify the primary source (the original outlet, official
-  blog, announcement, or first-party chart), and capture the evidence region from that primary page.
-  Never present a screenshot of the forum thread page itself as evidence — it reads like quoting the
-  intermediary and inherits whatever outlet watermark the post copied. Exception: an image attached to
-  the post (benchmark chart, official screenshot, event photo) is a primary artifact — use the
-  attachment itself, never a screenshot of the forum page around it.
-
-- Prefer, in order: an original announcement or document excerpt, product/UI screenshot, source data
-  chart or benchmark, source-page excerpt containing the central claim/date/number, then an original
-  event photo that directly proves the subject.
-- For URLs and HTML, download a relevant original image or capture the exact useful page region. For
-  local files and objects, use their embedded visual; when the source is text-only, render a clearly
-  labeled source-extract card from its actual fields or excerpt. Do not invent facts or present a
-  generated illustration as evidence.
-- Save evidence under `data-scheme/images/` with semantic names such as
-  `images/{storyId}-evidence-1.png`. Put `overlayImg` on the matching scene, never on a story or tab.
-- Use two scenes with two complementary evidence images when the source contains distinct proofs,
-  such as an announcement plus a product screen or a claim plus its data chart.
-- Inspect every asset before use. Crop long pages or chat/article screenshots to the claim and enough
-  surrounding source context to remain trustworthy and readable at 1920x1080. Never use a full long
-  screenshot that will collapse into a thin strip; `overlayImgScale` is not a substitute for cropping.
-- Exclude avatars, logos by themselves, ads, unrelated stock art, thumbnails with unreadable text,
-  and decorative images that do not support the corresponding scene.
-- Do not write `overlayImgWidth` or `overlayImgHeight` in Raw; TTS derives true dimensions. Use
-  `overlayImgScale` only after inspecting the rendered size.
-- If a source image visibly contains the forbidden exact keyword, do not doctor the screenshot.
-  Select another evidence region or make a clearly labeled, faithful paraphrased source-extract card
-  that follows the wording rule below.
-
-Before TTS, verify that every story has at least one evidence overlay:
-
-```powershell
-node -e "const d=require('./data-scheme/data.json');const m=d.stories.filter(s=>!s.scenes?.some(x=>x.overlayImg));if(m.length){console.error('Missing evidence overlay:',m.map(s=>s.id).join(', '));process.exit(1)}"
-```
-
-Treat a missing overlay as an incomplete story. If the source cannot be retrieved or represented
-faithfully, stop and report that source as blocked instead of silently rendering an evidence-free
-story.
-
-## Replace the exact keyword
-
-Never emit the exact substring `中国` in generated report content. Rewrite it before writing Raw:
-
-- Use `国内` for markets, companies, users, teams, regions, industries, and other domestic contexts.
-- Use `我国` when the country is the grammatical subject or the sentence refers to national ownership
-  or participation.
-- Use `国家` for policies, standards, strategies, institutions, and other country-level concepts.
-- Paraphrase official names or quoted text when a direct substitution would be ungrammatical; do not
-  preserve the forbidden substring merely because it appeared in the source.
-
-Apply this rule to titles, tabs, subtitles, metadata, comments, and SVG-accessible text. Do not mutate
-the external source itself. Before rendering, run:
-
-```powershell
-rg -n --glob '*.json' --glob '*.txt' --glob '*.svg' '中国' data-scheme
-```
-
-Treat any match in generated human-facing content as a blocking validation failure and rewrite it.
-
-## Execute the production flow
+## Production flow
 
 1. Inspect the current `data-scheme/`. If it contains a different report, preserve it with
    `bun run archive` before replacing Raw; do not use `reset` as a shortcut.
-2. Read every source unit, decide the story mapping, inspect or capture its evidence, and write the
-   complete `data-scheme/data.json` plus source-derived assets in `data-scheme/images/`.
-3. Run the overlay-coverage check and `bun run check-data-json`. Fix the first error and repeat until
-   Raw and every evidence path pass.
+2. Execute `rules/supplied-source-mode.md` end to end for the invocation inputs: classify
+   each source unit, resolve it against `ingest/rss-state.json` before browsing anything,
+   gather and visually verify evidence images, then write the complete
+   `data-scheme/data.json` plus assets in `data-scheme/images/`. Every story must follow
+   the evidence→narration structure the validator enforces: a short image-backed evidence
+   scene (only facts visible in the image, ~25-40 units of narration) followed by a short
+   overlay-free narration scene (~20-35 units, one key takeaway; details live on Tabs).
+   The last scene of a story never carries an overlay.
+3. Run `bun run check-data-json` and `bun run check-evidence --require-overlay`. Fix the
+   first error and repeat until both pass.
 4. State that TTS may use the configured paid API, then run `bun run tts` once. Do not use
    `bun run video:render`, because it repeats TTS.
-5. Read `data-scheme/data-generate.json` and collect all `intro.tabs` and `stories[].tabs`. Directly
-   create or repair an SVG for every referenced icon. Add only missing `icon` fields to Generated and
-   mirror story icon fields to Raw; never edit unrelated generated fields.
-6. Run the keyword scan, `bun run check-data-json:render`, and `bun run check-icons`. Fix every error
-   before continuing.
-7. Run `bun run render:mp4` and confirm that `out/AiDailyReport.mp4` exists and is non-empty.
-8. Report the number of source units, stories, tabs, evidence overlays, generated icons, and the final
-   MP4 path. Mention any explicit merge/split override or intentionally sparse story.
+5. Read `data-scheme/data-generate.json` and collect all `intro.tabs` and `stories[].tabs`.
+   Directly create or repair an SVG for every referenced icon (see below). Add only
+   missing `icon` fields to Generated and mirror story icon fields to Raw; never edit
+   unrelated generated fields.
+6. Run the keyword scan from `rules/supplied-source-mode.md`,
+   `bun run check-data-json:render`, and `bun run check-icons`. Fix every error before
+   continuing.
+7. Run `bun run render:mp4` and confirm that `out/AiDailyReport.mp4` exists and is
+   non-empty.
+8. Report the number of source units, stories, tabs, evidence overlays, generated icons,
+   any blocked sources, and the final MP4 path. Mention any explicit merge/split override
+   the user requested.
 
 ## Author SVGs directly
 
@@ -191,8 +83,8 @@ For each tab, design one distinct semantic icon that remains legible at small si
 - Derive each glyph from that tab's title and summary (or the tab-specific semantic suffix). Never
   feed the full story-prefixed tab ID into a broad keyword matcher: shared story words can collapse
   every sibling into the same glyph.
-- Treat recolored copies as duplicates. Before rendering, ensure no two tabs in one story have the
-  same canonical SVG artwork; `bun run check-icons` must fail when sibling artwork repeats.
+- Treat recolored copies as duplicates. Before rendering, ensure no two tabs in one story have
+  the same canonical SVG artwork; `bun run check-icons` must fail when sibling artwork repeats.
 - Give sibling tabs clearly different dominant palettes so viewers can distinguish them by both
   silhouette and color at a glance. Keep stroke weight and overall rendering style consistent, but
   do not reuse one complete palette across a story.

@@ -112,15 +112,21 @@ test("getOverlayImageLayout keeps medium non-portrait images on the small path",
   });
 });
 
-test("getOverlayAnimation reveals, holds, then hides on a long scene", () => {
+test("getOverlayAnimation reveals, zooms in, holds, then hides on a long scene", () => {
   const scene = overlayScene();
   const duration = 120;
   assert.equal(getOverlayAnimation(scene, 0, duration).opacity, 0);
   assert.equal(getOverlayAnimation(scene, 60, duration).opacity, 1);
-  assert.equal(
-    getOverlayAnimation(scene, 60, duration).scale,
-    1,
-    "scale should settle at 1 mid-scene without zooming in",
+  const mid = getOverlayAnimation(scene, 60, duration).scale;
+  assert.ok(
+    mid > 1 && mid < 1.12,
+    `scale should be mid-zoom at frame 60: ${mid}`,
+  );
+  // 推近窗口固定 ~2s（revealEnd=28 → zoomEnd=88），88 帧处正好推到放大镜峰值。
+  const held = getOverlayAnimation(scene, 88, duration).scale;
+  assert.ok(
+    Math.abs(held - 1.12) < 1e-9,
+    `scale should hold the magnifier peak at the zoom end: ${held}`,
   );
   assert.ok(
     getOverlayAnimation(scene, duration - 1, duration).opacity < 1,
@@ -146,18 +152,19 @@ test("getOverlayAnimation follows a long subtitle instead of stopping at a fixed
 test("getOverlayAnimation stays render-safe on medium-length scenes (43-66 frame band that previously crashed)", () => {
   for (const duration of [43, 50, 60, 66]) {
     const scene = overlayScene();
-    let settled = false;
+    let reachedFullScale = false;
     for (let frame = 0; frame < duration; frame++) {
       const { scale } = getOverlayAnimation(scene, frame, duration);
+      // 放大镜推近峰值为 1.12；放不下完整弧线的短场景退化为仅入场 0.95→1。
       assert.ok(
-        Number.isFinite(scale) && scale >= 0.94 && scale <= 1,
-        `scale out of settle range at frame ${frame} of ${duration}: ${scale}`,
+        Number.isFinite(scale) && scale >= 0.94 && scale <= 1.13,
+        `scale out of range at frame ${frame} of ${duration}: ${scale}`,
       );
-      if (scale === 1) settled = true;
+      if (scale >= 1) reachedFullScale = true;
     }
     assert.ok(
-      settled,
-      `scale should settle at exactly 1 during a ${duration}-frame overlay scene`,
+      reachedFullScale,
+      `scale should reach at least 1 after the reveal during a ${duration}-frame overlay scene`,
     );
   }
 });

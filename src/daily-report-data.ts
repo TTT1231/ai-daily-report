@@ -99,7 +99,7 @@ export const dailyStorySchema = z
     activeTab: identifierSchema.optional(),
     activeIntro: z.literal(true).optional(),
     tabs: z.array(dailyTabSchema).min(2).max(6),
-    scenes: z.array(dailySceneSchema).min(1).max(2),
+    scenes: z.array(dailySceneSchema).min(1).max(4),
     videoStartMs: z.number().nonnegative().optional(),
   })
   .superRefine((story, context) => {

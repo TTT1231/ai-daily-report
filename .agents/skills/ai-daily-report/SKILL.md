@@ -1,6 +1,6 @@
 ---
 name: ai-daily-report
-description: "Operate and troubleshoot the ai-daily-report project end to end: setup, automatic or half-automatic RSS workflows, data.json editing and validation, duplicate-ID and stale-generated-data fixes, TTS, images, SVG tab icons, preview, render, and video metadata/comments. Use for any request about running, fixing, editing, or rendering this project."
+description: "Operate and troubleshoot the ai-daily-report project end to end: setup, automatic or half-automatic RSS workflows, supplied-source production from pasted objects/URLs/HTML/text/images, data.json editing and validation, duplicate-ID and stale-generated-data fixes, TTS, images, SVG tab icons, preview, render, and video metadata/comments. Use for any request about running, fixing, editing, or rendering this project."
 ---
 
 # AI Daily Report
@@ -24,6 +24,7 @@ description: "Operate and troubleshoot the ai-daily-report project end to end: s
 | 首次安装、缺环境变量、代理/运行时问题 | 对照 `.env.example` 检查缺项 | [`rules/setup.md`](./rules/setup.md) |
 | 一条命令自动生成日报 | `bun run video:auto-generate` | 本文件“生产主线” |
 | 浏览 RSS 后人工勾选 | `bun run video:half-auto` | [`rules/rss-pick-mode.md`](./rules/rss-pick-mode.md) |
+| 用户粘贴对象/URL/HTML/文本/图片直接供给素材 | 按 [`rules/supplied-source-mode.md`](./rules/supplied-source-mode.md) 生产 | [`rules/supplied-source-mode.md`](./rules/supplied-source-mode.md) |
 | 删除当前一期某条 Story | 只改 Raw，再同步派生 | [`rules/review-remove-mode.md`](./rules/review-remove-mode.md) |
 | 手写/修改 `data.json` | 编辑 Raw → Raw 校验 | [`rules/manual-mode.md`](./rules/manual-mode.md) |
 | 配图或修改图片显示 | 修改 scene 的 `overlayImg` | [`rules/images.md`](./rules/images.md) |
@@ -71,7 +72,7 @@ bun run generate-svg
 按改动范围选最小集合：
 
 - 只改 Raw 文案/ID：`bun run check-data-json`
-- 改 scene、顺序或图片引用：Raw 校验 → `bun run tts` → `bun run check-data-json:render`
+- 改 scene、顺序或图片引用：Raw 校验 → `bun run check-evidence` → `bun run tts` → `bun run check-data-json:render`
 - 改 Tab ID/数量/含义：上一步 + `bun run generate-svg` → `bun run check-icons`
 - 改 `ingest/`：`bun run rss:test`
 - 改 `scripts/lib/`：`bun run test:lib`
@@ -95,6 +96,7 @@ bun run generate-svg
 - 手动数据：[`rules/manual-mode.md`](./rules/manual-mode.md)
 - 删除 Story：[`rules/review-remove-mode.md`](./rules/review-remove-mode.md)
 - RSS 人工选择：[`rules/rss-pick-mode.md`](./rules/rss-pick-mode.md)
+- 用户供给混合素材：[`rules/supplied-source-mode.md`](./rules/supplied-source-mode.md)
 - 图片：[`rules/images.md`](./rules/images.md)
 - TTS：[`rules/tts-customize.md`](./rules/tts-customize.md)
 - 渲染：[`rules/render-export.md`](./rules/render-export.md)

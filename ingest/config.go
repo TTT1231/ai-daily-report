@@ -19,6 +19,7 @@ const (
 	maxStoryTabSources        = 4                          // 单个 Story 最多引用的代表来源数量。
 	minStoryTabs              = 2                          // 每个 Story 至少需要的 Tab 数量，低于此值触发模型定向重写。
 	maxStoryTabs              = 6                          // 每个 Story 最多允许的 Tab 数量。
+	maxStoryScenes            = 4                          // 每个 Story 最多允许的 Scene 数量；普通新闻 1 条，证据充分时才用更多。
 	minTabSummaryRunes        = 25                         // Tab 摘要（summary）的最小汉字长度，过短视为无效。
 	maxTabSummaryVisibleRunes = 110                        // Tab 摘要的纯文本上限；Markdown 视觉占用另行带权校验。
 	minSceneSubtitleRunes     = 28                         // 场景口播字幕（subtitle）的最小汉字长度。
