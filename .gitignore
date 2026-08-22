@@ -46,3 +46,6 @@ ingest/picks.json
 
 # webhint local config (do not track)
 .hintrc
+
+# piolium security-audit workspace (findings/PoCs/reports) stays local
+piolium/
