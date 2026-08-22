@@ -24,6 +24,7 @@ func newHTTPClient(timeout time.Duration, announceProxy, blockPrivateHosts bool)
 		DisableKeepAlives:   false,
 		TLSHandshakeTimeout: 10 * time.Second,
 	}
+
 	if proxyErr != nil {
 		// A configured proxy is mandatory. Returning its validation error from
 		// Transport.Proxy prevents requests from silently falling back to direct access.
@@ -31,22 +32,35 @@ func newHTTPClient(timeout time.Duration, announceProxy, blockPrivateHosts bool)
 			return nil, proxyErr
 		}
 	} else if proxyURL != nil {
-		transport.Proxy = http.ProxyURL(proxyURL)
+		if blockPrivateHosts {
+			// M2 修复：目标校验不再随路由方式静默失效。配置了代理时拨号层只能看到代理地址
+			// （socks5/socks5h 的域名解析在代理侧、http 代理由代理去连目标），所以在把请求
+			// 交给代理前先本地解析目标主机并逐 IP 校验，命中内网/保留网段直接失败、不回退直连。
+			transport.Proxy = ssrfAwareProxyFunc(proxyURL)
+		} else {
+			transport.Proxy = http.ProxyURL(proxyURL)
+		}
 		if announceProxy {
 			fmt.Printf("   网络：使用 all_proxy %s\n", proxyURL)
+			if blockPrivateHosts {
+				fmt.Println("   网络：SSRF 预检已启用（代理模式下按目标主机校验内网/保留地址）")
+			}
 		}
 	} else if blockPrivateHosts {
 		// No proxy: enforce the SSRF guard at the dial layer so a malicious
-		// image URL cannot reach internal/cloud-metadata hosts. With a proxy
-		// configured the dial targets the proxy itself, so we skip the guard
-		// and let the proxy own destination policy.
+		// image URL cannot reach internal/cloud-metadata hosts.
 		transport.DialContext = (&net.Dialer{
 			Timeout: 30 * time.Second,
 			Control: ssrfControl,
 		}).DialContext
 	}
 
-	return &http.Client{Timeout: timeout, Transport: transport}
+	client := &http.Client{Timeout: timeout, Transport: transport}
+	if blockPrivateHosts {
+		// 重定向落点由攻击者响应控制，每一跳都重新校验目标主机（与上面的代理预检互为纵深）。
+		client.CheckRedirect = ssrfAwareRedirect
+	}
+	return client
 }
 
 // getProxyURL returns the optional all_proxy configuration. No other proxy

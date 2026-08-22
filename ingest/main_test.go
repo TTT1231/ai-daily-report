@@ -759,11 +759,26 @@ func TestBuildClaudeVisionArgsUsesMCPAllowlist(t *testing.T) {
 	if !strings.Contains(joined, "mcp__") || !strings.Contains(joined, "__*") {
 		t.Fatalf("Claude vision args should allow a scoped MCP server (mcp__<server>__*), got %#v", args)
 	}
-	if !strings.Contains(joined, "WebFetch") {
-		t.Fatalf("Claude vision args should allow WebFetch, got %#v", args)
+
+	// M3 修复：WebFetch 从 allowedTools 移除（它把 claude 进程变成可被 feed 指令引导的
+	// egress 通道），网络/Shell/文件类工具改经 --disallowedTools 结构性禁用。
+	allowedStart := strings.Index(joined, "--allowedTools\x00")
+	disallowedStart := strings.Index(joined, "--disallowedTools\x00")
+	if allowedStart < 0 || disallowedStart <= allowedStart {
+		t.Fatalf("Claude vision args should have --allowedTools before --disallowedTools, got %#v", args)
 	}
-	if strings.Contains(joined, "\x00Bash") || strings.Contains(joined, "\x00Write") || strings.Contains(joined, "\x00Edit") {
-		t.Fatalf("Claude vision args should not allow shell or file edits, got %#v", args)
+	allowedSection := joined[allowedStart:disallowedStart]
+	disallowedSection := joined[disallowedStart:]
+	if strings.Contains(allowedSection, "WebFetch") {
+		t.Fatalf("Claude vision args must not allow WebFetch (M3: egress channel), got %#v", args)
+	}
+	for _, banned := range []string{"Bash", "Write", "Edit", "WebFetch", "WebSearch"} {
+		if strings.Contains(allowedSection, "\x00"+banned+"\x00") {
+			t.Fatalf("Claude vision allowedTools must not contain %s, got %#v", banned, args)
+		}
+		if !strings.Contains(disallowedSection, "\x00"+banned+"\x00") {
+			t.Fatalf("Claude vision disallowedTools must contain %s, got %#v", banned, args)
+		}
 	}
 }
 

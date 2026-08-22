@@ -87,34 +87,102 @@ if (existsSync(PICKS_JSON)) {
 }
 const pickedCount = Object.keys(savedPicks).filter((h) => savedPicks[h]).length;
 
-// 注入 JSON：需转义 </script>，避免提前结束脚本块
-const esc = (obj) => JSON.stringify(obj).replace(/<\/script>/gi, "<\\/script>");
+// 注入 JSON 的转义：script 数据块里 "</script" 之后的任意分隔符（空格/斜杠/大于号）都会提前结束脚本块，
+// 所以只替换字面 </script> 不够（H1）。对 stringify 结果整体转义 < > & 为 \u003c/\u003e/\u0026，
+// JSON.parse 会原样还原，而 HTML 解析器再也看不到尖括号。
+const esc = (obj) =>
+  JSON.stringify(obj)
+    .replace(/</g, "\\u003c")
+    .replace(/>/g, "\\u003e")
+    .replace(/&/g, "\\u0026");
 
 function renderHtml() {
   return templateSource
     .replace("__RSS_STATE__", esc(rssState))
     .replace("__REPORT_STORIES__", esc(stories))
-    .replace("__PICKS__", esc(savedPicks));
+    .replace("__PICKS__", esc(savedPicks))
+    // CSP nonce：模板只有这一个裸 <script>（数据块带 id/type 属性不执行），加 nonce 后
+    // script-src 'nonce-...' 即可禁止任何未授权（注入出来的）内联脚本执行。
+    .replace("<script>", `<script nonce="${CSP_NONCE}">`);
 }
+
+// ---- 每次运行的随机凭据与安全头（M1：无鉴权 0.0.0.0 绑定 + CSRF）----
+// RUN_TOKEN：每次启动随机生成，GET / 通过 HttpOnly+SameSite=Strict Cookie 下发给本页面，
+//   变更端点（POST /picks、POST /shutdown）必须回带；跨站页面/其它 Origin 既拿不到也带不上。
+//   也接受 X-Pick-Token 请求头（等价通道，便于脚本化调用）。
+const RUN_TOKEN = crypto.randomUUID();
+const CSP_NONCE = crypto.randomUUID().replace(/-/g, "");
+const TOKEN_COOKIE = `rss_pick_token=${RUN_TOKEN}; Path=/; HttpOnly; SameSite=Strict`;
+
+// Host 校验：只认本机回环域名 + 实际端口（防 DNS rebinding 把别的域名解析到 127.0.0.1 复用本服务）。
+const ALLOWED_HOSTS = new Set([`localhost:${PORT}`, `127.0.0.1:${PORT}`, `[::1]:${PORT}`]);
+const hostAllowed = (req) => ALLOWED_HOSTS.has((req.headers.get("host") || "").toLowerCase());
+
+// token 校验：Cookie 或 X-Pick-Token 头二选一。
+function tokenAllowed(req) {
+  if (req.headers.get("x-pick-token") === RUN_TOKEN) return true;
+  const cookie = req.headers.get("cookie") || "";
+  for (const part of cookie.split(";")) {
+    const [k, ...v] = part.trim().split("=");
+    if (k === "rss_pick_token" && v.join("=") === RUN_TOKEN) return true;
+  }
+  return false;
+}
+
+const forbidden = (why) => new Response(why, { status: 403 });
 
 const rel = (p) => p.replace(projectRoot + "/", "").replace(/\\/g, "/");
 
-console.log(`[rss:pick] 服务启动：http://localhost:${PORT}/`);
+const SECURITY_HEADERS = {
+  // CSP：只放行带 nonce 的内联脚本与 Google Fonts；注入出来的 <img onerror> 等内联事件/脚本一律禁止执行。
+  "Content-Security-Policy": [
+    "default-src 'none'",
+    `script-src 'nonce-${CSP_NONCE}'`,
+    "style-src 'unsafe-inline' https://fonts.googleapis.com",
+    "font-src https://fonts.gstatic.com",
+    "img-src 'self' data:",
+    "connect-src 'self'",
+    "base-uri 'none'",
+    "form-action 'none'",
+    "frame-ancestors 'none'",
+  ].join("; "),
+  "X-Content-Type-Options": "nosniff",
+  "Referrer-Policy": "no-referrer",
+  "Cache-Control": "no-store",
+};
+// 绑定 127.0.0.1（M1）：本工具只服务本机浏览器，绝不暴露到局域网/VPN 接口；日志打印真实绑定地址。
+const BIND_HOST = "127.0.0.1";
+console.log(`[rss:pick] 服务启动：http://${BIND_HOST}:${PORT}/ （仅本机回环，绑定 ${BIND_HOST}:${PORT}）`);
 console.log(`  RSS 条目：${itemCount}  |  已收录：${acceptedCount}  |  已 pick：${pickedCount}`);
 console.log(`  提示：浏览器里勾选 → 点「保存并关闭」写入 ${rel(PICKS_JSON)}，服务会自动关闭。`);
 
 const server = Bun.serve({
+  hostname: BIND_HOST, // M1：显式回环绑定，不再 0.0.0.0/[::] 全接口监听
   port: PORT,
   async fetch(req) {
     const url = new URL(req.url);
 
+    // Host 校验对所有路由生效：DNS rebinding 场景下 Host 是攻击者域名，直接拒绝。
+    if (!hostAllowed(req)) return forbidden("Host not allowed");
+
     if (url.pathname === "/" && req.method === "GET") {
       return new Response(renderHtml(), {
-        headers: { "Content-Type": "text/html; charset=utf-8" },
+        headers: {
+          ...SECURITY_HEADERS,
+          "Content-Type": "text/html; charset=utf-8",
+          // 同源页面的专用凭据：HttpOnly 防 XSS 读取，SameSite=Strict 防跨站自动携带。
+          "Set-Cookie": TOKEN_COOKIE,
+        },
       });
     }
 
     if (url.pathname === "/picks" && req.method === "POST") {
+      if (!tokenAllowed(req)) return forbidden("missing or invalid pick token");
+      // M1：显式要求 JSON Content-Type，拒绝 CORS 简单请求形态（text/plain/form）的跨站提交。
+      const contentType = (req.headers.get("content-type") || "").split(";")[0].trim().toLowerCase();
+      if (contentType !== "application/json") {
+        return new Response("Content-Type must be application/json", { status: 415 });
+      }
       try {
         const body = await req.json();
         // 只保留 {hash: true} 形态
@@ -133,6 +201,7 @@ const server = Bun.serve({
     }
 
     if (url.pathname === "/shutdown" && req.method === "POST") {
+      if (!tokenAllowed(req)) return forbidden("missing or invalid pick token");
       console.log("[rss:pick] 收到关闭请求，停止服务。");
       setTimeout(() => server.stop(), 100);
       return Response.json({ ok: true });
@@ -141,6 +210,7 @@ const server = Bun.serve({
     return new Response("404", { status: 404 });
   },
 });
+
 
 // ---- 跨平台开浏览器 ----
 if (process.env.RSS_PICK_NO_OPEN !== "1") {
