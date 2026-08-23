@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.9.2
+
+- Changed: B 站发布管线整体下线——biliup 上传/评论/置顶与 `bili:*` 等命令因封号风险与不稳定移除，`render:cover` 封面帧脚本一并删除（`render:mp4` 成为唯一渲染输出）；平台无关的标题/标签/评论文案生成保留
+- Changed: 章节较多时底部导航改为「滑动窗口」——只滚动展示当前章节附近固定几项并用序号胶囊表达全片进度，不再整排缩字硬塞；当前章节暖色高亮 + 下划线，样式更轻
+- Fixed: overlay 配图不再被固定帧数截断——跟随整段旁白时长全程可见，末尾约 1 秒淡出让位给 Tabs；1.12 倍聚焦放大恢复为固定窗口节奏
+- Added: 每条 Story 的口播场景上限从 2 提到 4，复杂新闻可拆更多幕
+- Added: ai-daily-report 新增「供稿模式」（supplied-source）——外部供稿的输入路由、来源质量把关与截图规则并入主流程；新增 codex-generate-video 工作流（Codex 驱动生成短视频，产出强制带证据截图），并瘦身为该模式的包装
+- Added: check-evidence 证据门禁——`--require-overlay` 下校验各场景 overlay 覆盖、图片文件真实存在（魔数校验）与证据/旁白数量上限
+
 ## 0.9.1
 
 - Added: 半自动抓取（`bun run rss`）按人工 pick 历史跨次去重——已挑选并成功生成视频的条目不再进入候选池，避免重复展示；`rss-state.json` 新增 `picked` 字段持久化历史，旧文件自动迁移。
