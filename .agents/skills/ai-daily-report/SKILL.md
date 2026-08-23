@@ -72,6 +72,7 @@ bun run generate-svg
 按改动范围选最小集合：
 
 - 只改 Raw 文案/ID：`bun run check-data-json`
+- supplied-source / codex 供给素材流程中的任何 Raw 改动：`bun run check-data-json --strict-tone`（supplied 专用口吻闸；原生 RSS 与手动模式不带该 flag）
 - 改 scene、顺序或图片引用：Raw 校验 → `bun run check-evidence` → `bun run tts` → `bun run check-data-json:render`
 - 改 Tab ID/数量/含义：上一步 + `bun run generate-svg` → `bun run check-icons`
 - 改 `ingest/`：`bun run rss:test`

@@ -1,9 +1,11 @@
 import {generatedDataPath, rawDataPath, readJson} from "../lib/paths.mjs";
 import {validateReport} from "../lib/report-validation.mjs";
+import {validateTone} from "../lib/tone-validation.mjs";
 import {validateVideoLayout} from "../lib/video-layout-validation.mjs";
 import {validateVideoTimeline} from "../lib/video-timeline-validation.mjs";
 
 const renderMode = process.argv.includes("--render");
+const strictTone = process.argv.includes("--strict-tone");
 const displayPath = renderMode
   ? "data-scheme/data-generate.json"
   : "data-scheme/data.json";
@@ -44,6 +46,36 @@ if (errors.length > 0) {
       : `\n👉 请按上方错误修改 data-scheme/data.json 后重试。`,
   );
   process.exit(1);
+}
+
+// strict-tone 只针对 Raw：Generated 文案由 Raw 派生，重复检查只制造噪声。
+// 作用域仿照 check-evidence --require-overlay：不带 flag 的原生/手动流程完全不受影响。
+if (strictTone) {
+  if (renderMode) {
+    console.error(
+      "strict-tone applies to data.json only; skipped in --render mode (generated content derives from Raw).",
+    );
+  } else {
+    const tone = validateTone(report);
+    for (const warning of tone.warnings) {
+      console.error(`- warning: ${warning}`);
+    }
+    if (tone.warnings.length > 0) {
+      console.error(
+        `strict-tone: ${tone.warnings.length} warning(s), non-blocking.`,
+      );
+    }
+    if (tone.errors.length > 0) {
+      console.error(
+        `strict-tone validation failed with ${tone.errors.length} error(s):`,
+      );
+      tone.errors.forEach((error) => console.error(`- ${error}`));
+      console.error(
+        `\n👉 直接播报来源事实：不描述「截图/图片/画面/配图」媒介，不用匿名归因，不补评价、建议或免责。`,
+      );
+      process.exit(1);
+    }
+  }
 }
 
 console.log(

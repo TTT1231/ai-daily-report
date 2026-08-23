@@ -96,6 +96,90 @@ test("check-data-json --render exits 1 when the generated report is not render-r
   }
 });
 
+// ---------- check-data-json --strict-tone（supplied 专用口吻闸）----------
+function rawReportWithMediumNarration() {
+  const report = rawReport();
+  report.stories[0].scenes[0].subtitle =
+    "截图显示，企业的 Token 消耗记录正在被纳入贷款评估。";
+  return report;
+}
+
+test("check-data-json --strict-tone exits 1 on medium-reference narration with field path", () => {
+  const dir = seedDataScheme({
+    "data.json": JSON.stringify(rawReportWithMediumNarration()),
+  });
+  try {
+    const {code, stderr} = runCli(checkDataJson, ["--strict-tone"], dir);
+    assert.equal(code, 1);
+    assert.match(stderr, /strict-tone validation failed/);
+    assert.match(stderr, /stories\[0\]\.scenes\[0\]\.subtitle/);
+    assert.match(stderr, /截图显示/);
+  } finally {
+    rmSync(dir, {recursive: true, force: true});
+  }
+});
+
+test("the same report passes without --strict-tone (native/manual mode unaffected)", () => {
+  const dir = seedDataScheme({
+    "data.json": JSON.stringify(rawReportWithMediumNarration()),
+  });
+  try {
+    const {code, stdout} = runCli(checkDataJson, [], dir);
+    assert.equal(code, 0, `expected exit 0\nstdout: ${stdout}`);
+    assert.match(stdout, /valid/);
+  } finally {
+    rmSync(dir, {recursive: true, force: true});
+  }
+});
+
+test("check-data-json --strict-tone warns on anonymous attribution and filler but exits 0", () => {
+  const report = rawReport();
+  report.stories[0].tabs[0].summary =
+    "消息称额度**已完整重置一次**，这不代表长期规则改变。";
+  const dir = seedDataScheme({"data.json": JSON.stringify(report)});
+  try {
+    const {code, stderr, stdout} = runCli(checkDataJson, ["--strict-tone"], dir);
+    assert.equal(code, 0, `expected exit 0\nstderr: ${stderr}`);
+    assert.match(stdout, /valid/);
+    assert.match(stderr, /warning: .*消息称/);
+    assert.match(stderr, /warning: .*这不代表/);
+    assert.match(stderr, /non-blocking/);
+  } finally {
+    rmSync(dir, {recursive: true, force: true});
+  }
+});
+
+test("check-data-json --strict-tone does not flag legal impact wording", () => {
+  const report = rawReport();
+  report.stories[1].tabs[1].summary =
+    "自研芯片**可能影响未来推理成本**，意味着供应格局或将调整。";
+  const dir = seedDataScheme({"data.json": JSON.stringify(report)});
+  try {
+    const {code, stderr} = runCli(checkDataJson, ["--strict-tone"], dir);
+    assert.equal(code, 0, `expected exit 0\nstderr: ${stderr}`);
+    assert.doesNotMatch(stderr, /warning|strict-tone/);
+  } finally {
+    rmSync(dir, {recursive: true, force: true});
+  }
+});
+
+test("--strict-tone is skipped in --render mode (generated derives from raw)", () => {
+  const report = generatedReport();
+  report.stories[0].scenes[0].subtitle = "截图显示，事实成立。";
+  const dir = seedDataScheme({
+    "data-generate.json": JSON.stringify(report),
+    ...audioFiles,
+  });
+  try {
+    const {code, stderr} = runCli(checkDataJson, ["--render", "--strict-tone"], dir);
+    assert.equal(code, 0, `expected exit 0\nstderr: ${stderr}`);
+    assert.match(stderr, /skipped in --render mode/);
+    assert.doesNotMatch(stderr, /strict-tone validation failed/);
+  } finally {
+    rmSync(dir, {recursive: true, force: true});
+  }
+});
+
 // ---------- check-icons ----------
 test("check-icons exits 0 when every referenced icon is a valid on-disk SVG", () => {
   const dir = seedDataScheme({

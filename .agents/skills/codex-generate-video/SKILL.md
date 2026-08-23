@@ -49,14 +49,19 @@ back into this skill.
    `bun run archive` before replacing Raw; do not use `reset` as a shortcut.
 2. Execute `rules/supplied-source-mode.md` end to end for the invocation inputs: classify
    each source unit, resolve it against `ingest/rss-state.json` before browsing anything,
-   gather and visually verify evidence images, then write the complete
-   `data-scheme/data.json` plus assets in `data-scheme/images/`. Every story must follow
-   the evidence→narration structure the validator enforces: a short image-backed evidence
-   scene (only facts visible in the image, ~25-40 units of narration) followed by a short
-   overlay-free narration scene (~20-35 units, one key takeaway; details live on Tabs).
-   The last scene of a story never carries an overlay.
-3. Run `bun run check-data-json` and `bun run check-evidence --require-overlay`. Fix the
-   first error and repeat until both pass.
+   build the per-unit fact ledger, gather and visually verify evidence images, then write
+   the complete `data-scheme/data.json` plus assets in `data-scheme/images/`. Every story
+   must follow the evidence→narration structure the validator enforces: a short
+   image-backed evidence scene (~25-40 units; the image limits which facts the scene may
+   state — the narration never describes the "screenshot/image/overlay" medium itself, it
+   states the facts with the real subject named) followed by a short overlay-free
+   narration scene (~20-35 units, another confirmed sourced fact or a factual transition;
+   never invented impact, advice, or disclaimers; details live on Tabs). The last scene of
+   a story never carries an overlay.
+3. Run `bun run check-data-json --strict-tone` and `bun run check-evidence --require-overlay`.
+   Fix the first error and repeat until both pass. `--strict-tone` is the supplied-source
+   tone gate: it blocks evidence-medium narration and warns on anonymous attribution and
+   editorial filler; it targets Raw only and is skipped under `--render`.
 4. State that TTS may use the configured paid API, then run `bun run tts` once. Do not use
    `bun run video:render`, because it repeats TTS.
 5. Read `data-scheme/data-generate.json` and collect all `intro.tabs` and `stories[].tabs`.
