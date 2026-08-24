@@ -25,6 +25,12 @@ type navigationLayoutConfig struct {
 	Layouts                []navigationTypography
 }
 
+// asciiWidthUnit 与 config/video-layout.json 的 navigation.asciiWidthFactor 是
+// 同一口径：validNavigationTitle / tabSummaryVisualUnits 等纯函数用它估宽（运行期
+// 布局代码经 loadNavigationLayout 读真实配置）。TestASCIIWidthUnitMatchesConfig
+// 在测试期对照配置文件防漂移——改 asciiWidthFactor 时必须同步改这里。
+const asciiWidthUnit = 0.62
+
 type navigationTypography struct {
 	MinItems          int     `json:"minItems"`
 	FontSize          float64 `json:"fontSize"`

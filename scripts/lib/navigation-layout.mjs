@@ -9,6 +9,11 @@ const videoLayout = JSON.parse(
 );
 const navigation = videoLayout.navigation;
 
+// ASCII 字符的视觉宽度系数：单一事实源是 video-layout.json 的
+// navigation.asciiWidthFactor。tab summary 可见宽度校验（report-validation）
+// 等处也必须从这里取值，避免改配置后各处口径漂移。
+export const asciiWidthFactor = navigation.asciiWidthFactor;
+
 export const getNavigationTypography = (itemCount) => {
   const layout = navigation.layouts.find(
     ({ minItems }) => itemCount >= minItems,

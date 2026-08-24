@@ -3,6 +3,7 @@ import { resolve, sep } from "node:path";
 import Ajv2020 from "ajv/dist/2020.js";
 import { dataDir, schemaPath } from "./paths.mjs";
 import {
+  asciiWidthFactor,
   navigationCapacity,
   reportNavigationLabels,
 } from "./navigation-layout.mjs";
@@ -28,7 +29,8 @@ function tabSummaryMarkdownStats(value) {
   const unitsFor = (content, multiplier) =>
     Array.from(content).reduce(
       (total, character) =>
-        total + (character.codePointAt(0) <= 0x7f ? 0.62 : 1) * multiplier,
+        // ASCII 视觉宽度系数与渲染/导航侧同源（video-layout.json）。
+        total + (character.codePointAt(0) <= 0x7f ? asciiWidthFactor : 1) * multiplier,
       0,
     );
   for (const part of parts) {

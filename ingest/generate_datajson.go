@@ -454,8 +454,9 @@ func navigationTitle(group NewsGroup) string {
 	return "AI动态"
 }
 
-// validNavigationTitle 校验短标签可以原样完整显示。中文按 1 单位、ASCII 按 0.62
-// 单位近似渲染宽度；超过上限必须让模型语义改写，不能交给布局层硬截断。
+// validNavigationTitle 校验短标签可以原样完整显示。中文按 1 单位、ASCII 按
+// asciiWidthUnit（与 video-layout.json 同源）近似渲染宽度；超过上限必须让模型
+// 语义改写，不能交给布局层硬截断。
 func validNavigationTitle(title string) string {
 	title = strings.TrimSpace(title)
 	if title == "" || strings.Contains(title, "…") || strings.Contains(title, "...") {
@@ -464,7 +465,7 @@ func validNavigationTitle(title string) string {
 	units := 0.0
 	for _, r := range title {
 		if r <= 0xff {
-			units += 0.62
+			units += asciiWidthUnit
 		} else {
 			units++
 		}

@@ -255,14 +255,15 @@ func overlapsExistingTabSummary(candidate string, existing []string) bool {
 }
 
 // tabSummaryVisualUnits approximates the rendered width budget used by InlineMarkup.
-// CJK counts as 1, ASCII as 0.62; bold/code spans add their font/padding overhead.
+// CJK counts as 1, ASCII as asciiWidthUnit (sourced from video-layout.json);
+// bold/code spans add their font/padding overhead.
 // The pure-text 110-rune contract stays intact while formatted cards get a fairer limit.
 func tabSummaryVisualUnits(summary string) float64 {
 	unitsFor := func(text string, multiplier float64) float64 {
 		var units float64
 		for _, r := range text {
 			if r <= 0x7f {
-				units += 0.62 * multiplier
+				units += asciiWidthUnit * multiplier
 			} else {
 				units += multiplier
 			}

@@ -1,0 +1,607 @@
+{
+  "comment": "导航宽度三实现一致性 fixture：scripts/lib/navigation-layout.mjs（校验）、\nsrc/navigation-layout.ts（渲染）、ingest/navigation_layout.go（ingest）对同一组\n输入必须算出同样的宽度。期望值以 JS 实现生成并经 TS/Go 测试双向核对；\n有意修改宽度口径时，三处实现一起改并重新生成本文件。",
+  "minimumWidth": [
+    {
+      "label": "DeepSeek",
+      "itemCount": 1,
+      "expected": 158
+    },
+    {
+      "label": "DeepSeek",
+      "itemCount": 5,
+      "expected": 158
+    },
+    {
+      "label": "DeepSeek",
+      "itemCount": 7,
+      "expected": 143
+    },
+    {
+      "label": "DeepSeek",
+      "itemCount": 8,
+      "expected": 143
+    },
+    {
+      "label": "DeepSeek",
+      "itemCount": 9,
+      "expected": 125
+    },
+    {
+      "label": "DeepSeek",
+      "itemCount": 11,
+      "expected": 125
+    },
+    {
+      "label": "DeepSeek",
+      "itemCount": 12,
+      "expected": 115
+    },
+    {
+      "label": "DeepSeek",
+      "itemCount": 20,
+      "expected": 115
+    },
+    {
+      "label": "AI动态",
+      "itemCount": 1,
+      "expected": 116
+    },
+    {
+      "label": "AI动态",
+      "itemCount": 5,
+      "expected": 116
+    },
+    {
+      "label": "AI动态",
+      "itemCount": 7,
+      "expected": 107
+    },
+    {
+      "label": "AI动态",
+      "itemCount": 8,
+      "expected": 107
+    },
+    {
+      "label": "AI动态",
+      "itemCount": 9,
+      "expected": 92
+    },
+    {
+      "label": "AI动态",
+      "itemCount": 11,
+      "expected": 92
+    },
+    {
+      "label": "AI动态",
+      "itemCount": 12,
+      "expected": 86
+    },
+    {
+      "label": "AI动态",
+      "itemCount": 20,
+      "expected": 86
+    },
+    {
+      "label": "OpenAI 发布会",
+      "itemCount": 1,
+      "expected": 215
+    },
+    {
+      "label": "OpenAI 发布会",
+      "itemCount": 5,
+      "expected": 215
+    },
+    {
+      "label": "OpenAI 发布会",
+      "itemCount": 7,
+      "expected": 193
+    },
+    {
+      "label": "OpenAI 发布会",
+      "itemCount": 8,
+      "expected": 193
+    },
+    {
+      "label": "OpenAI 发布会",
+      "itemCount": 9,
+      "expected": 170
+    },
+    {
+      "label": "OpenAI 发布会",
+      "itemCount": 11,
+      "expected": 170
+    },
+    {
+      "label": "OpenAI 发布会",
+      "itemCount": 12,
+      "expected": 155
+    },
+    {
+      "label": "OpenAI 发布会",
+      "itemCount": 20,
+      "expected": 155
+    },
+    {
+      "label": "开源模型",
+      "itemCount": 1,
+      "expected": 134
+    },
+    {
+      "label": "开源模型",
+      "itemCount": 5,
+      "expected": 134
+    },
+    {
+      "label": "开源模型",
+      "itemCount": 7,
+      "expected": 122
+    },
+    {
+      "label": "开源模型",
+      "itemCount": 8,
+      "expected": 122
+    },
+    {
+      "label": "开源模型",
+      "itemCount": 9,
+      "expected": 106
+    },
+    {
+      "label": "开源模型",
+      "itemCount": 11,
+      "expected": 106
+    },
+    {
+      "label": "开源模型",
+      "itemCount": 12,
+      "expected": 98
+    },
+    {
+      "label": "开源模型",
+      "itemCount": 20,
+      "expected": 98
+    },
+    {
+      "label": "Claude 4.5",
+      "itemCount": 1,
+      "expected": 187
+    },
+    {
+      "label": "Claude 4.5",
+      "itemCount": 5,
+      "expected": 187
+    },
+    {
+      "label": "Claude 4.5",
+      "itemCount": 7,
+      "expected": 169
+    },
+    {
+      "label": "Claude 4.5",
+      "itemCount": 8,
+      "expected": 169
+    },
+    {
+      "label": "Claude 4.5",
+      "itemCount": 9,
+      "expected": 148
+    },
+    {
+      "label": "Claude 4.5",
+      "itemCount": 11,
+      "expected": 148
+    },
+    {
+      "label": "Claude 4.5",
+      "itemCount": 12,
+      "expected": 136
+    },
+    {
+      "label": "Claude 4.5",
+      "itemCount": 20,
+      "expected": 136
+    },
+    {
+      "label": "GPT-5 测试",
+      "itemCount": 1,
+      "expected": 176
+    },
+    {
+      "label": "GPT-5 测试",
+      "itemCount": 5,
+      "expected": 176
+    },
+    {
+      "label": "GPT-5 测试",
+      "itemCount": 7,
+      "expected": 159
+    },
+    {
+      "label": "GPT-5 测试",
+      "itemCount": 8,
+      "expected": 159
+    },
+    {
+      "label": "GPT-5 测试",
+      "itemCount": 9,
+      "expected": 139
+    },
+    {
+      "label": "GPT-5 测试",
+      "itemCount": 11,
+      "expected": 139
+    },
+    {
+      "label": "GPT-5 测试",
+      "itemCount": 12,
+      "expected": 128
+    },
+    {
+      "label": "GPT-5 测试",
+      "itemCount": 20,
+      "expected": 128
+    },
+    {
+      "label": "通义千问 Qwen3",
+      "itemCount": 1,
+      "expected": 224
+    },
+    {
+      "label": "通义千问 Qwen3",
+      "itemCount": 5,
+      "expected": 224
+    },
+    {
+      "label": "通义千问 Qwen3",
+      "itemCount": 7,
+      "expected": 201
+    },
+    {
+      "label": "通义千问 Qwen3",
+      "itemCount": 8,
+      "expected": 201
+    },
+    {
+      "label": "通义千问 Qwen3",
+      "itemCount": 9,
+      "expected": 177
+    },
+    {
+      "label": "通义千问 Qwen3",
+      "itemCount": 11,
+      "expected": 177
+    },
+    {
+      "label": "通义千问 Qwen3",
+      "itemCount": 12,
+      "expected": 162
+    },
+    {
+      "label": "通义千问 Qwen3",
+      "itemCount": 20,
+      "expected": 162
+    },
+    {
+      "label": "AI🤖日报",
+      "itemCount": 1,
+      "expected": 140
+    },
+    {
+      "label": "AI🤖日报",
+      "itemCount": 5,
+      "expected": 140
+    },
+    {
+      "label": "AI🤖日报",
+      "itemCount": 7,
+      "expected": 128
+    },
+    {
+      "label": "AI🤖日报",
+      "itemCount": 8,
+      "expected": 128
+    },
+    {
+      "label": "AI🤖日报",
+      "itemCount": 9,
+      "expected": 111
+    },
+    {
+      "label": "AI🤖日报",
+      "itemCount": 11,
+      "expected": 111
+    },
+    {
+      "label": "AI🤖日报",
+      "itemCount": 12,
+      "expected": 103
+    },
+    {
+      "label": "AI🤖日报",
+      "itemCount": 20,
+      "expected": 103
+    },
+    {
+      "label": "Llama-4-Maverick",
+      "itemCount": 1,
+      "expected": 277
+    },
+    {
+      "label": "Llama-4-Maverick",
+      "itemCount": 5,
+      "expected": 277
+    },
+    {
+      "label": "Llama-4-Maverick",
+      "itemCount": 7,
+      "expected": 247
+    },
+    {
+      "label": "Llama-4-Maverick",
+      "itemCount": 8,
+      "expected": 247
+    },
+    {
+      "label": "Llama-4-Maverick",
+      "itemCount": 9,
+      "expected": 219
+    },
+    {
+      "label": "Llama-4-Maverick",
+      "itemCount": 11,
+      "expected": 219
+    },
+    {
+      "label": "Llama-4-Maverick",
+      "itemCount": 12,
+      "expected": 199
+    },
+    {
+      "label": "Llama-4-Maverick",
+      "itemCount": 20,
+      "expected": 199
+    },
+    {
+      "label": "芯片",
+      "itemCount": 1,
+      "expected": 86
+    },
+    {
+      "label": "芯片",
+      "itemCount": 5,
+      "expected": 86
+    },
+    {
+      "label": "芯片",
+      "itemCount": 7,
+      "expected": 82
+    },
+    {
+      "label": "芯片",
+      "itemCount": 8,
+      "expected": 82
+    },
+    {
+      "label": "芯片",
+      "itemCount": 9,
+      "expected": 82
+    },
+    {
+      "label": "芯片",
+      "itemCount": 11,
+      "expected": 82
+    },
+    {
+      "label": "芯片",
+      "itemCount": 12,
+      "expected": 82
+    },
+    {
+      "label": "芯片",
+      "itemCount": 20,
+      "expected": 82
+    },
+    {
+      "label": "Apple Intelligence",
+      "itemCount": 1,
+      "expected": 306
+    },
+    {
+      "label": "Apple Intelligence",
+      "itemCount": 5,
+      "expected": 306
+    },
+    {
+      "label": "Apple Intelligence",
+      "itemCount": 7,
+      "expected": 273
+    },
+    {
+      "label": "Apple Intelligence",
+      "itemCount": 8,
+      "expected": 273
+    },
+    {
+      "label": "Apple Intelligence",
+      "itemCount": 9,
+      "expected": 243
+    },
+    {
+      "label": "Apple Intelligence",
+      "itemCount": 11,
+      "expected": 243
+    },
+    {
+      "label": "Apple Intelligence",
+      "itemCount": 12,
+      "expected": 220
+    },
+    {
+      "label": "Apple Intelligence",
+      "itemCount": 20,
+      "expected": 220
+    },
+    {
+      "label": "浏览器战争再起",
+      "itemCount": 1,
+      "expected": 206
+    },
+    {
+      "label": "浏览器战争再起",
+      "itemCount": 5,
+      "expected": 206
+    },
+    {
+      "label": "浏览器战争再起",
+      "itemCount": 7,
+      "expected": 185
+    },
+    {
+      "label": "浏览器战争再起",
+      "itemCount": 8,
+      "expected": 185
+    },
+    {
+      "label": "浏览器战争再起",
+      "itemCount": 9,
+      "expected": 163
+    },
+    {
+      "label": "浏览器战争再起",
+      "itemCount": 11,
+      "expected": 163
+    },
+    {
+      "label": "浏览器战争再起",
+      "itemCount": 12,
+      "expected": 149
+    },
+    {
+      "label": "浏览器战争再起",
+      "itemCount": 20,
+      "expected": 149
+    }
+  ],
+  "bottomItemMinimumWidth": [
+    {
+      "label": "DeepSeek",
+      "active": false,
+      "expected": 164
+    },
+    {
+      "label": "DeepSeek",
+      "active": true,
+      "expected": 287
+    },
+    {
+      "label": "AI动态",
+      "active": false,
+      "expected": 126
+    },
+    {
+      "label": "AI动态",
+      "active": true,
+      "expected": 243
+    },
+    {
+      "label": "OpenAI 发布会",
+      "active": false,
+      "expected": 216
+    },
+    {
+      "label": "OpenAI 发布会",
+      "active": true,
+      "expected": 349
+    },
+    {
+      "label": "开源模型",
+      "active": false,
+      "expected": 142
+    },
+    {
+      "label": "开源模型",
+      "active": true,
+      "expected": 262
+    },
+    {
+      "label": "Claude 4.5",
+      "active": false,
+      "expected": 191
+    },
+    {
+      "label": "Claude 4.5",
+      "active": true,
+      "expected": 320
+    },
+    {
+      "label": "GPT-5 测试",
+      "active": false,
+      "expected": 180
+    },
+    {
+      "label": "GPT-5 测试",
+      "active": true,
+      "expected": 307
+    },
+    {
+      "label": "通义千问 Qwen3",
+      "active": false,
+      "expected": 224
+    },
+    {
+      "label": "通义千问 Qwen3",
+      "active": true,
+      "expected": 359
+    },
+    {
+      "label": "AI🤖日报",
+      "active": false,
+      "expected": 148
+    },
+    {
+      "label": "AI🤖日报",
+      "active": true,
+      "expected": 269
+    },
+    {
+      "label": "Llama-4-Maverick",
+      "active": false,
+      "expected": 273
+    },
+    {
+      "label": "Llama-4-Maverick",
+      "active": true,
+      "expected": 416
+    },
+    {
+      "label": "芯片",
+      "active": false,
+      "expected": 98
+    },
+    {
+      "label": "芯片",
+      "active": true,
+      "expected": 210
+    },
+    {
+      "label": "Apple Intelligence",
+      "active": false,
+      "expected": 300
+    },
+    {
+      "label": "Apple Intelligence",
+      "active": true,
+      "expected": 449
+    },
+    {
+      "label": "浏览器战争再起",
+      "active": false,
+      "expected": 208
+    },
+    {
+      "label": "浏览器战争再起",
+      "active": true,
+      "expected": 340
+    }
+  ]
+}
