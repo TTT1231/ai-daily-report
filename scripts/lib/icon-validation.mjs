@@ -2,7 +2,9 @@ import {existsSync, readdirSync, readFileSync} from "node:fs";
 import {resolve, sep} from "node:path";
 import {dataDir as defaultDataDir} from "./paths.mjs";
 
-export const ICON_PATTERN = /^icons\/.+\.svg$/;
+// 与 generate-svg-payload 的 SAFE_ICON_PATH 同一口径：单层 icons/ 目录、
+// 文件名字符收敛，杜绝 `icons/a/b.svg`、`icons/../x.svg` 这类路径形状。
+export const ICON_PATTERN = /^icons\/[A-Za-z0-9_.-]+\.svg$/;
 export const MAX_SVG_BYTES = 2048;
 const SAFE_ICON_SEGMENT = /^[A-Za-z0-9_-]+$/;
 

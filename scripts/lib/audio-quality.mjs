@@ -11,19 +11,38 @@ const DEFAULT_OPTIONS = {
   maximumBurstMs: 45,
 };
 
-function runCommand(command, args) {
+// ffmpeg 对单条 TTS 音频（秒级 mp3）的静音检测远快于此阈值；超时说明进程挂起
+// （如 bunx 在线解析 remotion 卡住），必须终止，否则会无限持有 tts 事务锁。
+const DEFAULT_COMMAND_TIMEOUT_MS = 60_000;
+
+function runCommand(command, args, timeoutMs = DEFAULT_COMMAND_TIMEOUT_MS) {
   return new Promise((resolve) => {
     const child = spawn(command, args, { windowsHide: true });
     let stderr = "";
+    let settled = false;
+    let timer;
+    const finish = (value) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      resolve(value);
+    };
+    timer = setTimeout(() => {
+      child.kill();
+      finish({
+        error: new Error(`${command} timed out after ${timeoutMs}ms`),
+        stderr,
+      });
+    }, timeoutMs);
 
     child.stderr.on("data", (chunk) => {
       stderr += chunk;
     });
     child.on("error", (error) => {
-      resolve({ error, stderr });
+      finish({ error, stderr });
     });
     child.on("close", (code) => {
-      resolve({ code, stderr });
+      finish({ code, stderr });
     });
   });
 }

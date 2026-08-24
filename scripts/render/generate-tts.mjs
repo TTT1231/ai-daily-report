@@ -27,27 +27,39 @@ const apiKey = process.env.MINIMAX_API_KEY;
 // dev.mjs 跑 tts 时透传此 flag(见 dev.mjs);据此静音 dev 下冗余日志(pacing 是每次一样的配置回显,
 // 且 generated=0 时与运行无关)。单独 `bun run tts` / `tts:force` 不设它,保留完整日志。
 const isDev = process.env.AI_DAILY_REPORT_DEV === "1";
-const config = {
-  // Master switch for the whole TTS subsystem. false => skip voice generation
-  // entirely (no MiniMax, no audio, no ffmpeg quality check); every MINIMAX_* /
-  // TTS_* / REQUIRE_VOICE_QUALITY_FFMPEG setting is then ignored.
-  ttsEnabled: readBooleanEnv("TTS_REQUIRE", true),
-  endpoint:
-    process.env.MINIMAX_TTS_ENDPOINT ?? "https://api.minimaxi.com/v1/t2a_v2",
-  model: process.env.MINIMAX_TTS_MODEL ?? "speech-2.8-hd",
-  voiceId:
-    process.env.MINIMAX_TTS_VOICE_ID ?? "Chinese (Mandarin)_Warm_Girl",
-  speed: readNumberEnv("MINIMAX_TTS_SPEED", 1, 0.5, 2),
-  vol: 1,
-  pitch: 0,
-  tailPaddingMs: readIntegerEnv("TTS_TAIL_PADDING_MS", 250, 0),
-  requestIntervalMs: readIntegerEnv("MINIMAX_TTS_REQUEST_INTERVAL_MS", 2200, 0),
-  maxRetries: readIntegerEnv("MINIMAX_TTS_MAX_RETRIES", 5, 0),
-  rateLimitRetryMs: readIntegerEnv("MINIMAX_TTS_RATE_LIMIT_RETRY_MS", 60000, 1000),
-  // ffmpeg-based voice-quality gate (isolated-burst / click detection). On by
-  // default; set REQUIRE_VOICE_QUALITY_FFMPEG=false to skip it and the ffmpeg dependency.
-  requireVoiceQualityFfmpeg: readBooleanEnv("REQUIRE_VOICE_QUALITY_FFMPEG", true),
-};
+// 配置解析错误（如 MINIMAX_TTS_SPEED=abc）发生在调用 MiniMax 之前、不消耗配额，
+// 与下方缺 API Key 同口径 exit 2：dev 据此不计入"连续失败"锁，改好 .env 即自动重试。
+let config;
+try {
+  config = buildConfig();
+} catch (error) {
+  console.error(error.message);
+  process.exit(2);
+}
+
+function buildConfig() {
+  return {
+    // Master switch for the whole TTS subsystem. false => skip voice generation
+    // entirely (no MiniMax, no audio, no ffmpeg quality check); every MINIMAX_* /
+    // TTS_* / REQUIRE_VOICE_QUALITY_FFMPEG setting is then ignored.
+    ttsEnabled: readBooleanEnv("TTS_REQUIRE", true),
+    endpoint:
+      process.env.MINIMAX_TTS_ENDPOINT ?? "https://api.minimaxi.com/v1/t2a_v2",
+    model: process.env.MINIMAX_TTS_MODEL ?? "speech-2.8-hd",
+    voiceId:
+      process.env.MINIMAX_TTS_VOICE_ID ?? "Chinese (Mandarin)_Warm_Girl",
+    speed: readNumberEnv("MINIMAX_TTS_SPEED", 1, 0.5, 2),
+    vol: 1,
+    pitch: 0,
+    tailPaddingMs: readIntegerEnv("TTS_TAIL_PADDING_MS", 250, 0),
+    requestIntervalMs: readIntegerEnv("MINIMAX_TTS_REQUEST_INTERVAL_MS", 2200, 0),
+    maxRetries: readIntegerEnv("MINIMAX_TTS_MAX_RETRIES", 5, 0),
+    rateLimitRetryMs: readIntegerEnv("MINIMAX_TTS_RATE_LIMIT_RETRY_MS", 60000, 1000),
+    // ffmpeg-based voice-quality gate (isolated-burst / click detection). On by
+    // default; set REQUIRE_VOICE_QUALITY_FFMPEG=false to skip it and the ffmpeg dependency.
+    requireVoiceQualityFfmpeg: readBooleanEnv("REQUIRE_VOICE_QUALITY_FFMPEG", true),
+  };
+}
 
 // When the ffmpeg quality gate is on, retry MiniMax this many times before
 // aborting the TTS run for a clip that still contains isolated-burst artifacts.

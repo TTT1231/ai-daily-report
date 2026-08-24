@@ -53,6 +53,35 @@ test("retries on 5xx server errors up to maxRetries before throwing", async () =
   assert.equal(calls, 3); // 1 次初始 + 2 次重试
 });
 
+// 网关 5xx 常附 HTML 错误页（非 JSON）。修复前 JSON.parse 先于 response.ok 检查，
+// 会以"non-JSON response"致命失败、绕过 transient 重试；修复后按状态码走退避重试。
+test("retries on non-JSON 5xx gateway error pages before throwing", async () => {
+  let calls = 0;
+  const htmlErrorFetch = async () => {
+    calls++;
+    return new globalThis.Response(
+      "<html><body>502 Bad Gateway $& $$</body></html>",
+      { status: 502 },
+    );
+  };
+  const synthesize = createMinimaxClient({
+    apiKey: "key",
+    endpoint: "https://example.com/tts",
+    model: "speech-test",
+    voiceId: "voice-test",
+    speed: 1,
+    vol: 1,
+    pitch: 0,
+    requestIntervalMs: 0,
+    maxRetries: 1,
+    fetch: htmlErrorFetch,
+    sleep: async () => {},
+  });
+
+  await assert.rejects(synthesize("hi"), /non-JSON response \(502\)/);
+  assert.equal(calls, 2); // 1 次初始 + 1 次重试，而不是首错即抛
+});
+
 // 429 但缺失 Retry-After 头时，必须走递增退避（rateLimitRetryMs），而不是 Number(null)=0
 // 钻进 isFinite 只等 requestIntervalMs（~2.2s）→ 立刻再撞限流。本测试用 requestIntervalMs=0
 // 把 bug 放大：修复前会 sleep(0)，修复后 sleep(rateLimitRetryMs)。

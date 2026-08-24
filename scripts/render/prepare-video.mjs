@@ -19,6 +19,19 @@ const ingestSubcommand = usePicks ? "run-picks" : "run-auto";
 function buildProductionSteps() {
   // 两条路径都先 archive（保护上一期数据）+ 跑 ingest 子命令产 data.json + tts/svg/check。
   // picks 路径不跑 fetch：rss-state.json 已由 `bun run rss` 生成，video 只负责拿着 picks 跑后半段。
+  //
+  // generate-svg 与 tts 的 .env 可见性保持一致：tts 经 package.json 自带
+  // --env-file-if-exists=.env，generate-svg 直跑解释器时这里显式补上（node 用
+  // if-exists 变体；bun 不支持该变体，.env 存在时用 --env-file，缺失时不加）。
+  // 注：不再单独排 check-icons 步骤——generate-svg 成功路径的 post-check 已包含
+  // check-icons，而 preflight.skip 提前退出的前提正是图标校验零错误。
+  const envFileExists = existsSync(join(rootDir, ".env"));
+  const execIsBun = /bun(\.exe)?$/i.test(nodeCommand);
+  const envFileArgs = envFileExists
+    ? execIsBun
+      ? ["--env-file=.env"]
+      : ["--env-file-if-exists=.env"]
+    : [];
   return [
     {
       name: "archive",
@@ -43,12 +56,7 @@ function buildProductionSteps() {
     {
       name: "generate-svg",
       command: nodeCommand,
-      args: ["scripts/render/generate-svg.mjs", "--automation"],
-    },
-    {
-      name: "check-icons",
-      command: bunCommand,
-      args: ["run", "check-icons"],
+      args: [...envFileArgs, "scripts/render/generate-svg.mjs", "--automation"],
     },
   ];
 }

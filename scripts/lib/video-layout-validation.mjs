@@ -5,8 +5,17 @@ import {
   videoLayoutSchemaPath,
 } from "./paths.mjs";
 
-const schema = JSON.parse(readFileSync(videoLayoutSchemaPath, "utf8"));
-const validateSchema = new Ajv2020({allErrors: true}).compile(schema);
+// schema 文件缺失/损坏时不让模块加载抛裸堆栈：延迟到校验入口报一条可读错误
+// （退出码仍非零，只是输出对用户友好）。
+let schemaLoadError = null;
+let validateSchema = () => true;
+try {
+  validateSchema = new Ajv2020({allErrors: true}).compile(
+    JSON.parse(readFileSync(videoLayoutSchemaPath, "utf8")),
+  );
+} catch (error) {
+  schemaLoadError = `Unable to load video-layout.schema.json: ${error.message}`;
+}
 
 const formatSchemaError = (error) => {
   const path = error.instancePath.replaceAll("/", ".").replace(/^\./, "") || "$";
@@ -31,6 +40,7 @@ export function validateVideoLayout() {
 }
 
 export function validateVideoLayoutValue(layout) {
+  if (schemaLoadError) return {errors: [schemaLoadError]};
   const errors = validateSchema(layout)
     ? []
     : validateSchema.errors.map(formatSchemaError);

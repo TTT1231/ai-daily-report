@@ -59,8 +59,11 @@ const EDITORIAL_FILLER_PHRASES = [
   "这不代表",
   "不能等同于",
   "较为罕见",
-  "建议",
 ];
+
+// 「建议」裸 includes 会误伤「不建议」「建议者」这类否定/名词化用法；作为警告级
+// 线索，只匹配独立语义的「建议」（无否定前缀、非「建议者」）。
+const EDITORIAL_ADVICE_WORD = /(?<![不好别莫无])建议(?!者)/;
 
 // 「官方表示」只有自身充当分句主语（前面没有点名主体）时才算匿名归因；
 // 「DeepSeek 官方表示」「阿里官方表示」有明确主体，不警告。
@@ -128,6 +131,11 @@ export function validateTone(report) {
             `${field.path}: possible editorial filler ("${phrase}"); keep to facts the source actually states`,
           );
         }
+      }
+      if (EDITORIAL_ADVICE_WORD.test(text)) {
+        warnings.push(
+          `${field.path}: possible editorial filler ("建议"); keep to facts the source actually states`,
+        );
       }
       if (HYPOTHETICAL_FILLER.test(text)) {
         warnings.push(

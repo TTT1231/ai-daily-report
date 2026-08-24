@@ -12,7 +12,7 @@
  *   bun run video:meta                # 日常入口：评论 + 标题/标签一起生成
  */
 
-import { writeFileSync } from "node:fs";
+import { renameSync, writeFileSync } from "node:fs";
 import { execFileSync } from "node:child_process";
 import { resolve } from "node:path";
 import {collectTimelineScenes} from "./report-builder.mjs";
@@ -27,12 +27,15 @@ const shouldCopy = process.argv.includes("--copy");
 
 // ── 工具函数 ──────────────────────────────────────────
 
-/** 毫秒 → "MM:SS" 格式 */
+/** 毫秒 → "MM:SS"（≥1 小时时用 "HH:MM:SS"，分钟不进位到 99+） */
 function msToTimestamp(ms) {
   const totalSeconds = Math.floor(ms / 1000);
-  const minutes = Math.floor(totalSeconds / 60);
+  const hours = Math.floor(totalSeconds / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
   const seconds = totalSeconds % 60;
-  return `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
+  const mm = String(minutes).padStart(2, "0");
+  const ss = String(seconds).padStart(2, "0");
+  return hours > 0 ? `${String(hours).padStart(2, "0")}:${mm}:${ss}` : `${mm}:${ss}`;
 }
 
 /** 去除 Markdown 粗体/代码标记，生成纯文本评论 */
@@ -95,14 +98,20 @@ async function main() {
   const numberedLines = items.map((line, idx) => `${idx + 1}. ${line}`);
   const commentBlock = ["今日日报：", ...numberedLines].join("\n");
 
-  // 5. 写入文件（直接输出评论块）
-  writeFileSync(OUTPUT_PATH, `${commentBlock}\n`, "utf-8");
+  // 5. 写入文件（直接输出评论块；原子写避免崩溃留半截文件）
+  const stagingPath = resolve(dataDir, ".comments.txt.staging");
+  writeFileSync(stagingPath, `${commentBlock}\n`, "utf-8");
+  renameSync(stagingPath, OUTPUT_PATH);
   console.log(`✅ 已生成 ${items.length} 条评论 → data-scheme/comments.txt`);
 
-  // 6. 可选：复制到剪贴板
+  // 6. 可选：复制到剪贴板（缺 xclip/clip 等工具只告警——文件已写好，不该因此失败）
   if (shouldCopy) {
-    copyToClipboard(commentBlock);
-    console.log("📋 评论内容已复制到剪贴板");
+    try {
+      copyToClipboard(commentBlock);
+      console.log("📋 评论内容已复制到剪贴板");
+    } catch (error) {
+      console.warn(`⚠️  剪贴板复制失败（${error.message}），评论已写入 data-scheme/comments.txt`);
+    }
   }
 
   // 7. 控制台预览

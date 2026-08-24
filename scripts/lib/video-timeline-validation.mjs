@@ -5,8 +5,16 @@ import {
   videoTimelineSchemaPath,
 } from "./paths.mjs";
 
-const schema = JSON.parse(readFileSync(videoTimelineSchemaPath, "utf8"));
-const validateSchema = new Ajv2020({allErrors: true}).compile(schema);
+// schema 文件缺失/损坏时不让模块加载抛裸堆栈：延迟到校验入口报一条可读错误。
+let schemaLoadError = null;
+let validateSchema = () => true;
+try {
+  validateSchema = new Ajv2020({allErrors: true}).compile(
+    JSON.parse(readFileSync(videoTimelineSchemaPath, "utf8")),
+  );
+} catch (error) {
+  schemaLoadError = `Unable to load video-timeline.schema.json: ${error.message}`;
+}
 
 const formatSchemaError = (error) => {
   const path = error.instancePath.replaceAll("/", ".").replace(/^\./, "") || "$";
@@ -34,6 +42,7 @@ export function validateVideoTimeline() {
 }
 
 export function validateVideoTimelineValue(timeline) {
+  if (schemaLoadError) return {errors: [schemaLoadError]};
   const errors = validateSchema(timeline)
     ? []
     : validateSchema.errors.map(formatSchemaError);

@@ -12,10 +12,11 @@
  * 用法：bun run video:meta（一次生成 comments.txt + video-meta.json）
  */
 
-import { writeFileSync } from "node:fs";
+import { renameSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 import { dataDir, rawDataPath, readJson } from "./paths.mjs";
+import { parseReportDate } from "./report-builder.mjs";
 
 // ── LLM 配置（复用 rss 的 AI_API_KEY / AI_BASE_URL / AI_MODEL）──────────
 const { AI_API_KEY: API_KEY, AI_BASE_URL: BASE_URL, AI_MODEL: MODEL } = process.env;
@@ -81,15 +82,27 @@ async function llm(messages) {
     }
     if (!res.ok) {
       const errBody = await res.text().catch(() => "");
-      // 5xx 视为瞬时错误重试；4xx 立即抛出。错误体限长 300 字，避免超大错误页撑爆日志。
-      if (res.status >= 500 && attempt < LLM_MAX_ATTEMPTS) {
+      // 429 限流与 5xx 同属瞬时错误，退避重试；4xx 立即抛出。错误体限长 300 字，
+      // 避免超大错误页撑爆日志。
+      if ((res.status === 429 || res.status >= 500) && attempt < LLM_MAX_ATTEMPTS) {
         lastErr = new Error(`AI 接口 ${res.status}: ${errBody.slice(0, 300)}`);
         console.warn(`[LLM] 接口返回 ${res.status}，重试中 (${attempt}/${LLM_MAX_ATTEMPTS})`);
         continue;
       }
       throw new Error(`AI 接口 ${res.status}: ${errBody.slice(0, 300)}`);
     }
-    const data = await res.json();
+    let data;
+    try {
+      data = await res.json();
+    } catch (err) {
+      // 200 + 非 JSON 体（网关故障页等）：与 5xx 一样按瞬时错误重试。
+      lastErr = new Error(`AI 接口返回非 JSON 响应: ${String(err?.message ?? err)}`);
+      if (attempt < LLM_MAX_ATTEMPTS) {
+        console.warn(`[LLM] 响应解析失败，重试中 (${attempt}/${LLM_MAX_ATTEMPTS})`);
+        continue;
+      }
+      throw lastErr;
+    }
     const text = data.choices?.[0]?.message?.content?.trim();
     if (!text) throw new Error("AI 返回为空");
     return text;
@@ -151,6 +164,11 @@ async function main() {
   const { date, stories = [] } = report;
   if (!date) throw new Error("data.json 缺 date");
   if (!stories.length) throw new Error("data.json 没有 stories");
+  // 后缀按月/日拼接，先拒绝"2026-13-45"这类形状合法但语义错误的日期，
+  // 否则会产出【AI日报 - 13 - 45】这种坏标题。
+  if (!parseReportDate(date)) {
+    throw new Error(`data.json 的 date 不是有效日期: ${date}`);
+  }
 
   console.log(`[LLM] 模型 ${MODEL}，生成标题/标签 …`);
   const raw = await llm(buildVideoMetaMessages(stories));
@@ -194,7 +212,10 @@ async function main() {
     model: MODEL,
   };
   const outPath = resolve(dataDir, "video-meta.json");
-  writeFileSync(outPath, JSON.stringify(out, null, 2) + "\n", "utf-8");
+  // 原子写：投稿脚本可能随时读该文件，直接覆盖在崩溃/断电时会留下半截 JSON。
+  const stagingPath = resolve(dataDir, ".video-meta.json.staging");
+  writeFileSync(stagingPath, JSON.stringify(out, null, 2) + "\n", "utf-8");
+  renameSync(stagingPath, outPath);
 
   console.log(`✅ 已生成 ${outPath}`);
   console.log(`标题 (${title.length}/80 字): ${title}`);

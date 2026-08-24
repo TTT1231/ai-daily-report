@@ -29,7 +29,8 @@ const weekdays = [
   "星期六",
 ];
 
-function parseReportDate(date) {
+// 校验 YYYY-MM-DD 且为真实存在的日期（"2026-02-30" 这类滚动日期返回 null）。
+export function parseReportDate(date) {
   const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(date ?? "");
   if (!match) return null;
   const [, year, month, day] = match;
@@ -195,11 +196,13 @@ export const STORY_TRANSITION_FRAMES = videoTimeline.storyTransitionFrames;
  * data.stories[i] 对应 index i + 1（intro / outro 在 generated 数据中始终存在）。
  */
 export function buildVideoStoryStartMs(report) {
+  // intro/outro 理论上始终存在，但 raw 数据可能缺失：与 collectTimelineScenes 一致
+  // 过滤掉 undefined，避免下游 timelineStories[si].scenes 抛 TypeError。
   const timelineStories = [
     report.intro,
     ...(report.stories ?? []),
     report.outro,
-  ];
+  ].filter(Boolean);
   const msToFrames = (ms) => Math.round((ms / 1000) * VIDEO_FPS);
   let cursor = 0;
   const startMs = [];

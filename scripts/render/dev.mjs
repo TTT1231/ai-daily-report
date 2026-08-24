@@ -43,24 +43,41 @@ const childEnv = {
   ...process.env,
   PATH: `${resolve(rootDir, "node_modules", ".bin")}${delimiter}${process.env.PATH ?? ""}`,
 };
-function runScript(name) {
+function runScript(name, onExit) {
   const child = spawn(pkgScripts[name], {
     cwd: rootDir,
     env: childEnv,
     stdio: "inherit",
     shell: true,
   });
+  // shell 本体 spawn 失败时只发 error、不发 close；按同样的语义收尾，
+  // 否则 syncProcess/studioProcess 永不复位，后续自动同步全部静默失效。
+  let exited = false;
+  const exit = (...args) => {
+    if (exited) return;
+    exited = true;
+    onExit(...args);
+  };
   child.once("error", (error) => {
     console.error(`无法运行 ${name}: ${error.message}`);
+    exit(null, null);
   });
+  child.once("close", exit);
   return child;
 }
 
 function startStudio() {
   if (studioProcess || shuttingDown) return;
+  // TTS_REQUIRE=false 等模式下 tts 会 exit(0) 但不产出 data-generate.json；
+  // 缺 props 启动 Studio 只会报错，这里明确提示而不是带病启动。
+  if (!existsSync(generatedDataPath)) {
+    console.error(
+      "⚠️ data-generate.json 尚不存在，跳过启动 Remotion Studio（TTS_REQUIRE=false 时不生成数据；改为生成后再保存触发同步即可）。",
+    );
+    return;
+  }
   console.log("\n🎬 正在启动 Remotion Studio...\n");
-  studioProcess = runScript("dev:studio");
-  studioProcess.once("close", (code, signal) => {
+  studioProcess = runScript("dev:studio", (code, signal) => {
     studioProcess = null;
     if (!shuttingDown) {
       console.log(`Remotion Studio 已退出 (${signal ?? code ?? "unknown"})。`);
@@ -76,8 +93,7 @@ function runSync(reason) {
   }
 
   console.log(`\n🔄 ${reason}，正在同步 data-generate.json...`);
-  syncProcess = runScript("tts");
-  syncProcess.once("close", (code) => {
+  syncProcess = runScript("tts", (code) => {
     syncProcess = null;
     if (code === 0) {
       consecutiveFailures = 0;
@@ -212,22 +228,35 @@ function watchInputs() {
     }),
   );
 
+  // rootDir 用非递归监听（避免 node_modules/、out/、daily-dates/ 的噪音），只认
+  // 直接子项：.env。config/* 是二级路径，非递归监听在 Windows
+  //（ReadDirectoryChangesW bWatchSubtree=FALSE）/ Linux（inotify）都永远收不到，
+  // 必须单独监听 config 目录本身。
   watchers.push(
     watch(rootDir, (eventType, filename) => {
       if (eventType !== "change" && eventType !== "rename") return;
       const name = (filename?.toString() ?? "").replace(/\\/g, "/");
+      if (name === ".env") {
+        scheduleSync(".env 已变化，TTS 参数将重新加载");
+      }
+    }),
+  );
+
+  const configDir = resolve(rootDir, "config");
+  watchers.push(
+    watch(configDir, (eventType, filename) => {
+      if (eventType !== "change" && eventType !== "rename") return;
+      const name = (filename?.toString() ?? "").replace(/\\/g, "/");
       if (
         [
-          "config/data.schema.json",
-          "config/video-layout.json",
-          "config/video-layout.schema.json",
-          "config/video-timeline.json",
-          "config/video-timeline.schema.json",
+          "data.schema.json",
+          "video-layout.json",
+          "video-layout.schema.json",
+          "video-timeline.json",
+          "video-timeline.schema.json",
         ].includes(name)
       ) {
-        scheduleSync(`${name} 已变化`);
-      } else if (name === ".env") {
-        scheduleSync(".env 已变化，TTS 参数将重新加载");
+        scheduleSync(`config/${name} 已变化`);
       }
     }),
   );

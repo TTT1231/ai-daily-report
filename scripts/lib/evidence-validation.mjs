@@ -117,7 +117,14 @@ export function validateReportEvidence(report, {dataDir, requireOverlay = false}
         errors.push(`${label}: file does not exist`);
         continue;
       }
-      const size = statSync(absolute).size;
+      // existsSync→statSync 间隙文件可能被删（TOCTOU），按不存在处理而不是抛堆栈。
+      let size;
+      try {
+        size = statSync(absolute).size;
+      } catch {
+        errors.push(`${label}: file does not exist`);
+        continue;
+      }
       if (size < minOverlayBytes) {
         errors.push(
           `${label}: file is only ${size} bytes — placeholder or truncated download`,

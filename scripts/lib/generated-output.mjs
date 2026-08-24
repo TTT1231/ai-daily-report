@@ -1,9 +1,11 @@
-import {mkdir, open, readdir, rename, rm, stat, unlink, writeFile} from "node:fs/promises";
+import {mkdir, open, readFile, readdir, rename, rm, stat, unlink, writeFile} from "node:fs/promises";
 import {resolve} from "node:path";
 import {setTimeout as sleep} from "node:timers/promises";
 
 const LOCK_POLL_INTERVAL_MS = 250;
 const LOCK_TIMEOUT_MS = 10 * 60 * 1000;
+// 仅作为兜底：锁内容不可读（写了一半/损坏）时按年龄回收。持有进程的存活判定
+// 优先走 pid 探测，崩溃残留的锁能被立即回收，不必干等这里的时间阈值。
 const STALE_LOCK_MS = 30 * 60 * 1000;
 const RENAME_RETRY_ATTEMPTS = 10;
 const RENAME_RETRY_DELAY_MS = 100;
@@ -22,6 +24,31 @@ async function renameWithRetry(source, destination) {
       }
       await sleep(RENAME_RETRY_DELAY_MS * (attempt + 1));
     }
+  }
+}
+
+// 判断锁持有进程是否已死。process.kill(pid, 0) 不发送真实信号，只做存在性探测：
+// 存活（含无权限的 EPERM）视为持锁中，ESRCH 说明进程已不存在（崩溃/被杀没清锁）。
+// pid 被无关进程复用的极端情况会误判为存活，最终由 LOCK_TIMEOUT_MS 兜底报错。
+function isLockHolderDead(pid) {
+  if (!Number.isInteger(pid) || pid <= 0) return false;
+  try {
+    process.kill(pid, 0);
+    return false;
+  } catch (error) {
+    return error?.code === "ESRCH";
+  }
+}
+
+// 读取锁内容里的 pid；内容损坏（写一半崩溃）返回 null，交由年龄阈值兜底回收。
+async function readLockPid(lockPath) {
+  const content = await readFile(lockPath, "utf8").catch(() => null);
+  if (content == null) return null;
+  try {
+    const pid = JSON.parse(content)?.pid;
+    return Number.isInteger(pid) ? pid : null;
+  } catch {
+    return null;
   }
 }
 
@@ -45,11 +72,21 @@ async function acquireTransactionLock(lockPath) {
     } catch (error) {
       if (error.code !== "EEXIST") throw error;
 
-      const lockAgeMs = await stat(lockPath)
-        .then((lockStat) => Date.now() - lockStat.mtimeMs)
-        .catch(() => 0);
-      if (lockAgeMs >= STALE_LOCK_MS) {
-        await rm(lockPath, {force: true});
+      const lockStat = await stat(lockPath).catch(() => null);
+      const lockAgeMs = lockStat ? Date.now() - lockStat.mtimeMs : 0;
+      const holderPid = lockStat ? await readLockPid(lockPath) : null;
+      const reclaimable =
+        (holderPid != null && isLockHolderDead(holderPid)) ||
+        (holderPid == null && lockStat != null && lockAgeMs >= STALE_LOCK_MS);
+      if (reclaimable && lockStat) {
+        // TOCTOU 防护：读取内容期间锁可能已被其它等待者回收并重建，删除前复查
+        // mtime，不一致说明手上这份是旧锁，回到循环重新评估新锁。
+        const mtimeNowMs = await stat(lockPath)
+          .then((s) => s.mtimeMs)
+          .catch(() => null);
+        if (mtimeNowMs === lockStat.mtimeMs) {
+          await rm(lockPath, {force: true});
+        }
         continue;
       }
       if (Date.now() - startedAt >= LOCK_TIMEOUT_MS) {
@@ -81,6 +118,17 @@ async function acquireTransactionLock(lockPath) {
 // data-generate.json（单文件 rename，Studio 只在它 mtime 变化时 reload）→ 最后
 // best-effort 清理孤儿音频。任何时刻崩溃都留下"manifest 与音频一致，或仅多出
 // 无害孤儿"的状态；缺失/不匹配音频对 Remotion 也只 warn 不崩。
+// 供 tts 事务之外的写盘方（generate-svg 的快照提交/回滚）复用同一把 .tts.lock：
+// 两者都会改写 data-generate.json，不共享锁时回滚可能覆盖并发 tts commit 的写入。
+export async function withTransactionLock(dataDir, fn) {
+  const releaseLock = await acquireTransactionLock(resolve(dataDir, ".tts.lock"));
+  try {
+    return await fn();
+  } finally {
+    await releaseLock();
+  }
+}
+
 export async function createGeneratedOutputTransaction(dataDir) {
   const audioDir = resolve(dataDir, "audio");
   const generatedPath = resolve(dataDir, "data-generate.json");

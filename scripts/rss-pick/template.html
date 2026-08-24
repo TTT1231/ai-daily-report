@@ -883,10 +883,20 @@
     try { localStorage.setItem(LS_KEY, JSON.stringify(copied)); } catch (e) {}
   }
 
+  // copied 只保留仍在当前候选池（rss-state items）里的 hash，防止 localStorage 随历史无限膨胀。
+  function pruneCopied() {
+    for (var k in copied) {
+      if (Object.prototype.hasOwnProperty.call(copied, k) && !items[k]) delete copied[k];
+    }
+    try { localStorage.setItem(LS_KEY, JSON.stringify(copied)); } catch (e) {}
+  }
+
   var items = rssState && rssState.items ? rssState.items : rssState;
   // pickedHistory：已被人工挑选并成功消费的条目指纹（由 fetch 阶段写入 rss-state.json）。
   // 这些条目在抓取时就被 filterUnpickedItems 剔除，正常不会出现在 items 里。
   var pickedHistory = rssState && rssState.picked ? rssState.picked : {};
+  // 加载时把 copied 收敛为仍在当前候选池里的 hash（保存成功后还会再清一次）。
+  pruneCopied();
   var entries = [];
   var entryMap = {};
   var selected = {};
@@ -971,17 +981,18 @@
   cAccepted.textContent = acceptedCount;
   document.getElementById("source-total").textContent = sourceStats().length + " 个";
 
+  // 空列表也不能提前 return：否则下方所有事件监听（关闭/搜索/筛选/清空）都不会注册。
+  // 来源列表照常渲染（空态），让全部监听正常挂上。
+  renderSourceList();
   if (entries.length === 0) {
     root.innerHTML = "";
     empty.hidden = false;
     empty.innerHTML = '没有 RSS 条目。确认 <span class="mono">ingest/rss-state.json</span> 里有没有 items。';
     renderPreview(null, []);
     recount([]);
-    return;
+  } else {
+    renderAll();
   }
-
-  renderSourceList();
-  renderAll();
 
   function escapeHtml(s) {
     return String(s).replace(/[&<>"']/g, function (c) {
@@ -991,6 +1002,11 @@
 
   function escapeAttr(s) {
     return escapeHtml(s).replace(/`/g, "&#96;");
+  }
+
+  // 外链只放行 http(s)：escapeAttr 不校验 scheme，javascript: 之类的 URL 不渲染成 <a>。
+  function safeHttpUrl(url) {
+    return typeof url === "string" && /^https?:\/\//i.test(url) ? url : null;
   }
 
   function sourceStats() {
@@ -1099,7 +1115,7 @@
     if (e.accepted) badges += '<span class="badge badge-accepted">已收录</span>';
     if (e.copied) badges += '<span class="badge badge-copied">已复制</span>';
     if (!badges) badges = "";
-    var open = e.link
+    var open = safeHttpUrl(e.link)
       ? '<a class="icon-btn" href="' + escapeAttr(e.link) + '" target="_blank" rel="noopener noreferrer" aria-label="打开原文"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 3h6v6"/><path d="M10 14 21 3"/><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/></svg></a>'
       : '<span></span>';
     return '<div class="' + classes + '" data-hash="' + escapeAttr(e.hash) + '" tabindex="0" aria-selected="' + (e.hash === state.activeHash ? "true" : "false") + '">'
@@ -1133,9 +1149,9 @@
     if (e.accepted) status += '<span class="badge badge-accepted">已收录</span>';
     if (e.copied) status += '<span class="badge badge-copied">已复制</span>';
     if (!status) status = '<span class="badge badge-neutral">未选择</span>';
-    var link = e.link
+    var link = safeHttpUrl(e.link)
       ? '<a class="preview-link" href="' + escapeAttr(e.link) + '" target="_blank" rel="noopener noreferrer">' + escapeHtml(e.link) + '</a>'
-      : "-";
+      : (e.link ? escapeHtml(e.link) : "-");
     var toggleText = selected[e.hash] ? "移出选择" : "加入选择";
     previewBody.innerHTML =
       '<h2 class="preview-title">' + escapeHtml(e.title) + '</h2>'
@@ -1261,7 +1277,7 @@
       var e = entries[i];
       if (!selected[e.hash]) continue;
       lines.push(
-        '"' + e.hash + '": {\n' +
+        JSON.stringify(e.hash) + ': {\n' +
         '  "sourceId": ' + JSON.stringify(e.sourceId) + ',\n' +
         '  "title": ' + JSON.stringify(e.title) + ',\n' +
         '  "link": ' + JSON.stringify(e.link) + '\n' +
@@ -1302,20 +1318,34 @@
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body),
-    }).then(function (r) { return r.json(); }).then(function (res) {
+    }).then(function (r) {
+      // 非 2xx（典型 403）时响应体是纯文本不是 JSON，盲目 r.json() 会落进 catch 被误判成已保存。
+      if (!r.ok) return { __httpStatus: r.status };
+      return r.json().catch(function () { return null; });
+    }).then(function (res) {
       if (res && res.ok) {
         showToast("已保存 " + hashes.length + " 条到 picks.json，服务已关闭");
         saveBtn.textContent = "已保存";
+        pruneCopied();
         // 服务会自行关闭，页面保持显示结果。
+      } else if (res && res.__httpStatus === 403) {
+        showToast("保存失败：token 失效或服务已关闭");
+        saveBtn.disabled = false;
+        saveBtn.textContent = "保存并关闭";
+      } else if (res && res.__httpStatus) {
+        showToast("保存失败：服务返回 " + res.__httpStatus);
+        saveBtn.disabled = false;
+        saveBtn.textContent = "保存并关闭";
       } else {
         showToast("保存失败：服务返回异常");
         saveBtn.disabled = false;
         saveBtn.textContent = "保存并关闭";
       }
     }).catch(function (e) {
-      // 服务关闭后连接断开属正常：只要请求已发出即视为成功。
-      showToast("已保存（服务已关闭）");
-      saveBtn.textContent = "已保存";
+      // 网络层失败（连接断开等）时无法确认服务端是否写入，不能断言成功。
+      showToast("无法确认保存结果，请查看终端日志或手动检查 picks.json");
+      saveBtn.disabled = false;
+      saveBtn.textContent = "保存并关闭";
     });
   });
 

@@ -83,11 +83,20 @@ function sharedIconKeepers(story, dataDir) {
   return keepers;
 }
 
-export function buildGenerateSvgTargetPlan(report, {force = false, dataDir = defaultDataDir} = {}) {
-  const validation = validateReportIcons(report, {
-    dataDir,
-    includeOrphanWarnings: false,
-  });
+// iconTargets 可由调用方传入（generate-svg wrapper 已在 preflight 对同一份 report
+// 跑过 validateReportIcons，其 iconTargets 可直接复用，避免重复全量校验）；
+// 缺省（undefined）时内部自行校验。
+export function buildGenerateSvgTargetPlan(
+  report,
+  {force = false, dataDir = defaultDataDir, iconTargets} = {},
+) {
+  const validation =
+    Array.isArray(iconTargets) && !force
+      ? {iconTargets}
+      : validateReportIcons(report, {
+          dataDir,
+          includeOrphanWarnings: false,
+        });
   const targetPaths = new Set(force ? [] : validation.iconTargets);
   const targetsByPath = new Map();
   const timelineEntries = [

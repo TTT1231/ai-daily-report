@@ -11,8 +11,13 @@ import {resolve, sep} from "node:path";
 // 不抛错：report 结构异常或字段缺失时按"无引用"处理，返回空数组。
 export function collectMissingImageAssets(report, dataDir) {
   if (!report || typeof report !== "object") return [];
+  // dataDir 是调用契约而非数据：非法值会让 resolve(root, ref) 落到 cwd，
+  // 悬空引用全部漏报，宁可 fail fast。
+  if (typeof dataDir !== "string" || dataDir.length === 0) {
+    throw new TypeError("collectMissingImageAssets requires a non-empty dataDir string");
+  }
   const missing = [];
-  const root = typeof dataDir === "string" ? dataDir : "";
+  const root = dataDir;
 
   const check = (ref, owner) => {
     if (typeof ref !== "string" || ref.length === 0) return;

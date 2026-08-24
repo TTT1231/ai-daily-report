@@ -40,9 +40,10 @@ export function isReusable(scene, cachedScene, hash, outputPath, force) {
   return (
     !force &&
     existsSync(outputPath) &&
+    hash != null &&
     cachedScene?.audioSrc === `audio/${scene.id}.mp3` &&
     cachedScene?.tts?.hash === hash &&
-    Number.isInteger(cachedScene.tts.audioLengthMs) &&
+    Number.isInteger(cachedScene.tts?.audioLengthMs) &&
     cachedScene.tts.audioLengthMs > 0
   );
 }

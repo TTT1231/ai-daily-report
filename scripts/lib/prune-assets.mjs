@@ -91,9 +91,8 @@ function readReportsBestEffort(dataDir) {
 }
 
 function pruneCategory(dir, prefix, referenced, allowlist, {dryRun}) {
-  if (!existsSync(dir)) return {deleted: [], kept: 0};
+  if (!existsSync(dir)) return {deleted: [], kept: 0, failed: []};
   const orphan = findUnreferenced(dir, prefix, referenced, allowlist);
-  const deleted = orphan.map((o) => o.ref).sort();
   // kept = 白名单资产文件中未被删除的数量
   const assetFiles = readdirSync(dir).filter((entry) => {
     if (entry.startsWith(".")) return false;
@@ -101,16 +100,25 @@ function pruneCategory(dir, prefix, referenced, allowlist, {dryRun}) {
     return allowlist.map((e) => e.toLowerCase()).includes(ext);
   });
   const kept = assetFiles.length - orphan.length;
-  if (!dryRun) {
-    for (const {abs} of orphan) {
-      try {
-        unlinkSync(abs);
-      } catch {
-        // 单文件删除失败（如 Windows 偶发句柄占用）不阻断其余清理。
-      }
+  const deleted = [];
+  const failed = [];
+  for (const {ref, abs} of orphan) {
+    if (dryRun) {
+      deleted.push(ref);
+      continue;
+    }
+    try {
+      unlinkSync(abs);
+      deleted.push(ref);
+    } catch {
+      // 单文件删除失败（如 Windows 偶发句柄占用）不阻断其余清理；如实记入 failed，
+      // 不混进 deleted——汇总据此告警，避免"已删除"谎报。
+      failed.push(ref);
     }
   }
-  return {deleted, kept};
+  deleted.sort();
+  failed.sort();
+  return {deleted, kept, failed};
 }
 
 // 编排：读引用 → 收集并集 → 逐目录清理。返回 summary（dryRun 时只列出、不删除）。

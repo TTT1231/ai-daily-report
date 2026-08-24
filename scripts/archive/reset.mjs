@@ -10,9 +10,15 @@ const yes = process.argv.includes("--yes") || process.argv.includes("-y");
 
 function clearDirectory(path) {
   mkdirSync(path, { recursive: true });
+  const failed = [];
   for (const entry of readdirSync(path)) {
-    rmSync(resolve(path, entry), { recursive: true, force: true });
+    try {
+      rmSync(resolve(path, entry), { recursive: true, force: true });
+    } catch (e) {
+      failed.push(`${entry}（${e.message}）`);
+    }
   }
+  return failed;
 }
 
 function removeFile(path) {
@@ -56,7 +62,12 @@ if (!(await confirmReset())) {
   process.exit(0);
 }
 
-clearDirectory(dataDir);
+const clearFailed = clearDirectory(dataDir);
+if (clearFailed.length > 0) {
+  console.error("❌ 清空 data-scheme/ 失败，请先关闭 Remotion Studio / 占用文件的程序再 reset：");
+  for (const item of clearFailed) console.error(`  · ${item}`);
+  process.exit(1);
+}
 const removedState = removeFile(rssStatePath);
 const removedTempState = removeFile(rssStateTempPath);
 const removedPicks = removeFile(picksPath);

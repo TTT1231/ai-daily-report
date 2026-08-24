@@ -77,23 +77,24 @@ export function createMinimaxClient({
           `MiniMax TTS 网络请求失败（已重试 ${maxRetries} 次）: ${error.message}`,
         );
       }
-      let result;
+      // 先按 HTTP 状态判定瞬时错误再解析 JSON：网关/代理的 502/504 常附 HTML 错误页，
+      // 若先 JSON.parse 会以"non-JSON response"致命失败，绕过下面的 transient 重试。
+      let result = null;
+      let parseFailed = false;
       try {
         result = JSON.parse(raw);
       } catch {
-        throw new Error(
-          `MiniMax returned non-JSON response (${response.status}): ${raw.slice(0, 300)}`,
-        );
+        parseFailed = true;
       }
 
-      if (!response.ok || result.base_resp?.status_code !== 0) {
+      if (!response.ok || parseFailed || result?.base_resp?.status_code !== 0) {
         const message =
-          result.base_resp?.status_msg ??
-          result.message ??
+          result?.base_resp?.status_msg ??
+          result?.message ??
           `HTTP ${response.status}`;
-        // 瞬时错误才重试：429 限流 + 5xx 服务端错误（含限流文案）。base_resp 业务错误码
-        // （HTTP 200 内的 status_code）多为参数/内容问题，是确定性失败，不重试、直接抛出，
-        // 避免对必败请求反复消耗配额。
+        // 瞬时错误才重试：429 限流 + 5xx 服务端错误（含限流文案、以及 5xx 附带的
+        // 非 JSON 错误页）。base_resp 业务错误码（HTTP 200 内的 status_code）多为
+        // 参数/内容问题，是确定性失败，不重试、直接抛出，避免对必败请求反复消耗配额。
         const transient =
           response.status === 429 ||
           response.status >= 500 ||
@@ -113,6 +114,11 @@ export function createMinimaxClient({
           );
           await sleep(waitMs);
           continue;
+        }
+        if (parseFailed && result == null) {
+          throw new Error(
+            `MiniMax returned non-JSON response (${response.status}): ${raw.slice(0, 300)}`,
+          );
         }
         throw new Error(`MiniMax TTS request failed: ${message}`);
       }

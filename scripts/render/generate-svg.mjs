@@ -15,11 +15,28 @@ import {
   formatRetryReason,
   parseGenerateSvgPayload,
 } from "../lib/generate-svg-payload.mjs";
+import {terminateProcessTree} from "../lib/process-tree.mjs";
+import {withTransactionLock} from "../lib/generated-output.mjs";
 import {dataDir, generatedDataPath, rawDataPath, readJson, rootDir} from "../lib/paths.mjs";
 
 // 20 图标一次性生成实测 ~140s（首 token ~105s）。给 claude.exe 留足完成空间，同时防止
-// API 偶发卡死让 generate-svg 无限挂起、阻塞整个 video 流水线。可用环境变量覆盖。
-const CLAUDE_PAYLOAD_TIMEOUT_MS = Number(process.env.AI_DAILY_SVG_TIMEOUT_MS) || 5 * 60 * 1000;
+// API 偶发卡死让 generate-svg 无限挂起、阻塞整个 video 流水线。可用环境变量覆盖：
+// AI_DAILY_REPORT_SVG_TIMEOUT_MS（旧名 AI_DAILY_SVG_TIMEOUT_MS 仍兼容，命名向
+// 其它 AI_DAILY_REPORT_* 变量看齐）。0 = 禁用超时；非法值直接报错退出，
+// 不静默回退默认——那会让"调大超时"的意图悄悄失效。
+const RAW_TIMEOUT_MS =
+  process.env.AI_DAILY_REPORT_SVG_TIMEOUT_MS ?? process.env.AI_DAILY_SVG_TIMEOUT_MS;
+let CLAUDE_PAYLOAD_TIMEOUT_MS = 5 * 60 * 1000;
+if (RAW_TIMEOUT_MS !== undefined) {
+  const value = Number(RAW_TIMEOUT_MS);
+  if (!Number.isInteger(value) || value < 0) {
+    console.error(
+      `AI_DAILY_REPORT_SVG_TIMEOUT_MS 必须是非负整数（毫秒，0 表示不设超时），当前值: ${RAW_TIMEOUT_MS}`,
+    );
+    process.exit(2);
+  }
+  CLAUDE_PAYLOAD_TIMEOUT_MS = value;
+}
 
 const args = process.argv.slice(2);
 const automation = args.includes("--automation");
@@ -153,20 +170,24 @@ function requestClaudePayload(prompt) {
     const fail = (error) => {
       if (settled) return;
       settled = true;
-      clearTimeout(timer);
+      if (timer) clearTimeout(timer);
+      // claude CLI 可能派生子进程；用进程树终止，避免 Windows 上只杀直连进程留下后代。
       try {
-        child.kill("SIGKILL");
+        terminateProcessTree(child);
       } catch {
         // 子进程可能已退出；忽略清理错误。
       }
       reject(error);
     };
 
-    const timer = setTimeout(() => {
-      const error = new Error(`claude payload 超过 ${CLAUDE_PAYLOAD_TIMEOUT_MS}ms 无响应`);
-      error.kind = "claude-timeout";
-      fail(error);
-    }, CLAUDE_PAYLOAD_TIMEOUT_MS);
+    // CLAUDE_PAYLOAD_TIMEOUT_MS === 0 表示显式禁用超时。
+    const timer = CLAUDE_PAYLOAD_TIMEOUT_MS > 0
+      ? setTimeout(() => {
+          const error = new Error(`claude payload 超过 ${CLAUDE_PAYLOAD_TIMEOUT_MS}ms 无响应`);
+          error.kind = "claude-timeout";
+          fail(error);
+        }, CLAUDE_PAYLOAD_TIMEOUT_MS)
+      : null;
 
     // 子进程提前退出会让 stdin 写入抛 EPIPE/ERR_STREAM_DESTROYED；挂个 error 监听吸收掉，
     // 真正的退出语义由 close 事件接管。
@@ -191,7 +212,8 @@ function requestClaudePayload(prompt) {
 
     child.on("close", (code) => {
       if (settled) return;
-      clearTimeout(timer);
+      settled = true;
+      if (timer) clearTimeout(timer);
       if (code === 0) {
         resolve(stdout);
         return;
@@ -234,9 +256,15 @@ async function runPostGenerationChecks() {
 
 async function runStructuredPayloadMode({promptPrefix}) {
   const report = await readJson(generatedDataPath, "data-scheme/data-generate.json");
+  // preflight 已对同一份 data-generate.json 跑过 validateReportIcons；把它的
+  // iconTargets 传进来复用，避免每次再全量校验一遍（force 或读取失败时为 null，
+  // 照旧走内部校验）。
   const targetPlan = buildGenerateSvgTargetPlan(report, {
     dataDir,
     force,
+    iconTargets: Array.isArray(preflight.iconTargets)
+      ? preflight.iconTargets
+      : undefined,
   });
 
   if (targetPlan.targets.length === 0) {
@@ -261,14 +289,18 @@ async function runStructuredPayloadMode({promptPrefix}) {
     try {
       const output = await requestClaudePayload(prompt);
       const payload = parseGenerateSvgPayload(output);
-      result = await applyGenerateSvgPayload({
-        payload,
-        report,
-        targetPlan,
-        dataDir,
-        generatedDataPath,
-        rawDataPath,
-      });
+      // applyGenerateSvgPayload 会写 data-generate.json 并在失败时快照回滚；与
+      // tts 事务共用 .tts.lock，避免回滚覆盖并发 tts commit 的写入（如 dev 自动同步）。
+      result = await withTransactionLock(dataDir, () =>
+        applyGenerateSvgPayload({
+          payload,
+          report,
+          targetPlan,
+          dataDir,
+          generatedDataPath,
+          rawDataPath,
+        }),
+      );
       break;
     } catch (error) {
       lastError = error;
