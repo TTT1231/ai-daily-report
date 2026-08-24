@@ -61,7 +61,9 @@ ai-daily-report/
 │       ├── tts-timeline.mjs             # TTS 时间线计算（startMs 累计 / 尾部留白 / Header 宽度）
 │       ├── navigation-layout.mjs        # 导航栏容量与排版规则（Tabs 卡片网格尺寸查表）
 │       ├── claude-allowlist.mjs         # generate-svg 的 claude 权限 allowlist 单一数据源
+│       ├── generate-svg-payload.mjs     # generate-svg 的目标计划、payload 解析与写盘/回滚
 │       ├── generate-svg-preflight.mjs   # generate-svg 前置检查
+│       ├── tone-validation.mjs          # strict-tone 口吻闸（supplied-source 专用）
 │       ├── image-dims.mjs               # 按图片真实像素写入 overlayImgWidth/Height
 │       ├── video-meta.mjs               # 读取完整 stories，按 AI 日报场景生成视频标题+标签 → video-meta.json
 │       ├── generate-comment.mjs         # 从时间线数据生成 B 站风格跳转评论 → data-scheme/comments.txt
@@ -121,4 +123,4 @@ ai-daily-report/
 | `bun run rss:test`               | Go ingest 模块（`go -C ingest test ./...`）                         | 秒级    | 改了 `ingest/`                                                                                                                        |
 
 > 注意：`test:e2e` 起点是 fixture JSON，**不跑 ingest**；RSS/Go 改动跑 `rss:test`，别错跑 e2e。
-> CI（公开仓库，Actions 免费无限额）跑 `test:unit` + `test:integration` + `test:render` + go test；e2e 仅本地手动跑。
+> CI（公开仓库，Actions 免费无限额）跑 `test:lib` + `test:unit` + `test:integration` + `lint` + `test:render` + go test；e2e 仅本地手动跑。

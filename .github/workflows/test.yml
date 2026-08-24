@@ -37,12 +37,21 @@ jobs:
       - name: Install JS dependencies
         run: bun install --frozen-lockfile
 
+      - name: Run lib unit tests
+        # scripts/lib/__test__：校验/TTS/时间线等 lib 模块的最全回归套件（429 退避、
+        # Windows EPERM、导航盲区等），必须与 test:unit 一样在 CI 门禁内。
+        run: bun run test:lib
+
       - name: Run JS unit tests
         run: bun run test:unit
 
       - name: Run JS integration tests
         # 纯 JS 逻辑校验（不含 Remotion 渲染，秒级）。渲染冒烟见下方 test:render。
         run: bun run test:integration
+
+      - name: Lint and typecheck
+        # eslint src scripts + tsc：类型错误不该只靠本地发现。
+        run: bun run lint
 
       - name: Ensure Remotion browser
         # render 冒烟每帧 spawn Chromium；提前 ensure 一次 Chrome for Testing，避免首个 remotion still 在线下载拖慢/失败。
