@@ -2,7 +2,8 @@
   "files.exclude": {
     ".playwright-mcp": true,
     "build": true,
-    "daily-dates": true
+    "daily-dates": true,
+    "node_modules": true
   },
   "explorer.fileNesting.patterns": {
     "package.json": "bun.lock, .gitignore, README.md, LICENSE*, remotion.config.ts, tsconfig.json,.gitattributes,eslint.config.mjs,.prettierrc",
