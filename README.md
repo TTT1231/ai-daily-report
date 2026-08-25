@@ -41,9 +41,11 @@
 ## 第一步：安装
 
 1. 装好 [Bun](https://bun.sh/)（必装）和 [Go](https://go.dev/) 1.21+（要抓 RSS 才需要）
-2. 克隆或下载本项目，在项目根目录执行：
+2. 克隆项目并安装依赖：
 
 ```bash
+git clone https://github.com/TTT1231/ai-daily-report.git
+cd ai-daily-report
 bun install
 ```
 
@@ -54,7 +56,7 @@ bun run preview        # 带旁白的完整示例
 bun run preview:notts  # 无旁白的静音示例
 ```
 
-浏览器会自动打开预览页面，看到画面就说明项目装好了。看完继续往下，配好 Key 正式出片。
+浏览器会自动打开预览页面（没自动打开就手动访问 `localhost:3000`），看到画面说明项目装好了。看完继续往下，配好 Key 正式出片。
 
 ## 怎么出片
 
@@ -67,7 +69,7 @@ AI 自己选新闻、写稿、配图、配音，一条命令：
 ```bash
 bun run video:auto-generate   # 抓取 → 写稿 → 配音 → 图标
 bun run dev                   # 打开预览看看效果
-bun run video:render          # 满意后导出 → out/AiDailyReport.mp4
+bun run video:render          # 满意后导出 → out/AiDailyReport.mp4（首次会先下载渲染内核，稍等）
 ```
 
 ### 方式二：半自动（自己挑新闻）
@@ -102,7 +104,7 @@ bun run video:meta
 
 ## 配置
 
-复制 `.env.example` 为 `.env`，按需填写：
+复制 `.env.example` 为 `.env`（Windows 用 `copy .env.example .env`），按需填写：
 
 | 变量 | 干什么用 | 不配会怎样 |
 | ---- | -------- | ---------- |
