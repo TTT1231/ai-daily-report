@@ -21,9 +21,7 @@
 
 ## 这是什么
 
-一个把每天的 AI 新闻自动做成**带旁白视频**的项目：RSS 抓取 → AI 筛选 → TTS 配音 → 渲染成片，一条流水线。
-
-不想读文档？先看 [可视化使用导览](./demo/overview.html)，30 秒就能跑起来。
+一个把每天的 AI 新闻自动做成**带旁白视频**的项目。你只需要跑几条命令（或者把素材直接丢给 AI），就能得到一条可以投稿的 mp4。
 
 ## 演示效果
 
@@ -40,59 +38,85 @@
 
 <p align="center"><a href="./demo/demo-video.mp4"><strong>▶ 查看完整视频演示</strong></a></p>
 
-## 快速开始
+## 第一步：安装
 
-**最快的方式：装好依赖，用示例数据预览，不用配置任何 Key。**
+1. 装好 [Bun](https://bun.sh/)（必装）和 [Go](https://go.dev/) 1.21+（要抓 RSS 才需要）
+2. 克隆或下载本项目，在项目根目录执行：
 
 ```bash
 bun install
+```
+
+## 先跑个演示（不用配任何 Key）
+
+```bash
 bun run preview        # 带旁白的完整示例
 bun run preview:notts  # 无旁白的静音示例
 ```
 
-看到画面了，说明项目跑起来了。然后再按下面的方式真正出片。
+浏览器会自动打开预览页面，看到画面就说明项目装好了。看完继续往下，配好 Key 正式出片。
 
 ## 怎么出片
 
-### 方式一：一键自动（推荐）
+出片前先照「配置」一节建好 `.env`。然后按你的口味三选一：
 
-配好 `.env`（见下）后，一条命令完成抓取、配音、生成图标：
+### 方式一：全自动（最省事）
 
-```bash
-bun run video:auto-generate   # 抓取 + 配音 + 图标
-bun run dev             # 预览当前数据
-bun run video:render    # 导出 mp4
-```
-
-### 方式二：手写内容
-
-自己控制标题、配图、字幕：从示例复制一份再改。
+AI 自己选新闻、写稿、配图、配音，一条命令：
 
 ```bash
-cp -r demo/data-scheme-sample-1 data-scheme
-# 编辑 data-scheme/data.json，图片放进 data-scheme/images/
-bun run dev
+bun run video:auto-generate   # 抓取 → 写稿 → 配音 → 图标
+bun run dev                   # 打开预览看看效果
+bun run video:render          # 满意后导出 → out/AiDailyReport.mp4
 ```
 
-## 准备环境
+### 方式二：半自动（自己挑新闻）
 
-- **Bun · Go · Claude CLI** — 自动出片必需
-- **ffmpeg** — 可选，用于 TTS 音质检；没有时设 `REQUIRE_VOICE_QUALITY_FFMPEG=false` 跳过
+命令会打开一个本地网页，把想做的新闻**勾上并保存**，回到终端等它跑完：
 
-在项目根目录创建 `.env`（参考 `.env.example`）：
+```bash
+bun run video:half-auto       # 归档 → 抓取 → 网页勾选 → 生成
+bun run dev                   # 预览
+bun run video:render          # 导出 mp4
+```
 
-| 变量 | 作用 | 没有怎么办 |
-| ---- | ---- | ---------- |
-| `AI_API_KEY` | RSS 内容总结 | 自动出片必需 |
-| `MINIMAX_API_KEY` | TTS 旁白 | 设 `TTS_REQUIRE=false` 关闭 |
-| `CLAUDE_VISION_ENABLED` | 自动识图配图 | 设 `false` 关闭，只下载候选图供手填 |
+### 方式三：供稿模式（手头已有素材）
 
-> [!WARNING]
-> 抓取 `linux.do` 需要能访问它（在 Cloudflare 后面）。网络受限时在根目录 `.env` 配小写 `all_proxy`（科学上网环境），如 `all_proxy=http://127.0.0.1:7890`。
+看到好新闻想直接做？把**链接、文本、截图**丢给你的 AI 助手（Codex / Claude Code 等装了本项目的均可），说一句：
+
+```
+/codex-generate-video <粘贴你的素材>
+```
+
+AI 会产出一条强制带证据截图的日报视频。
+
+### 出片收尾
+
+导出后顺手生成投稿要用的**标题、标签、评论**（B 站风格跳转评论）：
+
+```bash
+bun run video:meta
+```
+
+结果在 `data-scheme/video-meta.json` 和 `data-scheme/comments.txt`，复制去投稿即可（本项目不自动上传任何平台）。
+
+## 配置
+
+复制 `.env.example` 为 `.env`，按需填写：
+
+| 变量 | 干什么用 | 不配会怎样 |
+| ---- | -------- | ---------- |
+| `AI_API_KEY` | AI 读 RSS、写稿 | 方式一 / 方式二跑不了，必填 |
+| `MINIMAX_API_KEY` | 旁白配音 | 设 `TTS_REQUIRE=false` 可跳过，出无声视频 |
+| `CLAUDE_VISION_ENABLED` | 自动识图配图 | 设 `false`，改为下载候选图供你手填 |
+| `all_proxy` | 抓 linux.do 用的代理 | 该来源会报错（其他来源不受影响） |
+
+- 自动配图还需要装 Claude CLI；ffmpeg 可选（没装就设 `REQUIRE_VOICE_QUALITY_FFMPEG=false`）。
+- `AI_BASE_URL` / `AI_MODEL` 等其余变量都有默认值，详见 `.env.example` 里的注释。
 
 ## 卡住了？
 
-直接用项目自带的 skill 提问：
+直接用项目自带的 skill 提问，报错、数据不合法、流程不懂都行：
 
 ```
 /ai-daily-report <你的问题>
@@ -103,6 +127,7 @@ bun run dev
 | 文档 | 内容 |
 | ---- | ---- |
 | [可视化使用导览](./demo/overview.html) | 图文版使用指南，最直观 |
+| [CHANGELOG](./CHANGELOG.md) | 每个版本改了什么 |
 
 ## 🐛 Bug / 使用问题
 
