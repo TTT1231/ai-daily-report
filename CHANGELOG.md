@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.9.3
+
+- Added: 供稿模式口吻闸——`check-data-json --strict-tone` 报错拦截「证据媒介式旁白」模板，匿名信源与编辑性填充词告警；仅 Raw 校验生效（`--render` 跳过），原生 RSS 与手工流程不受影响
+- Added: 供稿写作规则收紧——落笔前先过事实台账（提取/归类/采纳/规划，仅内部流程、不改 Raw schema）；截图须先全图核验再裁剪，裁剪图保留全部限定词
+- Changed: 导航宽度计算 JS / TS / Go 三端对齐同一份 120 用例 fixture，ascii 宽度系数统一读 video-layout.json，任一端漂移即测试失败
+- Fixed: 管线健壮性批量修复——崩溃残留的 `.tts.lock` 按 pid 存活检测自动回收（generate-svg 提交共用此锁）；MiniMax TTS 与 video-meta 对非 JSON 的 5xx/429 响应退避重试；dev 配置监听改递归不再漏子目录文件，spawn 失败正确复位进程
+- Fixed: rss-pick 挑选页加固——校验 POST /picks 输入、原子写 picks.json、保存失败不再误报成功；archive/reset 容忍 Windows EBUSY 句柄占用，prune 删除失败如实上报
+- Fixed: claude 图标生成子进程超时整树终止；ffmpeg 音质检加超时；超 1 小时的评论时间戳改用 HH:MM:SS（此前分钟数会累积到 60+）；comments.txt / video-meta.json 改原子写
+- Changed: CI 补跑 `test:lib` 与 eslint + tsc，lib 回归与类型/静态检查错误合并前即拦截
+
 ## 0.9.2
 
 - Changed: B 站发布管线整体下线——biliup 上传/评论/置顶与 `bili:*` 等命令因封号风险与不稳定移除，`render:cover` 封面帧脚本一并删除（`render:mp4` 成为唯一渲染输出）；平台无关的标题/标签/评论文案生成保留
