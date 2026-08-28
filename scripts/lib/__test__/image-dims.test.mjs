@@ -4,7 +4,7 @@ import { mkdtemp, mkdir, writeFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { resolve } from "node:path";
-import { readImageDimensions } from "../image-dims.mjs";
+import { readImageDimensions, readImageOrientation } from "../image-dims.mjs";
 
 // 图片样本来自 test/mock/images/（与其它 mock 资产同源），不依赖 demo/ 目录。
 const sampleDir = resolve(import.meta.dirname, "../../../test/mock");
@@ -141,4 +141,43 @@ test("readImageDimensions prefers the main AVIF canvas over an earlier thumbnail
 test("readImageDimensions returns null for missing file and path escape", () => {
   assert.equal(readImageDimensions("images/nope.png", sampleDir), null);
   assert.equal(readImageDimensions("../escape.png", sampleDir), null);
+});
+
+test("readImageOrientation reads PNG eXIf orientation and nulls when absent", () => {
+  // Chromium 按 EXIF 旋转显示而尺寸按未旋转像素读取：orientation ≠ 1 的图
+  // 会横倒进成片，这里钉住解析口径（Pillow 生成的 orientation=8 fixture）。
+  assert.equal(readImageOrientation("images/exif-rotated-8.png", sampleDir), 8);
+  assert.equal(readImageOrientation("images/codex-reset.png", sampleDir), null);
+  assert.equal(readImageOrientation("images/nope.png", sampleDir), null);
+});
+
+test("readImageOrientation reads a JPEG APP1 Exif orientation", async () => {
+  const root = await mkdtemp(join(tmpdir(), "image-orientation-jpeg-"));
+  const images = join(root, "images");
+  await mkdir(images, {recursive: true});
+  try {
+    const tiff = Buffer.alloc(26);
+    tiff.write("II", 0, "ascii");
+    tiff.writeUInt16LE(42, 2);
+    tiff.writeUInt32LE(8, 4);
+    tiff.writeUInt16LE(1, 8);
+    tiff.writeUInt16LE(274, 10);
+    tiff.writeUInt16LE(3, 12);
+    tiff.writeUInt32LE(1, 14);
+    tiff.writeUInt16LE(6, 18);
+    const app1 = Buffer.concat([Buffer.from("Exif\0\0", "binary"), tiff]);
+    const length = Buffer.alloc(2);
+    length.writeUInt16BE(app1.length + 2);
+    const jpeg = Buffer.concat([
+      Buffer.from([0xff, 0xd8, 0xff, 0xe1]),
+      length,
+      app1,
+      Buffer.from([0xff, 0xd9]),
+    ]);
+    await writeFile(join(images, "orientation-6.jpg"), jpeg);
+
+    assert.equal(readImageOrientation("images/orientation-6.jpg", root), 6);
+  } finally {
+    await rm(root, {recursive: true, force: true});
+  }
 });

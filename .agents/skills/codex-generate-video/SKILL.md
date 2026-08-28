@@ -50,14 +50,23 @@ back into this skill.
 2. Execute `rules/supplied-source-mode.md` end to end for the invocation inputs: classify
    each source unit, resolve it against `ingest/rss-state.json` before browsing anything,
    build the per-unit fact ledger, gather and visually verify evidence images, then write
-   the complete `data-scheme/data.json` plus assets in `data-scheme/images/`. Every story
-   must follow the evidence→narration structure the validator enforces: a short
-   image-backed evidence scene (~25-40 units; the image limits which facts the scene may
-   state — the narration never describes the "screenshot/image/overlay" medium itself, it
-   states the facts with the real subject named) followed by a short overlay-free
-   narration scene (~20-35 units, another confirmed sourced fact or a factual transition;
-   never invented impact, advice, or disclaimers; details live on Tabs). The last scene of
-   a story never carries an overlay.
+   the complete `data-scheme/data.json` plus assets in `data-scheme/images/`. A Story
+   contains only the 1–6 scenes justified by sourced facts; never create scenes to fill
+   the cap. One to five selected scenes may carry evidence images, while any other
+   selected scenes may be overlay-free; neither the count nor ordering of overlay-free
+   scenes is fixed. Audit every non-trivial image candidate before choosing: download
+   and visually classify each one (adopted / duplicate / minor / unreadable /
+   not-proving); never stop at the first usable image. Before writing Raw, emit the
+   compact per-source candidate-audit checkpoint required by the real layer, then keep
+   working without waiting for approval. The minimum sufficient set is the smallest set
+   that covers every independently image-provable core fact selected for image-backed
+   narration — it is not "one image" and does not require text-supported Tabs to have an
+   image. Five image-backed scenes remain a ceiling, never a quota. An
+   image-backed evidence scene runs ~25-40 units (the image limits which facts the scene
+   may state — the narration never describes the "screenshot/image/overlay" medium
+   itself, it states the facts with the real subject named); an overlay-free scene runs
+   ~20-35 units (another confirmed sourced fact or a factual transition; never invented
+   impact, advice, or disclaimers; details live on Tabs).
 3. Run `bun run check-data-json --strict-tone` and `bun run check-evidence --require-overlay`.
    Fix the first error and repeat until both pass. `--strict-tone` is the supplied-source
    tone gate: it blocks evidence-medium narration and warns on anonymous attribution and
@@ -72,7 +81,11 @@ back into this skill.
    `bun run check-data-json:render`, and `bun run check-icons`. Fix every error before
    continuing.
 7. Run `bun run render:mp4` and confirm that `out/AiDailyReport.mp4` exists and is
-   non-empty.
+   non-empty. Run `bun run evidence:frames`, read its manifest, and use Codex image
+   inspection on every exported midpoint frame. Verify the image is upright, readable,
+   and actually proves the narrated fact; fix and rerender on any failure. The exporter
+   uses an OS-temp directory—remove that exact directory after inspection, and never
+   create a repo-local `.tmp-evidence/` workspace.
 8. Report the number of source units, stories, tabs, evidence overlays, generated icons,
    any blocked sources, and the final MP4 path. Mention any explicit merge/split override
    the user requested.

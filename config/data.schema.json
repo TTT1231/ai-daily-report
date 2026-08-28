@@ -113,8 +113,8 @@
         "scenes": {
           "type": "array",
           "minItems": 1,
-          "maxItems": 4,
-          "description": "Story 级精简口播，通常一至两条，证据充分的来源可用更多；不与 Tabs 一一对应。",
+          "maxItems": 6,
+          "description": "Story 级精简口播，1–6 段，按证据与事实伸缩，不与 Tabs 一一对应；supplied-source 模式下带图段另有 ≤5 的编排纪律。",
           "items": { "$ref": "#/$defs/scene" }
         },
         "videoStartMs": { "$ref": "#/$defs/videoStartMs" }

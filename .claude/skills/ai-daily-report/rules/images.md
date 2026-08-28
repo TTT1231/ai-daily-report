@@ -53,6 +53,8 @@
 ]
 ```
 
+各模式容量：supplied-source / codex-generate-video 模式下带图证据段最多 5 个、每 Story 总 scene ≤6，无图事实段的数量与排列由 agent 按事实决定（选图规则见 [`.agents` 下的 supplied-source-mode.md](../../../../.agents/skills/ai-daily-report/rules/supplied-source-mode.md)）；原生 RSS 与手动模式按各自规则处理。
+
 ## 关键行为：改图片会触发一次缓存复用的 TTS 同步
 
 `scripts/render/dev.mjs` 的监听逻辑里，`data.json` / schema / `video-layout.json` / `video-timeline.json` / `.env` 变化会重新跑 TTS；图片文件变化也会触发一次 TTS 同步，**但音频走缓存复用、不调 MiniMax、不花钱**——目的是让构建按新文件重算 overlay 尺寸。同一报告日期的默认开场也会复用上一份文案，不会因为早/中/晚时段变化而重生。字幕没变，所以旁白不会重生成。
@@ -64,6 +66,10 @@
 `src/AiDailyReport.tsx` 的 `SourceOverlay` 组件：scene 有 `overlayImg` 就居中显示这张图（`objectFit: contain`、圆角、阴影），并带「出现/消失 + 聚焦放大」动画；`overlayImgScale` 会作为这张图的基础倍率再叠加到动画上。没有 `overlayImg` 就什么都不显示，也就是说图片是**可选**的。
 
 渲染层按真实宽高把 overlay 分成常规图 / 小图 / 高窄截图三类，分别限高（常规 760、高窄 680、小图 560），**整张图按 `contain` 等比塞进限高框**。这意味着图越高、越窄，宽度就越被压扁——一张 992×4046 的长截图会被压成 167×680 的细条，根本看不清。遇到“竖向截图太小”时，先确认 `data-generate.json` 里的真实宽高，再决定是否需要 `overlayImgScale`，不要直接改全局上限。
+
+## EXIF 方向先摆正
+
+图片写入 `data-scheme/images/` 前先规范化方向并清除 EXIF orientation。原始相机图先运行 `bun run image:normalize-orientation -- <path>`，按 orientation 烘焙旋转后再裁剪；已经被裁成正向像素但错误保留方向标记的图片运行同一命令并加 `--pixels-upright`，只清除标记、不要再次旋转。Chromium 会应用残留 orientation，而尺寸校验按像素宽高读取——两者错位会让图片横倒进成片，`bun run check-evidence` 会直接拒绝。修正后必须目视原图，并在最终 MP4 上用 `bun run evidence:frames` 检查每个 overlay 的中间帧。
 
 ## 长截图不要用作 overlay
 

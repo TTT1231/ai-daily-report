@@ -72,6 +72,40 @@ test("check-data-json exits 1 on a raw report with fewer than 2 tabs (schema rej
   }
 });
 
+// ---------- scenes 容量上限（AJV/JSON Schema 层，与 Zod 单测互为双实现防漂移） ----------
+// Scene ID 全部唯一且不与 story-2 的 scene-3 冲突，避免先撞全局重复 ID 校验。
+const sixSceneStory = (count) =>
+  Array.from({length: count}, (_, i) => ({
+    id: `scene-1-${i + 1}`,
+    subtitle: "一句足够长的旁白口播文案内容。",
+  }));
+
+test("check-data-json accepts a story with six scenes (schema capacity 1-6)", () => {
+  const report = rawReport();
+  report.stories[0].scenes = sixSceneStory(6);
+  const dir = seedDataScheme({"data.json": JSON.stringify(report)});
+  try {
+    const {code, stdout, stderr} = runCli(checkDataJson, [], dir);
+    assert.equal(code, 0, `expected exit 0\nstderr: ${stderr}`);
+    assert.match(stdout, /valid/);
+  } finally {
+    rmSync(dir, {recursive: true, force: true});
+  }
+});
+
+test("check-data-json exits 1 on a story with seven scenes (schema capacity 1-6)", () => {
+  const report = rawReport();
+  report.stories[0].scenes = sixSceneStory(7);
+  const dir = seedDataScheme({"data.json": JSON.stringify(report)});
+  try {
+    const {code, stderr} = runCli(checkDataJson, [], dir);
+    assert.equal(code, 1);
+    assert.match(stderr, /validation failed/);
+  } finally {
+    rmSync(dir, {recursive: true, force: true});
+  }
+});
+
 test("check-data-json exits 1 when data.json is missing", () => {
   const dir = seedDataScheme({});
   try {

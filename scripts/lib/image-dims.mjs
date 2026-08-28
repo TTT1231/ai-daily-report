@@ -176,6 +176,87 @@ function readSvgDimensions(buffer) {
     : null;
 }
 
+// readImageOrientation 解析 EXIF Orientation（tag 274）：Chromium 按 EXIF 旋转
+// 显示，而上面的尺寸读取按未旋转像素取值——orientation ≠ 1 的图会横倒进成片
+// 且布局口径错位，证据闸据此拒绝。PNG 读 eXIf chunk、JPEG 读 APP1 Exif；
+// 其它格式或无该 tag 返回 null（视为未旋转）。
+function readTiffOrientation(buffer, offset) {
+  if (offset + 8 > buffer.length) return null;
+  const byteOrder = buffer.toString("ascii", offset, offset + 2);
+  const littleEndian = byteOrder === "II";
+  if (!littleEndian && byteOrder !== "MM") return null;
+  const readUint16 = (at) =>
+    littleEndian ? buffer.readUInt16LE(at) : buffer.readUInt16BE(at);
+  const readUint32 = (at) =>
+    littleEndian ? buffer.readUInt32LE(at) : buffer.readUInt32BE(at);
+  if (readUint16(offset + 2) !== 42) return null;
+  const ifdOffset = readUint32(offset + 4);
+  if (ifdOffset > buffer.length - offset - 2) return null;
+  const ifdStart = offset + ifdOffset;
+  if (ifdStart + 2 > buffer.length) return null;
+  const entryCount = readUint16(ifdStart);
+  for (let i = 0; i < entryCount; i++) {
+    const entry = ifdStart + 2 + i * 12;
+    if (entry + 12 > buffer.length) return null;
+    if (
+      readUint16(entry) === 274 &&
+      readUint16(entry + 2) === 3 &&
+      readUint32(entry + 4) === 1
+    ) {
+      return readUint16(entry + 8);
+    }
+  }
+  return null;
+}
+
+function readPngExifOrientation(buffer) {
+  if (
+    buffer.length < 8 ||
+    buffer.toString("hex", 0, 8) !== "89504e470d0a1a0a"
+  ) {
+    return null;
+  }
+  for (let offset = 8; offset + 8 <= buffer.length; ) {
+    const length = buffer.readUInt32BE(offset);
+    if (buffer.toString("ascii", offset + 4, offset + 8) === "eXIf") {
+      return readTiffOrientation(buffer, offset + 8);
+    }
+    offset += 12 + length;
+  }
+  return null;
+}
+
+function readJpegExifOrientation(buffer) {
+  if (buffer.length < 4 || buffer[0] !== 0xff || buffer[1] !== 0xd8) return null;
+  let offset = 2;
+  while (offset + 4 <= buffer.length) {
+    while (offset < buffer.length && buffer[offset] === 0xff) offset++;
+    if (offset >= buffer.length) return null;
+    const marker = buffer[offset++];
+    if (marker === 0xd9 || marker === 0xda) return null;
+    if (marker === 0x01 || (marker >= 0xd0 && marker <= 0xd7)) continue;
+    if (offset + 2 > buffer.length) return null;
+    const segmentLength = buffer.readUInt16BE(offset);
+    if (segmentLength < 2 || offset + segmentLength > buffer.length) return null;
+    // APP1 段数据以 "Exif\0\0"（6 字节）开头，其后是 TIFF 流。
+    if (
+      marker === 0xe1 &&
+      buffer.subarray(offset + 2, offset + 8).equals(Buffer.from("Exif\0\0", "binary"))
+    ) {
+      return readTiffOrientation(buffer, offset + 8);
+    }
+    offset += segmentLength;
+  }
+  return null;
+}
+
+export function readImageOrientation(assetPath, dataDir) {
+  const absolute = resolve(dataDir, assetPath);
+  if (!absolute.startsWith(dataDir + sep) || !existsSync(absolute)) return null;
+  const buffer = readFileSync(absolute);
+  return readPngExifOrientation(buffer) ?? readJpegExifOrientation(buffer);
+}
+
 export function readImageDimensions(assetPath, dataDir) {
   const absolute = resolve(dataDir, assetPath);
   if (!absolute.startsWith(dataDir + sep) || !existsSync(absolute)) return null;

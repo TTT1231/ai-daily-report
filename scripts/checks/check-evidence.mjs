@@ -36,6 +36,6 @@ if (errors.length > 0) {
 
 console.log(
   `Evidence validation passed: ${overlayCount} overlay image(s) across ${checkedStories}/${storyCount} stories are valid${
-    warnings.length > 0 ? `; ${warnings.length} story(ies) without overlay` : ""
+    warnings.length > 0 ? `; ${warnings.length} warning(s)` : ""
   }.`,
 );

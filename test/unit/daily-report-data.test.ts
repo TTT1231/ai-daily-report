@@ -153,7 +153,7 @@ test("dailyIntroSchema allows an aggregated overview longer than a news card", (
   assert.doesNotThrow(() => dailyIntroSchema.parse(intro));
 });
 
-test("dailyStorySchema limits Story narration to at most four scenes", () => {
+test("dailyStorySchema limits Story narration to at most six scenes", () => {
   const base = {
     id: "story-1",
     topTitle: "栏目",
@@ -161,29 +161,11 @@ test("dailyStorySchema limits Story narration to at most four scenes", () => {
     contentTitle: "完整标题",
     tabs: [validTab({ id: "tab-1" }), validTab({ id: "tab-2" })],
   };
-  assert.doesNotThrow(() =>
-    dailyStorySchema.parse({
-      ...base,
-      scenes: [
-        validScene({ id: "scene-1" }),
-        validScene({ id: "scene-2" }),
-        validScene({ id: "scene-3" }),
-        validScene({ id: "scene-4" }),
-      ],
-    }),
-  );
-  assert.throws(() =>
-    dailyStorySchema.parse({
-      ...base,
-      scenes: [
-        validScene({ id: "scene-1" }),
-        validScene({ id: "scene-2" }),
-        validScene({ id: "scene-3" }),
-        validScene({ id: "scene-4" }),
-        validScene({ id: "scene-5" }),
-      ],
-    }),
-  );
+  // Scene ID 全部唯一，避免先撞全局重复 ID 校验而测不到真正的容量边界。
+  const scenes = (count: number) =>
+    Array.from({length: count}, (_, i) => validScene({id: `scene-${i + 1}`}));
+  assert.doesNotThrow(() => dailyStorySchema.parse({...base, scenes: scenes(6)}));
+  assert.throws(() => dailyStorySchema.parse({...base, scenes: scenes(7)}));
 });
 
 test("dailyStorySchema supports scene-level overlay image scale", () => {
