@@ -1,4 +1,0 @@
-interface:
-  display_name: "Codex Generate Video"
-  short_description: "Turn sources into an evidence-backed AI report video"
-  default_prompt: "Use $codex-generate-video to turn these objects, URLs, HTML, or files into a rich AI Daily Report video with source-evidence overlays."

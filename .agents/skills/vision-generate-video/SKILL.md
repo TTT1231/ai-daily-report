@@ -1,22 +1,22 @@
 ---
-name: codex-generate-video
-description: "Orchestrate the ai-daily-report project from mixed user inputs into a rendered, evidence-backed report video. Use when the user invokes /codex-generate-video or $codex-generate-video, or asks Codex to turn JSON objects, URLs, raw HTML, pasted text, or local files into AI Daily Report stories with rich tabs, source-evidence overlay images, TTS, directly authored SVG icons, validation, and MP4 rendering."
+name: vision-generate-video
+description: "Orchestrate the ai-daily-report project from mixed user inputs into a rendered, evidence-backed report video. Use when the user invokes /vision-generate-video or $vision-generate-video, or asks a multimodal assistant to turn JSON objects, URLs, raw HTML, pasted text, or local files into AI Daily Report stories with rich tabs, source-evidence overlay images, TTS, directly authored SVG icons, validation, and MP4 rendering."
 ---
 
-# Codex Generate Video
+# Vision Generate Video
 
 Thin wrapper over the real production layer. All sourcing, content-density, evidence, and
 keyword rules live in `$ai-daily-report`; this skill only adds three things:
 
 1. Route the mixed invocation inputs into the real layer's supplied-source workflow.
-2. Author SVG tab icons directly with Codex file-editing tools instead of running
+2. Author SVG tab icons directly with the model's file-editing tools instead of running
    `bun run generate-svg`.
 3. Run the real layer's existing validation and MP4 rendering, then report.
 
 Why this skill exists: the fully-automatic and native half-auto paths run under a
 text-only model, where `bun run generate-svg` is slow and image understanding has to go
-through MCP vision tooling, which is slower still. Codex is multimodal — it reads evidence
-images and writes SVGs directly, so this path exists to keep that speed advantage. Keep
+through MCP vision tooling, which is slower still. The calling model is multimodal — it reads
+evidence images and writes SVGs directly, so this path exists to keep that speed advantage. Keep
 the wrapper thin; never let content-production rules grow back into it, and never route
 SVG generation or image understanding back through the text-model commands.
 
@@ -35,7 +35,7 @@ back into this skill.
    indirectly. Forbidden aggregate commands include `bun run video`,
    `bun run video:auto-generate`, and `bun run video:half-auto` — besides SVG they would
    re-ingest and overwrite `data.json`.
-3. Generate and edit every required SVG directly with Codex file-editing tools.
+3. Generate and edit every required SVG directly with the model's file-editing tools.
 4. Follow the real layer's evidence floor: every story carries at least one source-derived
    `overlayImg`; a source that cannot be retrieved or faithfully represented is reported
    as blocked, never silently rendered evidence-free.
@@ -81,8 +81,8 @@ back into this skill.
    `bun run check-data-json:render`, and `bun run check-icons`. Fix every error before
    continuing.
 7. Run `bun run render:mp4` and confirm that `out/AiDailyReport.mp4` exists and is
-   non-empty. Run `bun run evidence:frames`, read its manifest, and use Codex image
-   inspection on every exported midpoint frame. Verify the image is upright, readable,
+   non-empty. Run `bun run evidence:frames`, read its manifest, and visually inspect
+   every exported midpoint frame. Verify the image is upright, readable,
    and actually proves the narrated fact; fix and rerender on any failure. The exporter
    uses an OS-temp directory—remove that exact directory after inspection, and never
    create a repo-local `.tmp-evidence/` workspace.
@@ -118,8 +118,8 @@ the file and reference contract.
 
 ## Invocation examples
 
-`/codex-generate-video {objectA} https://example.com/story <html>...</html>` creates three stories in
+`/vision-generate-video {objectA} https://example.com/story <html>...</html>` creates three stories in
 that order.
 
-`/codex-generate-video 把网站 1 和网站 2 合成一个 story：https://a.example https://b.example`
+`/vision-generate-video 把网站 1 和网站 2 合成一个 story：https://a.example https://b.example`
 creates one combined story because the user explicitly requested the merge.

@@ -53,7 +53,7 @@
 ]
 ```
 
-各模式容量：supplied-source / codex-generate-video 模式下带图证据段最多 5 个、每 Story 总 scene ≤6，无图事实段的数量与排列由 agent 按事实决定（选图规则见 [`.agents` 下的 supplied-source-mode.md](../../../../.agents/skills/ai-daily-report/rules/supplied-source-mode.md)）；原生 RSS 与手动模式按各自规则处理。
+各模式容量：supplied-source / vision-generate-video 模式下带图证据段最多 5 个、每 Story 总 scene ≤6，无图事实段的数量与排列由 agent 按事实决定（选图规则见 [`.agents` 下的 supplied-source-mode.md](../../../../.agents/skills/ai-daily-report/rules/supplied-source-mode.md)）；原生 RSS 与手动模式按各自规则处理。
 
 ## 关键行为：改图片会触发一次缓存复用的 TTS 同步
 
