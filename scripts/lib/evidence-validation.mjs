@@ -78,7 +78,7 @@ function validateStoryStructure(story, errors) {
     }
     if (!scene.overlayImg && scenes.length > 1 && units > maxNarrationSubtitleUnits) {
       errors.push(
-        `story ${label}: narration scene is ${units} units (max ${maxNarrationSubtitleUnits}) — keep it to one key takeaway; details belong on Tabs`,
+        `story ${label}: narration scene is ${units} units (max ${maxNarrationSubtitleUnits}) — keep it to one sourced spoken claim; preserve the Story's core promise and move only supporting detail to Tabs`,
       );
     }
   });

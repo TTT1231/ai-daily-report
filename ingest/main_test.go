@@ -203,6 +203,19 @@ func TestStripHTML(t *testing.T) {
 	}
 }
 
+func TestCleanRSS2ItemTextDropsRetractedHTML(t *testing.T) {
+	item := Item{Description: `<p>新结论继续有效。</p><s>已撤回的旧结论。</s><del><strong>已更正的数字。</strong></del><strike>废弃说法。</strike><p>后续说明保留。</p>`}
+	got := cleanRSS2ItemText(item)
+	for _, removed := range []string{"已撤回的旧结论", "已更正的数字", "废弃说法"} {
+		if strings.Contains(got, removed) {
+			t.Fatalf("cleanRSS2ItemText() retained retracted content %q: %q", removed, got)
+		}
+	}
+	if !strings.Contains(got, "新结论继续有效") || !strings.Contains(got, "后续说明保留") {
+		t.Fatalf("cleanRSS2ItemText() removed valid content: %q", got)
+	}
+}
+
 func TestNormalizeStoryTabsRejectsShortAndUnknownEvidence(t *testing.T) {
 	group := NewsGroup{SourceIndexes: []int{2}}
 	tabs := []StoryTab{

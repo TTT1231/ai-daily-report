@@ -49,24 +49,10 @@ back into this skill.
    `bun run archive` before replacing Raw; do not use `reset` as a shortcut.
 2. Execute `rules/supplied-source-mode.md` end to end for the invocation inputs: classify
    each source unit, resolve it against `ingest/rss-state.json` before browsing anything,
-   build the per-unit fact ledger, gather and visually verify evidence images, then write
-   the complete `data-scheme/data.json` plus assets in `data-scheme/images/`. A Story
-   contains only the 1–6 scenes justified by sourced facts; never create scenes to fill
-   the cap. One to five selected scenes may carry evidence images, while any other
-   selected scenes may be overlay-free; neither the count nor ordering of overlay-free
-   scenes is fixed. Audit every non-trivial image candidate before choosing: download
-   and visually classify each one (adopted / duplicate / minor / unreadable /
-   not-proving); never stop at the first usable image. Before writing Raw, emit the
-   compact per-source candidate-audit checkpoint required by the real layer, then keep
-   working without waiting for approval. The minimum sufficient set is the smallest set
-   that covers every independently image-provable core fact selected for image-backed
-   narration — it is not "one image" and does not require text-supported Tabs to have an
-   image. Five image-backed scenes remain a ceiling, never a quota. An
-   image-backed evidence scene runs ~25-40 units (the image limits which facts the scene
-   may state — the narration never describes the "screenshot/image/overlay" medium
-   itself, it states the facts with the real subject named); an overlay-free scene runs
-   ~20-35 units (another confirmed sourced fact or a factual transition; never invented
-   impact, advice, or disclaimers; details live on Tabs).
+   follow its selection-intent, fact-status, narration, scene, and evidence rules without
+   restating them here. Before writing Raw, emit its combined per-source content-and-evidence
+   audit checkpoint, then write the complete `data-scheme/data.json` plus verified assets
+   in `data-scheme/images/`. Keep only scenes justified by sourced facts; never fill a quota.
 3. Run `bun run check-data-json --strict-tone` and `bun run check-evidence --require-overlay`.
    Fix the first error and repeat until both pass. `--strict-tone` is the supplied-source
    tone gate: it blocks evidence-medium narration and warns on anonymous attribution and
