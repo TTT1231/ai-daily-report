@@ -58,58 +58,62 @@ import clickSound from "./sound/click-sound.mp3";
 // ── Palette & constants ──────────────────────────────────────────────────
 
 const themes = {
+  // 晚间「微暖纸面」主题（原型 out/theme-review/evening-theme-preview.html 方案 B）：
+  // 正极性（深字浅底）暖米画布，手机标准显示态为基准；mock 未覆盖的派生项
+  // （导航高光、阴影、emphasis/code、overlay 卡、intro 色板）按 light 主题同构
+  // 模式换暖棕色相，阴影统一走 rgba(75,63,52,*)，overlay 深影用 mock 的暖深棕。
   dark: {
-    text: "#e5e2dc",
-    muted: "#9d9c98",
-    blue: "#bd745c",
-    strong: "#f2eee7",
-    contentTitle: "#d49376",
+    text: "#3b403f",
+    muted: "#62635f",
+    blue: "#a55740",
+    strong: "#3b302b",
+    contentTitle: "#974a34",
     canvas:
-      "radial-gradient(circle at 12% -18%, rgba(91,115,135,.17), transparent 40%), radial-gradient(circle at 92% 0%, rgba(151,89,69,.10), transparent 38%), linear-gradient(180deg, #171c21 0%, #11161b 78%)",
-    ambient: "linear-gradient(180deg, rgba(255,247,238,.022), transparent 42%)",
-    nav: "rgba(24,29,34,.90)",
+      "radial-gradient(circle at 12% -18%, rgba(100,128,137,.07), transparent 40%), radial-gradient(circle at 92% 0%, rgba(183,111,74,.10), transparent 38%), linear-gradient(180deg, #eee8dc 0%, #e0dbd1 78%)",
+    ambient: "linear-gradient(180deg, rgba(255,250,235,.34), transparent 42%)",
+    nav: "rgba(239,233,222,.94)",
     navChapterActive:
-      "linear-gradient(90deg, transparent 0%, rgba(189,116,92,.08) 10%, rgba(189,116,92,.12) 50%, rgba(189,116,92,.08) 90%, transparent 100%)",
+      "linear-gradient(90deg, transparent 0%, rgba(165,87,64,.04) 10%, rgba(165,87,64,.11) 50%, rgba(165,87,64,.04) 90%, transparent 100%)",
     navDockActive:
-      "linear-gradient(90deg, transparent 0%, rgba(189,116,92,.08) 14%, rgba(189,116,92,.18) 50%, rgba(189,116,92,.08) 86%, transparent 100%)",
+      "linear-gradient(90deg, transparent 0%, rgba(165,87,64,.04) 14%, rgba(165,87,64,.13) 50%, rgba(165,87,64,.04) 86%, transparent 100%)",
     navDockShadow:
-      "0 -10px 26px rgba(0,0,0,.18), inset 0 1px 0 rgba(255,255,255,.02)",
-    border: "rgba(183,179,170,.18)",
+      "0 -10px 28px rgba(75,63,52,.06), inset 0 1px 0 rgba(255,250,235,.66)",
+    border: "rgba(91,86,79,.19)",
     activeCard:
-      "linear-gradient(145deg, rgba(48,46,45,.99), rgba(39,39,39,.99))",
+      "linear-gradient(145deg, rgba(249,239,231,.99), rgba(239,224,214,.99))",
     inactiveCard:
-      "linear-gradient(145deg, rgba(37,42,46,.99), rgba(30,35,39,.99))",
-    activeCardBorder: "#aa6a55",
-    inactiveCardBorder: "rgba(179,184,184,.20)",
+      "linear-gradient(145deg, rgba(250,247,239,.99), rgba(239,235,226,.99))",
+    activeCardBorder: "#b2634a",
+    inactiveCardBorder: "rgba(91,86,79,.25)",
     activeCardShadow:
-      "inset 0 3px 0 rgba(202,132,108,.20), 0 18px 38px rgba(0,0,0,.20), 0 0 0 1px rgba(189,116,92,.05)",
+      "inset 0 3px 0 rgba(178,99,74,.18), 0 16px 34px rgba(75,63,52,.12), 0 0 0 1px rgba(165,87,64,.05)",
     inactiveCardShadow:
-      "inset 0 1px 0 rgba(255,255,255,.025), 0 10px 24px rgba(0,0,0,.12)",
-    inactiveCardText: "#d9dce0",
-    activeSummary: "#e6ddd6",
-    inactiveSummary: "#bfc6cc",
-    emphasisText: "#efc27f",
-    emphasisBackground: "rgba(202,137,67,.15)",
-    emphasisBorder: "rgba(226,164,91,.58)",
-    emphasisShadow: "inset 0 0 0 1px rgba(255,238,184,.06)",
-    codeText: "#c8dce0",
-    codeBackground: "rgba(81,127,137,.18)",
-    codeBorder: "rgba(130,178,187,.48)",
-    codeShadow: "inset 0 0 0 1px rgba(228,249,255,.06)",
-    subtitleText: "#e9e5df",
-    subtitleBackground: "rgba(34,39,43,.82)",
-    subtitleBorder: "rgba(186,181,172,.16)",
-    subtitleShadow: "0 8px 22px rgba(0,0,0,.14)",
-    overlayShadow: "0 30px 80px rgba(0,0,0,.54)",
-    overlayCardBackground: "rgba(31,36,40,.86)",
-    overlayCardBorder: "rgba(225,220,210,.16)",
+      "inset 0 1px 0 rgba(255,250,235,.88), 0 9px 22px rgba(75,63,52,.10)",
+    inactiveCardText: "#3b403f",
+    activeSummary: "#5c4740",
+    inactiveSummary: "#535a59",
+    emphasisText: "#904d36",
+    emphasisBackground: "rgba(217,138,43,.13)",
+    emphasisBorder: "rgba(165,87,64,.62)",
+    emphasisShadow: "none",
+    codeText: "#275761",
+    codeBackground: "rgba(44,119,133,.10)",
+    codeBorder: "rgba(40,120,138,.36)",
+    codeShadow: "inset 0 0 0 1px rgba(255,255,255,.48)",
+    subtitleText: "#303a3b",
+    subtitleBackground: "rgba(251,247,238,.90)",
+    subtitleBorder: "rgba(98,99,95,.20)",
+    subtitleShadow: "0 8px 20px rgba(75,63,52,.10)",
+    overlayShadow: "0 30px 76px rgba(39,34,29,.28)",
+    overlayCardBackground: "rgba(250,247,239,.90)",
+    overlayCardBorder: "rgba(91,86,79,.16)",
     introTitleColors: [
-      "#d98978",
-      "#8fb3bd",
-      "#d1ad74",
-      "#91b3a5",
-      "#aa9abb",
-      "#c89876",
+      "#a34558",
+      "#2f6f9e",
+      "#96690d",
+      "#237a63",
+      "#6c54ad",
+      "#b25e1f",
     ],
   },
   light: {
@@ -732,8 +736,8 @@ const TabIcon: FC<{
       filter:
         theme === "dark"
           ? active
-            ? "saturate(.92) brightness(1.03) drop-shadow(0 3px 8px rgba(0,0,0,.26))"
-            : "saturate(.82) brightness(.98) drop-shadow(0 2px 4px rgba(0,0,0,.24))"
+            ? "saturate(1.05) brightness(1.04) drop-shadow(0 3px 8px rgba(75,63,52,.24))"
+            : "none"
           : active
             ? "saturate(1.2) brightness(1.12) drop-shadow(0 0 10px rgba(111,213,255,.28))"
             : "saturate(1.1) brightness(1.06) drop-shadow(0 2px 4px rgba(0,0,0,.28))",
