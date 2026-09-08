@@ -246,7 +246,7 @@
           "type": "number",
           "minimum": 0.5,
           "maximum": 1.6,
-          "description": "可选。当前 scene 的图片手动微调倍率，只影响这一张 overlayImg；默认 1，会与入场/聚焦动画叠加。"
+          "description": "可选。当前 scene 的图片静态微调倍率，只影响这一张 overlayImg；默认 1，不附加自动缩放或平移动画。"
         },
         "audioSrc": {
           "$ref": "#/$defs/audioPath",

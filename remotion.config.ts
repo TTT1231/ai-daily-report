@@ -6,7 +6,8 @@
 import { Config } from "@remotion/cli/config";
 import { enableTailwind } from '@remotion/tailwind-v4';
 
-Config.setVideoImageFormat("jpeg");
+// Preserve small screenshot text before the final video encode.
+Config.setVideoImageFormat("png");
 Config.setOverwriteOutput(true);
 Config.setPublicDir("./data-scheme");
 Config.overrideWebpackConfig(enableTailwind);

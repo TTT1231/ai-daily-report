@@ -69,23 +69,24 @@ function assertValidFrame(label, result, outPath) {
   assert.ok(bytes > 50_000, `${label}: PNG only ${bytes} bytes (may be blank)`);
 }
 
-// 首个 Story 的 overlay 边界帧按其两条固定 fixture scene 覆盖；下游 Story 与
+// 首个 Story 的证据舞台按其两条固定 fixture scene 覆盖，并检查临近 scene 结束时
+// 证据仍在；下游 Story 与
 // outro 从 generated videoStartMs 动态定位，避免 fixture 增删 scene 后测试帧失效。
 const REPORT_FRAMES = [
   { frame: 0, name: "intro start" },
   { frame: 50, name: "intro scrolling (IntroOverview translate)" },
   { frame: 108, name: "story transition (click sound + fade)" },
   { frame: 122, name: "story-1 enter fade-in (storyPause)" },
-  { frame: 145, name: "story-1 overlay reveal complete (2222x1820)" },
-  { frame: 330, name: "story-1 overlay hide near scene end" },
-  { frame: 370, name: "story-1 second overlay image (1080x1080)" },
+  { frame: 145, name: "story-1 first evidence image (2222x1820)" },
+  { frame: 330, name: "story-1 evidence remains near scene end" },
+  { frame: 370, name: "story-1 second evidence image (1080x1080)" },
   {
     frame: frameAtStoryStart(reportStory("topic-2415444")),
     name: "2-tab story layout (topic-2415444)",
   },
   {
     frame: frameAtStoryStart(reportStory("codex-quota-reset")),
-    name: "overlay without dimensions fallback (codex-reset.png)",
+    name: "evidence without dimensions fallback (codex-reset.png)",
   },
   { frame: frameAtStoryStart(REPORT.outro), name: "outro" },
 ];

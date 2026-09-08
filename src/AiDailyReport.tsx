@@ -37,7 +37,6 @@ import {
   navigationMinimumWidth,
 } from "./navigation-layout";
 import {
-  getAutomaticOverlayScale,
   getTabLayout,
   INTRO_GAP,
   INTRO_VIEWPORT_HEIGHT,
@@ -59,7 +58,7 @@ import clickSound from "./sound/click-sound.mp3";
 
 const themes = {
   // 晚间「微暖纸面」主题（原型 out/theme-review/evening-theme-preview.html 方案 B）：
-  // 正极性（深字浅底）暖米画布，手机标准显示态为基准；mock 未覆盖的派生项
+  // 正极性（深字浅底）暖米画布，以横屏标准显示态为基准；mock 未覆盖的派生项
   // （导航高光、阴影、emphasis/code、overlay 卡、intro 色板）按 light 主题同构
   // 模式换暖棕色相，阴影统一走 rgba(75,63,52,*)，overlay 深影用 mock 的暖深棕。
   dark: {
@@ -68,6 +67,7 @@ const themes = {
     blue: "#a55740",
     strong: "#3b302b",
     contentTitle: "#974a34",
+    activeTabTitle: "#974a34",
     canvas:
       "radial-gradient(circle at 12% -18%, rgba(100,128,137,.07), transparent 40%), radial-gradient(circle at 92% 0%, rgba(183,111,74,.10), transparent 38%), linear-gradient(180deg, #eee8dc 0%, #e0dbd1 78%)",
     ambient: "linear-gradient(180deg, rgba(255,250,235,.34), transparent 42%)",
@@ -100,10 +100,12 @@ const themes = {
     codeBackground: "rgba(44,119,133,.10)",
     codeBorder: "rgba(40,120,138,.36)",
     codeShadow: "inset 0 0 0 1px rgba(255,255,255,.48)",
+    codeFontWeight: 850,
     subtitleText: "#303a3b",
     subtitleBackground: "rgba(251,247,238,.90)",
     subtitleBorder: "rgba(98,99,95,.20)",
     subtitleShadow: "0 8px 20px rgba(75,63,52,.10)",
+    subtitlePadding: "9px 24px",
     overlayShadow: "0 30px 76px rgba(39,34,29,.28)",
     overlayCardBackground: "rgba(250,247,239,.90)",
     overlayCardBorder: "rgba(91,86,79,.16)",
@@ -116,58 +118,57 @@ const themes = {
       "#b25e1f",
     ],
   },
+  // 短视频亮色：冷灰画布承托白卡，蓝色只标记当前重点；实色字幕保证扫读对比。
   light: {
-    text: "#2d3d4c",
-    muted: "#68727c",
-    blue: "#b8614b",
-    strong: "#3e2d28",
-    contentTitle: "#b85f49",
-    canvas:
-      "radial-gradient(circle at 10% -16%, rgba(90,135,182,.09), transparent 40%), radial-gradient(circle at 94% 2%, rgba(196,112,84,.08), transparent 38%), linear-gradient(180deg, #fbfaf7 0%, #f1f3f2 100%)",
-    ambient: "linear-gradient(180deg, rgba(255,255,255,.42), transparent 42%)",
-    nav: "rgba(252,251,248,.92)",
+    text: "#182538",
+    muted: "#526174",
+    blue: "#245bdb",
+    strong: "#142b50",
+    contentTitle: "#182538",
+    activeTabTitle: "#194fbd",
+    canvas: "#e9eef5",
+    ambient: "none",
+    nav: "#f5f7fb",
     navChapterActive:
-      "linear-gradient(90deg, transparent 0%, rgba(184,95,73,.04) 10%, rgba(184,95,73,.11) 50%, rgba(184,95,73,.04) 90%, transparent 100%)",
+      "linear-gradient(90deg, transparent 0%, #dce7fc 20%, #dce7fc 80%, transparent 100%)",
     navDockActive:
-      "linear-gradient(90deg, transparent 0%, rgba(184,95,73,.04) 14%, rgba(184,95,73,.13) 50%, rgba(184,95,73,.04) 86%, transparent 100%)",
-    navDockShadow:
-      "0 -10px 28px rgba(42,50,56,.06), inset 0 1px 0 rgba(255,255,255,.66)",
-    border: "rgba(91,103,113,.19)",
-    activeCard:
-      "linear-gradient(145deg, rgba(255,251,247,.99), rgba(248,237,231,.99))",
-    inactiveCard:
-      "linear-gradient(145deg, rgba(255,255,253,.99), rgba(248,248,245,.99))",
-    activeCardBorder: "#c77963",
-    inactiveCardBorder: "rgba(92,104,113,.22)",
+      "linear-gradient(90deg, transparent 0%, #dce7fc 20%, #dce7fc 80%, transparent 100%)",
+    navDockShadow: "0 -2px 10px rgba(24,37,56,.05)",
+    border: "#c8d3e2",
+    activeCard: "#edf3ff",
+    inactiveCard: "#ffffff",
+    activeCardBorder: "#245bdb",
+    inactiveCardBorder: "#c8d3e2",
     activeCardShadow:
-      "inset 0 3px 0 rgba(199,121,99,.18), 0 16px 34px rgba(109,78,67,.12), 0 0 0 1px rgba(184,95,73,.05)",
-    inactiveCardShadow:
-      "inset 0 1px 0 rgba(255,255,255,.88), 0 9px 22px rgba(65,72,78,.07)",
-    inactiveCardText: "#344653",
-    activeSummary: "#59443d",
-    inactiveSummary: "#52626d",
-    emphasisText: "#a83f00",
-    emphasisBackground: "rgba(255,177,66,.13)",
-    emphasisBorder: "rgba(200,91,14,.48)",
+      "inset 0 5px 0 #245bdb, 0 6px 16px rgba(36,91,219,.10)",
+    inactiveCardShadow: "0 2px 6px rgba(24,37,56,.04)",
+    inactiveCardText: "#182538",
+    activeSummary: "#203653",
+    inactiveSummary: "#36465a",
+    emphasisText: "#173b79",
+    emphasisBackground: "#dce8ff",
+    emphasisBorder: "#6991df",
     emphasisShadow: "none",
-    codeText: "#0759a6",
-    codeBackground: "rgba(32,126,222,.09)",
-    codeBorder: "rgba(22,102,190,.34)",
-    codeShadow: "inset 0 0 0 1px rgba(255,255,255,.48)",
-    subtitleText: "#263b4c",
-    subtitleBackground: "rgba(255,254,251,.82)",
-    subtitleBorder: "rgba(91,103,113,.16)",
-    subtitleShadow: "0 8px 20px rgba(65,72,78,.07)",
-    overlayShadow: "0 30px 72px rgba(40,62,91,.28)",
-    overlayCardBackground: "rgba(255,255,255,.90)",
-    overlayCardBorder: "rgba(92,104,113,.16)",
+    codeText: "#36465a",
+    codeBackground: "rgba(24,37,56,.035)",
+    codeBorder: "transparent",
+    codeShadow: "none",
+    codeFontWeight: 650,
+    subtitleText: "#ffffff",
+    subtitleBackground: "#182538",
+    subtitleBorder: "#182538",
+    subtitleShadow: "none",
+    subtitlePadding: "6px 18px",
+    overlayShadow: "0 16px 40px rgba(24,37,56,.22)",
+    overlayCardBackground: "#ffffff",
+    overlayCardBorder: "#c8d3e2",
     introTitleColors: [
-      "#cf3f67",
-      "#167fc0",
-      "#b77a00",
-      "#12826d",
-      "#7154c7",
-      "#c15f22",
+      "#194fbd",
+      "#087267",
+      "#873ca6",
+      "#9c4b1b",
+      "#3453a4",
+      "#a13659",
     ],
   },
 };
@@ -177,23 +178,15 @@ export type Theme = keyof typeof themes;
 const STORY_ENTER_DELAY_FRAMES = 0; // story 入场淡入开始前停留的帧数（0 = 立即开始淡入）
 const STORY_ENTER_FADE_FRAMES = 10; // story 入场淡入持续的帧数
 const STORY_TRANSITION_FRAMES = videoTimeline.storyTransitionFrames;
-const IMAGE_TRANSITION_FRAMES = 16;
-const IMAGE_EXIT_TRANSITION_FRAMES = 20;
-const IMAGE_PRE_ROLL_FRAMES = 12;
-const IMAGE_POST_ROLL_FRAMES = 10;
-// 放大镜式温和推近：reveal 后固定 IMAGE_ZOOM_IN_FRAMES 帧推到 1.12，帮助观众
-// 读清证据图里的小字；完全不推（1.0）会让长旁白下图片全程静止、失去阅读引导。
-// 早期版本被反馈"截图卡片放大观感差"后整体禁用，这里恢复的是温和幅度 + 固定
-// 短窗，不是当年的大幅整体放大。
-const IMAGE_FOCUS_SCALE = 1.12;
-const IMAGE_ZOOM_IN_FRAMES = 60; // 推近窗口约 2 秒（30fps），固定时长、不随旁白长度拉伸
-const OVERLAY_MAX_WIDTH = 1640;
+// 横屏证据舞台的可用区域为 1836×760。宽图尽量吃满宽度，网页截图则受高度
+// 约束，始终留在标题和字幕之间，不再靠动画放大越界。
+const OVERLAY_MAX_WIDTH = 1836;
 const OVERLAY_MAX_HEIGHT = 760;
 const OVERLAY_MAX_UPSCALE = 2.25;
 const OVERLAY_SMALL_MAX_WIDTH = 980;
 const OVERLAY_SMALL_MAX_HEIGHT = 560;
 const OVERLAY_SMALL_MAX_UPSCALE = 3.6;
-const OVERLAY_PORTRAIT_MAX_HEIGHT = 680;
+const OVERLAY_PORTRAIT_MAX_HEIGHT = 740;
 const SUBTITLE_MAX_VISUAL_UNITS = 44;
 const SUBTITLE_FONT_SIZE = 36;
 const SUBTITLE_TOKEN_PATTERN =
@@ -359,122 +352,6 @@ const getSubtitleCue = (
   }
 
   return cues[cues.length - 1];
-};
-
-interface OverlayAnimation {
-  reveal: number;
-  hide: number;
-  opacity: number;
-  scale: number;
-}
-
-// interpolate() throws when its input range is not strictly monotonically
-// increasing. Short overlay scenes collapse the reveal/hide ranges to a single
-// frame, so guard those calls and fall back to the boundary value instead of
-// letting the whole render crash.
-const interpolateRange = (
-  frame: number,
-  start: number,
-  end: number,
-  from: number,
-  to: number,
-  options: Parameters<typeof interpolate>[3],
-) => {
-  if (start >= end) return frame >= end ? to : from;
-  return interpolate(frame, [start, end], [from, to], options);
-};
-
-// Overlay zoom keyframes. 推近是固定短窗（revealEnd → zoomEnd），回落绑定退场
-// 窗口（returnStart=hideStart → returnEnd=hideEnd）。早先按 sceneDuration 比例
-// 拉伸的窗口在长旁白下会把动效摊得几乎不可见。interpolate() 要求关键帧严格
-// 递增：放不下完整"推近→保持→回落"弧线时压缩推近窗口，仍放不下就退化为
-// 仅入场 95%→100%，绝不让 range 塌缩搞崩渲染。
-const getOverlayScale = (
-  frame: number,
-  revealStart: number,
-  revealEnd: number,
-  zoomEnd: number,
-  returnStart: number,
-  returnEnd: number,
-) => {
-  if (
-    revealStart < revealEnd &&
-    revealEnd < zoomEnd &&
-    zoomEnd < returnStart &&
-    returnStart < returnEnd
-  ) {
-    return interpolate(
-      frame,
-      [revealStart, revealEnd, zoomEnd, returnStart, returnEnd],
-      [0.95, 1, IMAGE_FOCUS_SCALE, IMAGE_FOCUS_SCALE, 1],
-      {
-        easing: Easing.inOut(Easing.cubic),
-        extrapolateLeft: "clamp",
-        extrapolateRight: "clamp",
-      },
-    );
-  }
-  if (revealStart < revealEnd) {
-    return interpolate(frame, [revealStart, revealEnd], [0.95, 1], {
-      easing: Easing.inOut(Easing.cubic),
-      extrapolateLeft: "clamp",
-      extrapolateRight: "clamp",
-    });
-  }
-  return 1;
-};
-
-export const getOverlayAnimation = (
-  scene: DailyScene,
-  sceneFrame: number,
-  sceneDuration: number,
-): OverlayAnimation => {
-  if (!scene.overlayImg) {
-    return { reveal: 0, hide: 0, opacity: 0, scale: 1 };
-  }
-
-  // Overlay 必须跟随当前 subtitle/scene 的完整时长，不能用固定帧数截断长旁白。
-  // 末尾 20 帧淡出 + 10 帧留白：在 30fps 下约提前 1 秒开始退场，
-  // 并在字幕结束前约 0.3 秒完全消失，让 tabs 自然重新显露。
-  const lastSceneFrame = Math.max(1, sceneDuration - 1);
-  const revealStart = Math.min(
-    IMAGE_PRE_ROLL_FRAMES,
-    Math.max(
-      0,
-      lastSceneFrame - IMAGE_TRANSITION_FRAMES * 2 - IMAGE_POST_ROLL_FRAMES,
-    ),
-  );
-  const revealEnd = Math.min(
-    lastSceneFrame,
-    revealStart + IMAGE_TRANSITION_FRAMES,
-  );
-  const hideEnd = Math.max(revealEnd, lastSceneFrame - IMAGE_POST_ROLL_FRAMES);
-  const hideStart = Math.max(revealEnd, hideEnd - IMAGE_EXIT_TRANSITION_FRAMES);
-  const reveal = interpolateRange(sceneFrame, revealStart, revealEnd, 0, 1, {
-    easing: Easing.bezier(0.16, 1, 0.3, 1),
-    extrapolateLeft: "clamp",
-    extrapolateRight: "clamp",
-  });
-  const hide = interpolateRange(sceneFrame, hideStart, hideEnd, 1, 0, {
-    easing: Easing.inOut(Easing.cubic),
-    extrapolateLeft: "clamp",
-    extrapolateRight: "clamp",
-  });
-  // 推近窗口固定 ~2s，放不下时压缩到退场前；回落与淡出同步开始、同步结束。
-  const zoomEnd = Math.min(
-    revealEnd + IMAGE_ZOOM_IN_FRAMES,
-    Math.max(revealEnd + 1, hideStart - 1),
-  );
-  const scale = getOverlayScale(
-    sceneFrame,
-    revealStart,
-    revealEnd,
-    zoomEnd,
-    hideStart,
-    hideEnd,
-  );
-
-  return { reveal, hide, opacity: reveal * hide, scale };
 };
 
 export const getOverlayImageLayout = (scene: DailyScene) => {
@@ -705,7 +582,7 @@ const InlineMarkup: FC<{
                 fontFamily: '"Cascadia Code", Consolas, monospace',
                 fontSize: ".88em",
                 lineHeight: 1.15,
-                fontWeight: 850,
+                fontWeight: palette.codeFontWeight,
                 letterSpacing: ".01em",
                 whiteSpace: "nowrap",
               }}
@@ -862,8 +739,7 @@ const Navigation: FC<{
 const Tabs: FC<{
   story: DailyStory;
   theme: Theme;
-  overlayVisibility: number;
-}> = ({ story, theme, overlayVisibility }) => {
+}> = ({ story, theme }) => {
   const palette = themes[theme];
   const tabCount = story.tabs.length;
   const {
@@ -883,19 +759,6 @@ const Tabs: FC<{
     summaryLineClamp,
   } = getTabLayout(tabCount);
   const hasActiveTab = story.activeTab !== undefined;
-  const backgroundOpacity = interpolate(overlayVisibility, [0, 1], [1, 0.24], {
-    extrapolateLeft: "clamp",
-    extrapolateRight: "clamp",
-  });
-  const backgroundSaturation = interpolate(
-    overlayVisibility,
-    [0, 1],
-    [1, 0.72],
-    {
-      extrapolateLeft: "clamp",
-      extrapolateRight: "clamp",
-    },
-  );
   return (
     <div
       style={{
@@ -907,8 +770,6 @@ const Tabs: FC<{
           : `repeat(${columns}, minmax(0, 1fr))`,
         gridTemplateRows: `repeat(${rows}, minmax(0, 1fr))`,
         gap,
-        opacity: backgroundOpacity,
-        filter: `saturate(${backgroundSaturation})`,
         transform: isTwoCardLayout
           ? "translateY(-8px)"
           : isSingleRow
@@ -960,7 +821,7 @@ const Tabs: FC<{
           >
             <div
               style={{
-                color: active ? palette.contentTitle : palette.text,
+                color: active ? palette.activeTabTitle : palette.text,
                 fontSize: titleFontSize,
                 lineHeight: 1.18,
                 fontWeight: 780,
@@ -1293,7 +1154,7 @@ export const TabLayoutPreview: FC<TabLayoutPreviewProps> = ({
             margin: "0 42px",
           }}
         >
-          <Tabs story={story} theme={theme} overlayVisibility={0} />
+          <Tabs story={story} theme={theme} />
         </div>
         <div
           style={{
@@ -1304,7 +1165,7 @@ export const TabLayoutPreview: FC<TabLayoutPreviewProps> = ({
             alignSelf: "center",
             maxWidth: "94%",
             height: "fit-content",
-            padding: "9px 24px",
+            padding: palette.subtitlePadding,
             color: palette.subtitleText,
             background: palette.subtitleBackground,
             border: `1px solid ${palette.subtitleBorder}`,
@@ -1323,33 +1184,26 @@ export const TabLayoutPreview: FC<TabLayoutPreviewProps> = ({
   );
 };
 
-const SourceOverlay: FC<{
+const EvidenceStage: FC<{
   scene: DailyScene;
   theme: Theme;
-  animation: OverlayAnimation;
-}> = ({ scene, theme, animation }) => {
+}> = ({ scene, theme }) => {
   if (!scene.overlayImg) return null;
   const palette = themes[theme];
-
-  const { reveal, hide, opacity, scale } = animation;
-  const exitProgress = 1 - hide;
-  const translateY = (1 - reveal) * 18 - exitProgress * 14;
   const imageLayout = getOverlayImageLayout(scene);
-  const imageScale =
-    scene.overlayImgScale ??
-    getAutomaticOverlayScale(scene.overlayImgWidth, scene.overlayImgHeight) ??
-    1;
+  const imageScale = scene.overlayImgScale ?? 1;
 
   return (
     <div
       style={{
-        position: "absolute",
-        inset: "0 18px",
+        width: "100%",
+        height: "100%",
+        boxSizing: "border-box",
+        padding: "4px 42px 8px",
+        overflow: "hidden",
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
-        opacity,
-        transform: `translateY(${translateY}px) scale(${scale})`,
       }}
     >
       <div
@@ -1377,7 +1231,6 @@ const SourceOverlay: FC<{
             display: "block",
             objectFit: "contain",
             borderRadius: imageLayout?.small ? 8 : 10,
-            translate: "0px -1.7px",
           }}
         />
       </div>
@@ -1490,12 +1343,8 @@ const AiDailyReportContent: FC<AiDailyReportContentProps> = ({
     : isIntro(story)
       ? null
       : story;
-  const displayScene =
-    isOutro(story) && displayStory
-      ? displayStory.scenes[displayStory.scenes.length - 1]
-      : !isIntro(story)
-        ? scene
-        : null;
+  const hasEvidence =
+    !isIntro(story) && !isOutro(story) && Boolean(scene.overlayImg);
 
   const storyPause =
     storyIndex === 0 || isOutro(story)
@@ -1519,12 +1368,6 @@ const AiDailyReportContent: FC<AiDailyReportContentProps> = ({
     extrapolateRight: "clamp",
   });
   const subtitleCue = getSubtitleCue(scene, sceneFrame, sceneDuration);
-  const overlayAnimation = getOverlayAnimation(
-    scene,
-    sceneFrame,
-    sceneDuration,
-  );
-  const overlayVisibility = overlayAnimation.opacity;
   const storyVisibility = storyPause * storyExit;
 
   // Merge adjacent stories in the same category, while validation limits over-grouping.
@@ -1674,7 +1517,7 @@ const AiDailyReportContent: FC<AiDailyReportContentProps> = ({
                   top: 0,
                   left: 0,
                   right: 0,
-                  height: "10%",
+                  height: hasEvidence ? 76 : "10%",
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "center",
@@ -1687,7 +1530,7 @@ const AiDailyReportContent: FC<AiDailyReportContentProps> = ({
                 <div
                   style={{
                     color: palette.contentTitle,
-                    fontSize: 46,
+                    fontSize: hasEvidence ? 42 : 46,
                     fontWeight: 780,
                     lineHeight: 1.4,
                     letterSpacing: "-.018em",
@@ -1703,10 +1546,10 @@ const AiDailyReportContent: FC<AiDailyReportContentProps> = ({
               <div
                 style={{
                   position: "absolute",
-                  top: "10%",
-                  left: 42,
-                  right: 42,
-                  bottom: 68,
+                  top: hasEvidence ? 76 : "10%",
+                  left: hasEvidence ? 0 : 42,
+                  right: hasEvidence ? 0 : 42,
+                  bottom: hasEvidence ? 80 : 68,
                   overflow: "hidden",
                   display: "flex",
                   alignItems: "center",
@@ -1714,34 +1557,14 @@ const AiDailyReportContent: FC<AiDailyReportContentProps> = ({
                   opacity: storyVisibility,
                 }}
               >
-                {displayStory && displayScene ? (
-                  <Tabs
-                    story={displayStory}
-                    theme={theme}
-                    overlayVisibility={overlayVisibility}
-                  />
+                {hasEvidence ? (
+                  <EvidenceStage scene={scene} theme={theme} />
+                ) : displayStory ? (
+                  <Tabs story={displayStory} theme={theme} />
                 ) : null}
               </div>
             </>
           )}
-          <div
-            style={{
-              position: "absolute",
-              zIndex: 4,
-              inset: 0,
-              overflow: "hidden",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              opacity: storyVisibility,
-            }}
-          >
-            <SourceOverlay
-              scene={scene}
-              theme={theme}
-              animation={overlayAnimation}
-            />
-          </div>
           <div
             style={{
               position: "absolute",
@@ -1750,7 +1573,7 @@ const AiDailyReportContent: FC<AiDailyReportContentProps> = ({
               bottom: 16,
               width: "max-content",
               maxWidth: "94%",
-              padding: "9px 24px",
+              padding: palette.subtitlePadding,
               display: "flex",
               alignItems: "center",
               justifyContent: "center",

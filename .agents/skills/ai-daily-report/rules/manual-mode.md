@@ -80,9 +80,9 @@ bun run dev
 - `contentTitle`：**≤ 30 字**，必须是完整语义标题，不能用省略号截断。
 - `introTitle`：可选，供开场资讯概览逐条展示；应改写成适合短视频观众的编辑标题，去掉论坛前缀、标题党问句、情绪化措辞和来源免责声明。省略时使用 `contentTitle`。
 - `summary`：JSON 字符串最多 128 字；去掉 Markdown 后最多 110 个可见字符，视觉占用也不超过 110；必须且只能有一段粗体，英文模型/产品/API/错误码/版本专名使用行内代码且可有多段。
-- `scenes`：**最少 1 段，最多 6 段**；普通新闻 1 段，独立核心事件或独立证据段才增加，不按图片数量机械配额。证据段多、Tabs 信息量大时，建议在段间或结尾插入无图段帮助读卡：overlay 期间 Tabs 只有约 24% 不透明度。
+- `scenes`：**最少 1 段，最多 6 段**；普通新闻 1 段，独立核心事件或独立证据段才增加，不按图片数量机械配额。带图 scene 的整段旁白以证据图为主画面；无图 scene 才回到 Tabs，因此不要为了展示摘要而机械插入无图段。
 - `subtitle`：**1 ~ 96 字**，建议 28~96，是 TTS 实际念的文案。
-- `overlayImgWidth` / `overlayImgHeight`：构建期按图片文件真实像素自动写入 `data-generate.json`，无需手填；`overlayImgScale` 手动微调当前 scene 的基础倍率，会叠加正常的聚焦动画。
+- `overlayImgWidth` / `overlayImgHeight`：构建期按图片文件真实像素自动写入 `data-generate.json`，无需手填；`overlayImgScale` 只静态微调当前 scene，不附加默认缩放或平移动画。
 - `id`：只能小写字母/数字/`-`/`.`，**必须以小写字母或数字开头**。
 - 顶部导航（`topTitle`）和底部导航（`bottomTitle`）的总展示宽度有上限，超了 schema 校验会报。宁可短一点。
 - 顶层可选 `introContent` / `outroContent` 自定义开场/结尾旁白，不给就用默认问候/结语。

@@ -20,7 +20,7 @@
 
 `overlayImgWidth` / `overlayImgHeight` 是 **generated-only**：由 tts 构建期按图片文件**真实像素**写入 `data-generate.json`（Remotion 实际读取的 props），**无需手填**；值是原始像素，不是想让它显示成多大，渲染层用它们限制小图放大。rss 只写 `overlayImg` 路径、不写尺寸，手动写进 raw 也会被构建按文件真相覆盖。
 
-构建期只把真实尺寸写入 `data-generate.json`；渲染层据此给**宽、高均不超过 `1000px` 的小尺寸竖图**自动应用基础倍率：高窄图为 `1.3`，中等竖图为 `1.2`，轻微竖图为 `1.1`。任一边超过 `1000px` 的大图与横图不自动放大，自动倍率也不会写回 JSON。如果只有某一张图想再大一点或小一点，在 raw `data.json` 的 scene 上手动填写 `overlayImgScale` 即可覆盖自动值。它只影响当前图片，并会和正常的入场/聚焦动画叠加；不要去改 `SourceOverlay` 里的全局样式，否则后面的所有 overlay 图都会一起变大。
+构建期只把真实尺寸写入 `data-generate.json`。渲染层按横屏证据舞台自动 `contain`，不再给图片附加默认推近或平移动画。如果只有某一张图确实需要再大一点或小一点，在 raw `data.json` 的 scene 上手动填写 `overlayImgScale`；它只影响当前图片。不要去改 `EvidenceStage` 的全局样式，否则后面的所有证据图都会一起变化。
 
 ```jsonc
 {
@@ -63,9 +63,9 @@
 
 ## 渲染效果
 
-`src/AiDailyReport.tsx` 的 `SourceOverlay` 组件：scene 有 `overlayImg` 就居中显示这张图（`objectFit: contain`、圆角、阴影），并带「出现/消失 + 聚焦放大」动画；`overlayImgScale` 会作为这张图的基础倍率再叠加到动画上。没有 `overlayImg` 就什么都不显示，也就是说图片是**可选**的。
+`src/AiDailyReport.tsx` 的 `EvidenceStage` 组件：scene 有 `overlayImg` 时，证据图会在整段旁白期间占据标题与字幕之间的主舞台（`objectFit: contain`、圆角、阴影），场景切换时直接换图，方便观众暂停、快进和自行检查。没有 `overlayImg` 时才显示 Tabs 摘要作为兜底。
 
-渲染层按真实宽高把 overlay 分成常规图 / 小图 / 高窄截图三类，分别限高（常规 760、高窄 680、小图 560），**整张图按 `contain` 等比塞进限高框**。这意味着图越高、越窄，宽度就越被压扁——一张 992×4046 的长截图会被压成 167×680 的细条，根本看不清。遇到“竖向截图太小”时，先确认 `data-generate.json` 里的真实宽高，再决定是否需要 `overlayImgScale`，不要直接改全局上限。
+渲染层按真实宽高把证据图分成常规图 / 小图 / 高窄截图三类，横图最多使用 1836×760 的舞台，高窄截图限高 740，小图限于 980×560，**整张图按 `contain` 等比放入舞台**。这意味着图越高、越窄，宽度仍会被压扁——一张 992×4046 的长截图会变成看不清的细条。遇到这种情况应更换证据素材或拆成多张正常比例图片，不要用全局缩放掩盖内容选型问题。
 
 ## EXIF 方向先摆正
 
@@ -92,18 +92,18 @@ bun run dev
 
 如果 `check-data-json` 报 `overlayImg` 不匹配正则，基本就是路径写错了（没带 `images/` 前缀，或用了不支持的格式）。`overlayImgWidth` / `overlayImgHeight` 由构建按文件真实像素自动写入，无需手动对齐；若 raw 里只填了其中一个，会被报“必须一起填”。
 
-改过 `SourceOverlay` 尺寸公式时，还要跑 `bun test src/overlay-animation.test.ts`，并用 `bunx remotion still AiDailyReport ... --props=data-scheme/data-generate.json --public-dir=data-scheme` 截代表帧检查高窄、常规、宽图和小图。
+改过 `EvidenceStage` 尺寸公式时，还要跑 `bun test test/unit/evidence-layout.test.ts`，并用 `bunx remotion still AiDailyReport ... --props=data-scheme/data-generate.json --public-dir=data-scheme` 截代表帧检查高窄、常规、宽图和小图。
 
 ## 自动配图（rss 视觉识别）
 
 自动模式（`bun run video:auto-generate`）下，`CLAUDE_VISION_ENABLED=true` 时，`ingest/vision.go` 会对达到日报入选线（Score ≥7）且含远程图的 Story 做视觉识别和自动配图。Story 按分数降序处理，分数高的先消耗预算；总量仍由 `CLAUDE_VISION_MAX_CALLS`、`CLAUDE_VISION_MAX_IMAGES_PER_SOURCE` 和 `CLAUDE_VISION_MAX_BUDGET_USD` 封顶。
 
 1. **提取事实**：调 `claude` 识别图片内容，补充到文案。Claude 子进程只允许 `mcp__*` 和 `WebFetch`，不放行 `Bash`、`Write`、`Edit`。
-2. **自动配图**：用聚类后的 Story 标题、重要性和要点做相关性判断。候选已经来自来源正文的直接内嵌图片并排除了 onebox，因此按“正文证据图”处理：证据/公告截图、示意图、数据/评测图、产品截图、官方物料都算相关，不要求覆盖 Story 的每一个要点；只要产品/机构名、核心事件、日期、数字或用户影响能明确对应即可。只有内容清晰可辨且能确认是纯表情包、头像、签名装饰、广告或另一个无关主题时才判不相关。相关后，把该图下载到 `data-scheme/images/` 并写入对应 scene 的 `overlayImg` 路径；原始宽高由 tts 构建期按文件算进 `data-generate.json`、供 `SourceOverlay` 布局用（rss 不把尺寸写进 `data.json`）。
+2. **自动配图**：用聚类后的 Story 标题、重要性和要点做相关性判断。候选已经来自来源正文的直接内嵌图片并排除了 onebox，因此按“正文证据图”处理：证据/公告截图、示意图、数据/评测图、产品截图、官方物料都算相关，不要求覆盖 Story 的每一个要点；只要产品/机构名、核心事件、日期、数字或用户影响能明确对应即可。只有内容清晰可辨且能确认是纯表情包、头像、签名装饰、广告或另一个无关主题时才判不相关。相关后，把该图下载到 `data-scheme/images/` 并写入对应 scene 的 `overlayImg` 路径；原始宽高由 tts 构建期按文件算进 `data-generate.json`、供 `EvidenceStage` 布局用（rss 不把尺寸写进 `data.json`）。
 
 远程图下载遇到网络错误、HTTP 429 或 5xx 会短暂重试；404、格式不支持、图片过大或疑似头像/Logo 这类永久性问题会直接跳过，不中断整期日报生成。
 
-自动配图在 raw `data.json` 中仍只写 `overlayImg`；随后构建 `data-generate.json` 时写入图片真实尺寸，Remotion 再为不超过 `1000px` 的小尺寸竖图计算基础倍率。需要人工微调时，在 raw scene 中显式填写 `overlayImgScale` 覆盖自动值。
+自动配图在 raw `data.json` 中仍只写 `overlayImg`；随后构建 `data-generate.json` 时写入图片真实尺寸，Remotion 据此把图片等比放入证据舞台。需要人工微调时，在 raw scene 中显式填写 `overlayImgScale`。
 
 当前实现的触发条件（`shouldAnalyze`）：视觉开关启用、Story 分数 ≥ `visionMinStoryScore`（当前为 7，等于默认日报入选线）、未超调用上限且条目含远程图片；不看正文长短。不满足条件的 scene 不会自动配图，用上面的手动方式补即可。
 

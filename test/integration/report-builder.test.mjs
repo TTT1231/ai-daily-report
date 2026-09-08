@@ -162,7 +162,7 @@ test("buildGeneratedReport writes overlay dims from the real image file", () => 
   assert.equal(scene.overlayImgHeight, expected.height);
 });
 
-test("buildGeneratedReport leaves automatic portrait scaling to the render layer", () => {
+test("buildGeneratedReport leaves image sizing to the render layer", () => {
   const gen = buildGeneratedReport(
     rawReportWithOverlay("images/codex-reset.png"),
     undefined,
