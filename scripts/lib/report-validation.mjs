@@ -6,6 +6,7 @@ import {
   asciiWidthFactor,
   navigationCapacity,
   reportNavigationLabels,
+  topNavigationComfortFillRatio,
 } from "./navigation-layout.mjs";
 
 const schema = JSON.parse(readFileSync(schemaPath, "utf8"));
@@ -185,7 +186,6 @@ export function validateReport(
   let expectedStartMs = 0;
   const storyIds = new Map();
   const sceneIds = new Map();
-  const topTitles = new Set();
   const closedTopTitleSegments = new Set();
   let previousTopTitle;
   let activeIntroCount = 0;
@@ -220,7 +220,6 @@ export function validateReport(
     }
     if (story.activeIntro === true) activeIntroCount++;
     if (!["intro", "outro"].includes(story.id)) {
-      topTitles.add(story.topTitle);
       if (story.topTitle !== previousTopTitle) {
         if (closedTopTitleSegments.has(story.topTitle)) {
           fail(
@@ -373,22 +372,30 @@ export function validateReport(
   if (activeIntroCount > 1) {
     fail("stories", "only one story may set activeIntro to true");
   }
-  if (topTitles.size > 5) {
-    fail(
-      "stories",
-      `must use at most 5 unique topTitle categories, received ${topTitles.size}`,
-    );
-  }
   const navigationLabels = reportNavigationLabels(report);
   const navigationStats = {};
   for (const [name, labels] of Object.entries(navigationLabels)) {
     const { availableWidth, requiredWidth } = navigationCapacity(labels, {
       windowed: name === "bottom",
     });
+    const fillRatio =
+      availableWidth > 0 ? requiredWidth / availableWidth : 0;
     navigationStats[name] = {
       availableWidth,
+      fillRatio,
       itemCount: labels.length,
       requiredWidth,
+      ...(name === "top"
+        ? {
+            comfortFillRatio: topNavigationComfortFillRatio,
+            density:
+              fillRatio > 1
+                ? "overflow"
+                : fillRatio > topNavigationComfortFillRatio
+                  ? "dense"
+                  : "comfortable",
+          }
+        : {}),
     };
     if (requiredWidth > availableWidth) {
       fail(

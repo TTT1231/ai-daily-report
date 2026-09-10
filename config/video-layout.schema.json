@@ -30,6 +30,7 @@
     "navigation": {
       "type": "object",
       "required": [
+        "topComfortFillRatio",
         "minimumItemWidth",
         "edgeInset",
         "itemGap",
@@ -45,6 +46,12 @@
       ],
       "additionalProperties": false,
       "properties": {
+        "topComfortFillRatio": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "maximum": 1,
+          "description": "顶部导航的可观赏性软阈值，占视频宽度的比例。超过该值但未越过画布时只提示偏密，不阻断；实际宽度超过画布才校验失败。"
+        },
         "minimumItemWidth": {
           "type": "number",
           "exclusiveMinimum": 0,

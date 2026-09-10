@@ -11,6 +11,7 @@ import (
 
 type navigationLayoutConfig struct {
 	VideoWidth             int
+	TopComfortFillRatio    float64
 	MinimumItemWidth       float64
 	EdgeInset              float64
 	ItemGap                float64
@@ -40,6 +41,7 @@ type navigationTypography struct {
 type videoLayoutFile struct {
 	Width      int `json:"width"`
 	Navigation struct {
+		TopComfortFillRatio    float64                `json:"topComfortFillRatio"`
 		MinimumItemWidth       float64                `json:"minimumItemWidth"`
 		EdgeInset              float64                `json:"edgeInset"`
 		ItemGap                float64                `json:"itemGap"`
@@ -68,7 +70,11 @@ func loadNavigationLayout() (navigationLayoutConfig, error) {
 	if err := json.Unmarshal(data, &file); err != nil {
 		return navigationLayoutConfig{}, fmt.Errorf("解析 video-layout.json 失败: %w", err)
 	}
-	if file.Width <= 0 || file.Navigation.MinimumItemWidth <= 0 || len(file.Navigation.Layouts) == 0 {
+	if file.Width <= 0 ||
+		file.Navigation.TopComfortFillRatio <= 0 ||
+		file.Navigation.TopComfortFillRatio > 1 ||
+		file.Navigation.MinimumItemWidth <= 0 ||
+		len(file.Navigation.Layouts) == 0 {
 		return navigationLayoutConfig{}, fmt.Errorf("video-layout.json 的导航尺寸配置无效")
 	}
 	// 底部窗口规格是渲染层的单一事实源（激活项放大字号 + 序号胶囊），缺失会让宽度估算失真。
@@ -82,6 +88,7 @@ func loadNavigationLayout() (navigationLayoutConfig, error) {
 	}
 	return navigationLayoutConfig{
 		VideoWidth:             file.Width,
+		TopComfortFillRatio:    file.Navigation.TopComfortFillRatio,
 		MinimumItemWidth:       file.Navigation.MinimumItemWidth,
 		EdgeInset:              file.Navigation.EdgeInset,
 		ItemGap:                file.Navigation.ItemGap,

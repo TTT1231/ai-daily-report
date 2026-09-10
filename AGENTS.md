@@ -94,6 +94,7 @@ ai-daily-report/
 │   ├── story_merge.go                   # 同 Topic 跨来源合并
 │   ├── story_tabs.go / story_tab_text.go# 单 Story 内编排 Tabs 与文案
 │   ├── image_assets.go / manual_images.go # 图片资源处理（自动抓取 + 人工补图）
+│   ├── supplied_evidence.go               # supplied-source 浏览前预检、state 匹配、候选并发下载/去重/缓存
 │   ├── navigation_layout.go             # Story/Tabs 容量与导航排版（与 config/video-layout.json 同源规则）
 │   ├── generate_datajson.go             # 组装并写出 data.json（带内容哈希）
 │   ├── atomicfile.go                    # 原子写文件

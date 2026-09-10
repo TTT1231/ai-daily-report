@@ -11,6 +11,26 @@ test("accepts the current video layout", () => {
   assert.deepEqual(validateVideoLayoutValue(currentLayout).errors, []);
 });
 
+test("requires a top-navigation comfort ratio", () => {
+  const layout = clone(currentLayout);
+  delete layout.navigation.topComfortFillRatio;
+
+  assert.match(
+    validateVideoLayoutValue(layout).errors.join("\n"),
+    /topComfortFillRatio/,
+  );
+});
+
+test("rejects a top-navigation comfort ratio above the hard width", () => {
+  const layout = clone(currentLayout);
+  layout.navigation.topComfortFillRatio = 1.01;
+
+  assert.match(
+    validateVideoLayoutValue(layout).errors.join("\n"),
+    /topComfortFillRatio/,
+  );
+});
+
 test("rejects navigation layouts that are not ordered by descending minItems", () => {
   const layout = clone(currentLayout);
   layout.navigation.layouts[1].minItems = layout.navigation.layouts[0].minItems;

@@ -32,6 +32,7 @@
     "check-data-json:render": "node scripts/checks/check-data-json.mjs --render",
     "check-icons": "node scripts/checks/check-icons.mjs",
     "check-evidence": "node scripts/checks/check-evidence.mjs",
+    "evidence:prepare-supplied": "go -C ingest run . prepare-supplied-evidence",
     "evidence:frames": "node scripts/checks/extract-evidence-frames.mjs",
     "image:normalize-orientation": "node scripts/checks/normalize-image-orientation.mjs",
     "check": "bun run check-data-json && bun run check-data-json:render && bun run check-icons && bun run check-evidence",

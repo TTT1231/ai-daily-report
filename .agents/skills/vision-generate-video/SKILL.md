@@ -47,34 +47,46 @@ back into this skill.
 
 1. Inspect the current `data-scheme/`. If it contains a different report, preserve it with
    `bun run archive` before replacing Raw; do not use `reset` as a shortcut.
-2. Execute `rules/supplied-source-mode.md` end to end for the invocation inputs: classify
-   each source unit, resolve it against `ingest/rss-state.json` before browsing anything,
-   follow its selection-intent, fact-status, narration, scene, and evidence rules without
-   restating them here. Before writing Raw, emit its combined per-source content-and-evidence
-   audit checkpoint, then write the complete `data-scheme/data.json` plus verified assets
-   in `data-scheme/images/`. Keep only scenes justified by sourced facts; never fill a quota.
-3. Run `bun run check-data-json --strict-tone` and `bun run check-evidence --require-overlay`.
+2. Before browsing, materialize the invocation as the OS-temp `sources.json` contract from
+   `rules/supplied-source-mode.md`. Count source units mechanically, create the complete
+   source-to-Story/navigation plan, and run
+   `bun run evidence:prepare-supplied --input <temp>/sources.json --output <temp>`.
+   Do not continue until its plan validation passes. Reuse that same temp
+   directory for the whole task so candidate downloads are cached. There is no fixed
+   topTitle-category count: use the manifest's measured top-navigation width and density.
+   Short 7- or 8-category plans may remain separate; on a `dense` result, shorten labels
+   semantically first and merge only adjacent categories that are genuinely related.
+3. Treat the generated `manifest.json` as the source and candidate inventory. Batch-view only
+   its distinct `reviewable: true` candidates; never send filtered, failed, or already-viewed
+   duplicate files through vision. Execute the real layer's fact/evidence rules and its bounded
+   external-link capture policy only for Stories still lacking acceptable evidence. Before
+   writing Raw, emit the combined per-source content-and-evidence audit checkpoint, then copy
+   only adopted final assets to `data-scheme/images/` and write the complete
+   `data-scheme/data.json` in one edit when practical. Keep only sourced scenes; never fill a quota.
+4. Run `bun run check-data-json --strict-tone` and `bun run check-evidence --require-overlay`.
    Fix the first error and repeat until both pass. `--strict-tone` is the supplied-source
    tone gate: it blocks evidence-medium narration and warns on anonymous attribution and
-   editorial filler; it targets Raw only and is skipped under `--render`.
-4. State that TTS may use the configured paid API, then run `bun run tts` once. Do not use
+   editorial filler; it targets Raw only and is skipped under `--render`. Fix every occurrence
+   of one error class in a single edit instead of serial one-field patches.
+5. State that TTS may use the configured paid API, then run `bun run tts` once. Do not use
    `bun run video:render`, because it repeats TTS.
-5. Read `data-scheme/data-generate.json` and collect all `intro.tabs` and `stories[].tabs`.
-   Directly create or repair an SVG for every referenced icon (see below). Add only
-   missing `icon` fields to Generated and mirror story icon fields to Raw; never edit
-   unrelated generated fields.
-6. Run the keyword scan from `rules/supplied-source-mode.md`,
+6. Read `data-scheme/data-generate.json` once and collect all `intro.tabs` and
+   `stories[].tabs`. Directly create or repair every referenced SVG in one file-edit batch
+   when practical (see below); do not inspect unrelated modules or samples unless validation
+   exposes a real ambiguity. Add only missing `icon` fields to Generated and mirror story icon
+   fields to Raw; never edit unrelated generated fields.
+7. Run the keyword scan from `rules/supplied-source-mode.md`,
    `bun run check-data-json:render`, and `bun run check-icons`. Fix every error before
    continuing.
-7. Run `bun run render:mp4` and confirm that `out/AiDailyReport.mp4` exists and is
+8. Run `bun run render:mp4` and confirm that `out/AiDailyReport.mp4` exists and is
    non-empty. Run `bun run evidence:frames`, read its manifest, and visually inspect
    every exported midpoint frame. Verify the image is upright, readable,
    and actually proves the narrated fact; fix and rerender on any failure. The exporter
    uses an OS-temp directory—remove that exact directory after inspection, and never
    create a repo-local `.tmp-evidence/` workspace.
-8. Report the number of source units, stories, tabs, evidence overlays, generated icons,
-   any blocked sources, and the final MP4 path. Mention any explicit merge/split override
-   the user requested.
+9. Report counts from the preflight and generated files, never from memory: source units,
+   stories, tabs, evidence overlays, generated icons, and blocked sources. Include the phase
+   timings required by the real layer, the final MP4 path, and any explicit merge/split override.
 
 ## Author SVGs directly
 

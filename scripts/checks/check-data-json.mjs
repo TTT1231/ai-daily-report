@@ -87,4 +87,11 @@ if (navigationStats) {
   console.log(
     `Navigation capacity: top ${navigationStats.top.requiredWidth}/${navigationStats.top.availableWidth}px (${navigationStats.top.itemCount} items), bottom ${navigationStats.bottom.requiredWidth}/${navigationStats.bottom.availableWidth}px (${navigationStats.bottom.itemCount} items).`,
   );
+  if (navigationStats.top.density === "dense") {
+    console.error(
+      `- warning: top navigation is dense at ${(navigationStats.top.fillRatio * 100).toFixed(1)}% ` +
+        `(comfort target ${(navigationStats.top.comfortFillRatio * 100).toFixed(0)}%). ` +
+        `Prefer shorter topTitle labels; merge only adjacent, genuinely related categories.`,
+    );
+  }
 }

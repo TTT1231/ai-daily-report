@@ -13,6 +13,34 @@
 
 一句话：**用户负责选定来源，agent 负责理解、取证、编排并生产**。每个 source unit 默认独立成一个 Story、保持输入顺序；用户明确要求合并/拆分时才例外。
 
+## 浏览前的确定性预检
+
+不要靠对话中的心算统计来源，也不要写完完整 `data.json` 才发现导航过宽。开始浏览或下载证据前，在同一个 OS 临时工作区写一份 `sources.json`，然后运行：
+
+```bash
+bun run evidence:prepare-supplied --input <temp>/sources.json --output <temp>
+```
+
+输入格式：
+
+```json
+{
+  "sources": [
+    {"hash": "64位RSS哈希", "sourceId": "linuxdo-news", "title": "来源标题", "link": "https://..."}
+  ],
+  "storyPlan": [
+    {"id": "topic-123", "sourceIndexes": [1], "topTitle": "模型产品", "bottomTitle": "短标签"}
+  ]
+}
+```
+
+- `sources` 按用户输入顺序逐项记录；外部 URL 写 `link`，粘贴 HTML/文本写 `content`，本地文件写绝对 `localPath`。未命中 state 的来源也保留为独立 source unit。`sourceIndexes` 为 1 基，可表达用户明确要求的合并或拆分。
+- `storyPlan` 在取证前只固定 Story 对应关系、ID 与导航标题，不提前编造事实内容。命令会一次性拒绝未分配来源、重复 Story ID、非连续重复栏目及实际导航宽度溢出。**topTitle 没有固定栏目数上限**：预检会合并相邻同名栏目，计入 Intro / 结语，再按中英文加权字宽、响应式字号、内边距、最小标签宽度和间距计算真实像素占用；7、8 个乃至更多短而清楚的栏目只要排版容得下即可保留。
+- `manifest.navigation.top` 会记录标签、实际/可用宽度、占用率和 `density`。`config/video-layout.json` 的 `topComfortFillRatio`（默认 88%）只是可观赏性软线：`comfortable` 可直接继续，`dense` 仍校验通过，但应先做不损失语义的栏目短写；仍偏密时只归并相邻且确属同类的栏目。不得为了凑任意数量合并无关 Story；超过 100% 画布宽度才是硬失败。
+- 命令按 hash → 规范化 link → LinuxDo topic ID 匹配 `rss-state.json`，批量下载候选，按 URL/内容哈希去重，并自动过滤可确定的头像、Logo 和小图标；默认并发 4，最多 8。
+- 读取输出的 `manifest.json` 作为本次唯一来源/候选清单。只目视 `reviewable: true` 的不同文件；`filtered`、`failed` 不进视觉工具，`duplicate` 只看其 `duplicateOf` 指向的原图。复跑必须沿用同一临时目录以命中缓存。
+- 预检失败时不下载候选、不打开网页；一次性修正 manifest 中同一类问题后重跑。`dense` 是软提示，不算失败。最终汇报的 source/story/candidate 数及导航占用率以 manifest 为准，不再手工估数。
+
 ## 输入路由：先查 state，不要见到 URL 就开浏览器
 
 对每个 source unit 依次判定，**以 hash/link 是否命中 `ingest/rss-state.json` 为准**，不凭对象"看起来像不像 RSS"猜测：
@@ -81,6 +109,10 @@
 6. 关闭遮挡式弹窗、Cookie 提示和悬浮广告，但不修改正文事实内容；
 7. 广告嵌在核心段落且无法干净裁剪时，换官方图片、图表或另一可信来源，不强行凑数。
 
+**外链取证预算**：先完成 manifest 中全部 state 候选的批量目视，只有某个 Story 没有可采用证据时才追链。独立页面在工具支持时最多 3 个并发加载，但每个页面仍单独核验来源与事实。一次页面操作应合并完成正文提取、challenge/登录态检查和目标元素定位；同一 URL 最多做 2 次截图尝试。第一次优先原始图片或元素截图；元素截图不可用时，第二次只截一个稳定视口并离线精确裁剪，不继续反复改 viewport、探测 DOM 或隐藏零散节点。两次仍不合格时，只允许切换到 manifest 已列出的另一个可信原文一次；仍失败就报告该 source unit 阻塞。页面已有明确进展且只剩一次确定性裁剪时可以完成该裁剪，但不能开启新的试错循环。
+
+同一外链默认只保留一张最有说服力的最终证据；只有页面内确实存在由不同区域分别证明、且值得进入口播的多个独立核心事实时才保留多张。中间截图只放在 OS 临时工作区，不复制进 `data-scheme/images/`。
+
 图片下载后、裁剪前运行 `bun run image:normalize-orientation -- <path>`，按 EXIF orientation 烘焙旋转并清除标记；若裁剪工具已经把像素转正却错误保留方向标记，则加 `--pixels-upright` 只清标记。Chromium 按残留 EXIF 旋转显示，而尺寸闸按像素宽高读取，两者错位会让图片横倒进成片——`bun run check-evidence` 会直接拒绝此类文件。
 
 **必须拒收**：`Just a moment` / Cloudflare challenge /「正在进行安全验证」页、只有 Logo 或加载动画的中间态、登录/403/404、核心事实不可见、广告或推荐内容占主要区域、实际页面与预期来源不符、纯文字截图无可辨认来源标识且重截不可得（兜底见第 5 条）。`bun run check-evidence` 会拦住"HTML 存成 .png"的错位文件，但真截图成的广告页/challenge 页只能靠上面的目视复核发现。
@@ -97,7 +129,7 @@
 
 - **整条音频必须独立讲清选题**：同一 Story 的全部 subtitle 联合起来，必须让只听声音、不看 Tabs 的观众听懂选题承诺的核心事件，以及至少一个决定其新闻价值的具体事实，例如实质变化、结果、机制、关键数字或有效期限。有效期限可以是实施日、截止日或持续时间，普通网页发布日期本身不算。图片只限制对应的那一个 Scene 能说什么，不限制整条 Story 的编辑角度；必要的核心事实没有合适图片时，用来源支持的无图 Scene 讲清。
 - Tabs 2–6 张、Scenes 1–6 段（Schema 上限），数量由核心主题、可证事实、图片信息增量、可读性和视频时长共同决定；来源丰富只提供更多选择，不等于全部采用。
-- **候选遍历在先，禁止找到第一张就停**：先枚举 state 或外部取证得到的全部候选；头像、图标、表情等可按尺寸和结构直接排噪，其余候选必须逐张目视分类。可先用 optimized 图预筛，但任何可能采用的候选都要查看 `/original/` 全图。每张得到一个结果：**采用 / 重复 / 次要 / 不可读或长截图 / 不能直接证明相关事实**。全部候选分类完成前不得写 Scene；落盘资产只有第一张图及其裁剪变体时必须回查候选台账，只有其它候选均有明确舍弃理由才可继续。
+- **候选遍历在先，禁止找到第一张就停**：先由 `evidence:prepare-supplied` 枚举 state 候选、去重并机械排噪；agent 只批量目视 manifest 中 `reviewable: true` 的不同原图。每张得到一个结果：**采用 / 重复 / 次要 / 不可读或长截图 / 不能直接证明相关事实**。全部可审候选分类完成前不得写 Scene；落盘资产只有第一张图及其裁剪变体时必须回查候选台账，只有其它候选均有明确舍弃理由才可继续。
 - **内容与证据审计检查点（不中断执行）**：写 Raw 前，在 commentary 为每个 source unit 输出一条紧凑审计行，合并记录「选题承诺、计划进入口播的核心、retracted/conflicted 状态与处理、图片候选总数、采用图片及其独立事实、舍弃数量与理由」。它不是向用户申请确认，输出后继续生产；目的是同时让编辑选择、事实状态和逐图检查可审计，不再另设第二套输出仪式。若所有 Story 最终都只有一个 Scene，而任一来源存在多个独立且值得口播的图证事实，视为新的固定模板，必须返回台账重做。
 - **最少充分证据集的定义**：不是「一张图」，而是逐一评估剩余候选后，覆盖所有选定的、适合进入带图口播的独立核心事实所需的最小图片集合。正文和外部原文仍可独立支撑 Tabs 或无图事实段，不要求每条文字事实都有图片；但 image-backed Scene 的字幕必须能在对应原图中直接定位。一个 Story 存在多个由不同图片直接证明、且值得进入口播的重要事实时，不得仅为视频时长或 TTS 成本压缩成一段或弃用证据图。5 张只是容量上限，不是目标数量。
 - 每张最终采用的证据图对应一个带图口播 Scene，配一段解释画面可见事实的 subtitle；overlay 的出现与退出跟随该句证据讲解的语义边界。无图事实段按来源需要插入，数量与位置不设固定模板，也不得为填满 Scene 容量创建段落。
@@ -162,6 +194,8 @@ rg -n --glob '*.json' --glob '*.txt' --glob '*.svg' '中国' data-scheme
 
 ```bash
 bun run archive                    # data-scheme/ 里有上一期时先归档
+# 在 OS 临时目录写 sources.json，先验证来源/Story/导航并批量准备 state 候选
+bun run evidence:prepare-supplied --input <temp>/sources.json --output <temp>
 # 写 data-scheme/data.json + 下载证据图到 data-scheme/images/
 bun run check-data-json --strict-tone
 bun run check-evidence --require-overlay
@@ -177,6 +211,8 @@ bun run render:mp4
 - 每条证据图下载/截图后、进 `overlayImg` 前，先目视复核（见上文拒收清单）；
 - `check-evidence --require-overlay` 是自动闸：覆盖缺失、文件缺失、HTML 冒充图片、尺寸不可读都会失败；自动闸过了仍要目视确认内容相关性；
 - 来源确实无法取证时，停止并报告该 source unit 被阻塞，不静默渲染无证据的 Story。
+- 完整 Raw 尽量一次写入；校验返回多处同类错误时，在一次文件编辑中批量修完该类后再复检，不按字段做几十次串行编辑。预检已经确认过的 Story 对应关系和导航计划不得在 Raw 阶段无故重算。
+- 汇报 `manifest.json` 的预检/候选准备耗时，并记录外链取证、Raw 校验、TTS、SVG、渲染五个阶段的墙钟耗时；阶段没有发生时不补零。这样下一次性能回归能直接定位，不再用整轮总时长猜测。
 
 ## 与其它模式的关系
 

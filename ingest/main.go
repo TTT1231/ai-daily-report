@@ -7,12 +7,13 @@ import (
 	"time"
 )
 
-// main 是程序入口。三个子命令对应三种职责：
+// main 是程序入口。四个子命令对应四种职责：
 //
 //	fetch     — 只抓取 RSS + 去重 + 写 rss-state.json（候选池），停下。供 `bun run rss`。
 //	run-picks — 读 rss-state.json + picks.json，跳过评分/聚类/合并，每条 picked 独立成 Story，
 //	            跑 Tabs(识图) → data.json。供 `bun run video`（人工路径）。
 //	run-auto  — 等价原 run()：抓取 → 评分 → 聚类 → 合并 → Tabs(识图) → data.json。供 `bun run video:auto-generate`。
+//	prepare-supplied-evidence — 校验 supplied-source 的 Story/导航计划，批量匹配 state 并准备候选图。
 //
 // 任一 AI 步骤失败即中止（不产出低质兜底成片）——低质成片仍需人工返工，不如直接失败、修好 AI 后重跑。
 func main() {
@@ -27,11 +28,14 @@ func main() {
 		os.Exit(runPicks())
 	case "run-auto":
 		os.Exit(runAuto())
+	case "prepare-supplied-evidence":
+		os.Exit(runPrepareSuppliedEvidence(os.Args[2:]))
 	default:
-		fmt.Println("用法: linuxdo-rss [fetch|run-picks|run-auto]")
+		fmt.Println("用法: linuxdo-rss [fetch|run-picks|run-auto|prepare-supplied-evidence]")
 		fmt.Println("  fetch     抓取 RSS 并写 rss-state.json（候选池），停下。")
 		fmt.Println("  run-picks 读 rss-state.json + picks.json，人工 pick 路径生成 data.json。")
 		fmt.Println("  run-auto  全自动路径（默认）：抓取→评分→识图→data.json。")
+		fmt.Println("  prepare-supplied-evidence  supplied-source 预检与 RSS state 候选图批量准备。")
 		os.Exit(2)
 	}
 }

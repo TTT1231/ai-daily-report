@@ -500,13 +500,48 @@ test("a topTitle reappearing in a non-adjacent segment is rejected", () => {
   );
 });
 
-test("more than 5 unique topTitle categories is rejected", () => {
-  const r = rawReport({
-    stories: ["A", "B", "C", "D", "E", "F"].map((t, i) =>
-      story({ id: `s${i}`, topTitle: t }),
+const reportWithTopTitles = (topTitles) =>
+  rawReport({
+    stories: topTitles.map((topTitle, index) =>
+      story({
+        id: `s${index}`,
+        topTitle,
+        bottomTitle: `短${index}`,
+        scenes: [scene({ id: `scene-${index}` })],
+      }),
     ),
   });
-  assert.ok(hasError(errorsOf(r), "at most 5 unique topTitle categories"));
+
+test("eight short topTitle categories pass by measured width", () => {
+  const result = validateReport(
+    reportWithTopTitles(["模型", "应用", "算力", "政策", "芯片", "汽车", "资本", "健康"]),
+    { checkAssets: false },
+  );
+  assert.deepEqual(result.errors, []);
+  assert.equal(result.navigationStats.top.itemCount, 10);
+  assert.equal(result.navigationStats.top.density, "comfortable");
+});
+
+test("dense top navigation is reported but remains valid", () => {
+  const result = validateReport(
+    reportWithTopTitles(
+      [..."甲乙丙丁戊己庚辛"].map((suffix) => `一二三四五六七八${suffix}`),
+    ),
+    { checkAssets: false },
+  );
+  assert.deepEqual(result.errors, []);
+  assert.equal(result.navigationStats.top.density, "dense");
+  assert.ok(result.navigationStats.top.fillRatio > 0.88);
+  assert.ok(result.navigationStats.top.fillRatio <= 1);
+});
+
+test("top navigation rejects only actual width overflow", () => {
+  const r = reportWithTopTitles(
+    [..."甲乙丙丁戊己庚辛"].map(
+      (suffix) => `这是一个很长而且互不相同的栏目标题${suffix}`,
+    ),
+  );
+  assert.ok(hasError(errorsOf(r), "topNavigation: requires"));
 });
 
 // ---------- 时间线连续性（renderMode 头条不变量）----------

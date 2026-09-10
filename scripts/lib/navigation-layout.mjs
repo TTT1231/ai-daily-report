@@ -13,6 +13,8 @@ const navigation = videoLayout.navigation;
 // navigation.asciiWidthFactor。tab summary 可见宽度校验（report-validation）
 // 等处也必须从这里取值，避免改配置后各处口径漂移。
 export const asciiWidthFactor = navigation.asciiWidthFactor;
+export const topNavigationComfortFillRatio =
+  navigation.topComfortFillRatio;
 
 export const getNavigationTypography = (itemCount) => {
   const layout = navigation.layouts.find(
