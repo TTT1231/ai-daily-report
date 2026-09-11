@@ -877,31 +877,34 @@ const Tabs: FC<{
   );
 };
 
-// ── Intro content height (deterministic) ──────────────────────────────────
+// ── Intro scroll ──────────────────────────────────────────────
 //
-// The intro auto-scrolls when its 2-column card grid is taller than the
-// viewport. Measuring that height with getBoundingClientRect inside a render
-// effect breaks Remotion's "same frame → same pixels" contract (the first
-// paint of every frame uses a stale 0, then the effect flips it). Instead we
-// estimate the height purely from the intro data, so every frame of every
-// render derives the same scroll distance. The constants mirror the CSS
-// metrics used by IntroOverview; the bottom fade mask hides small drift, and
-// the value is memoized per intro object so it is computed once per report.
+// translateY percentages resolve against the rendered grid itself. At the
+// end, `-100% + viewportHeight` aligns the real content bottom with the
+// viewport bottom, including icon height and browser text wrapping. A
+// viewport-sized min-height makes the same formula resolve to zero when all
+// cards already fit. The estimate below balances cards between columns and
+// decides whether edge fades are useful; it never controls scroll distance.
+const INTRO_ICON_SIZE = 58;
 const INTRO_TITLE_LINE_HEIGHT = 39; // fontSize 34 * lineHeight 1.15
 const INTRO_SUMMARY_LINE_HEIGHT = 38; // fontSize 27 * lineHeight 1.42
 const INTRO_CARD_PADDING_Y = 52; // 26px top + 26px bottom
 const INTRO_TITLE_MARGIN_BOTTOM = 18;
 const INTRO_SUMMARY_GAP = 12;
 const INTRO_CARD_MIN_HEIGHT = 150;
-const INTRO_TITLE_CHARS_PER_LINE = 16;
-const INTRO_SUMMARY_CHARS_PER_LINE = 24;
-
-const runeCount = (text: string) => [...text].length;
+const INTRO_CARD_BORDER_Y = 2;
+const INTRO_SCROLL_END_PADDING = 24;
+const INTRO_TITLE_UNITS_PER_LINE = 16;
+const INTRO_SUMMARY_UNITS_PER_LINE = 24;
 
 const estimateIntroCardHeight = (tab: DailyTab) => {
   const titleLines = Math.max(
     1,
-    Math.ceil(runeCount(tab.title) / INTRO_TITLE_CHARS_PER_LINE),
+    Math.ceil(subtitleVisualUnits(tab.title) / INTRO_TITLE_UNITS_PER_LINE),
+  );
+  const titleHeight = Math.max(
+    tab.icon ? INTRO_ICON_SIZE : 0,
+    titleLines * INTRO_TITLE_LINE_HEIGHT,
   );
   const bullets = tab.summary
     .split("\n")
@@ -910,7 +913,10 @@ const estimateIntroCardHeight = (tab: DailyTab) => {
   const summaryLines = bullets.reduce(
     (total, bullet) =>
       total +
-      Math.max(1, Math.ceil(runeCount(bullet) / INTRO_SUMMARY_CHARS_PER_LINE)),
+      Math.max(
+        1,
+        Math.ceil(subtitleVisualUnits(bullet) / INTRO_SUMMARY_UNITS_PER_LINE),
+      ),
     0,
   );
   const summaryHeight =
@@ -919,31 +925,102 @@ const estimateIntroCardHeight = (tab: DailyTab) => {
   return Math.max(
     INTRO_CARD_MIN_HEIGHT,
     INTRO_CARD_PADDING_Y +
-      titleLines * INTRO_TITLE_LINE_HEIGHT +
+      INTRO_CARD_BORDER_Y +
+      titleHeight +
       INTRO_TITLE_MARGIN_BOTTOM +
       summaryHeight,
   );
 };
 
-const introContentHeightCache = new WeakMap<DailyIntro, number>();
+const getIntroColumnHeight = (
+  indexes: readonly number[],
+  cardHeights: readonly number[],
+) =>
+  indexes.reduce((total, index) => total + cardHeights[index], 0) +
+  Math.max(0, indexes.length - 1) * INTRO_GAP;
 
-const getIntroContentHeight = (intro: DailyIntro) => {
-  const cached = introContentHeightCache.get(intro);
-  if (cached !== undefined) return cached;
-  const columnHeights = [0, 1].map((modulo) => {
-    let height = 0;
-    let cards = 0;
-    intro.tabs.forEach((tab, index) => {
-      if (index % 2 !== modulo) return;
-      height += estimateIntroCardHeight(tab);
-      cards++;
-    });
-    return height + Math.max(0, cards - 1) * INTRO_GAP;
-  });
-  const contentHeight = Math.max(columnHeights[0], columnHeights[1]);
-  introContentHeightCache.set(intro, contentHeight);
-  return contentHeight;
+type IntroColumnLayout = {
+  columns: [number[], number[]];
+  estimatedHeights: [number, number];
 };
+
+const getIntroColumnHeights = (
+  columns: IntroColumnLayout["columns"],
+  cardHeights: readonly number[],
+) =>
+  [
+    getIntroColumnHeight(columns[0], cardHeights),
+    getIntroColumnHeight(columns[1], cardHeights),
+  ] satisfies [number, number];
+
+export const getBalancedIntroColumnLayout = (
+  tabs: readonly DailyTab[],
+): IntroColumnLayout => {
+  const cardHeights = tabs.map(estimateIntroCardHeight);
+  let columns: IntroColumnLayout["columns"] = [
+    tabs.map((_, index) => index).filter((index) => index % 2 === 0),
+    tabs.map((_, index) => index).filter((index) => index % 2 === 1),
+  ];
+  let estimatedHeights = getIntroColumnHeights(columns, cardHeights);
+
+  // Start with the familiar left/right alternating order. Move only the card
+  // that most reduces the imbalance, keep index 0 anchored on the left, and
+  // retain source order inside each column. Stop once the remaining mismatch
+  // is no larger than the normal card gap.
+  while (Math.abs(estimatedHeights[0] - estimatedHeights[1]) > INTRO_GAP) {
+    const currentDifference = Math.abs(
+      estimatedHeights[0] - estimatedHeights[1],
+    );
+    let bestMove: IntroColumnLayout | null = null;
+    let bestDifference = currentDifference;
+
+    for (const sourceColumn of [0, 1] as const) {
+      if (columns[sourceColumn].length <= 1) continue;
+      const targetColumn = sourceColumn === 0 ? 1 : 0;
+
+      for (const cardIndex of columns[sourceColumn]) {
+        if (cardIndex === 0) continue;
+        const candidateColumns: IntroColumnLayout["columns"] = [
+          columns[0].filter((index) => index !== cardIndex),
+          columns[1].filter((index) => index !== cardIndex),
+        ];
+        candidateColumns[targetColumn] = [
+          ...candidateColumns[targetColumn],
+          cardIndex,
+        ].sort((a, b) => a - b);
+        const candidateHeights = getIntroColumnHeights(
+          candidateColumns,
+          cardHeights,
+        );
+        const candidateDifference = Math.abs(
+          candidateHeights[0] - candidateHeights[1],
+        );
+
+        if (candidateDifference < bestDifference) {
+          bestDifference = candidateDifference;
+          bestMove = {
+            columns: candidateColumns,
+            estimatedHeights: candidateHeights,
+          };
+        }
+      }
+    }
+
+    if (bestMove === null) break;
+    columns = bestMove.columns;
+    estimatedHeights = bestMove.estimatedHeights;
+  }
+
+  return { columns, estimatedHeights };
+};
+
+export const getIntroScrollTransform = (
+  scrollProgress: number,
+  viewportHeight: number,
+) =>
+  `translateY(calc(${-scrollProgress * 100}% + ${
+    scrollProgress * viewportHeight
+  }px))`;
 
 const IntroOverview: FC<{
   intro: DailyIntro;
@@ -954,12 +1031,10 @@ const IntroOverview: FC<{
   const palette = themes[theme];
   const gap = INTRO_GAP;
   const viewportHeight = INTRO_VIEWPORT_HEIGHT;
-  const contentHeight = getIntroContentHeight(intro);
-  const columns = [
-    intro.tabs.map((_, index) => index).filter((index) => index % 2 === 0),
-    intro.tabs.map((_, index) => index).filter((index) => index % 2 === 1),
-  ];
-  const scrollDistance = Math.max(0, contentHeight - viewportHeight);
+  const { columns, estimatedHeights } = useMemo(
+    () => getBalancedIntroColumnLayout(intro.tabs),
+    [intro.tabs],
+  );
   const scrollProgress = interpolate(
     sceneFrame,
     [sceneDuration * 0.18, sceneDuration * 0.86],
@@ -970,6 +1045,20 @@ const IntroOverview: FC<{
       extrapolateRight: "clamp",
     },
   );
+  const scrollTransform = getIntroScrollTransform(
+    scrollProgress,
+    viewportHeight,
+  );
+  const topEdgeAlpha = interpolate(scrollProgress, [0, 0.08], [1, 0], {
+    extrapolateLeft: "clamp",
+    extrapolateRight: "clamp",
+  });
+  const bottomEdgeAlpha = interpolate(scrollProgress, [0.92, 1], [0, 1], {
+    extrapolateLeft: "clamp",
+    extrapolateRight: "clamp",
+  });
+  const hasOverflow =
+    Math.max(...estimatedHeights) + INTRO_SCROLL_END_PADDING > viewportHeight;
   const titleColors = palette.introTitleColors;
 
   return (
@@ -978,24 +1067,30 @@ const IntroOverview: FC<{
         width: "82%",
         height: viewportHeight,
         overflow: "hidden",
-        maskImage:
-          scrollDistance > 0
-            ? "linear-gradient(to bottom, transparent 0, black 4%, black 91%, transparent 100%)"
-            : undefined,
+        maskImage: hasOverflow
+          ? `linear-gradient(to bottom, rgba(0,0,0,${topEdgeAlpha}) 0, black 4%, black 91%, rgba(0,0,0,${bottomEdgeAlpha}) 100%)`
+          : undefined,
       }}
     >
       <div
         style={{
           display: "grid",
           gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
-          gap,
-          transform: `translateY(${-scrollDistance * scrollProgress}px)`,
+          columnGap: gap,
+          minHeight: viewportHeight,
+          paddingBottom: INTRO_SCROLL_END_PADDING,
+          boxSizing: "border-box",
+          transform: scrollTransform,
         }}
       >
         {columns.map((indexes, columnIndex) => (
           <div
             key={`intro-column-${columnIndex}`}
-            style={{ display: "flex", flexDirection: "column", gap }}
+            style={{
+              display: "flex",
+              flexDirection: "column",
+              gap,
+            }}
           >
             {indexes.map((index) => {
               const tab = intro.tabs[index];
@@ -1004,7 +1099,7 @@ const IntroOverview: FC<{
                 <div
                   key={tab.id}
                   style={{
-                    minHeight: 150,
+                    minHeight: INTRO_CARD_MIN_HEIGHT,
                     padding: "26px 32px",
                     borderRadius: 18,
                     border: `1px solid ${
@@ -1039,7 +1134,7 @@ const IntroOverview: FC<{
                         src={tab.icon}
                         active={tab.id === intro.activeTab}
                         theme={theme}
-                        size={58}
+                        size={INTRO_ICON_SIZE}
                       />
                     )}
                     {tab.title}
