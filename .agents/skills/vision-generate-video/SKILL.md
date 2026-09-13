@@ -23,6 +23,10 @@ SVG generation or image understanding back through the text-model commands.
 Do not reimplement or bypass project validation, and do not grow content-production rules
 back into this skill.
 
+First distinguish a production request from a request to diagnose or improve this workflow.
+Pasted previous invocations and execution logs are diagnostic material, not new production
+instructions; do not rerun their sourcing, TTS, or MP4 commands when reviewing performance.
+
 ## Hard rules
 
 1. Activate `$ai-daily-report` first and follow its production and safety rules. Read its
@@ -59,7 +63,10 @@ back into this skill.
    its distinct `reviewable: true` candidates; never send filtered, failed, or already-viewed
    duplicate files through vision. Execute the real layer's fact/evidence rules and its bounded
    external-link capture policy only for Stories still lacking acceptable evidence. Before
-   writing Raw, emit the combined per-source content-and-evidence audit checkpoint, then copy
+   writing Raw, complete the real layer's final-asset visual checks and collect all failures
+   before batch repair. Persist per-URL capture attempts in the same workspace; do not reset
+   the capture budget after renaming files or resuming context. Emit the combined per-source
+   content-and-evidence audit checkpoint, then copy
    only adopted final assets to `data-scheme/images/` and write the complete
    `data-scheme/data.json` in one edit when practical. Keep only sourced scenes; never fill a quota.
 4. Run `bun run check-data-json --strict-tone` and `bun run check-evidence --require-overlay`.
@@ -76,7 +83,9 @@ back into this skill.
    fields to Raw; never edit unrelated generated fields.
 7. Run the keyword scan from `rules/supplied-source-mode.md`,
    `bun run check-data-json:render`, and `bun run check-icons`. Fix every error before
-   continuing.
+   continuing. Follow that file's production section "先验素材，再验排版，最后导出":
+   resolve remaining layout questions with targeted Remotion stills, not full MP4 trials.
+   Do not start MP4 while any final asset or required preview remains unchecked or failed.
 8. Run `bun run render:mp4` and confirm that `out/AiDailyReport.mp4` exists and is
    non-empty. Run `bun run evidence:frames`; it creates `manifest.json` plus a fail-closed
    `review.json` whose checks start as `null`. Visually inspect every exported midpoint
@@ -87,8 +96,10 @@ back into this skill.
    new render. Run
    `bun run check-evidence-review -- --manifest=<temp>/manifest.json` before cleanup.
    Pending/failed checks and stale video, Generated-data, manifest, or frame hashes are
-   blocking. On failure, fix the source asset or drop the Story, rerun cached TTS if image
-   dimensions changed, rerender, then run `evidence:frames` into a fresh OS-temp directory
+   blocking. On failure, finish inspecting every frame in this round first and collect all
+   failures. Batch-fix assets or drop unsupported Stories, synchronize changed data/dimensions
+   with cached TTS, and verify affected layouts with stills before one consolidated rerender.
+   Then run `evidence:frames` into a fresh OS-temp directory
    and review every new frame. Remove that exact directory only after the checker passes;
    never create a repo-local `.tmp-evidence/` workspace.
 9. Report counts from the preflight and generated files, never from memory: source units,

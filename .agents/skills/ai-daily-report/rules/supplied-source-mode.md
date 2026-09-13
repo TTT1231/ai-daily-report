@@ -26,10 +26,20 @@ bun run evidence:prepare-supplied --input <temp>/sources.json --output <temp>
 ```json
 {
   "sources": [
-    {"hash": "64位RSS哈希", "sourceId": "linuxdo-news", "title": "来源标题", "link": "https://..."}
+    {
+      "hash": "64位RSS哈希",
+      "sourceId": "linuxdo-news",
+      "title": "来源标题",
+      "link": "https://..."
+    }
   ],
   "storyPlan": [
-    {"id": "topic-123", "sourceIndexes": [1], "topTitle": "模型产品", "bottomTitle": "短标签"}
+    {
+      "id": "topic-123",
+      "sourceIndexes": [1],
+      "topTitle": "模型产品",
+      "bottomTitle": "短标签"
+    }
   ]
 }
 ```
@@ -113,6 +123,10 @@ bun run evidence:prepare-supplied --input <temp>/sources.json --output <temp>
 
 同一外链默认只保留一张最有说服力的最终证据；只有页面内确实存在由不同区域分别证明、且值得进入口播的多个独立核心事实时才保留多张。中间截图只放在 OS 临时工作区，不复制进 `data-scheme/images/`。
 
+截图预算记入同一临时工作区的取证台账：按 URL 记录尝试次数、目标事实、结果和失败原因。滚动后重截、换文件名、换浏览器会话或上下文压缩都不重置次数。截前先从正文文本定位目标段落，禁止靠多次上下滚动截图寻找事实；一次确定性裁剪只能使用已有图和已知边界，不能借此继续试截。达到预算立即采用合格素材、切换允许的备用来源或排除，不把“还差一点”当作无限重试理由。
+
+候选批量失败时先按错误原因归组；同一 CDN 的相同解析/网络错误只诊断一次，保留失败记录，不逐图重复相同失败请求，也不关闭 SSRF 检查。经现有配置修复后沿用原临时目录重跑；无法恢复时再按上述预算定向补证。
+
 图片下载后、裁剪前运行 `bun run image:normalize-orientation -- <path>`，按 EXIF orientation 烘焙旋转并清除标记；若裁剪工具已经把像素转正却错误保留方向标记，则加 `--pixels-upright` 只清标记。Chromium 按残留 EXIF 旋转显示，而尺寸闸按像素宽高读取，两者错位会让图片横倒进成片——`bun run check-evidence` 会直接拒绝此类文件。
 
 **必须拒收**：`Just a moment` / Cloudflare challenge /「正在进行安全验证」页、只有 Logo 或加载动画的中间态、登录/403/404、核心事实不可见、广告或推荐内容占主要区域、实际页面与预期来源不符、纯文字截图无可辨认来源标识且重截不可得（按第 5 条排除）。`bun run check-evidence` 会拦住"HTML 存成 .png"的错位文件，但真截图成的广告页/challenge 页只能靠上面的目视复核发现。
@@ -192,10 +206,18 @@ rg -n --glob '*.json' --glob '*.txt' --glob '*.svg' '中国' data-scheme
 
 ## 生产流程
 
+### 先验素材，再验排版，最后导出
+
+- **写 Raw 前完成最终素材检查**：按采用文件的内容哈希去重，逐张检查最终裁剪结果，而非只看裁剪前原图。把该图对应的全部计划口播一起核对：方向、核心文字可读、事实支持、来源可辨、广告/推荐/弹窗等干扰均按最终成片标准检查。把结果记入已有内容与证据台账，不新增一轮长篇汇报。未修改且已检查的相同素材不反复送视觉；修改后只复查受影响素材及其全部口播映射。自动 `check-evidence` 不会识别广告，不能代替此步。
+- **一轮查完，一批修完**：发现第一处问题先记下，继续检查本批全部素材；汇总后统一修复或按取证预算替换。存在待查/失败素材时不启动 MP4。不要把 Guardian、Phoronix 等不同页面的问题拆成多次整片渲染。
+- **排版疑问用单帧解决**：Generated 就绪后，仅对最终显示大小、裁切、字幕遮挡仍有疑问的画面执行 `bunx remotion still AiDailyReport <temp>/preview.png --frame=<frame> --props=data-scheme/data-generate.json --public-dir=data-scheme`。用 `scripts/lib/evidence-frame-plan.mjs` 的 `buildEvidenceFramePlan` 和项目 fps 将目标 `timeMs` 换成帧号，不直接把音频 `startMs` 当视频位置。同图、同 scale、同布局不逐 Scene 重跑 still，但每段字幕的事实支持仍分别检查。已有素材中明显可见的广告直接在取证阶段处理，不必先出单帧确认。
+- **目标是一次完整导出**：素材全查通过、必要单帧通过、现有数据/图标闸通过后才运行 `render:mp4`。单帧预检不能替代最终 MP4 审核。成片发现问题时先审完本轮全部导出帧、记录所有失败，再批量修复；受影响画面先用单帧复核，通过后统一重渲染。新 MP4 仍须全量抽帧并独立审核，不复制旧的通过结论。不要修一处就立刻重渲染整片。
+
 ```bash
 bun run archive                    # data-scheme/ 里有上一期时先归档
 # 在 OS 临时目录写 sources.json，先验证来源/Story/导航并批量准备 state 候选
 bun run evidence:prepare-supplied --input <temp>/sources.json --output <temp>
+# 按上述流程查完全部最终素材，集中修复；未通过不进入后续导出
 # 写 data-scheme/data.json + 下载证据图到 data-scheme/images/
 bun run check-data-json --strict-tone
 bun run check-evidence --require-overlay
@@ -204,6 +226,7 @@ bun run generate-svg               # 或由多模态调用方（如 vision-gener
                                    # 纯文本模型下 generate-svg 与 MCP 识图都慢，多模态直出更快
 bun run check-icons
 bun run check-data-json:render
+# 仅对尚有排版疑问的画面出 Remotion still，修复后局部复查
 bun run render:mp4
 bun run evidence:frames             # 输出 manifest.json + 全部为 pending 的 review.json
 # 逐帧填写 review.json 后；任何 pending/false 或过期哈希都会失败
@@ -216,7 +239,7 @@ bun run check-evidence-review -- --manifest=<temp>/manifest.json
 - 最终视觉闸必须 fail-closed：`evidence:frames` 生成的 `review.json` 默认全部待审；逐帧确认方向、成片可读性、对口播事实的直接支持、来源可辨和无遮挡后才改为 `true`。广告、推荐位、Cookie 弹窗、登录/邮件墙、challenge 或无关 UI 任一遮挡均为 `false`，必须写明原因并修复后重新渲染、重新抽帧；禁止在同一份审核里直接把失败改成通过。只有 `check-evidence-review` 对当前 MP4、当前 Generated 数据和当前帧哈希全部通过后才能结束任务并删除临时帧目录；
 - 来源确实无法取证时，记录 source unit、排除原因和缺失的核心事实，跳过这条 Story 并继续其它已取证选题；全部来源均被排除时停止，保留原数据包。不要把取证失败转成无图新闻。
 - 完整 Raw 尽量一次写入；校验返回多处同类错误时，在一次文件编辑中批量修完该类后再复检，不按字段做几十次串行编辑。预检已经确认过的 Story 对应关系和导航计划不得在 Raw 阶段无故重算。
-- 汇报 `manifest.json` 的预检/候选准备耗时，并记录外链取证、Raw 校验、TTS、SVG、渲染五个阶段的墙钟耗时；阶段没有发生时不补零。这样下一次性能回归能直接定位，不再用整轮总时长猜测。
+- 在同一临时工作区持久记录阶段起止时间、尝试次数和失败原因，恢复上下文时沿用。汇报预检/候选准备、外链取证与裁剪、Raw 编排与校验、TTS、SVG、单帧预检、MP4 渲染、最终抽帧与视觉审核的墙钟耗时；重复阶段报告次数及累计耗时，不能只报最后一次 render。另报任务总墙钟；并发阶段不简单相加，未发生或未计时的阶段明确标注，不补零或猜测。这样下一次性能回归能直接定位，不再用整轮总时长猜测。
 
 ## 与其它模式的关系
 
