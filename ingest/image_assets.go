@@ -88,7 +88,7 @@ func fetchOverlayImageOnce(client *http.Client, imageURL, refererLink string) ([
 
 	response, err := client.Do(request)
 	if err != nil {
-		return nil, "", &httpError{message: "下载图片失败: " + err.Error(), retryable: true}
+		return nil, "", &httpError{message: "下载图片失败: " + err.Error(), retryable: !errors.Is(err, errBlockedImageAddress)}
 	}
 	defer response.Body.Close()
 	switch {

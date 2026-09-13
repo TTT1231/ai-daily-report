@@ -9,6 +9,7 @@ import {
   validateReportIcons,
 } from "./icon-validation.mjs";
 import {dataDir as defaultDataDir, rawDataPath as defaultRawDataPath} from "./paths.mjs";
+import {storyShowsTabCards} from "./story-presentation.mjs";
 
 export const GENERATE_SVG_PAYLOAD_START = "BEGIN_GENERATE_SVG_JSON";
 export const GENERATE_SVG_PAYLOAD_END = "END_GENERATE_SVG_JSON";
@@ -108,6 +109,7 @@ export function buildGenerateSvgTargetPlan(
   ];
 
   for (const {story, path: storyPath} of timelineEntries) {
+    if (storyPath !== "intro" && !storyShowsTabCards(story)) continue;
     if (!Array.isArray(story.tabs)) continue;
     const keepersBySharedPath = sharedIconKeepers(story, dataDir);
 
@@ -327,7 +329,7 @@ function validateSvgString(path, svg) {
 
 function updateGeneratedReportIcons(report, targetPlan) {
   for (const target of targetPlan.targets) {
-    for (const entry of collectTabIconEntries(report)) {
+    for (const entry of collectTabIconEntries(report, {visibleOnly: false})) {
       if (entry.storyId !== target.storyId) continue;
       if (!target.tabs.some((tab) => tab.id === entry.tab.id)) continue;
       entry.tab.icon = target.path;
@@ -365,7 +367,7 @@ function collectReferencedIconPaths(reports) {
   const icons = new Set();
 
   for (const report of reports.filter(Boolean)) {
-    for (const entry of collectTabIconEntries(report)) {
+    for (const entry of collectTabIconEntries(report, {visibleOnly: false})) {
       if (typeof entry.tab.icon === "string") icons.add(entry.tab.icon);
     }
   }

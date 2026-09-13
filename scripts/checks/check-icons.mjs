@@ -1,5 +1,6 @@
 import {validateReportIcons} from "../lib/icon-validation.mjs";
 import {dataDir, generatedDataPath, readJson} from "../lib/paths.mjs";
+import {buildGenerateSvgTargetPlan} from "../lib/generate-svg-payload.mjs";
 
 let report;
 try {
@@ -9,6 +10,11 @@ try {
   process.exit(1);
 }
 
+if (process.argv.includes("--plan")) {
+  const plan = buildGenerateSvgTargetPlan(report, {dataDir});
+  console.log(JSON.stringify({visibleTabs: plan.validation.totalTabs, targets: plan.targets}, null, 2));
+  process.exit(0);
+}
 const {errors, warnings, totalTabs} = validateReportIcons(report, {dataDir});
 
 // ── Report ──────────────────────────────────────────────────────────────────
@@ -28,7 +34,7 @@ if (errors.length > 0) {
 }
 
 if (totalTabs === 0) {
-  console.log("No tabs found — nothing to validate.");
+  console.log("No visible tab cards — nothing to validate.");
 } else {
-  console.log(`Icon validation passed: ${totalTabs}/${totalTabs} tabs have icons.`);
+  console.log(`Icon validation passed: ${totalTabs}/${totalTabs} visible tabs have icons.`);
 }

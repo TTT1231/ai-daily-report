@@ -1,5 +1,6 @@
 import {existsSync} from "node:fs";
 import {resolve, sep} from "node:path";
+import {storyShowsTabCards} from "./story-presentation.mjs";
 
 // 收集 report（raw data.json 或 generated data-generate.json）里引用了、但磁盘上
 // 不存在的图片/icon 资源。纯函数：传 report + dataDir，返回 missing 列表。
@@ -35,7 +36,7 @@ export function collectMissingImageAssets(report, dataDir) {
   ].filter(Boolean);
 
   for (const story of stories) {
-    for (const tab of story.tabs ?? []) {
+    for (const tab of (story === report.intro || storyShowsTabCards(story) ? story.tabs ?? [] : [])) {
       check(tab.icon, `${story.id}/${tab.id}.icon`);
     }
     for (const scene of story.scenes ?? []) {

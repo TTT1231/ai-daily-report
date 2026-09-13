@@ -255,6 +255,18 @@ type testHTTPHandler struct {
 	responses map[string][]byte
 }
 
+func TestSuppliedSummarySeparatesMissingCandidatesFromFailedDownloads(t *testing.T) {
+	input := suppliedEvidenceInput{Sources: make([]suppliedSourceUnit, 2)}
+	sources := []suppliedSourceResult{
+		{NoReviewableStateCandidate: true},
+		{NoReviewableStateCandidate: true, Candidates: []suppliedEvidenceCandidate{{Status: "failed"}}},
+	}
+	summary := summarizeSuppliedEvidence(input, sources, 1)
+	if summary.SourcesWithoutStateCandidates != 1 || summary.SourcesWithoutReviewableCandidates != 2 || summary.FailedCandidateReferences != 1 {
+		t.Fatalf("missing candidates and download failures were conflated: %+v", summary)
+	}
+}
+
 func (handler *testHTTPHandler) ServeHTTP(writer http.ResponseWriter, request *http.Request) {
 	data, exists := handler.responses[request.URL.Path]
 	if !exists {

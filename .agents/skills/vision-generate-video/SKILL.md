@@ -33,7 +33,7 @@ instructions; do not rerun their sourcing, TTS, or MP4 commands when reviewing p
    `rules/supplied-source-mode.md` in full — it owns input routing (RSS state first),
    source-quality and link-chasing decisions, screenshot/evidence rules, single-image
    inputs, story/tab scaling, and the keyword-replacement floor. Also read
-   `rules/images.md` for overlay display rules. When anything here seems to conflict with
+   `rules/images.md` for overlay display rules and `rules/evidence-workflow.md` for the executable capture/preflight/export workflow. When anything here seems to conflict with
    those files, they win; only the direct-SVG exception below is unique to this skill.
 2. Never run `bun run generate-svg`, invoke `$generate-svg`, or use a command that calls it
    indirectly. Forbidden aggregate commands include `bun run video`,
@@ -64,8 +64,8 @@ instructions; do not rerun their sourcing, TTS, or MP4 commands when reviewing p
    duplicate files through vision. Execute the real layer's fact/evidence rules and its bounded
    external-link capture policy only for Stories still lacking acceptable evidence. Before
    writing Raw, complete the real layer's final-asset visual checks and collect all failures
-   before batch repair. Persist per-URL capture attempts in the same workspace; do not reset
-   the capture budget after renaming files or resuming context. Emit the combined per-source
+   before batch repair. Use `evidence:capture` for planned webpage regions; its ledger
+   persists attempts per factual region, cached captures and unchanged-pixel results. Emit the combined per-source
    content-and-evidence audit checkpoint, then copy
    only adopted final assets to `data-scheme/images/` and write the complete
    `data-scheme/data.json` in one edit when practical. Keep only sourced scenes; never fill a quota.
@@ -74,18 +74,20 @@ instructions; do not rerun their sourcing, TTS, or MP4 commands when reviewing p
    tone gate: it blocks evidence-medium narration and warns on anonymous attribution and
    editorial filler; it targets Raw only and is skipped under `--render`. Fix every occurrence
    of one error class in a single edit instead of serial one-field patches.
-5. State that TTS may use the configured paid API, then run `bun run tts` once. Do not use
+5. Run `bun run evidence:prepare-review`, review distinct assets and every narration
+   mapping as specified in the real layer, then require `bun run evidence:check-preflight`
+   to pass. Do not fill approvals automatically. State that TTS may use the configured paid
+   API, then run `bun run tts` once. Do not use
    `bun run video:render`, because it repeats TTS.
-6. Read `data-scheme/data-generate.json` once and collect all `intro.tabs` and
-   `stories[].tabs`. Directly create or repair every referenced SVG in one file-edit batch
-   when practical (see below); do not inspect unrelated modules or samples unless validation
-   exposes a real ambiguity. Add only missing `icon` fields to Generated and mirror story icon
+6. Run `bun run check-icons -- --plan`. Directly author only the returned missing/invalid
+   visible icon targets in one batch. Evidence-only body Stories do not show their Tabs;
+   keep the editorial summaries, but do not generate hidden icons. Existing valid references
+   can remain. Add only the planned icon fields to Generated and mirror visible story icon
    fields to Raw; never edit unrelated generated fields.
-7. Run the keyword scan from `rules/supplied-source-mode.md`,
-   `bun run check-data-json:render`, and `bun run check-icons`. Fix every error before
-   continuing. Follow that file's production section "先验素材，再验排版，最后导出":
-   resolve remaining layout questions with targeted Remotion stills, not full MP4 trials.
-   Do not start MP4 while any final asset or required preview remains unchecked or failed.
+7. Run the keyword scan, `bun run check-data-json:render`, and `bun run check-icons`.
+   For unresolved layout questions use `bun run evidence:preview`, or select only affected
+   scenes after a fix. This batches PNGs through one bundle/browser; do not launch an
+   independent still process for every scene. Follow `rules/evidence-workflow.md` before export.
 8. Run `bun run render:mp4` and confirm that `out/AiDailyReport.mp4` exists and is
    non-empty. Run `bun run evidence:frames`; it creates `manifest.json` plus a fail-closed
    `review.json` whose checks start as `null`. Visually inspect every exported midpoint
@@ -97,8 +99,9 @@ instructions; do not rerun their sourcing, TTS, or MP4 commands when reviewing p
    `bun run check-evidence-review -- --manifest=<temp>/manifest.json` before cleanup.
    Pending/failed checks and stale video, Generated-data, manifest, or frame hashes are
    blocking. On failure, finish inspecting every frame in this round first and collect all
-   failures. Batch-fix assets or drop unsupported Stories, synchronize changed data/dimensions
-   with cached TTS, and verify affected layouts with stills before one consolidated rerender.
+   failures. Batch-fix assets or drop unsupported Stories, refresh `evidence:prepare-review`
+   and re-review invalidated facts/assets, synchronize changed data/dimensions with cached TTS,
+   then verify affected layouts with `evidence:preview` before one consolidated rerender.
    Then run `evidence:frames` into a fresh OS-temp directory
    and review every new frame. Remove that exact directory only after the checker passes;
    never create a repo-local `.tmp-evidence/` workspace.

@@ -105,6 +105,21 @@ func TestFetchOverlayImageRetriesTransientNetworkFailure(t *testing.T) {
 	}
 }
 
+func TestFetchOverlayImageDoesNotRetryBlockedAddress(t *testing.T) {
+	oldSleep := overlayImageRetrySleep
+	overlayImageRetrySleep = func(time.Duration) { t.Fatal("policy refusal must not sleep/retry") }
+	t.Cleanup(func() { overlayImageRetrySleep = oldSleep })
+	attempts := 0
+	client := &http.Client{Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+		attempts++
+		return nil, validateRequestHost("127.0.0.1")
+	})}
+	_, _, err := fetchOverlayImage(client, "https://cdn.example.com/a.png", "")
+	if err == nil || attempts != 1 {
+		t.Fatalf("err=%v, attempts=%d; want immediate policy refusal", err, attempts)
+	}
+}
+
 type roundTripFunc func(*http.Request) (*http.Response, error)
 
 func (fn roundTripFunc) RoundTrip(req *http.Request) (*http.Response, error) {

@@ -109,19 +109,20 @@ type suppliedEvidenceCandidate struct {
 }
 
 type suppliedEvidenceSummary struct {
-	SourceUnits                   int `json:"sourceUnits"`
-	PlannedStories                int `json:"plannedStories"`
-	TopTitleCategories            int `json:"topTitleCategories"`
-	StateMatches                  int `json:"stateMatches"`
-	UnmatchedSources              int `json:"unmatchedSources"`
-	CandidateReferences           int `json:"candidateReferences"`
-	UniqueCandidateURLs           int `json:"uniqueCandidateUrls"`
-	ReviewableCandidateReferences int `json:"reviewableCandidateReferences"`
-	FilteredCandidateReferences   int `json:"filteredCandidateReferences"`
-	DuplicateCandidateReferences  int `json:"duplicateCandidateReferences"`
-	FailedCandidateReferences     int `json:"failedCandidateReferences"`
-	CacheHits                     int `json:"cacheHits"`
-	SourcesWithoutStateCandidates int `json:"sourcesWithoutStateCandidates"`
+	SourceUnits                        int `json:"sourceUnits"`
+	PlannedStories                     int `json:"plannedStories"`
+	TopTitleCategories                 int `json:"topTitleCategories"`
+	StateMatches                       int `json:"stateMatches"`
+	UnmatchedSources                   int `json:"unmatchedSources"`
+	CandidateReferences                int `json:"candidateReferences"`
+	UniqueCandidateURLs                int `json:"uniqueCandidateUrls"`
+	ReviewableCandidateReferences      int `json:"reviewableCandidateReferences"`
+	FilteredCandidateReferences        int `json:"filteredCandidateReferences"`
+	DuplicateCandidateReferences       int `json:"duplicateCandidateReferences"`
+	FailedCandidateReferences          int `json:"failedCandidateReferences"`
+	CacheHits                          int `json:"cacheHits"`
+	SourcesWithoutStateCandidates      int `json:"sourcesWithoutStateCandidates"`
+	SourcesWithoutReviewableCandidates int `json:"sourcesWithoutReviewableCandidates"`
 }
 
 type suppliedCandidateJob struct {
@@ -772,8 +773,11 @@ func summarizeSuppliedEvidence(input suppliedEvidenceInput, sources []suppliedSo
 		} else {
 			summary.StateMatches++
 		}
-		if source.NoReviewableStateCandidate {
+		if len(source.Candidates) == 0 {
 			summary.SourcesWithoutStateCandidates++
+		}
+		if source.NoReviewableStateCandidate {
+			summary.SourcesWithoutReviewableCandidates++
 		}
 		for _, candidate := range source.Candidates {
 			summary.CandidateReferences++

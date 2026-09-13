@@ -1,6 +1,7 @@
 import {existsSync, readdirSync, readFileSync} from "node:fs";
 import {resolve, sep} from "node:path";
 import {dataDir as defaultDataDir} from "./paths.mjs";
+import {storyShowsTabCards} from "./story-presentation.mjs";
 
 // 与 generate-svg-payload 的 SAFE_ICON_PATH 同一口径：单层 icons/ 目录、
 // 文件名字符收敛，杜绝 `icons/a/b.svg`、`icons/../x.svg` 这类路径形状。
@@ -42,7 +43,7 @@ export function defaultIconPathForTab(storyId, tabId) {
   return `icons/${storyId}-${tabId}.svg`;
 }
 
-export function collectTabIconEntries(report) {
+export function collectTabIconEntries(report, {visibleOnly = true} = {}) {
   const allTabs = [];
 
   const timelineEntries = [
@@ -54,6 +55,7 @@ export function collectTabIconEntries(report) {
   ];
 
   for (const {story, path: storyPath} of timelineEntries) {
+    if (visibleOnly && storyPath !== "intro" && !storyShowsTabCards(story)) continue;
     if (!Array.isArray(story.tabs)) continue;
     for (const [tabIndex, tab] of story.tabs.entries()) {
       allTabs.push({
@@ -75,7 +77,9 @@ export function validateReportIcons(
   const errors = [];
   const issues = [];
   const warnings = [];
-  const referencedIcons = new Set();
+  // Preserve referenced editorial assets even when they are not displayed.
+  const referencedIcons = new Set(collectTabIconEntries(report, {visibleOnly: false})
+    .map(({tab}) => tab.icon).filter((icon) => typeof icon === "string"));
   const svgCache = new Map();
   const allTabs = collectTabIconEntries(report);
 

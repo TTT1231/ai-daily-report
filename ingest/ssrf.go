@@ -10,6 +10,9 @@ import (
 	"syscall"
 )
 
+// Policy refusals are permanent for this request, unlike a transient DNS failure.
+var errBlockedImageAddress = errors.New("SSRF 校验")
+
 // ssrfControl 挂在 http.Transport 的 Dialer.Control 上：在真正连接前校验 Go
 // 已解析出的目标 IP，拒绝 loopback / 私网 / 链路本地 / 未指定 / 组播地址。
 // 这样恶意 feed 用图片 URL 把采集器当成 SSRF 跳板去访问内网或云元数据接口
@@ -25,7 +28,7 @@ func ssrfControl(network, address string, _ syscall.RawConn) error {
 		return fmt.Errorf("SSRF 校验：非 IP 地址 %s", host)
 	}
 	if isBlockedIP(ip) {
-		return fmt.Errorf("SSRF 校验：拒绝访问内网/保留地址 %s", ip)
+		return fmt.Errorf("%w：拒绝访问内网/保留地址 %s", errBlockedImageAddress, ip)
 	}
 	return nil
 }
@@ -52,7 +55,7 @@ func validateRequestHost(host string) error {
 	}
 	if ip := net.ParseIP(host); ip != nil {
 		if isBlockedIP(ip) {
-			return fmt.Errorf("SSRF 校验：拒绝访问内网/保留地址 %s", ip)
+			return fmt.Errorf("%w：拒绝访问内网/保留地址 %s", errBlockedImageAddress, ip)
 		}
 		return nil
 	}
@@ -65,7 +68,7 @@ func validateRequestHost(host string) error {
 	}
 	for _, ip := range ips {
 		if isBlockedIP(ip) {
-			return fmt.Errorf("SSRF 校验：目标主机 %s 解析到内网/保留地址 %s", host, ip)
+			return fmt.Errorf("%w：目标主机 %s 解析到内网/保留地址 %s", errBlockedImageAddress, host, ip)
 		}
 	}
 	return nil

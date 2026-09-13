@@ -52,6 +52,7 @@ import {
 // 评论/生成侧同源读取），改配置即两侧同步，避免此前硬编码常量漂移导致评论与画面错位。
 import videoTimeline from "../config/video-timeline.json";
 import { previewTabs } from "./tab-layout-preview-fixture";
+import { sceneHasEvidence } from "../scripts/lib/story-presentation.mjs";
 import clickSound from "./sound/click-sound.mp3";
 
 // ── Palette & constants ──────────────────────────────────────────────────
@@ -1443,7 +1444,7 @@ const AiDailyReportContent: FC<AiDailyReportContentProps> = ({
       ? null
       : story;
   const hasEvidence =
-    !isIntro(story) && !isOutro(story) && Boolean(scene.overlayImg);
+    !isIntro(story) && !isOutro(story) && sceneHasEvidence(scene);
 
   const storyPause =
     storyIndex === 0 || isOutro(story)

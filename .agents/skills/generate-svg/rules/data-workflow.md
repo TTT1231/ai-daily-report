@@ -30,7 +30,7 @@ When `scripts/render/generate-svg.mjs` requests structured payload output:
 
 Use this section only when directly editing files in the workspace.
 
-- Collect tabs from `intro.tabs` and `stories[].tabs`.
+- Use `bun run check-icons -- --plan` to collect visible targets. Intro cards and legacy stories that show Tabs need icons; evidence-only body stories keep editorial Tabs without generating invisible icons. Preserve their existing references and files.
 - Preserve valid existing icons during incremental generation.
 - When only some tabs are missing icons, generate or repair only the missing/invalid icons. Do not
   overwrite valid sibling icons for the same story or intro group.

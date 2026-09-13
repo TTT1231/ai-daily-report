@@ -90,6 +90,8 @@ bun run generate-svg
 - 口播时长随证据信息量决定，取消固定的短句/5–8 秒目标。标题核心必须在口播中解释。
 - Intro 保持原有分类概览与滚动排版：栏目标题不附加条数，逐条完整展示该栏目所有 Story 的 introTitle（缺省为 contentTitle）；不只挑代表标题，不截减新闻目录。
 - `check-evidence` 默认逐段严格检查；TTS 前检查证据文件，MP4 导出前再次检查 Generated，用户要求不渲染时只做数据、测试和预览。
+- 取证和导出执行 [`rules/evidence-workflow.md`](./rules/evidence-workflow.md)：区域截图缓存、素材/口播增量审核、批量 PNG 预览；MP4 命令强制检查当前证据预检记录。
+- 图标由实际可见卡片决定：概览和旧式 Tabs 画面需要图标，正文全程证据的 Story 不生成不可见图标。`check-icons --plan` 是生成目标的单一入口。
 
 ## 数据边界
 

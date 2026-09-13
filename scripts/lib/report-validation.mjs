@@ -2,6 +2,7 @@ import { existsSync, readFileSync } from "node:fs";
 import { resolve, sep } from "node:path";
 import Ajv2020 from "ajv/dist/2020.js";
 import { dataDir, schemaPath } from "./paths.mjs";
+import {storyShowsTabCards} from "./story-presentation.mjs";
 import {
   asciiWidthFactor,
   maxTopCategories,
@@ -299,7 +300,7 @@ export function validateReport(
         );
       }
       tabSummaries.push(summaryKey);
-      if (checkAssets && tab.icon)
+      if (checkAssets && tab.icon && (!isNewsStory || storyShowsTabCards(story)))
         validateAsset(tab.icon, `${tabPath}.icon`, errors);
     }
     if (story.activeTab !== undefined && !tabIds.has(story.activeTab)) {

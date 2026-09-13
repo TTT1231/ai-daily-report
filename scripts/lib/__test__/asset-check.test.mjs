@@ -25,7 +25,7 @@ test("collectMissingImageAssets reports overlayImg and icon refs that no longer 
     stories: [
       {
         id: "s1",
-        tabs: [{id: "t1"}],
+        tabs: [{id: "t1", icon: "icons/unused-editorial.svg"}],
         scenes: [
           {id: "s1-scene-1", overlayImg: "images/present.png"}, // 存在
           {id: "s1-scene-2", overlayImg: "images/gone.jpg"}, // 缺失
