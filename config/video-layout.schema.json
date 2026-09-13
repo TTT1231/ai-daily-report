@@ -30,6 +30,7 @@
     "navigation": {
       "type": "object",
       "required": [
+        "maxTopCategories",
         "topComfortFillRatio",
         "minimumItemWidth",
         "edgeInset",
@@ -46,6 +47,12 @@
       ],
       "additionalProperties": false,
       "properties": {
+        "maxTopCategories": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 5,
+          "description": "正文栏目数量上限，不含概览和结语；即使像素宽度足够也不得增加栏目。同类 Story 连续编排。"
+        },
         "topComfortFillRatio": {
           "type": "number",
           "exclusiveMinimum": 0,

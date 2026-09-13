@@ -230,7 +230,7 @@
         },
         "overlayImg": {
           "$ref": "#/$defs/imagePath",
-          "description": "可选。与当前 subtitle 同步播放的一张真实图片；同一 Story 可通过多个 Scene 依次播放多张图片。"
+          "description": "正文生产必需（Intro/Outro 可省略）。与当前口播对应的来源证据图片；同图可显式复用于多个连续 Scene，保持证据讲解不中断。生产入口另有逐段证据校验。"
         },
         "overlayImgWidth": {
           "type": "integer",

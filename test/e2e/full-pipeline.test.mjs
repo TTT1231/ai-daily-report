@@ -26,7 +26,9 @@ const mockDir = resolve(__dirname, "..", "mock");
 const audioHex = readFileSync(join(mockDir, "test-audio-sample-1.mp3")).toString("hex");
 
 // mock 数据见 test/mock/raw-report.json（不硬编码）
-const RAW_DATA_JSON = readFileSync(join(mockDir, "raw-report.json"), "utf8");
+const rawFixture = JSON.parse(readFileSync(join(mockDir, "raw-report.json"), "utf8"));
+for (const story of rawFixture.stories) for (const scene of story.scenes) scene.overlayImg = "images/codex-reset.png";
+const RAW_DATA_JSON = JSON.stringify(rawFixture);
 
 function pngDimensions(path) {
   const buf = readFileSync(path);
@@ -54,6 +56,8 @@ test(
     try {
       mkdirSync(join(dir, "audio"), {recursive: true});
       writeFileSync(join(dir, "data.json"), RAW_DATA_JSON);
+      mkdirSync(join(dir, "images"), {recursive: true});
+      writeFileSync(join(dir, "images/codex-reset.png"), readFileSync(join(mockDir, "images/codex-reset.png")));
 
       // 2) 跑 generate-tts：DATA_SCHEME_DIR 指向临时目录，MiniMax 指向 mock，关 ffmpeg/限速。
       //    用 spawn（非 spawnSync）：mock server 跑在本测试进程里，spawnSync 会阻塞事件循环，

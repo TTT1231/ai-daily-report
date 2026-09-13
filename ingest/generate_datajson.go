@@ -127,8 +127,23 @@ func generateDataJSON(path string, groups []NewsGroup, items []Item) error {
 			}
 			story.Scenes = append(story.Scenes, scene)
 		}
+		// 不以纯文字卡片兜底：证据不足的 Story 留在采集快照，排除出成片数据。
+		completeEvidence := true
+		for _, scene := range story.Scenes {
+			if scene.OverlayImg == "" {
+				completeEvidence = false
+				break
+			}
+		}
+		if !completeEvidence {
+			fmt.Printf("   跳过 Story %q：口播证据未覆盖完整，请补齐取证后重新入选。\n", story.ContentTitle)
+			continue
+		}
 		story.ActiveTab = preferredActiveTab(story.Tabs)
 		report.Stories = append(report.Stories, story)
+	}
+	if len(report.Stories) == 0 {
+		return fmt.Errorf("没有证据完整的 Story；保留原 data.json，请补齐来源图片后重试")
 	}
 	report.Stories = compactStoriesByTopTitle(report.Stories)
 	markActiveIntroStory(report.Stories)

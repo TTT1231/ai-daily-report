@@ -3,6 +3,7 @@
   "width": 1920,
   "height": 1080,
   "navigation": {
+    "maxTopCategories": 5,
     "topComfortFillRatio": 0.88,
     "minimumItemWidth": 82,
     "edgeInset": 0,

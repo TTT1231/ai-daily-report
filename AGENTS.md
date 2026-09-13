@@ -40,7 +40,9 @@ ai-daily-report/
 │   ├── checks/                          # 数据与资源校验
 │   │   ├── check-data-json.mjs          # 数据校验脚本（Raw 内容 / Generated 渲染就绪）
 │   │   ├── check-icons.mjs              # Generated 数据的图标资源校验
-│   │   └── check-evidence.mjs           # 证据 overlay 质量闸（--require-overlay 时要求每 Story 至少一张）
+│   │   ├── check-evidence.mjs           # 证据 overlay 质量闸（--require-overlay 时要求每 Story 至少一张）
+│   │   ├── check-evidence-review.mjs    # 成片证据逐帧审核闸（完整性、失败状态与新鲜度哈希）
+│   │   └── extract-evidence-frames.mjs  # 导出证据中点帧并生成待审 review.json
 │   ├── render/                          # 视频生成与预览入口
 │   │   ├── generate-tts.mjs             # TTS 编排入口：组织构建、合成、校验和提交
 │   │   ├── generate-svg.mjs             # generate-svg 的 npm 入口 wrapper，allowlist 与自动流程同源
@@ -69,6 +71,7 @@ ai-daily-report/
 │       ├── generate-comment.mjs         # 从时间线数据生成 B 站风格跳转评论 → data-scheme/comments.txt
 │       ├── icon-validation.mjs          # 图标资源校验逻辑
 │       ├── evidence-validation.mjs      # 证据 overlay 校验逻辑（覆盖/存在性/魔数/可读尺寸）
+│       ├── evidence-review.mjs          # 成片证据审核模板、哈希与 fail-closed 校验
 │       ├── asset-check.mjs              # 资源存在性校验
 │       ├── audio-quality.mjs            # 音频质量检查
 │       ├── prune-assets.mjs             # 清理无用资源

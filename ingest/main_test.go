@@ -311,6 +311,8 @@ func TestGenerateDataJSON(t *testing.T) {
 	groups[0].SourceIndexes = []int{1}
 	groups[0].Highlights = []NewsHighlight{{Index: 1, Point: items[0].Title}}
 
+	groups[0].ImageAssets = []StoryImage{{SourceIndex: 1, Path: "images/evidence.png"}}
+
 	if err := generateDataJSON(path, groups, items); err != nil {
 		t.Fatalf("generateDataJSON() error = %v", err)
 	}
@@ -354,6 +356,8 @@ func TestGenerateDataJSONStripsTrailingQuestionMarksFromDisplayTitles(t *testing
 		Scenes: []StoryScene{{Subtitle: "OpenAI 发布自研推理芯片 Jalapeño，面向大模型推理场景。", EvidenceIndexes: []int{1}}},
 	}}
 	items := []Item{{Title: "OpenAI 发布首款自研 LLM 推理芯片 Jalapeño？？", Link: "https://linux.do/t/topic/2468202"}}
+
+	groups[0].ImageAssets = []StoryImage{{SourceIndex: 1, Path: "images/evidence.png"}}
 
 	if err := generateDataJSON(path, groups, items); err != nil {
 		t.Fatalf("generateDataJSON() error = %v", err)

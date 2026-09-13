@@ -8,6 +8,7 @@ const videoLayout = JSON.parse(
   ),
 );
 const navigation = videoLayout.navigation;
+export const maxTopCategories = navigation.maxTopCategories;
 
 // ASCII 字符的视觉宽度系数：单一事实源是 video-layout.json 的
 // navigation.asciiWidthFactor。tab summary 可见宽度校验（report-validation）

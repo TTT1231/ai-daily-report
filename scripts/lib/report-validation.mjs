@@ -4,6 +4,7 @@ import Ajv2020 from "ajv/dist/2020.js";
 import { dataDir, schemaPath } from "./paths.mjs";
 import {
   asciiWidthFactor,
+  maxTopCategories,
   navigationCapacity,
   reportNavigationLabels,
   topNavigationComfortFillRatio,
@@ -373,6 +374,10 @@ export function validateReport(
     fail("stories", "only one story may set activeIntro to true");
   }
   const navigationLabels = reportNavigationLabels(report);
+  const categoryCount = new Set((report.stories ?? []).map((story) => story.topTitle)).size;
+  if (categoryCount > maxTopCategories) {
+    fail("stories.topTitle", `${categoryCount} body categories exceed the maximum of ${maxTopCategories} (Intro/outro excluded); group related stories into consecutive chapters`);
+  }
   const navigationStats = {};
   for (const [name, labels] of Object.entries(navigationLabels)) {
     const { availableWidth, requiredWidth } = navigationCapacity(labels, {

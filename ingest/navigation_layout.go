@@ -10,6 +10,7 @@ import (
 )
 
 type navigationLayoutConfig struct {
+	MaxTopCategories       int
 	VideoWidth             int
 	TopComfortFillRatio    float64
 	MinimumItemWidth       float64
@@ -41,6 +42,7 @@ type navigationTypography struct {
 type videoLayoutFile struct {
 	Width      int `json:"width"`
 	Navigation struct {
+		MaxTopCategories       int                    `json:"maxTopCategories"`
 		TopComfortFillRatio    float64                `json:"topComfortFillRatio"`
 		MinimumItemWidth       float64                `json:"minimumItemWidth"`
 		EdgeInset              float64                `json:"edgeInset"`
@@ -70,7 +72,8 @@ func loadNavigationLayout() (navigationLayoutConfig, error) {
 	if err := json.Unmarshal(data, &file); err != nil {
 		return navigationLayoutConfig{}, fmt.Errorf("解析 video-layout.json 失败: %w", err)
 	}
-	if file.Width <= 0 ||
+	if file.Navigation.MaxTopCategories < 1 || file.Navigation.MaxTopCategories > 5 ||
+		file.Width <= 0 ||
 		file.Navigation.TopComfortFillRatio <= 0 ||
 		file.Navigation.TopComfortFillRatio > 1 ||
 		file.Navigation.MinimumItemWidth <= 0 ||
@@ -87,6 +90,7 @@ func loadNavigationLayout() (navigationLayoutConfig, error) {
 		return navigationLayoutConfig{}, fmt.Errorf("video-layout.json 的底部窗口导航配置无效")
 	}
 	return navigationLayoutConfig{
+		MaxTopCategories:       file.Navigation.MaxTopCategories,
 		VideoWidth:             file.Width,
 		TopComfortFillRatio:    file.Navigation.TopComfortFillRatio,
 		MinimumItemWidth:       file.Navigation.MinimumItemWidth,
@@ -225,7 +229,21 @@ func maxStoryGroupsForNavigation() int {
 	return min(maxGroups, layout.storyCapacity())
 }
 
+func validateTopCategoryCount(stories []DataJSONStory, layout navigationLayoutConfig) error {
+	categories := make(map[string]bool)
+	for _, story := range stories {
+		categories[story.TopTitle] = true
+	}
+	if len(categories) > layout.MaxTopCategories {
+		return fmt.Errorf("正文栏目有 %d 个，最多 %d 个（不含概览和结语）；请按共同主题归类", len(categories), layout.MaxTopCategories)
+	}
+	return nil
+}
+
 func fitNavigationLabels(stories []DataJSONStory, layout navigationLayoutConfig) error {
+	if err := validateTopCategoryCount(stories, layout); err != nil {
+		return err
+	}
 	if err := fitBottomNavigation(stories, layout); err != nil {
 		return err
 	}

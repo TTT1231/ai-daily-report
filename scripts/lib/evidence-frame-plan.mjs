@@ -54,6 +54,7 @@ export function buildEvidenceFramePlan(report) {
         storyId,
         sceneId,
         overlayImg: scene.overlayImg,
+        subtitle: scene.subtitle,
         timeMs,
         fileName: `${String(frames.length + 1).padStart(3, "0")}-${safeFilePart(storyId)}-${safeFilePart(sceneId)}.png`,
       });

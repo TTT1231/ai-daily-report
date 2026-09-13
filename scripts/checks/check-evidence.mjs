@@ -1,22 +1,19 @@
 import {validateReportEvidence} from "../lib/evidence-validation.mjs";
-import {dataDir, rawDataPath, readJson} from "../lib/paths.mjs";
+import {dataDir, rawDataPath, generatedDataPath, readJson} from "../lib/paths.mjs";
 
-// 证据 overlay 质量闸。默认只对已引用的 overlay 做文件级校验（无 overlay 告警），
-// 自动/原生 RSS 流程可直接使用；supplied-source/编排路径传 --require-overlay，
-// 要求每个 story 至少一张来源证据图。
-
-const requireOverlay = process.argv.includes("--require-overlay");
+// 默认要求正文每段都携带有效证据；--require-overlay 保留为兼容旧命令的别名。
+const renderMode = process.argv.includes("--render");
 
 let report;
 try {
-  report = await readJson(rawDataPath, "data-scheme/data.json");
+  report = await readJson(renderMode ? generatedDataPath : rawDataPath, renderMode ? "data-scheme/data-generate.json" : "data-scheme/data.json");
 } catch (error) {
   console.error(error.message);
   process.exit(1);
 }
 
 const {errors, warnings, storyCount, checkedStories, overlayCount} =
-  validateReportEvidence(report, {dataDir, requireOverlay});
+  validateReportEvidence(report, {dataDir});
 
 // ── Report ──────────────────────────────────────────────────────────────────
 

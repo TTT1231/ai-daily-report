@@ -184,7 +184,7 @@ func batchPositionByIndex(batch []storyTabMaterial, groupIndex int) int {
 func buildStoryTabsPrompt(batch []storyTabMaterial) string {
 	return fmt.Sprintf(`请为以下 %d 个 Story 分别生成 %d 至 %d 个适合短视频展示的 Tabs。
 每个 summary 至少 %d 个汉字，目标长度 25 至 80 个可见字符，纯文本硬性上限 %d 个可见字符；Markdown 加权后的视觉占用也不得超过同一上限。每张卡必须恰当使用一段且最多一段粗体突出核心变化、机制、影响或结论；出现多个英文产品/API/错误码/版本时，可用多段行内代码分别标出实际出现且有辨识价值的专名，不要重复标记或装饰普通英文单词。先提炼值得展示的独立事实，再决定 Tabs 数量；一张卡写不完时增加 Tab，禁止硬截句子、复制正文或按原文段落数机械补满 6 张。第一张 Tab 必须直接解释标题里的核心事件，背景信息放后面。
-另外为每个 Story 生成 1 至 %d 个 scenes：普通新闻只用 1 个；两个独立核心事件才用 2 个；只有来源证据链确实需要更多独立证据口播段时才用 3 至 %d 个，不按图片数量机械配额。Scene 是整条新闻的简短口播，不对应单张 Tab、不得逐卡朗读。
+另外为每个 Story 生成 1 至 %d 个 scenes：按来源证据的信息量决定段数，复杂图表可用多段连续解释，总数不超过 %d 个，不按图片数量机械配额。全部 Scene 连起来必须讲清标题承诺的核心事件、关键事实及限定条件，不对应单张 Tab、不得逐卡朗读。每段都需要匹配来源证据，不能插入无图段帮助读卡；不靠一句标题或统一短时长省略必要讲解。
 遇到多个很长的模型名、API 名或版本号时，不要逐项穷举清单；优先概括系列名、覆盖范围、数量、参数区间和 1 至 2 个代表例，避免行内代码标签堆满卡片。
 
 严格返回以下 JSON，不要返回其他内容：
@@ -203,7 +203,7 @@ func buildStoryTabsPrompt(batch []storyTabMaterial) string {
     ],
     "scenes": [
       {
-        "subtitle": "28至80个汉字的一句式 Story 总结，包含主体、核心事件及直接结果或范围",
+        "subtitle": "28至96字的完整证据讲解，按理解所需解释主体、核心事实与范围；与前后段语义衔接，不填空凑时长",
         "evidence_indexes": [支撑该口播的来源序号]
       }
     ]
@@ -291,7 +291,7 @@ func applyStoryTabsResults(groups []NewsGroup, batch []storyTabMaterial, results
 上一轮输出未通过程序质量校验：
 %s
 
-请重新生成这个 Story 的完整 content_title、navigation_title、全部 Tabs 和 1 至 2 个 Story 级 Scenes，不要只补缺失项。navigation_title 是实体/产品/对象标签，不是新闻标题缩写，必须短到可完整显示；summary 每张至少用一段且最多一段粗体突出核心变化/机制/影响，出现多个英文产品、API、错误码或版本时，可用多段行内代码分别标出实际出现且有辨识价值的专名，但粗体和行内代码不得交叉、嵌套或拆开同一英文专名。先剝离快讯、慢讯、详细对比了一下等论坛前缀及无意义句尾标点；清洗后的原标题是完整新闻标题且能在 %d 字内完整显示时，content_title 直接复用；否则必须语义改写，禁止截取原文前缀或使用省略号；summary 纯文本不得超过 %d 个可见字符，格式化后也不得超过同一视觉容量。若内容放不下，增加 Tab 并按独立事实拆分，禁止截断、复制正文或按段落凑满 6 张；事实不足以支撑两个独立 Tab 时宁可返回一个让质量闸剔除，不得编造第二个角度；Scene 必须总结整条新闻，不得与 Tabs 一一对应；evidence_indexes 只能使用材料给出的来源序号。`,
+请重新生成这个 Story 的完整 content_title、navigation_title、全部 Tabs 和由来源证据决定的 1 至 6 个 Story 级 Scenes，不要只补缺失项。navigation_title 是实体/产品/对象标签，不是新闻标题缩写，必须短到可完整显示；summary 每张至少用一段且最多一段粗体突出核心变化/机制/影响，出现多个英文产品、API、错误码或版本时，可用多段行内代码分别标出实际出现且有辨识价值的专名，但粗体和行内代码不得交叉、嵌套或拆开同一英文专名。先剝离快讯、慢讯、详细对比了一下等论坛前缀及无意义句尾标点；清洗后的原标题是完整新闻标题且能在 %d 字内完整显示时，content_title 直接复用；否则必须语义改写，禁止截取原文前缀或使用省略号；summary 纯文本不得超过 %d 个可见字符，格式化后也不得超过同一视觉容量。若内容放不下，增加 Tab 并按独立事实拆分，禁止截断、复制正文或按段落凑满 6 张；事实不足以支撑两个独立 Tab 时宁可返回一个让质量闸剔除，不得编造第二个角度；Scene 必须总结整条新闻，不得与 Tabs 一一对应；evidence_indexes 只能使用材料给出的来源序号。`,
 			batch[pos].Body, strings.Join(reasons, "\n"), maxContentTitleRunes, maxTabSummaryVisibleRunes)
 		repairs = append(repairs, storyTabMaterial{GroupIndex: batch[pos].GroupIndex, Body: repairBody})
 	}

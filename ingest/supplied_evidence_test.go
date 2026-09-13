@@ -16,6 +16,7 @@ import (
 
 func suppliedTestLayout() navigationLayoutConfig {
 	return navigationLayoutConfig{
+		MaxTopCategories:       5,
 		VideoWidth:             1920,
 		TopComfortFillRatio:    0.88,
 		MinimumItemWidth:       82,
@@ -52,7 +53,7 @@ func TestValidateSuppliedEvidenceInputRejectsNonAdjacentCategories(t *testing.T)
 	}
 }
 
-func TestValidateSuppliedEvidenceInputAllowsEightShortCategories(t *testing.T) {
+func TestValidateSuppliedEvidenceInputRejectsEightShortCategories(t *testing.T) {
 	input := suppliedEvidenceInput{}
 	for index, category := range []string{"模型", "应用", "算力", "政策", "芯片", "汽车", "资本", "健康"} {
 		input.Sources = append(input.Sources, suppliedSourceUnit{Link: fmt.Sprintf("https://example.com/%d", index+1)})
@@ -64,8 +65,8 @@ func TestValidateSuppliedEvidenceInputAllowsEightShortCategories(t *testing.T) {
 		})
 	}
 	layout := suppliedTestLayout()
-	if errors := validateSuppliedEvidenceInput(input, layout); len(errors) != 0 {
-		t.Fatalf("eight short categories should fit by measured width: %v", errors)
+	if errors := strings.Join(validateSuppliedEvidenceInput(input, layout), "\n"); !strings.Contains(errors, "最多 5 个") {
+		t.Fatalf("category count must be enforced independently of width: %v", errors)
 	}
 	stats := suppliedNavigationStatsFor(input.StoryPlan, layout)
 	if stats.Top.ItemCount != 10 || stats.Top.Density != "comfortable" {

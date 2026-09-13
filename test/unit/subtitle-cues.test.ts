@@ -4,6 +4,10 @@ import {splitSubtitleCues, subtitleVisualUnits} from "../../src/AiDailyReport";
 
 const MAX_SUBTITLE_VISUAL_UNITS = 44;
 
+test("subtitles display narration without editorial Markdown markers", () => {
+  assert.deepEqual(splitSubtitleCues("`Gemini` 已登陆 **Windows**。"), ["Gemini 已登陆 Windows。"]);
+});
+
 test("splitSubtitleCues keeps time and decimal tokens intact", () => {
   const cues = splitSubtitleCues(
     "Qwen 3.7 Plus 和 Max 在 Qoder 推出错峰折扣，每晚 22:00 至次日 08:00 自动生效，最高可节省 80%。",

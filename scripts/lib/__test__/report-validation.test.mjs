@@ -512,12 +512,12 @@ const reportWithTopTitles = (topTitles) =>
     ),
   });
 
-test("eight short topTitle categories pass by measured width", () => {
+test("eight short topTitle categories fail even when width is comfortable", () => {
   const result = validateReport(
     reportWithTopTitles(["模型", "应用", "算力", "政策", "芯片", "汽车", "资本", "健康"]),
     { checkAssets: false },
   );
-  assert.deepEqual(result.errors, []);
+  assert.ok(result.errors.some((error) => error.includes("maximum of 5")));
   assert.equal(result.navigationStats.top.itemCount, 10);
   assert.equal(result.navigationStats.top.density, "comfortable");
 });
@@ -525,7 +525,7 @@ test("eight short topTitle categories pass by measured width", () => {
 test("dense top navigation is reported but remains valid", () => {
   const result = validateReport(
     reportWithTopTitles(
-      [..."甲乙丙丁戊己庚辛"].map((suffix) => `一二三四五六七八${suffix}`),
+      [..."甲乙丙丁戊"].map((suffix) => `${"一".repeat(12)}${suffix}`),
     ),
     { checkAssets: false },
   );
@@ -616,4 +616,14 @@ test("durationMs must equal audioLengthMs + tailPaddingMs", () => {
       "must equal tts.audioLengthMs + tts.tailPaddingMs",
     ),
   );
+});
+
+
+test("five body categories fit alongside Intro and outro, a sixth is rejected", () => {
+  const titles = ["模型", "开发", "应用", "安全", "行业"];
+  const five = validateReport(reportWithTopTitles(titles), {checkAssets: false});
+  assert.deepEqual(five.errors, []);
+  assert.equal(five.navigationStats.top.itemCount, 7);
+  const six = validateReport(reportWithTopTitles([...titles, "其他"]), {checkAssets: false});
+  assert.ok(six.errors.some((error) => error.includes("maximum of 5")));
 });

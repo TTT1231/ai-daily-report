@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -205,6 +206,17 @@ func TestPicksPathEndToEnd(t *testing.T) {
 		}
 	}
 
+	// Mock 已完成视觉审核后的来源图片，保持这两个测试聚焦采集到写盘链路。
+	for i := range groups {
+		for j, scene := range groups[i].Scenes {
+			if len(scene.EvidenceIndexes) == 0 {
+				t.Fatal("mock scene lacks evidence indexes")
+			}
+			groups[i].ImageAssets = append(groups[i].ImageAssets, StoryImage{
+				SourceIndex: scene.EvidenceIndexes[0], Path: fmt.Sprintf("images/mock-%d-%d.png", i, j),
+			})
+		}
+	}
 	// 写 data.json 验证最终产物合法
 	reportPath := filepath.Join(dir, "data.json")
 	if err := generateDataJSON(reportPath, groups, loaded); err != nil {

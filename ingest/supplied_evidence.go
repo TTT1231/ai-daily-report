@@ -370,6 +370,9 @@ func validateSuppliedEvidenceInput(input suppliedEvidenceInput, layout navigatio
 		}
 	}
 	if len(stories) > 0 {
+		if err := validateTopCategoryCount(stories, layout); err != nil {
+			errors = append(errors, err.Error())
+		}
 		navigation := suppliedNavigationStatsFor(input.StoryPlan, layout)
 		if navigation.Top.RequiredWidth > float64(layout.VideoWidth) {
 			errors = append(errors, fmt.Sprintf("storyPlan top navigation requires %.0fpx but only %dpx is available", navigation.Top.RequiredWidth, layout.VideoWidth))

@@ -258,3 +258,30 @@ test("buildGeneratedReport preserves manual overlayImgScale and leaves scenes wi
   assert.equal(s2.overlayImg, undefined);
   assert.equal(s2.overlayImgWidth, undefined);
 });
+
+
+test("Intro shows one representative per category with a count, preserving all stories", () => {
+  const base = rawReportWithOverlay("images/codex-reset.png").stories[0];
+  const stories = Array.from({length: 19}, (_, index) => ({...base, id: `story-${index}`, topTitle: `栏目${index % 5}`, introTitle: `代表选题${index}`, activeIntro: index === 0}));
+  const result = buildGeneratedReport({date: "2026-09-11", stories});
+  assert.equal(result.stories.length, 19);
+  assert.equal(result.intro.tabs.length, 5);
+  assert.equal(result.intro.tabs[0].title, "栏目0 · 4条");
+  assert.equal(result.intro.tabs[0].summary, "代表选题0");
+  assert.equal(result.intro.activeTab, result.intro.tabs[0].id);
+  assert.ok(result.intro.tabs.every((tab) => !tab.summary.includes("\n")));
+});
+
+
+test("Intro restores icons by category rather than the category position", () => {
+  const raw = {date: "2026-09-11", stories: [
+    {id: "new", topTitle: "模型", contentTitle: "模型发布", tabs: [], scenes: []},
+  ]};
+  const previous = {intro: {id: "intro", tabs: [
+    {id: "intro-group-1", title: "安全 · 2条", icon: "icons/security.svg"},
+    {id: "intro-group-2", title: "模型 · 3条", icon: "icons/model.svg"},
+  ]}};
+  const result = buildGeneratedReport(raw, previous);
+  assert.equal(result.intro.tabs[0].id, "intro-group-1");
+  assert.equal(result.intro.tabs[0].icon, "icons/model.svg");
+});

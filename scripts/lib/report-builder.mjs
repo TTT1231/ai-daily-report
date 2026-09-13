@@ -55,15 +55,16 @@ function buildIntro(report, now, previousReport) {
 
   for (const story of report.stories) {
     const titles = groups.get(story.topTitle) ?? [];
-    titles.push(story.introTitle ?? story.contentTitle);
+    titles.push(story.introTitle && [...story.introTitle].length <= 30 ? story.introTitle : story.contentTitle);
     groups.set(story.topTitle, titles);
     if (story.activeIntro === true) activeTitle = story.topTitle;
   }
 
   const tabs = Array.from(groups, ([title, contentTitles], index) => ({
     id: `intro-group-${index + 1}`,
-    title,
-    summary: contentTitles.join("\n"),
+    title: `${title} · ${contentTitles.length}条`,
+    // 开场是导览：每类一个代表选题，完整目录由底部导航承担。
+    summary: contentTitles[0],
   }));
   const dateText = formatGregorianDateWithWeekday(
     parseReportDate(report.date) ?? now,
@@ -84,7 +85,7 @@ function buildIntro(report, now, previousReport) {
     contentTitle: `${report.date} 资讯概览`,
     tabs,
     ...(activeTitle
-      ? { activeTab: tabs.find((tab) => tab.title === activeTitle)?.id }
+      ? { activeTab: tabs[Array.from(groups.keys()).indexOf(activeTitle)]?.id }
       : {}),
     scenes: [
       {
@@ -116,9 +117,13 @@ function restoreIcons(report, previousReport) {
   if (!previousReport) return;
 
   const previousIcons = new Map();
+  // Intro 的位置会随栏目重排变化；按栏目语义恢复，避免复用另一个栏目的图标。
+  const iconKey = (story, tab) => story.id === "intro"
+    ? `intro:${tab.title.replace(/ · \d+条$/, "")}`
+    : `${story.id}:${tab.id}`;
   const rememberIcons = (story) => {
     for (const tab of story?.tabs ?? []) {
-      if (tab.icon) previousIcons.set(`${story.id}:${tab.id}`, tab.icon);
+      if (tab.icon) previousIcons.set(iconKey(story, tab), tab.icon);
     }
   };
 
@@ -127,7 +132,7 @@ function restoreIcons(report, previousReport) {
 
   const applyIcons = (story) => {
     for (const tab of story?.tabs ?? []) {
-      const icon = previousIcons.get(`${story.id}:${tab.id}`);
+      const icon = previousIcons.get(iconKey(story, tab));
       if (icon) tab.icon = icon;
     }
   };

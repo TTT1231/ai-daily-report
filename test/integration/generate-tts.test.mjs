@@ -11,13 +11,17 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const generateTts = resolve(__dirname, "..", "..", "scripts", "render", "generate-tts.mjs");
 const mockDir = resolve(__dirname, "..", "mock");
 // raw fixture 见 test/mock/raw-report.json，不硬编码
-const rawDataJson = readFileSync(join(mockDir, "raw-report.json"), "utf8");
+const rawFixture = JSON.parse(readFileSync(join(mockDir, "raw-report.json"), "utf8"));
+for (const story of rawFixture.stories) for (const scene of story.scenes) scene.overlayImg = "images/codex-reset.png";
+const rawDataJson = JSON.stringify(rawFixture);
 
 // 起一个带 data.json + audio/ 的临时 data-scheme（generate-tts 经 DATA_SCHEME_DIR 读它）
 function seedTempDataScheme() {
   const dir = mkdtempSync(join(tmpdir(), "tts-boundary-"));
   mkdirSync(join(dir, "audio"), {recursive: true});
   writeFileSync(join(dir, "data.json"), rawDataJson);
+  mkdirSync(join(dir, "images"), {recursive: true});
+  writeFileSync(join(dir, "images/codex-reset.png"), readFileSync(join(mockDir, "images/codex-reset.png")));
   return dir;
 }
 
@@ -105,4 +109,20 @@ test("generate-tts aborts and exits non-zero when MiniMax returns a non-zero sta
     server.close();
     rmSync(dir, {recursive: true, force: true});
   }
+});
+
+
+test("TTS rejects a text-only continuation before generating audio", () => {
+  const dir = seedTempDataScheme();
+  try {
+    const report = JSON.parse(rawDataJson);
+    delete report.stories[0].scenes[1].overlayImg;
+    writeFileSync(join(dir, "data.json"), JSON.stringify(report));
+    const result = spawnSync(process.execPath, [generateTts, "--dry-run"], {
+      env: {...process.env, DATA_SCHEME_DIR: dir, TTS_REQUIRE: "true"}, encoding: "utf8",
+    });
+    assert.equal(result.status, 2);
+    assert.match(result.stderr, /every narration scene requires evidence/);
+    assert.ok(!existsSync(join(dir, "data-generate.json")));
+  } finally { rmSync(dir, {recursive: true, force: true}); }
 });

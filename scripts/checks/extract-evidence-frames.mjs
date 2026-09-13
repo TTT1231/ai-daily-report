@@ -1,10 +1,20 @@
-import {existsSync, mkdirSync, writeFileSync} from "node:fs";
-import {mkdtempSync} from "node:fs";
+import {
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  statSync,
+  writeFileSync,
+} from "node:fs";
 import {tmpdir} from "node:os";
 import {join, resolve} from "node:path";
 import {spawnSync} from "node:child_process";
 import {generatedDataPath, readJson, rootDir} from "../lib/paths.mjs";
 import {buildEvidenceFramePlan} from "../lib/evidence-frame-plan.mjs";
+import {
+  buildEvidenceReviewTemplate,
+  sha256File,
+  sha256Text,
+} from "../lib/evidence-review.mjs";
 
 function option(name) {
   const prefix = `--${name}=`;
@@ -70,14 +80,44 @@ for (const frame of plan.frames) {
     process.exit(1);
   }
   frame.outputPath = outputPath;
+  frame.sha256 = sha256File(outputPath);
 }
 
 const manifestPath = join(outputDir, "manifest.json");
+const manifestText = `${JSON.stringify(
+  {
+    schemaVersion: 1,
+    generatedAt: new Date().toISOString(),
+    videoPath,
+    generatedDataPath,
+    video: {
+      path: videoPath,
+      bytes: statSync(videoPath).size,
+      sha256: sha256File(videoPath),
+    },
+    generatedData: {
+      path: generatedDataPath,
+      bytes: statSync(generatedDataPath).size,
+      sha256: sha256File(generatedDataPath),
+    },
+    frames: plan.frames,
+  },
+  null,
+  2,
+)}\n`;
+writeFileSync(manifestPath, manifestText, "utf8");
+
+const reviewPath = join(outputDir, "review.json");
 writeFileSync(
-  manifestPath,
-  `${JSON.stringify({videoPath, generatedDataPath, frames: plan.frames}, null, 2)}\n`,
+  reviewPath,
+  `${JSON.stringify(
+    buildEvidenceReviewTemplate(JSON.parse(manifestText), sha256Text(manifestText)),
+    null,
+    2,
+  )}\n`,
   "utf8",
 );
 
 console.log(`Extracted ${plan.frames.length} overlay midpoint frame(s) to ${outputDir}`);
 console.log(`Manifest: ${manifestPath}`);
+console.log(`Pending visual review: ${reviewPath}`);

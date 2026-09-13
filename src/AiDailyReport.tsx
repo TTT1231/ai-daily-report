@@ -283,7 +283,11 @@ export const splitSubtitlePieces = (subtitle: string) => {
 };
 
 export const splitSubtitleCues = (subtitle: string) => {
-  const normalized = subtitle.trim().replace(/\s+/g, " ");
+  const normalized = subtitle
+    .replace(/`([^`]+)`/g, "$1")
+    .replace(/\*\*([^*]+)\*\*/g, "$1")
+    .trim()
+    .replace(/\s+/g, " ");
   if (subtitleVisualUnits(normalized) <= SUBTITLE_MAX_VISUAL_UNITS) {
     return [normalized];
   }
@@ -698,7 +702,7 @@ const Navigation: FC<{
               padding: `0 ${windowed ? navigationBottomHorizontalPadding : horizontalPadding}px`,
             }}
           >
-            <span>{item.label}</span>
+            <span>{item.label === "Intro" ? "概览" : item.label}</span>
             {item.active && windowed ? (
               <span
                 style={{
@@ -885,13 +889,13 @@ const Tabs: FC<{
 // viewport-sized min-height makes the same formula resolve to zero when all
 // cards already fit. The estimate below balances cards between columns and
 // decides whether edge fades are useful; it never controls scroll distance.
-const INTRO_ICON_SIZE = 58;
-const INTRO_TITLE_LINE_HEIGHT = 39; // fontSize 34 * lineHeight 1.15
-const INTRO_SUMMARY_LINE_HEIGHT = 38; // fontSize 27 * lineHeight 1.42
-const INTRO_CARD_PADDING_Y = 52; // 26px top + 26px bottom
-const INTRO_TITLE_MARGIN_BOTTOM = 18;
+const INTRO_ICON_SIZE = 44;
+const INTRO_TITLE_LINE_HEIGHT = 35; // fontSize 30 * lineHeight 1.15
+const INTRO_SUMMARY_LINE_HEIGHT = 37; // fontSize 26 * lineHeight 1.42
+const INTRO_CARD_PADDING_Y = 36; // 18px top + 18px bottom
+const INTRO_TITLE_MARGIN_BOTTOM = 12;
 const INTRO_SUMMARY_GAP = 12;
-const INTRO_CARD_MIN_HEIGHT = 150;
+const INTRO_CARD_MIN_HEIGHT = 132;
 const INTRO_CARD_BORDER_Y = 2;
 const INTRO_SCROLL_END_PADDING = 24;
 const INTRO_TITLE_UNITS_PER_LINE = 16;
@@ -1100,7 +1104,7 @@ const IntroOverview: FC<{
                   key={tab.id}
                   style={{
                     minHeight: INTRO_CARD_MIN_HEIGHT,
-                    padding: "26px 32px",
+                    padding: "18px 28px",
                     borderRadius: 18,
                     border: `1px solid ${
                       tab.id === intro.activeTab
@@ -1120,10 +1124,10 @@ const IntroOverview: FC<{
                   <div
                     style={{
                       color,
-                      fontSize: 34,
+                      fontSize: 30,
                       lineHeight: 1.15,
                       fontWeight: 850,
-                      marginBottom: 18,
+                      marginBottom: INTRO_TITLE_MARGIN_BOTTOM,
                       display: "flex",
                       alignItems: "center",
                       gap: 14,
@@ -1144,7 +1148,7 @@ const IntroOverview: FC<{
                       color: palette.inactiveCardText,
                       display: "grid",
                       gap: 12,
-                      fontSize: 27,
+                      fontSize: 26,
                       lineHeight: 1.42,
                       fontWeight: 570,
                     }}
@@ -1612,7 +1616,7 @@ const AiDailyReportContent: FC<AiDailyReportContentProps> = ({
                   top: 0,
                   left: 0,
                   right: 0,
-                  height: hasEvidence ? 76 : "10%",
+                  height: 76,
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "center",
@@ -1625,7 +1629,7 @@ const AiDailyReportContent: FC<AiDailyReportContentProps> = ({
                 <div
                   style={{
                     color: palette.contentTitle,
-                    fontSize: hasEvidence ? 42 : 46,
+                    fontSize: 42,
                     fontWeight: 780,
                     lineHeight: 1.4,
                     letterSpacing: "-.018em",
@@ -1641,7 +1645,7 @@ const AiDailyReportContent: FC<AiDailyReportContentProps> = ({
               <div
                 style={{
                   position: "absolute",
-                  top: hasEvidence ? 76 : "10%",
+                  top: 76,
                   left: hasEvidence ? 0 : 42,
                   right: hasEvidence ? 0 : 42,
                   bottom: hasEvidence ? 80 : 68,

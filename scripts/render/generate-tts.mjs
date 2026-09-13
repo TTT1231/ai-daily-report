@@ -21,6 +21,8 @@ import {
 } from "../lib/paths.mjs";
 import {validateReport} from "../lib/report-validation.mjs";
 
+import {validateReportEvidence} from "../lib/evidence-validation.mjs";
+
 const dryRun = process.argv.includes("--dry-run");
 const force = process.argv.includes("--force");
 const apiKey = process.env.MINIMAX_API_KEY;
@@ -151,6 +153,7 @@ const rawValidation = validateReport(rawReport, {
   renderMode: false,
   checkAssets: false,
 });
+rawValidation.errors.push(...validateReportEvidence(rawReport, {dataDir}).errors);
 if (rawValidation.errors.length > 0) {
   await transaction?.abort();
   console.error(

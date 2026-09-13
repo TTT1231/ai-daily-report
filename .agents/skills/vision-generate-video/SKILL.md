@@ -36,9 +36,9 @@ back into this skill.
    `bun run video:auto-generate`, and `bun run video:half-auto` — besides SVG they would
    re-ingest and overwrite `data.json`.
 3. Generate and edit every required SVG directly with the model's file-editing tools.
-4. Follow the real layer's evidence floor: every story carries at least one source-derived
-   `overlayImg`; a source that cannot be retrieved or faithfully represented is reported
-   as blocked, never silently rendered evidence-free.
+4. Follow the real layer's evidence floor: every narration scene carries a source-derived
+   `overlayImg`. Exclude stories whose core facts cannot be evidenced, record the reason,
+   and continue with supported stories. If none remain, stop without replacing the report.
 5. Default "generate video" to producing `out/AiDailyReport.mp4`. Stop earlier only when
    the user explicitly asks for data preparation, icons, TTS, or preview without rendering.
 6. Never publish or upload to any platform; publishing stays fully manual outside this skill.
@@ -52,10 +52,9 @@ back into this skill.
    source-to-Story/navigation plan, and run
    `bun run evidence:prepare-supplied --input <temp>/sources.json --output <temp>`.
    Do not continue until its plan validation passes. Reuse that same temp
-   directory for the whole task so candidate downloads are cached. There is no fixed
-   topTitle-category count: use the manifest's measured top-navigation width and density.
-   Short 7- or 8-category plans may remain separate; on a `dense` result, shorten labels
-   semantically first and merge only adjacent categories that are genuinely related.
+   directory for the whole task so candidate downloads are cached. Use at most five body
+   categories (Intro/outro excluded), grouping related stories consecutively; pixel width
+   is an additional check, never permission to add more categories.
 3. Treat the generated `manifest.json` as the source and candidate inventory. Batch-view only
    its distinct `reviewable: true` candidates; never send filtered, failed, or already-viewed
    duplicate files through vision. Execute the real layer's fact/evidence rules and its bounded
@@ -79,11 +78,19 @@ back into this skill.
    `bun run check-data-json:render`, and `bun run check-icons`. Fix every error before
    continuing.
 8. Run `bun run render:mp4` and confirm that `out/AiDailyReport.mp4` exists and is
-   non-empty. Run `bun run evidence:frames`, read its manifest, and visually inspect
-   every exported midpoint frame. Verify the image is upright, readable,
-   and actually proves the narrated fact; fix and rerender on any failure. The exporter
-   uses an OS-temp directory—remove that exact directory after inspection, and never
-   create a repo-local `.tmp-evidence/` workspace.
+   non-empty. Run `bun run evidence:frames`; it creates `manifest.json` plus a fail-closed
+   `review.json` whose checks start as `null`. Visually inspect every exported midpoint
+   frame and set all five checks only from what is actually visible: upright, readable,
+   supports the subtitle, source identifiable, and unobstructed by ads, recommendations,
+   cookie banners, login/email gates, challenges, or unrelated UI. Mark a failed check
+   `false` with notes; never turn it into `true` without fixing the asset and producing a
+   new render. Run
+   `bun run check-evidence-review -- --manifest=<temp>/manifest.json` before cleanup.
+   Pending/failed checks and stale video, Generated-data, manifest, or frame hashes are
+   blocking. On failure, fix the source asset or drop the Story, rerun cached TTS if image
+   dimensions changed, rerender, then run `evidence:frames` into a fresh OS-temp directory
+   and review every new frame. Remove that exact directory only after the checker passes;
+   never create a repo-local `.tmp-evidence/` workspace.
 9. Report counts from the preflight and generated files, never from memory: source units,
    stories, tabs, evidence overlays, generated icons, and blocked sources. Include the phase
    timings required by the real layer, the final MP4 path, and any explicit merge/split override.

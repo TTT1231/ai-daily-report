@@ -42,42 +42,28 @@ function rawReportWithOverlay(overlayRef) {
   return report;
 }
 
-// 一份文件层完全合法（图片存在且魔数正确）、只违反 supplied-source 结构约定的报告。
+// 每个正文段都必须明确配图，连续讲解允许复用。
 function structurallyValidReport() {
   const report = loadJson("raw-report.json");
-  report.stories[0].scenes[0].overlayImg = "images/topic-2419173-e551af32e2.jpg";
-  report.stories[0].scenes[0].subtitle =
-    "官方公告显示接口不再面向新用户开放使用。";
-  report.stories[0].scenes[1].subtitle = "历史付费用户不受这次调整影响。";
-  // story-2 只有单 scene：单段带图合法（与其它证据段同样遵守 ≤45 单位上限）。
-  report.stories[1].scenes[0].overlayImg = "images/codex-reset.png";
-  report.stories[1].scenes[0].subtitle = "官方页面展示完整调整公告内容。";
+  for (const story of report.stories) for (const scene of story.scenes) {
+    scene.overlayImg = "images/codex-reset.png";
+  }
   return report;
 }
-
 function seedValidReport() {
   return seedDataScheme({
     "data.json": JSON.stringify(structurallyValidReport()),
-    "images/topic-2419173-e551af32e2.jpg": "mock:images/topic-2419173-e551af32e2.jpg",
     "images/codex-reset.png": "mock:images/codex-reset.png",
   });
 }
 
-test("check-evidence exits 0 when every overlay file is a valid image", () => {
-  const report = rawReportWithOverlay("images/topic-2419173-e551af32e2.jpg");
-  const dir = seedDataScheme({
-    "data.json": JSON.stringify(report),
-    "images/topic-2419173-e551af32e2.jpg": "mock:images/topic-2419173-e551af32e2.jpg",
-  });
+test("check-evidence default rejects stories with no evidence", () => {
+  const dir = seedDataScheme({"data.json": JSON.stringify(loadJson("raw-report.json"))});
   try {
-    const {code, stdout, stderr} = runCli([], dir);
-    assert.equal(code, 0, `expected exit 0\nstderr: ${stderr}`);
-    assert.match(stdout, /passed/);
-    // 无 overlay 的 story-2 默认只告警，不失败。
-    assert.match(stdout, /1 warning\(s\)/);
-  } finally {
-    rmSync(dir, {recursive: true, force: true});
-  }
+    const {code, stderr} = runCli([], dir);
+    assert.equal(code, 1);
+    assert.match(stderr, /no evidence overlay/);
+  } finally { rmSync(dir, {recursive: true, force: true}); }
 });
 
 test("check-evidence exits 1 when an overlay file is missing on disk", () => {
@@ -137,70 +123,22 @@ test("check-evidence exits 1 when data.json is missing", () => {
   }
 });
 
-// ---------- supplied-source 结构闸（仅 --require-overlay 模式） ----------
-
-test("check-evidence --require-overlay passes a valid supplied-source story with mixed evidence and overlay-free scenes", () => {
+test("default and legacy --require-overlay both accept continuous same-image narration", () => {
   const dir = seedValidReport();
   try {
-    const {code, stdout, stderr} = runCli(["--require-overlay"], dir);
-    assert.equal(code, 0, `expected exit 0\nstderr: ${stderr}`);
-    assert.match(stdout, /passed/);
-  } finally {
-    rmSync(dir, {recursive: true, force: true});
-  }
+    for (const args of [[], ["--require-overlay"]]) {
+      const {code, stderr} = runCli(args, dir);
+      assert.equal(code, 0, stderr);
+    }
+  } finally { rmSync(dir, {recursive: true, force: true}); }
 });
 
-test("check-evidence --require-overlay fails an over-long evidence-scene narration", () => {
+test("evidence narration can explain a complex image beyond the old 45-unit cap", () => {
   const report = structurallyValidReport();
-  report.stories[0].scenes[0].subtitle =
-    "官方公告详细说明了接口调整的完整背景、适用范围、时间节点以及历史付费用户和新用户分别适用的过渡安排细则说明。";
-  const dir = seedDataScheme({
-    "data.json": JSON.stringify(report),
-    "images/topic-2419173-e551af32e2.jpg": "mock:images/topic-2419173-e551af32e2.jpg",
-  });
-  try {
-    const {code, stderr} = runCli(["--require-overlay"], dir);
-    assert.equal(code, 1);
-    assert.match(stderr, /evidence scene narration is/);
-  } finally {
-    rmSync(dir, {recursive: true, force: true});
-  }
-});
-
-test("check-evidence --require-overlay fails an over-long narration scene", () => {
-  const report = structurallyValidReport();
-  report.stories[0].scenes[1].subtitle =
-    "这次调整对历史付费用户几乎没有影响，他们可以继续按原有方式使用接口，同时官方也给出了完整的迁移时间线和替代方案说明。";
-  const dir = seedDataScheme({
-    "data.json": JSON.stringify(report),
-    "images/topic-2419173-e551af32e2.jpg": "mock:images/topic-2419173-e551af32e2.jpg",
-  });
-  try {
-    const {code, stderr} = runCli(["--require-overlay"], dir);
-    assert.equal(code, 1);
-    assert.match(stderr, /narration scene is/);
-  } finally {
-    rmSync(dir, {recursive: true, force: true});
-  }
-});
-
-test("structure gate stays silent in default mode for native RSS flows", () => {
-  // 原生自动流程允许整条新闻口播 + 全程带图，默认模式只查文件层，不做结构判定。
-  const report = structurallyValidReport();
-  report.stories[0].scenes[1].overlayImg = "images/codex-reset.png";
-  report.stories[0].scenes[0].subtitle =
-    "官方公告详细说明了接口调整的完整背景、适用范围、时间节点以及历史付费用户和新用户分别适用的过渡安排细则说明。";
-  const dir = seedDataScheme({
-    "data.json": JSON.stringify(report),
-    "images/topic-2419173-e551af32e2.jpg": "mock:images/topic-2419173-e551af32e2.jpg",
-    "images/codex-reset.png": "mock:images/codex-reset.png",
-  });
-  try {
-    const {code, stderr} = runCli([], dir);
-    assert.equal(code, 0, `expected exit 0\nstderr: ${stderr}`);
-  } finally {
-    rmSync(dir, {recursive: true, force: true});
-  }
+  report.stories[0].scenes[0].subtitle = "官方公告详细说明了接口调整的完整背景、适用范围、时间节点以及历史付费用户和新用户分别适用的过渡安排细则说明。";
+  const dir = seedDataScheme({"data.json": JSON.stringify(report), "images/codex-reset.png": "mock:images/codex-reset.png"});
+  try { const result = runCli([], dir); assert.equal(result.code, 0, result.stderr); }
+  finally { rmSync(dir, {recursive: true, force: true}); }
 });
 
 // ---------- 自适应证据结构（1–5 带图段、排列自由、无固定模板） ----------
@@ -277,7 +215,7 @@ test("check-evidence --require-overlay passes five image-backed scenes ending on
   }
 });
 
-test("check-evidence --require-overlay allows overlay-free scenes between overlays and an overlay last", () => {
+test("check-evidence --require-overlay rejects overlay-free scenes between overlays", () => {
   const report = singleStoryReport([
     {id: "scene-mixed-1", subtitle: "官方公告确认第一项核心事实成立。", overlayImg: "images/evidence-1.png"},
     {id: "scene-mixed-2", subtitle: "历史付费用户不受这次调整影响。"},
@@ -288,9 +226,9 @@ test("check-evidence --require-overlay allows overlay-free scenes between overla
     ...fiveEvidenceFiles(),
   });
   try {
-    const {code, stdout, stderr} = runCli(["--require-overlay"], dir);
-    assert.equal(code, 0, `expected exit 0\nstderr: ${stderr}`);
-    assert.match(stdout, /passed: 2 overlay image\(s\)/);
+    const {code, stderr} = runCli(["--require-overlay"], dir);
+    assert.equal(code, 1);
+    assert.match(stderr, /every narration scene requires evidence/);
   } finally {
     rmSync(dir, {recursive: true, force: true});
   }
@@ -318,13 +256,13 @@ test("check-evidence --require-overlay passes a single overlay scene within the 
   }
 });
 
-test("check-evidence --require-overlay fails six overlay scenes (supplied cap is five)", () => {
+test("check-evidence --require-overlay fails six distinct evidence images", () => {
   // 第六段循环引用已有路径：本用例只钉段数边界，路径复用并非生产形态。
   const report = singleStoryReport(
     Array.from({length: 6}, (_, i) => ({
       id: `scene-six-${i + 1}`,
       subtitle: "官方公告确认一项核心事实成立。",
-      overlayImg: `images/evidence-${(i % 5) + 1}.png`,
+      overlayImg: `images/evidence-${i + 1}.png`,
     })),
   );
   const dir = seedDataScheme({
@@ -334,13 +272,13 @@ test("check-evidence --require-overlay fails six overlay scenes (supplied cap is
   try {
     const {code, stderr} = runCli(["--require-overlay"], dir);
     assert.equal(code, 1);
-    assert.match(stderr, /exceed the supplied-source maximum of 5/);
+    assert.match(stderr, /distinct evidence images exceed the maximum of 5/);
   } finally {
     rmSync(dir, {recursive: true, force: true});
   }
 });
 
-test("check-evidence --require-overlay rejects reusing one evidence image across scenes", () => {
+test("check-evidence --require-overlay accepts reusing one evidence image across scenes", () => {
   const report = singleStoryReport([
     {
       id: "scene-reuse-1",
@@ -359,8 +297,7 @@ test("check-evidence --require-overlay rejects reusing one evidence image across
   });
   try {
     const {code, stderr} = runCli(["--require-overlay"], dir);
-    assert.equal(code, 1);
-    assert.match(stderr, /overlay image .* is reused by scene "scene-reuse-2"/);
+    assert.equal(code, 0, stderr);
   } finally {
     rmSync(dir, {recursive: true, force: true});
   }
@@ -382,7 +319,7 @@ test("check-evidence --require-overlay checks every overlay reference, not just 
   }
 });
 
-test("default mode leaves six all-overlay scenes untouched (RSS/manual not bound by supplied discipline)", () => {
+test("six narration scenes can share five distinct evidence images", () => {
   // 六段全带图只违反 supplied 的 ≤5 带图纪律；默认（原生 RSS/手动）模式不做结构判定。
   const report = singleStoryReport(
     Array.from({length: 6}, (_, i) => ({

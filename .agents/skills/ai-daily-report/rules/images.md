@@ -44,7 +44,7 @@
 
 ## 多张图片
 
-一个 scene 只能配一张图。要给同一个 story 放多张图，就写多个 scene，每个 scene 一张图、一句旁白，按顺序播放：
+每个正文 scene 必须配一张来源证据图。同一张图可显式复用于多个连续 scene，让它陪伴连续讲解；每段字幕都须由该图支撑，并保持相同 scale。讲解转向新的事实时再切换对应证据：
 
 ```jsonc
 "scenes": [
@@ -53,7 +53,7 @@
 ]
 ```
 
-各模式容量：supplied-source / vision-generate-video 模式下带图证据段最多 5 个、每 Story 总 scene ≤6，无图事实段的数量与排列由 agent 按事实决定（选图规则见 [`supplied-source-mode.md`](./supplied-source-mode.md)）；原生 RSS 与手动模式按各自规则处理。
+各模式容量：每 Story 最多 5 张不同证据图、总 scene ≤6，同图跨段不重复计算图片数量；正文不保留无图事实段（选图规则见 [`supplied-source-mode.md`](./supplied-source-mode.md)）；所有生产模式都要求正文逐段有证据。
 
 ## 关键行为：改图片会触发一次缓存复用的 TTS 同步
 
@@ -63,13 +63,13 @@
 
 ## 渲染效果
 
-`src/AiDailyReport.tsx` 的 `EvidenceStage` 组件：scene 有 `overlayImg` 时，证据图会在整段旁白期间占据标题与字幕之间的主舞台（`objectFit: contain`、圆角、阴影），场景切换时直接换图，方便观众暂停、快进和自行检查。没有 `overlayImg` 时才显示 Tabs 摘要作为兜底。
+`src/AiDailyReport.tsx` 的 `EvidenceStage` 组件：scene 有 `overlayImg` 时，证据图会在整段旁白期间占据标题与字幕之间的主舞台（`objectFit: contain`、圆角、阴影），场景切换时直接换图，方便观众暂停、快进和自行检查。正文缺 `overlayImg` 会被生产校验拒绝，不以 Tabs 摘要兜底。旧演示数据的卡片预览不代表生产规则。
 
 渲染层按真实宽高把证据图分成常规图 / 小图 / 高窄截图三类，横图最多使用 1836×760 的舞台，高窄截图限高 740，小图限于 980×560，**整张图按 `contain` 等比放入舞台**。这意味着图越高、越窄，宽度仍会被压扁——一张 992×4046 的长截图会变成看不清的细条。遇到这种情况应更换证据素材或拆成多张正常比例图片，不要用全局缩放掩盖内容选型问题。
 
 ## EXIF 方向先摆正
 
-图片写入 `data-scheme/images/` 前先规范化方向并清除 EXIF orientation。原始相机图先运行 `bun run image:normalize-orientation -- <path>`，按 orientation 烘焙旋转后再裁剪；已经被裁成正向像素但错误保留方向标记的图片运行同一命令并加 `--pixels-upright`，只清除标记、不要再次旋转。Chromium 会应用残留 orientation，而尺寸校验按像素宽高读取——两者错位会让图片横倒进成片，`bun run check-evidence` 会直接拒绝。修正后必须目视原图，并在最终 MP4 上用 `bun run evidence:frames` 检查每个 overlay 的中间帧。
+图片写入 `data-scheme/images/` 前先规范化方向并清除 EXIF orientation。原始相机图先运行 `bun run image:normalize-orientation -- <path>`，按 orientation 烘焙旋转后再裁剪；已经被裁成正向像素但错误保留方向标记的图片运行同一命令并加 `--pixels-upright`，只清除标记、不要再次旋转。Chromium 会应用残留 orientation，而尺寸校验按像素宽高读取——两者错位会让图片横倒进成片，`bun run check-evidence` 会直接拒绝。修正后必须目视原图，并在最终 MP4 上用 `bun run evidence:frames` 检查每个 overlay 的中间帧；逐帧填写同目录 `review.json`，再运行 `bun run check-evidence-review -- --manifest=<temp>/manifest.json`。旧审核与当前 MP4、Generated 数据或帧哈希不一致时会被拒绝。
 
 ## 长截图不要用作 overlay
 
@@ -77,7 +77,7 @@
 
 - **优先用比例正常的图**（横图、方图，或轻微竖图）——静态居中、效果最好；
 - **长截图不要用作 overlay**，换一张能代表该条新闻的正常比例图（关键人物 / 产品 / 数据图）；
-- 实在没有合适的，就**不给该 scene 配 `overlayImg`**——scene 靠口播 + tab 卡片也能成立，比放一张看不清的细条强。
+- 没有合适证据时，删去该可选细节；若缺的是核心事件的证据，则排除整条 Story 并记录原因，不制作无图口播。
 
 ## 验证
 
@@ -101,7 +101,7 @@ bun run dev
 1. **提取事实**：调 `claude` 识别图片内容，补充到文案。Claude 子进程只允许 `mcp__*` 和 `WebFetch`，不放行 `Bash`、`Write`、`Edit`。
 2. **自动配图**：用聚类后的 Story 标题、重要性和要点做相关性判断。候选已经来自来源正文的直接内嵌图片并排除了 onebox，因此按“正文证据图”处理：证据/公告截图、示意图、数据/评测图、产品截图、官方物料都算相关，不要求覆盖 Story 的每一个要点；只要产品/机构名、核心事件、日期、数字或用户影响能明确对应即可。只有内容清晰可辨且能确认是纯表情包、头像、签名装饰、广告或另一个无关主题时才判不相关。相关后，把该图下载到 `data-scheme/images/` 并写入对应 scene 的 `overlayImg` 路径；原始宽高由 tts 构建期按文件算进 `data-generate.json`、供 `EvidenceStage` 布局用（rss 不把尺寸写进 `data.json`）。
 
-远程图下载遇到网络错误、HTTP 429 或 5xx 会短暂重试；404、格式不支持、图片过大或疑似头像/Logo 这类永久性问题会直接跳过，不中断整期日报生成。
+远程图下载遇到网络错误、HTTP 429 或 5xx 会短暂重试；404、格式不支持、图片过大或疑似头像/Logo 这类永久性问题会跳过该图片；口播证据不完整的 Story 不写入生产数据，全部缺证据时保留原 data.json 并报错。
 
 自动配图在 raw `data.json` 中仍只写 `overlayImg`；随后构建 `data-generate.json` 时写入图片真实尺寸，Remotion 据此把图片等比放入证据舞台。需要人工微调时，在 raw scene 中显式填写 `overlayImgScale`。
 

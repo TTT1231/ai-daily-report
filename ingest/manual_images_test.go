@@ -200,7 +200,7 @@ func TestDownloadManualCandidateImages_SkipsDuplicateBytesAndDecorativeSquares(t
 	}
 }
 
-func TestGenerateDataJSON_VisionOffDoesNotAttachAndTriggersNoDownload(t *testing.T) {
+func TestGenerateDataJSON_NoEvidencePreservesExistingReport(t *testing.T) {
 	t.Setenv("CLAUDE_VISION_ENABLED", "false")
 	// No remote images in descriptions -> plan is empty -> no files written anywhere.
 	groups := []NewsGroup{{
@@ -218,14 +218,18 @@ func TestGenerateDataJSON_VisionOffDoesNotAttachAndTriggersNoDownload(t *testing
 	items := []Item{{Title: "来源一", SourceID: "s", Link: "https://example.com/one", Description: "纯文本正文，没有图片"}}
 	path := filepath.Join(t.TempDir(), "data.json")
 
-	if err := generateDataJSON(path, groups, items); err != nil {
-		t.Fatalf("generateDataJSON() error: %v", err)
+	original := []byte("previous report")
+	if err := os.WriteFile(path, original, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := generateDataJSON(path, groups, items); err == nil || !strings.Contains(err.Error(), "没有证据完整") {
+		t.Fatalf("expected missing-evidence failure, got %v", err)
 	}
 	data, err := os.ReadFile(path)
 	if err != nil {
-		t.Fatalf("read data.json: %v", err)
+		t.Fatal(err)
 	}
-	if strings.Contains(string(data), "overlayImg") {
-		t.Errorf("vision-off must not write overlayImg, got: %s", data)
+	if string(data) != string(original) {
+		t.Fatalf("existing report was overwritten: %s", data)
 	}
 }

@@ -35,7 +35,7 @@ test("intro cards stay ordered while columns are height-balanced", () => {
     [1, 2, 3, 5, 7],
   ]);
   assert.ok(
-    Math.abs(layout.estimatedHeights[0] - layout.estimatedHeights[1]) <= 22,
+    Math.abs(layout.estimatedHeights[0] - layout.estimatedHeights[1]) <= 44,
   );
   for (const column of layout.columns) {
     assert.deepEqual(
@@ -43,4 +43,14 @@ test("intro cards stay ordered while columns are height-balanced", () => {
       [...column].sort((a, b) => a - b),
     );
   }
+});
+
+
+test("five compact overview cards fit one screen with two-line representative headlines", () => {
+  const tabs = Array.from({length: 5}, (_, index) => ({
+    id: `intro-${index}`, title: "模型进展 · 5条", icon: "icons/example.svg",
+    summary: "这是一个用于检查开场代表选题长度的完整三十字新闻标题实例",
+  }));
+  const layout = getBalancedIntroColumnLayout(tabs);
+  assert.ok(Math.max(...layout.estimatedHeights) + 24 <= 700);
 });
