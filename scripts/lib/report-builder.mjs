@@ -55,16 +55,15 @@ function buildIntro(report, now, previousReport) {
 
   for (const story of report.stories) {
     const titles = groups.get(story.topTitle) ?? [];
-    titles.push(story.introTitle && [...story.introTitle].length <= 30 ? story.introTitle : story.contentTitle);
+    titles.push(story.introTitle ?? story.contentTitle);
     groups.set(story.topTitle, titles);
     if (story.activeIntro === true) activeTitle = story.topTitle;
   }
 
   const tabs = Array.from(groups, ([title, contentTitles], index) => ({
     id: `intro-group-${index + 1}`,
-    title: `${title} · ${contentTitles.length}条`,
-    // 开场是导览：每类一个代表选题，完整目录由底部导航承担。
-    summary: contentTitles[0],
+    title,
+    summary: contentTitles.join("\n"),
   }));
   const dateText = formatGregorianDateWithWeekday(
     parseReportDate(report.date) ?? now,

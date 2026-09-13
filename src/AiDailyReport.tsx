@@ -889,13 +889,13 @@ const Tabs: FC<{
 // viewport-sized min-height makes the same formula resolve to zero when all
 // cards already fit. The estimate below balances cards between columns and
 // decides whether edge fades are useful; it never controls scroll distance.
-const INTRO_ICON_SIZE = 44;
-const INTRO_TITLE_LINE_HEIGHT = 35; // fontSize 30 * lineHeight 1.15
-const INTRO_SUMMARY_LINE_HEIGHT = 37; // fontSize 26 * lineHeight 1.42
-const INTRO_CARD_PADDING_Y = 36; // 18px top + 18px bottom
-const INTRO_TITLE_MARGIN_BOTTOM = 12;
+const INTRO_ICON_SIZE = 58;
+const INTRO_TITLE_LINE_HEIGHT = 39; // fontSize 34 * lineHeight 1.15
+const INTRO_SUMMARY_LINE_HEIGHT = 38; // fontSize 27 * lineHeight 1.42
+const INTRO_CARD_PADDING_Y = 52; // 26px top + 26px bottom
+const INTRO_TITLE_MARGIN_BOTTOM = 18;
 const INTRO_SUMMARY_GAP = 12;
-const INTRO_CARD_MIN_HEIGHT = 132;
+const INTRO_CARD_MIN_HEIGHT = 150;
 const INTRO_CARD_BORDER_Y = 2;
 const INTRO_SCROLL_END_PADDING = 24;
 const INTRO_TITLE_UNITS_PER_LINE = 16;
@@ -1104,7 +1104,7 @@ const IntroOverview: FC<{
                   key={tab.id}
                   style={{
                     minHeight: INTRO_CARD_MIN_HEIGHT,
-                    padding: "18px 28px",
+                    padding: "26px 32px",
                     borderRadius: 18,
                     border: `1px solid ${
                       tab.id === intro.activeTab
@@ -1124,7 +1124,7 @@ const IntroOverview: FC<{
                   <div
                     style={{
                       color,
-                      fontSize: 30,
+                      fontSize: 34,
                       lineHeight: 1.15,
                       fontWeight: 850,
                       marginBottom: INTRO_TITLE_MARGIN_BOTTOM,
@@ -1148,7 +1148,7 @@ const IntroOverview: FC<{
                       color: palette.inactiveCardText,
                       display: "grid",
                       gap: 12,
-                      fontSize: 26,
+                      fontSize: 27,
                       lineHeight: 1.42,
                       fontWeight: 570,
                     }}

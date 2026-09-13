@@ -260,16 +260,22 @@ test("buildGeneratedReport preserves manual overlayImgScale and leaves scenes wi
 });
 
 
-test("Intro shows one representative per category with a count, preserving all stories", () => {
+test("Intro lists every story title by category without appending counts", () => {
   const base = rawReportWithOverlay("images/codex-reset.png").stories[0];
-  const stories = Array.from({length: 19}, (_, index) => ({...base, id: `story-${index}`, topTitle: `栏目${index % 5}`, introTitle: `代表选题${index}`, activeIntro: index === 0}));
-  const result = buildGeneratedReport({date: "2026-09-11", stories});
+  const stories = Array.from({length: 19}, (_, index) => ({...base, id: `story-${index}`, topTitle: `栏目${index % 5}`, introTitle: `新闻标题${index}`, activeIntro: index === 0}));
+  stories[0].introTitle = "这是一个长度超过三十字但必须在资讯概览中完整保留的编辑标题不能擅自换成短标题";
+  delete stories[1].introTitle;
+  const result = buildGeneratedReport({date: "2026-09-13", stories});
   assert.equal(result.stories.length, 19);
   assert.equal(result.intro.tabs.length, 5);
-  assert.equal(result.intro.tabs[0].title, "栏目0 · 4条");
-  assert.equal(result.intro.tabs[0].summary, "代表选题0");
+  for (let index = 0; index < 5; index++) {
+    const category = `栏目${index}`;
+    const expected = stories.filter((story) => story.topTitle === category).map((story) => story.introTitle ?? story.contentTitle);
+    assert.equal(result.intro.tabs[index].title, category);
+    assert.deepEqual(result.intro.tabs[index].summary.split("\n"), expected);
+  }
   assert.equal(result.intro.activeTab, result.intro.tabs[0].id);
-  assert.ok(result.intro.tabs.every((tab) => !tab.summary.includes("\n")));
+  assert.equal(result.intro.tabs.reduce((count, tab) => count + tab.summary.split("\n").length, 0), 19);
 });
 
 
