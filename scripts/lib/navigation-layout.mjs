@@ -1,5 +1,6 @@
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
+import { reportUsesEvidenceOnly } from "./story-presentation.mjs";
 
 const videoLayout = JSON.parse(
   readFileSync(
@@ -137,7 +138,8 @@ export const mergeAdjacentNavigationLabels = (labels) =>
 export const reportNavigationLabels = (report) => {
   const intro = report.intro ?? { topTitle: "Intro", bottomTitle: "Intro" };
   const outro = report.outro ?? { topTitle: "结语", bottomTitle: "再见" };
-  const timeline = [intro, ...(report.stories ?? []), outro];
+  const timeline = [intro, ...(report.stories ?? []),
+    ...(reportUsesEvidenceOnly(report) ? [] : [outro])];
   return {
     bottom: timeline.map(({ bottomTitle }) => bottomTitle),
     top: mergeAdjacentNavigationLabels(

@@ -80,7 +80,7 @@ if (strictTone) {
 
 console.log(
   renderMode
-    ? `${displayPath} is render-ready: generated intro + ${report.stories.length} stories + fixed outro, ${totalDurationMs}ms total.`
+    ? `${displayPath} is render-ready: generated intro + ${report.stories.length} stories${report.outro ? " + outro" : ""}, ${totalDurationMs}ms total.`
     : `${displayPath} raw content is valid: ${report.stories.length} stories.`,
 );
 if (navigationStats) {

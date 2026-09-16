@@ -101,9 +101,10 @@ test(
       const genPath = join(dir, "data-generate.json");
       assert.ok(existsSync(genPath), "generate-tts did not write data-generate.json");
       const gen = JSON.parse(readFileSync(genPath, "utf8"));
-      assert.ok(gen.intro && gen.outro, "generated report missing intro/outro");
-      const scenes = [gen.intro, ...gen.stories, gen.outro].flatMap((s) => s.scenes);
-      assert.ok(scenes.length >= 4, "expected intro + story + outro scenes");
+      assert.ok(gen.intro, "generated report missing intro");
+      assert.equal(gen.outro, undefined, "evidence report must end without an outro");
+      const scenes = [gen.intro, ...gen.stories].flatMap((s) => s.scenes);
+      assert.equal(scenes.length, 4, "expected intro + three evidence scenes");
       for (const scene of scenes) {
         assert.ok(scene.timing && Number.isInteger(scene.timing.startMs), `${scene.id} missing timing`);
         assert.ok(scene.audioSrc, `${scene.id} missing audioSrc`);
@@ -115,7 +116,9 @@ test(
       const fps = 30;
       const introDurMs = gen.intro.scenes.reduce((a, s) => a + s.timing.durationMs, 0);
       const storyFrame = Math.round((introDurMs / 1000) * fps) + 18 + 30; // intro + 过渡 + 1s 进首个 story
-      for (const [label, frame] of [["intro", 0], ["story", storyFrame]]) {
+      const finalFrame = scenes.reduce((sum, scene) => sum + Math.round(scene.timing.durationMs / 1000 * fps), 0)
+        + gen.stories.length * 18 - 1;
+      for (const [label, frame] of [["intro", 0], ["story", storyFrame], ["final evidence", finalFrame]]) {
         const out = join(dir, `frame-${label}.png`);
         const render = spawnSync(
           "bunx",

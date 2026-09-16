@@ -2,6 +2,7 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { dataDir as defaultDataDir } from "./paths.mjs";
 import { readImageDimensions } from "./image-dims.mjs";
+import { reportUsesEvidenceOnly } from "./story-presentation.mjs";
 
 // 时间线常量的单一事实源是 video-timeline.json（与 src/AiDailyReport.tsx 渲染侧同源读取）。
 // 改这里即两侧同步，避免此前硬编码常量在 JS/TS 两处各自维护导致的评论与画面错位。
@@ -150,7 +151,11 @@ export function buildGeneratedReport(
   report.theme ??=
     now.getHours() >= 6 && now.getHours() < 18 ? "light" : "dark";
   report.intro = buildIntro(report, now, previousReport);
-  report.outro = buildOutro(report);
+  if (reportUsesEvidenceOnly(report)) {
+    delete report.outro;
+  } else {
+    report.outro = buildOutro(report);
+  }
   restoreIcons(report, previousReport);
   applyOverlayDimensions(report, dataDir);
   return report;
@@ -197,10 +202,10 @@ export const STORY_TRANSITION_FRAMES = videoTimeline.storyTransitionFrames;
 /**
  * 按 Remotion 的帧时间线累计每个 story 的起始毫秒。
  * 返回数组与 [intro, ...stories, outro] 对齐：index 0 是 intro，
- * data.stories[i] 对应 index i + 1（intro / outro 在 generated 数据中始终存在）。
+ * data.stories[i] 对应 index i + 1；全程证据讲解不生成 outro。
  */
 export function buildVideoStoryStartMs(report) {
-  // intro/outro 理论上始终存在，但 raw 数据可能缺失：与 collectTimelineScenes 一致
+  // outro 可省略，raw 数据也可能缺少 intro：与 collectTimelineScenes 一致
   // 过滤掉 undefined，避免下游 timelineStories[si].scenes 抛 TypeError。
   const timelineStories = [
     report.intro,

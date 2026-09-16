@@ -42,6 +42,7 @@ test("generate-tts --dry-run exits 0 without calling MiniMax or writing anything
   try {
     assert.equal(code, 0, `dry-run exited ${code}\nstderr: ${stderr}`);
     assert.match(stdout, /Dry run complete|Planning/);
+    assert.doesNotMatch(stdout, /outro-ending/);
     assert.ok(!existsSync(join(dir, "data-generate.json")), "dry-run must not write data-generate.json");
   } finally {
     rmSync(dir, {recursive: true, force: true});

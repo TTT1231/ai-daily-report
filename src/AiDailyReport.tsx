@@ -14,6 +14,7 @@ import {
 } from "remotion";
 import { useEffect, useMemo, useRef, useState, type FC } from "react";
 import {
+  getReportTimelineStories,
   hasDailyReportProps,
   resolveDailyReport,
   type DailyIntro,
@@ -421,7 +422,7 @@ interface Timeline {
 const buildTimeline = (fps: number, report: DailyReport): Timeline => {
   const scenes: TimelineScene[] = [];
   const storyStarts: number[] = [];
-  const stories = [report.intro, ...report.stories, report.outro];
+  const stories = getReportTimelineStories(report);
   let cursor = 0;
 
   for (let si = 0; si < stories.length; si++) {
@@ -1421,7 +1422,7 @@ const AiDailyReportContent: FC<AiDailyReportContentProps> = ({
     [fps, dailyReport],
   );
   const timelineStories = useMemo(
-    () => [dailyReport.intro, ...dailyReport.stories, dailyReport.outro],
+    () => getReportTimelineStories(dailyReport),
     [dailyReport],
   );
   const storyDurationsMs = useMemo(

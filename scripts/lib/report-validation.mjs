@@ -2,7 +2,7 @@ import { existsSync, readFileSync } from "node:fs";
 import { resolve, sep } from "node:path";
 import Ajv2020 from "ajv/dist/2020.js";
 import { dataDir, schemaPath } from "./paths.mjs";
-import {storyShowsTabCards} from "./story-presentation.mjs";
+import {reportUsesEvidenceOnly, storyShowsTabCards} from "./story-presentation.mjs";
 import {
   asciiWidthFactor,
   maxTopCategories,
@@ -173,7 +173,7 @@ export function validateReport(
   if (structureErrors.length > 0) return { errors, totalDurationMs: 0 };
   if (renderMode && !report.intro)
     fail("intro", "is required before rendering");
-  if (renderMode && !report.outro)
+  if (renderMode && !report.outro && !reportUsesEvidenceOnly(report))
     fail("outro", "is required before rendering");
   if (
     !renderMode &&

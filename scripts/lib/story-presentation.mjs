@@ -6,3 +6,8 @@ export const sceneHasEvidence = (scene) =>
 export const storyShowsTabCards = (story) =>
   !Array.isArray(story?.scenes) || story.scenes.length === 0 ||
   story.scenes.some((scene) => !sceneHasEvidence(scene));
+
+// Evidence narration ends on its final source image, without a card-based sign-off.
+export const reportUsesEvidenceOnly = (report) =>
+  Array.isArray(report?.stories) && report.stories.length > 0 &&
+  report.stories.every((story) => !storyShowsTabCards(story));

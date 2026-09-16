@@ -32,7 +32,7 @@
     },
     "outro": {
       "$ref": "#/$defs/outro",
-      "description": "仅出现在 data-generate.json，由 TTS 流程自动追加的固定结语。"
+      "description": "仅出现在 data-generate.json，由 TTS 流程自动生成。正文每段均有证据图片时省略，直接在最后一段证据画面结束。"
     },
     "introContent": {
       "type": "string",
@@ -42,7 +42,7 @@
     "outroContent": {
       "type": "string",
       "minLength": 1,
-      "description": "可选。自定义 outro 旁白字幕，未提供时使用默认结语。"
+      "description": "可选。自定义 outro 旁白字幕，未提供时使用默认结语；全程证据讲解不生成 outro，此字段不生效。"
     }
   },
   "$defs": {

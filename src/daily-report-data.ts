@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { reportUsesEvidenceOnly } from "../scripts/lib/story-presentation.mjs";
 import {
   mergeAdjacentNavigationLabels,
   navigationAvailableWidth,
@@ -138,7 +139,7 @@ export const dailyReportSchema = z
     date: dateSchema,
     intro: dailyIntroSchema,
     stories: z.array(dailyStorySchema).min(1),
-    outro: dailyOutroSchema,
+    outro: dailyOutroSchema.optional(),
   })
   .superRefine((report, context) => {
     if (
@@ -150,7 +151,15 @@ export const dailyReportSchema = z
         message: "Only one story may set activeIntro to true",
       });
     }
-    const timeline = [report.intro, ...report.stories, report.outro];
+    if (!report.outro && !reportUsesEvidenceOnly(report)) {
+      context.addIssue({
+        code: "custom",
+        path: ["outro"],
+        message: "outro is required unless every body scene has evidence",
+      });
+    }
+    const timeline = [report.intro, ...report.stories,
+      ...(report.outro && !reportUsesEvidenceOnly(report) ? [report.outro] : [])];
     const navigations = {
       bottom: timeline.map(({ bottomTitle }) => bottomTitle),
       top: mergeAdjacentNavigationLabels(
@@ -175,6 +184,13 @@ export type DailyStory = z.infer<typeof dailyStorySchema>;
 export type DailyIntro = z.infer<typeof dailyIntroSchema>;
 export type DailyOutro = z.infer<typeof dailyOutroSchema>;
 export type DailyReport = z.infer<typeof dailyReportSchema>;
+
+// Also suppress the fixed outro in older generated evidence reports.
+export const getReportTimelineStories = (report: DailyReport) => [
+  report.intro,
+  ...report.stories,
+  ...(report.outro && !reportUsesEvidenceOnly(report) ? [report.outro] : []),
+];
 
 export const hasDailyReportProps = (input: unknown): input is DailyReport =>
   Boolean(
