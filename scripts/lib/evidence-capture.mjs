@@ -3,6 +3,18 @@ import {existsSync, readFileSync, writeFileSync, renameSync} from "node:fs";
 import {resolve} from "node:path";
 import {sha256File, sha256Text} from "./evidence-review.mjs";
 
+const PNG_SIGNATURE = Buffer.from("89504e470d0a1a0a", "hex");
+
+// A DOM match and a successful screenshot command can still produce a white
+// image (for example, while a page's scroll-reveal content has not painted).
+// This is a triage signal, not proof that the source itself is unavailable.
+function screenshotLooksEmpty(path) {
+  const bytes = readFileSync(path);
+  if (bytes.length < 33 || !bytes.subarray(0, 8).equals(PNG_SIGNATURE)) return false;
+  const pixels = bytes.readUInt32BE(16) * bytes.readUInt32BE(20);
+  return pixels >= 100_000 && bytes.length / pixels < 0.008;
+}
+
 export function validateCapturePlan(plan) {
   const errors = [];
   try { if (!["http:", "https:"].includes(new URL(plan.url).protocol)) throw new Error(); }
@@ -97,7 +109,9 @@ export async function captureEvidenceTargets({plan, directory, run, retryFact, r
       const path = resolve(directory, `${key.slice(0, 20)}-${entry.attempts.length}.png`);
       await run(["screenshot", target.selector, path]);
       const sha256 = sha256File(path);
-      Object.assign(attempt, {path, sha256, status: last?.sha256 === sha256 ? "unchanged" : "captured"});
+      const suspectBlank = screenshotLooksEmpty(path);
+      Object.assign(attempt, {path, sha256, status: last?.sha256 === sha256 ? "unchanged" : suspectBlank ? "suspect-blank" : "captured"});
+      if (attempt.status === "suspect-blank") attempt.error = "PNG has unusually little visual detail. Inspect it; if blank, capture the visible page viewport instead of this element.";
       if (attempt.status === "unchanged") attempt.error = "Pixels identical to previous attempt; do not repeat visual review or capture.";
     } catch (error) {
       Object.assign(attempt, {status: "failed", error: error.message});

@@ -115,9 +115,11 @@ bun run evidence:prepare-supplied --input <temp>/sources.json --output <temp>
 
 候选下载失败和来源没有候选分开处理；按错误原因集中诊断，沿用原 OS 临时目录复用成功下载。正文足够、图片不足的来源可用浏览器定向取证，不把正常外链取证等同于失败，也不关闭 SSRF 检查。
 
+**来源核实与取图结果分开判断**：官方原文的 URL、发布方和正文已核对时，元素截图空白、裁掉发布方或页面动画未画出文字，只说明这张图不可采用，不说明来源或事实不可信。按 [`evidence-workflow.md`](./evidence-workflow.md) 改用同页可见视口截图并忠实裁剪。若仍取不到可用 overlay，准确记录为「取证技术受阻」并在 TTS/渲染前报告阻断；不能把它写成「来源不可信」或静默剔除用户选定的 Story。排除 Story 的理由必须指向无法核实的核心事实或穷尽取证后确实不存在的证据，而不是一次截图命令的结果。
+
 图片下载后、裁剪前运行 `bun run image:normalize-orientation -- <path>`，按 EXIF orientation 烘焙旋转并清除标记；若裁剪工具已经把像素转正却错误保留方向标记，则加 `--pixels-upright` 只清标记。Chromium 按残留 EXIF 旋转显示，而尺寸闸按像素宽高读取，两者错位会让图片横倒进成片——`bun run check-evidence` 会直接拒绝此类文件。
 
-**必须拒收**：`Just a moment` / Cloudflare challenge /「正在进行安全验证」页、只有 Logo 或加载动画的中间态、登录/403/404、核心事实不可见、广告或推荐内容占主要区域、实际页面与预期来源不符、纯文字截图无可辨认来源标识且重截不可得（按第 5 条排除）。`bun run check-evidence` 会拦住"HTML 存成 .png"的错位文件，但真截图成的广告页/challenge 页只能靠上面的目视复核发现。
+**必须拒收的图片**：`Just a moment` / Cloudflare challenge /「正在进行安全验证」页、只有 Logo 或加载动画的中间态、登录/403/404、核心事实不可见、广告或推荐内容占主要区域、实际页面与预期来源不符、纯文字截图无可辨认来源标识。先按上面的视口回退补足出处和事实；图片拒收不自动等于来源或 Story 拒收。`bun run check-evidence` 会拦住"HTML 存成 .png"的错位文件，但真截图成的广告页/challenge 页只能靠上面的目视复核发现。
 
 ## 只有一张图片的来源
 
