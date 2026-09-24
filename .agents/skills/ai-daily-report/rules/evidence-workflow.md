@@ -66,18 +66,18 @@ bun run evidence:check-preflight
 
 ## 排版预览与导出
 
-Generated 和可见图标就绪后，排版有疑问时用批量 PNG 预览：
+Generated 和可见图标就绪后，多模态 supplied-source 首次导出 MP4 前先用同一批量 PNG 流程预览全部 Scene（含 Intro/Outro），把可读性、来源标识、字幕与画面的对应关系和遮挡问题在编码前集中修完。局部修改只预览受影响的 Scene：
 
 ```bash
-bun run evidence:preview
-# 只复查修改涉及的具体 Scene：
+bun run evidence:preview -- --all-scenes
+# 局部修复只复查修改涉及的具体 Scene：
 bun run evidence:preview -- --scenes=<scene-id>,<scene-id>
 ```
 
-默认每个 Story 的相同图片/scale 只出一个代表帧；显式指定 Scene 时逐段保留。整批只打包一次、共用一个浏览器，不合成音频、不编码 MP4。输出到 OS 临时目录，`manifest.json` 给出帧路径、完整口播、耗时。只看本轮需要检查的输出，不为每个 Scene 单独启动 `remotion still`。原素材明显的广告直接修正，不需要预览来证明。
+不带参数时每个 Story 的相同图片/scale 只出一个代表帧，供日常排版排错；`--all-scenes` 和显式 Scene 选择逐段保留。整批只打包一次、共用一个浏览器，不合成音频、不编码 MP4。输出到 OS 临时目录，`manifest.json` 给出帧路径、完整口播、耗时。原素材明显的广告直接修正，不需要预览来证明。
 
 `bun run render:mp4` 现在会先检查数据、证据文件、**可见图标和当前证据预检记录**，未审核、失败或已过期的事实映射均不允许进入编码。不要用裸 `remotion render` 绕过命令链。
 
-成片继续使用 `evidence:frames` 和 `check-evidence-review`；单帧预检不能冒充成片审核。发现问题先审完本轮所有帧，集中修复，刷新预检和派生数据，局部 PNG 验证后统一重渲染。新成片仍须全量抽帧并独立审核，不复制旧成片的通过结果。
+成片继续使用 `evidence:frames` 和 `check-evidence-review`；PNG 预览不能冒充成片审核。首次成片审完所有抽帧；发现问题先收集本轮全部失败项，再集中修复、刷新预检和派生数据、局部 PNG 验证，之后统一重渲染。重渲染后仍全量抽帧，传入上一轮 `--previous-manifest=<旧 manifest.json>`；只有 Story/Scene、口播、overlay 路径和抽帧像素哈希均不变，且旧帧文件与旧审核记录仍匹配时，才继承该帧的五项通过结果。只目视复查新审核表中的待审帧，最后的 checker 仍核对当前 MP4、Generated 与全部新抽帧哈希。保留旧抽帧目录到继承和新审核完成。
 
 用户要求不渲染 MP4 时遵从其范围；修改流程的测试使用隔离 fixture，不擅自重做当期内容。阶段计时记录在本次临时工作区，重复阶段报告次数与累计耗时，不只报最后一次 render。

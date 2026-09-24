@@ -13,7 +13,10 @@ try {
   const started = Date.now();
   const report = await readJson(generatedDataPath, "Generated report");
   const {fps} = await readJson(join(rootDir, "config/video-timeline.json"), "timeline config");
-  const plan = buildEvidencePreviewPlan(report, {fps, sceneIds: option("scenes")?.split(",")});
+  const sceneIds = option("scenes")?.split(",");
+  const allScenes = process.argv.includes("--all-scenes");
+  if (sceneIds && allScenes) throw new Error("Use either --scenes or --all-scenes, not both.");
+  const plan = buildEvidencePreviewPlan(report, {fps, sceneIds, allScenes});
   if (plan.errors.length) throw new Error(plan.errors.join("\n"));
   const directory = option("output-dir") ? resolve(option("output-dir")) : mkdtempSync(join(tmpdir(), "evidence-preview-"));
   mkdirSync(directory, {recursive: true});
@@ -31,7 +34,7 @@ try {
   }
   writeFileSync(join(directory, "manifest.json"), `${JSON.stringify({schemaVersion: 1, elapsedMs: Date.now() - started,
     note: "Layout preview only; does not approve evidence or replace final MP4 review.", frames: plan.frames}, null, 2)}\n`);
-  console.log(`Rendered ${plan.frames.length} representative PNGs in ${Date.now() - started}ms. ${directory}`);
+  console.log(`Rendered ${plan.frames.length} preview PNGs in ${Date.now() - started}ms. ${directory}`);
 } catch (error) {
   console.error(error.message);
   process.exitCode = 1;

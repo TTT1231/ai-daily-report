@@ -2,11 +2,12 @@ import {
   existsSync,
   mkdirSync,
   mkdtempSync,
+  readFileSync,
   statSync,
   writeFileSync,
 } from "node:fs";
 import {tmpdir} from "node:os";
-import {join, resolve} from "node:path";
+import {dirname, join, resolve} from "node:path";
 import {spawnSync} from "node:child_process";
 import {generatedDataPath, readJson, rootDir} from "../lib/paths.mjs";
 import {buildEvidenceFramePlan} from "../lib/evidence-frame-plan.mjs";
@@ -105,19 +106,32 @@ const manifestText = `${JSON.stringify(
   null,
   2,
 )}\n`;
+let previous = null;
+const previousManifestPath = option("previous-manifest") ? resolve(option("previous-manifest")) : null;
+if (previousManifestPath) {
+  if (previousManifestPath === manifestPath) throw new Error("Previous manifest must be in a different directory.");
+  const previousManifestText = readFileSync(previousManifestPath, "utf8");
+  const previousReviewPath = resolve(option("previous-review") ?? join(dirname(previousManifestPath), "review.json"));
+  previous = {
+    manifest: JSON.parse(previousManifestText),
+    manifestSha256: sha256Text(previousManifestText),
+    review: JSON.parse(readFileSync(previousReviewPath, "utf8")),
+  };
+  if (previous.review.manifestSha256 !== previous.manifestSha256) {
+    throw new Error("Previous review does not match its manifest; no approvals can be reused.");
+  }
+}
 writeFileSync(manifestPath, manifestText, "utf8");
 
 const reviewPath = join(outputDir, "review.json");
+const review = buildEvidenceReviewTemplate(JSON.parse(manifestText), sha256Text(manifestText), previous);
 writeFileSync(
   reviewPath,
-  `${JSON.stringify(
-    buildEvidenceReviewTemplate(JSON.parse(manifestText), sha256Text(manifestText)),
-    null,
-    2,
-  )}\n`,
+  `${JSON.stringify(review, null, 2)}\n`,
   "utf8",
 );
 
 console.log(`Extracted ${plan.frames.length} overlay midpoint frame(s) to ${outputDir}`);
 console.log(`Manifest: ${manifestPath}`);
-console.log(`Pending visual review: ${reviewPath}`);
+const reusedCount = review.reviews.filter((item) => item.reusedFrom).length;
+console.log(`Pending visual review: ${plan.frames.length - reusedCount}; pixel-identical approvals reused: ${reusedCount}. ${reviewPath}`);

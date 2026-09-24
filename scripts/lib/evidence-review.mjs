@@ -1,5 +1,5 @@
 import {createHash} from "node:crypto";
-import {readFileSync} from "node:fs";
+import {existsSync, readFileSync} from "node:fs";
 
 export const evidenceReviewChecks = [
   "upright",
@@ -15,22 +15,56 @@ export const sha256Text = (value) =>
 export const sha256File = (path) =>
   createHash("sha256").update(readFileSync(path)).digest("hex");
 
-export function buildEvidenceReviewTemplate(manifest, manifestSha256) {
+const reviewIdentity = (frame) => JSON.stringify([
+  frame.storyId, frame.sceneId, frame.overlayImg, frame.subtitle, frame.sha256,
+]);
+
+function previouslyApprovedFrames(previous) {
+  const approved = new Map();
+  if (previous?.manifest?.schemaVersion !== 1 || previous?.review?.schemaVersion !== 1 ||
+      previous.review.manifestSha256 !== previous.manifestSha256) return approved;
+  const reviews = previous.review.reviews ?? [];
+  const byFileName = new Map(reviews.map((item) => [item.fileName, item]));
+  if (byFileName.size !== reviews.length) return approved;
+  for (const frame of previous.manifest.frames ?? []) {
+    const item = byFileName.get(frame.fileName);
+    if (!item || ["storyId", "sceneId", "overlayImg", "subtitle"].some((key) => item[key] !== frame[key]) ||
+        !evidenceReviewChecks.every((check) => item.checks?.[check] === true) ||
+        typeof frame.outputPath !== "string" || !existsSync(frame.outputPath) ||
+        sha256File(frame.outputPath) !== frame.sha256) continue;
+    approved.set(reviewIdentity(frame), {
+      notes: item.notes,
+      manifestSha256: previous.manifestSha256,
+      frameSha256: frame.sha256,
+    });
+  }
+  return approved;
+}
+
+export function buildEvidenceReviewTemplate(manifest, manifestSha256, previous = null) {
+  const approved = previouslyApprovedFrames(previous);
   return {
     schemaVersion: 1,
     manifestSha256,
     criteria: evidenceReviewChecks,
-    reviews: (manifest.frames ?? []).map((frame) => ({
-      fileName: frame.fileName,
-      storyId: frame.storyId,
-      sceneId: frame.sceneId,
-      overlayImg: frame.overlayImg,
-      subtitle: frame.subtitle,
-      checks: Object.fromEntries(
-        evidenceReviewChecks.map((check) => [check, null]),
-      ),
-      notes: "",
-    })),
+    reviews: (manifest.frames ?? []).map((frame) => {
+      const reused = approved.get(reviewIdentity(frame));
+      return {
+        fileName: frame.fileName,
+        storyId: frame.storyId,
+        sceneId: frame.sceneId,
+        overlayImg: frame.overlayImg,
+        subtitle: frame.subtitle,
+        checks: Object.fromEntries(
+          evidenceReviewChecks.map((check) => [check, reused ? true : null]),
+        ),
+        notes: reused?.notes ?? "",
+        ...(reused ? {reusedFrom: {
+          manifestSha256: reused.manifestSha256,
+          frameSha256: reused.frameSha256,
+        }} : {}),
+      };
+    }),
   };
 }
 

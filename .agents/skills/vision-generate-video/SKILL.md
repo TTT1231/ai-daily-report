@@ -85,9 +85,11 @@ instructions; do not rerun their sourcing, TTS, or MP4 commands when reviewing p
    can remain. Add only the planned icon fields to Generated and mirror visible story icon
    fields to Raw; never edit unrelated generated fields.
 7. Run the keyword scan, `bun run check-data-json:render`, and `bun run check-icons`.
-   For unresolved layout questions use `bun run evidence:preview`, or select only affected
-   scenes after a fix. This batches PNGs through one bundle/browser; do not launch an
-   independent still process for every scene. Follow `rules/evidence-workflow.md` before export.
+   Before the first MP4, run `bun run evidence:preview -- --all-scenes` and inspect every
+   Scene midpoint, including Intro/Outro, in one PNG batch. Fix all visible framing, readability, source,
+   obstruction, and subtitle-mapping problems before encoding. After a local fix, select only
+   affected scenes with `--scenes=...`; do not rerun the full preview or launch an independent
+   still process per scene. Follow `rules/evidence-workflow.md` before export.
 8. Run `bun run render:mp4` and confirm that `out/AiDailyReport.mp4` exists and is
    non-empty. Run `bun run evidence:frames`; it creates `manifest.json` plus a fail-closed
    `review.json` whose checks start as `null`. Visually inspect every exported midpoint
@@ -102,9 +104,14 @@ instructions; do not rerun their sourcing, TTS, or MP4 commands when reviewing p
    failures. Batch-fix assets or drop unsupported Stories, refresh `evidence:prepare-review`
    and re-review invalidated facts/assets, synchronize changed data/dimensions with cached TTS,
    then verify affected layouts with `evidence:preview` before one consolidated rerender.
-   Then run `evidence:frames` into a fresh OS-temp directory
-   and review every new frame. Remove that exact directory only after the checker passes;
-   never create a repo-local `.tmp-evidence/` workspace.
+   Then run `evidence:frames -- --previous-manifest=<prior manifest>` into a fresh OS-temp
+   directory. It extracts every new frame but carries approvals only when the frame pixels,
+   Story/Scene, overlay path, subtitle, old frame file, and old review all match exactly.
+   Inspect every pending frame and run the checker against the new MP4. Keep the prior frame
+   directory until this completes. Remove the finished directories only after the checker
+   passes; never create a repo-local `.tmp-evidence/` workspace. If the user explicitly asks
+   for rendering without a post-render review, stop after the MP4 and report that it was not
+   visually reviewed.
 9. Report counts from the preflight and generated files, never from memory: source units,
    stories, tabs, evidence overlays, generated icons, and blocked sources. Include the phase
    timings required by the real layer, the final MP4 path, and any explicit merge/split override.
