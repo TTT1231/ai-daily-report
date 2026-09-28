@@ -69,7 +69,7 @@
 
 ## EXIF 方向先摆正
 
-图片写入 `data-scheme/images/` 前先规范化方向并清除 EXIF orientation。原始相机图先运行 `bun run image:normalize-orientation -- <path>`，按 orientation 烘焙旋转后再裁剪；已经被裁成正向像素但错误保留方向标记的图片运行同一命令并加 `--pixels-upright`，只清除标记、不要再次旋转。Chromium 会应用残留 orientation，而尺寸校验按像素宽高读取——两者错位会让图片横倒进成片，`bun run check-evidence` 会直接拒绝。修正后必须目视原图，并在最终 MP4 上用 `bun run evidence:frames` 检查每个 overlay 的中间帧；逐帧填写同目录 `review.json`，再运行 `bun run check-evidence-review -- --manifest=<temp>/manifest.json`。旧审核与当前 MP4、Generated 数据或帧哈希不一致时会被拒绝。
+图片写入 `data-scheme/images/` 前先规范化方向并清除 EXIF orientation。原始相机图先运行 `bun run image:normalize-orientation -- <path>`，按 orientation 烘焙旋转后再裁剪；已经被裁成正向像素但错误保留方向标记的图片运行同一命令并加 `--pixels-upright`，只清除标记、不要再次旋转。Chromium 会应用残留 orientation，而尺寸校验按像素宽高读取——两者错位会让图片横倒进成片，`bun run check-evidence` 会直接拒绝。修正后在素材准备阶段目视确认最终图片，并记录预检结果；不再因此要求成片逐图抽帧。按需预览/成片审核的触发条件见 [`evidence-workflow.md`](./evidence-workflow.md)。
 
 ## 长截图不要用作 overlay
 
@@ -85,14 +85,16 @@
 # 1. 校验 data.json（overlayImg 路径、资源是否存在、宽高字段是否成对）
 bun run check-data-json
 
-# 2. 同步 data-generate.json（构建期写入真实宽高）后预览看效果
+# 2. 检查证据文件；按 evidence-workflow.md 完成素材/口播预检
+bun run check-evidence
+
+# 3. 图片/Raw 有变化时同步 Generated 的真实宽高；音频复用缓存
 bun run tts
-bun run dev
 ```
 
 如果 `check-data-json` 报 `overlayImg` 不匹配正则，基本就是路径写错了（没带 `images/` 前缀，或用了不支持的格式）。`overlayImgWidth` / `overlayImgHeight` 由构建按文件真实像素自动写入，无需手动对齐；若 raw 里只填了其中一个，会被报“必须一起填”。
 
-改过 `EvidenceStage` 尺寸公式时，还要跑 `bun test test/unit/evidence-layout.test.ts`，并用 `bunx remotion still AiDailyReport ... --props=data-scheme/data-generate.json --public-dir=data-scheme` 截代表帧检查高窄、常规、宽图和小图。
+普通换图不自动启动 Studio 或 PNG 预览。改过 `EvidenceStage` 尺寸公式时，跑 `bun test test/unit/evidence-layout.test.ts` 和项目要求的组件测试；需要目视确认时，用 `evidence:preview -- --scenes=...` 一批检查受影响的高窄、常规、宽图和小图代表场景。
 
 ## 自动配图（rss 视觉识别）
 

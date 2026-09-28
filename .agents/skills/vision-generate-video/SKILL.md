@@ -74,9 +74,11 @@ instructions; do not rerun their sourcing, TTS, or MP4 commands when reviewing p
    tone gate: it blocks evidence-medium narration and warns on anonymous attribution and
    editorial filler; it targets Raw only and is skipped under `--render`. Fix every occurrence
    of one error class in a single edit instead of serial one-field patches.
-5. Run `bun run evidence:prepare-review`, review distinct assets and every narration
-   mapping as specified in the real layer, then require `bun run evidence:check-preflight`
-   to pass. Do not fill approvals automatically. State that TTS may use the configured paid
+5. Run `bun run evidence:prepare-review` and record the asset and narration-mapping
+   judgements already made during sourcing and writing. Reuse unchanged judgements;
+   inspect only new or changed items, as specified in the real layer. Require
+   `bun run evidence:check-preflight` to pass; never fill approvals without actual review.
+   State that TTS may use the configured paid
    API, then run `bun run tts` once. Do not use
    `bun run video:render`, because it repeats TTS.
 6. Run `bun run check-icons -- --plan`. Directly author only the returned missing/invalid
@@ -84,37 +86,23 @@ instructions; do not rerun their sourcing, TTS, or MP4 commands when reviewing p
    keep the editorial summaries, but do not generate hidden icons. Existing valid references
    can remain. Add only the planned icon fields to Generated and mirror visible story icon
    fields to Raw; never edit unrelated generated fields.
-7. Run the keyword scan, `bun run check-data-json:render`, and `bun run check-icons`.
-   Before the first MP4, run `bun run evidence:preview -- --all-scenes` and inspect every
-   Scene midpoint, including Intro/Outro, in one PNG batch. Fix all visible framing, readability, source,
-   obstruction, and subtitle-mapping problems before encoding. After a local fix, select only
-   affected scenes with `--scenes=...`; do not rerun the full preview or launch an independent
-   still process per scene. Follow `rules/evidence-workflow.md` before export.
-8. Run `bun run render:mp4` and confirm that `out/AiDailyReport.mp4` exists and is
-   non-empty. Run `bun run evidence:frames`; it creates `manifest.json` plus a fail-closed
-   `review.json` whose checks start as `null`. Visually inspect every exported midpoint
-   frame and set all five checks only from what is actually visible: upright, readable,
-   supports the subtitle, source identifiable, and unobstructed by ads, recommendations,
-   cookie banners, login/email gates, challenges, or unrelated UI. Mark a failed check
-   `false` with notes; never turn it into `true` without fixing the asset and producing a
-   new render. Run
-   `bun run check-evidence-review -- --manifest=<temp>/manifest.json` before cleanup.
-   Pending/failed checks and stale video, Generated-data, manifest, or frame hashes are
-   blocking. On failure, finish inspecting every frame in this round first and collect all
-   failures. Batch-fix assets or drop unsupported Stories, refresh `evidence:prepare-review`
-   and re-review invalidated facts/assets, synchronize changed data/dimensions with cached TTS,
-   then verify affected layouts with `evidence:preview` before one consolidated rerender.
-   Then run `evidence:frames -- --previous-manifest=<prior manifest>` into a fresh OS-temp
-   directory. It extracts every new frame but carries approvals only when the frame pixels,
-   Story/Scene, overlay path, subtitle, old frame file, and old review all match exactly.
-   Inspect every pending frame and run the checker against the new MP4. Keep the prior frame
-   directory until this completes. Remove the finished directories only after the checker
-   passes; never create a repo-local `.tmp-evidence/` workspace. If the user explicitly asks
-   for rendering without a post-render review, stop after the MP4 and report that it was not
-   visually reviewed.
+7. Run the keyword scan. Follow `rules/evidence-workflow.md` for conditional layout
+   checks: a stable template does not require PNG previews for every new report. Preview
+   only scenes with a concrete unresolved display question, collecting fixes before encoding.
+   A midpoint frame shows one timed subtitle cue, not the full narration; do not shorten
+   Raw or regenerate TTS merely because the rest of the sentence is absent from that frame.
+   The export command below already runs Generated, evidence, icon, and preflight checks;
+   do not run those checks separately immediately before it. If the user requested stopping
+   before MP4, run the relevant checks separately for the requested deliverable.
+8. Run `bun run render:mp4` once. Require a successful exit and a newly written, non-empty
+   `out/AiDailyReport.mp4`, then deliver. Do not append a full preview, `evidence:frames`,
+   or a final visual recheck by default. Use the real layer's optional post-render review
+   only when the user requests it; investigate concrete encoding/playback failures in the
+   affected portion. Rerender only for a confirmed defect or a requested change, batching
+   repairs first. Never claim that automatic validation constitutes a visual MP4 review.
 9. Report counts from the preflight and generated files, never from memory: source units,
    stories, tabs, evidence overlays, generated icons, and blocked sources. Include the phase
-   timings required by the real layer, the final MP4 path, and any explicit merge/split override.
+   timings for phases actually executed, the final MP4 path, and any explicit merge/split override.
 
 ## Author SVGs directly
 
