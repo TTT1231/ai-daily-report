@@ -39,6 +39,7 @@
     "evidence:frames": "node scripts/checks/extract-evidence-frames.mjs",
     "evidence:capture": "node scripts/checks/capture-evidence.mjs",
     "evidence:prepare-review": "node scripts/checks/evidence-preflight.mjs --prepare",
+    "evidence:check-raw": "node scripts/checks/check-data-json.mjs --strict-tone --evidence",
     "evidence:check-preflight": "node scripts/checks/evidence-preflight.mjs",
     "evidence:preview": "node scripts/render/preview-evidence.mjs",
     "image:normalize-orientation": "node scripts/checks/normalize-image-orientation.mjs",

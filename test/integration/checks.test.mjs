@@ -1,18 +1,41 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import {spawnSync} from "node:child_process";
-import {mkdtempSync, mkdirSync, writeFileSync, readFileSync, copyFileSync, rmSync} from "node:fs";
-import {join, dirname, resolve} from "node:path";
-import {tmpdir} from "node:os";
-import {fileURLToPath} from "node:url";
+import { spawnSync } from "node:child_process";
+import {
+  mkdtempSync,
+  mkdirSync,
+  writeFileSync,
+  readFileSync,
+  readdirSync,
+  copyFileSync,
+  rmSync,
+} from "node:fs";
+import { join, dirname, resolve } from "node:path";
+import { tmpdir } from "node:os";
+import { fileURLToPath } from "node:url";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const checkDataJson = resolve(__dirname, "..", "..", "scripts", "checks", "check-data-json.mjs");
-const checkIcons = resolve(__dirname, "..", "..", "scripts", "checks", "check-icons.mjs");
+const checkDataJson = resolve(
+  __dirname,
+  "..",
+  "..",
+  "scripts",
+  "checks",
+  "check-data-json.mjs",
+);
+const checkIcons = resolve(
+  __dirname,
+  "..",
+  "..",
+  "scripts",
+  "checks",
+  "check-icons.mjs",
+);
 const mockDir = resolve(__dirname, "..", "mock");
 
 // mock 数据全部来自 test/mock/*.json，不在测试里硬编码
-const loadJson = (name) => JSON.parse(readFileSync(join(mockDir, name), "utf8"));
+const loadJson = (name) =>
+  JSON.parse(readFileSync(join(mockDir, name), "utf8"));
 const rawReport = () => loadJson("raw-report.json");
 const generatedIcons = () => loadJson("generated-icons.json");
 const generatedReport = () => loadJson("generated-report.json");
@@ -28,7 +51,7 @@ function seedDataScheme(files) {
   const dir = mkdtempSync(join(tmpdir(), "cli-checks-"));
   for (const [rel, content] of Object.entries(files)) {
     const target = join(dir, rel);
-    mkdirSync(dirname(target), {recursive: true});
+    mkdirSync(dirname(target), { recursive: true });
     if (typeof content === "string" && content.startsWith("mock:")) {
       copyFileSync(join(mockDir, content.slice(5)), target);
     } else {
@@ -41,41 +64,45 @@ function seedDataScheme(files) {
 // 用子进程跑 CLI，DATA_SCHEME_DIR 指向临时目录 → hermetic，不碰真实 data-scheme/。
 function runCli(script, args, dataSchemeDir) {
   const result = spawnSync(process.execPath, [script, ...args], {
-    env: {...process.env, DATA_SCHEME_DIR: dataSchemeDir},
+    env: { ...process.env, DATA_SCHEME_DIR: dataSchemeDir },
     encoding: "utf8",
   });
-  return {code: result.status, stdout: result.stdout ?? "", stderr: result.stderr ?? ""};
+  return {
+    code: result.status,
+    stdout: result.stdout ?? "",
+    stderr: result.stderr ?? "",
+  };
 }
 
 // ---------- check-data-json (raw) ----------
 test("check-data-json exits 0 on a valid raw report", () => {
-  const dir = seedDataScheme({"data.json": JSON.stringify(rawReport())});
+  const dir = seedDataScheme({ "data.json": JSON.stringify(rawReport()) });
   try {
-    const {code, stdout, stderr} = runCli(checkDataJson, [], dir);
+    const { code, stdout, stderr } = runCli(checkDataJson, [], dir);
     assert.equal(code, 0, `expected exit 0\nstderr: ${stderr}`);
     assert.match(stdout, /valid/);
   } finally {
-    rmSync(dir, {recursive: true, force: true});
+    rmSync(dir, { recursive: true, force: true });
   }
 });
 
 test("check-data-json exits 1 on a raw report with fewer than 2 tabs (schema rejects)", () => {
   const bad = rawReport();
   bad.stories[0].tabs = [bad.stories[0].tabs[0]];
-  const dir = seedDataScheme({"data.json": JSON.stringify(bad)});
+  const dir = seedDataScheme({ "data.json": JSON.stringify(bad) });
   try {
-    const {code, stderr} = runCli(checkDataJson, [], dir);
+    const { code, stderr } = runCli(checkDataJson, [], dir);
     assert.equal(code, 1);
     assert.match(stderr, /validation failed/);
   } finally {
-    rmSync(dir, {recursive: true, force: true});
+    rmSync(dir, { recursive: true, force: true });
   }
 });
 
 // ---------- scenes 容量上限（AJV/JSON Schema 层，与 Zod 单测互为双实现防漂移） ----------
 // Scene ID 全部唯一且不与 story-2 的 scene-3 冲突，避免先撞全局重复 ID 校验。
 const sixSceneStory = (count) =>
-  Array.from({length: count}, (_, i) => ({
+  Array.from({ length: count }, (_, i) => ({
     id: `scene-1-${i + 1}`,
     subtitle: "一句足够长的旁白口播文案内容。",
   }));
@@ -83,50 +110,52 @@ const sixSceneStory = (count) =>
 test("check-data-json accepts a story with six scenes (schema capacity 1-6)", () => {
   const report = rawReport();
   report.stories[0].scenes = sixSceneStory(6);
-  const dir = seedDataScheme({"data.json": JSON.stringify(report)});
+  const dir = seedDataScheme({ "data.json": JSON.stringify(report) });
   try {
-    const {code, stdout, stderr} = runCli(checkDataJson, [], dir);
+    const { code, stdout, stderr } = runCli(checkDataJson, [], dir);
     assert.equal(code, 0, `expected exit 0\nstderr: ${stderr}`);
     assert.match(stdout, /valid/);
   } finally {
-    rmSync(dir, {recursive: true, force: true});
+    rmSync(dir, { recursive: true, force: true });
   }
 });
 
 test("check-data-json exits 1 on a story with seven scenes (schema capacity 1-6)", () => {
   const report = rawReport();
   report.stories[0].scenes = sixSceneStory(7);
-  const dir = seedDataScheme({"data.json": JSON.stringify(report)});
+  const dir = seedDataScheme({ "data.json": JSON.stringify(report) });
   try {
-    const {code, stderr} = runCli(checkDataJson, [], dir);
+    const { code, stderr } = runCli(checkDataJson, [], dir);
     assert.equal(code, 1);
     assert.match(stderr, /validation failed/);
   } finally {
-    rmSync(dir, {recursive: true, force: true});
+    rmSync(dir, { recursive: true, force: true });
   }
 });
 
 test("check-data-json exits 1 when data.json is missing", () => {
   const dir = seedDataScheme({});
   try {
-    const {code, stderr} = runCli(checkDataJson, [], dir);
+    const { code, stderr } = runCli(checkDataJson, [], dir);
     assert.equal(code, 1);
     assert.match(stderr, /does not exist/);
   } finally {
-    rmSync(dir, {recursive: true, force: true});
+    rmSync(dir, { recursive: true, force: true });
   }
 });
 
 // ---------- check-data-json --render ----------
 test("check-data-json --render exits 1 when the generated report is not render-ready (no intro/timing)", () => {
   // raw 形态的报告当作 data-generate.json：renderMode 下缺 intro/outro/timing → 校验失败
-  const dir = seedDataScheme({"data-generate.json": JSON.stringify(rawReport())});
+  const dir = seedDataScheme({
+    "data-generate.json": JSON.stringify(rawReport()),
+  });
   try {
-    const {code, stderr} = runCli(checkDataJson, ["--render"], dir);
+    const { code, stderr } = runCli(checkDataJson, ["--render"], dir);
     assert.equal(code, 1);
     assert.match(stderr, /validation failed/);
   } finally {
-    rmSync(dir, {recursive: true, force: true});
+    rmSync(dir, { recursive: true, force: true });
   }
 });
 
@@ -143,13 +172,116 @@ test("check-data-json --strict-tone exits 1 on medium-reference narration with f
     "data.json": JSON.stringify(rawReportWithMediumNarration()),
   });
   try {
-    const {code, stderr} = runCli(checkDataJson, ["--strict-tone"], dir);
+    const { code, stderr } = runCli(checkDataJson, ["--strict-tone"], dir);
     assert.equal(code, 1);
     assert.match(stderr, /strict-tone validation failed/);
     assert.match(stderr, /stories\[0\]\.scenes\[0\]\.subtitle/);
     assert.match(stderr, /截图显示/);
   } finally {
-    rmSync(dir, {recursive: true, force: true});
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("one check reports length, Markdown, tone and missing evidence together without writing files", () => {
+  const report = rawReportWithMediumNarration();
+  report.stories[0].contentTitle = "字".repeat(31);
+  report.stories[0].tabs[0].summary = "**`Model` 已更新**。";
+  report.stories[0].scenes[0].overlayImg = "images/does-not-exist.png";
+  const original = JSON.stringify(report);
+  const dir = seedDataScheme({ "data.json": original });
+  try {
+    const { code, stderr, stdout } = runCli(
+      checkDataJson,
+      ["--strict-tone", "--evidence"],
+      dir,
+    );
+    assert.equal(code, 1);
+    assert.match(stderr, /more than 30 characters/);
+    assert.match(stderr, /bold and inline-code spans must not overlap or nest/);
+    assert.match(stderr, /strict-tone validation failed/);
+    assert.match(stderr, /截图显示/);
+    assert.match(stderr, /Evidence validation failed/);
+    assert.match(stderr, /file does not exist/);
+    assert.doesNotMatch(
+      stdout,
+      /raw content is valid|Evidence validation passed/,
+    );
+    assert.equal(readFileSync(join(dir, "data.json"), "utf8"), original);
+    assert.deepEqual(readdirSync(dir), ["data.json"]);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("combined checks preserve healthy sibling diagnostics despite invalid shapes", () => {
+  const report = rawReportWithMediumNarration();
+  report.stories[0].tabs[0].summary = "**`Model` 已更新**。";
+  report.stories.unshift(null, { tabs: "invalid", scenes: "invalid" });
+  const dir = seedDataScheme({ "data.json": JSON.stringify(report) });
+  try {
+    const { code, stderr } = runCli(
+      checkDataJson,
+      ["--strict-tone", "--evidence"],
+      dir,
+    );
+    assert.equal(code, 1);
+    assert.match(stderr, /stories\.0: must be object/);
+    assert.match(
+      stderr,
+      /stories\[2\]\.tabs\[0\]\.summary: has malformed Markdown/,
+    );
+    assert.match(
+      stderr,
+      /stories\[2\]\.scenes\[0\]\.subtitle: narrates the evidence medium/,
+    );
+    assert.match(stderr, /Evidence validation failed/);
+    assert.doesNotMatch(stderr, /TypeError|at file:|NaN/);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("combined checks report a null root as a schema failure without a stack trace", () => {
+  const dir = seedDataScheme({ "data.json": "null" });
+  try {
+    const { code, stderr } = runCli(
+      checkDataJson,
+      ["--strict-tone", "--evidence"],
+      dir,
+    );
+    assert.equal(code, 1);
+    assert.match(stderr, /must be object/);
+    assert.doesNotMatch(stderr, /TypeError|at file:/);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("combined checks accept a valid evidence report without preparing reviews or generating assets", () => {
+  const report = rawReport();
+  for (const story of report.stories) {
+    for (const scene of story.scenes)
+      scene.overlayImg = "images/codex-reset.png";
+  }
+  const dir = seedDataScheme({
+    "data.json": JSON.stringify(report),
+    "images/codex-reset.png": "mock:images/codex-reset.png",
+  });
+  try {
+    const { code, stdout, stderr } = runCli(
+      checkDataJson,
+      ["--strict-tone", "--evidence"],
+      dir,
+    );
+    assert.equal(code, 0, stderr);
+    assert.match(stdout, /raw content is valid/);
+    assert.match(
+      stdout,
+      /Evidence validation passed: 3 overlay image\(s\) across 2\/2 stories/,
+    );
+    assert.deepEqual(readdirSync(dir).sort(), ["data.json", "images"]);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
   }
 });
 
@@ -158,11 +290,11 @@ test("the same report passes without --strict-tone (native/manual mode unaffecte
     "data.json": JSON.stringify(rawReportWithMediumNarration()),
   });
   try {
-    const {code, stdout} = runCli(checkDataJson, [], dir);
+    const { code, stdout } = runCli(checkDataJson, [], dir);
     assert.equal(code, 0, `expected exit 0\nstdout: ${stdout}`);
     assert.match(stdout, /valid/);
   } finally {
-    rmSync(dir, {recursive: true, force: true});
+    rmSync(dir, { recursive: true, force: true });
   }
 });
 
@@ -170,16 +302,20 @@ test("check-data-json --strict-tone warns on anonymous attribution and filler bu
   const report = rawReport();
   report.stories[0].tabs[0].summary =
     "消息称额度**已完整重置一次**，这不代表长期规则改变。";
-  const dir = seedDataScheme({"data.json": JSON.stringify(report)});
+  const dir = seedDataScheme({ "data.json": JSON.stringify(report) });
   try {
-    const {code, stderr, stdout} = runCli(checkDataJson, ["--strict-tone"], dir);
+    const { code, stderr, stdout } = runCli(
+      checkDataJson,
+      ["--strict-tone"],
+      dir,
+    );
     assert.equal(code, 0, `expected exit 0\nstderr: ${stderr}`);
     assert.match(stdout, /valid/);
     assert.match(stderr, /warning: .*消息称/);
     assert.match(stderr, /warning: .*这不代表/);
     assert.match(stderr, /non-blocking/);
   } finally {
-    rmSync(dir, {recursive: true, force: true});
+    rmSync(dir, { recursive: true, force: true });
   }
 });
 
@@ -187,13 +323,13 @@ test("check-data-json --strict-tone does not flag legal impact wording", () => {
   const report = rawReport();
   report.stories[1].tabs[1].summary =
     "自研芯片**可能影响未来推理成本**，意味着供应格局或将调整。";
-  const dir = seedDataScheme({"data.json": JSON.stringify(report)});
+  const dir = seedDataScheme({ "data.json": JSON.stringify(report) });
   try {
-    const {code, stderr} = runCli(checkDataJson, ["--strict-tone"], dir);
+    const { code, stderr } = runCli(checkDataJson, ["--strict-tone"], dir);
     assert.equal(code, 0, `expected exit 0\nstderr: ${stderr}`);
     assert.doesNotMatch(stderr, /warning|strict-tone/);
   } finally {
-    rmSync(dir, {recursive: true, force: true});
+    rmSync(dir, { recursive: true, force: true });
   }
 });
 
@@ -205,12 +341,16 @@ test("--strict-tone is skipped in --render mode (generated derives from raw)", (
     ...audioFiles,
   });
   try {
-    const {code, stderr} = runCli(checkDataJson, ["--render", "--strict-tone"], dir);
+    const { code, stderr } = runCli(
+      checkDataJson,
+      ["--render", "--strict-tone"],
+      dir,
+    );
     assert.equal(code, 0, `expected exit 0\nstderr: ${stderr}`);
     assert.match(stderr, /skipped in --render mode/);
     assert.doesNotMatch(stderr, /strict-tone validation failed/);
   } finally {
-    rmSync(dir, {recursive: true, force: true});
+    rmSync(dir, { recursive: true, force: true });
   }
 });
 
@@ -222,11 +362,11 @@ test("check-icons exits 0 when every referenced icon is a valid on-disk SVG", ()
     "icons/test-icon-sample-2.svg": "mock:test-icon-sample-2.svg",
   });
   try {
-    const {code, stdout, stderr} = runCli(checkIcons, [], dir);
+    const { code, stdout, stderr } = runCli(checkIcons, [], dir);
     assert.equal(code, 0, `expected exit 0\nstderr: ${stderr}`);
     assert.match(stdout, /passed/);
   } finally {
-    rmSync(dir, {recursive: true, force: true});
+    rmSync(dir, { recursive: true, force: true });
   }
 });
 
@@ -235,25 +375,28 @@ test("check-icons exits 1 when a referenced icon file is missing", () => {
   for (const story of [report.intro, ...report.stories]) {
     for (const tab of story.tabs) tab.icon = "icons/does-not-exist.svg";
   }
-  const dir = seedDataScheme({"data-generate.json": JSON.stringify(report)});
+  const dir = seedDataScheme({ "data-generate.json": JSON.stringify(report) });
   try {
-    const {code, stderr} = runCli(checkIcons, [], dir);
+    const { code, stderr } = runCli(checkIcons, [], dir);
     assert.equal(code, 1);
     assert.match(stderr, /not found|failed/i);
   } finally {
-    rmSync(dir, {recursive: true, force: true});
+    rmSync(dir, { recursive: true, force: true });
   }
 });
 
 // ---------- check-data-json --render（资产校验：renderMode 下 checkAssets 默认 true）----------
 test("check-data-json --render exits 0 when the generated report is fully render-ready with audio", () => {
-  const dir = seedDataScheme({"data-generate.json": JSON.stringify(generatedReport()), ...audioFiles});
+  const dir = seedDataScheme({
+    "data-generate.json": JSON.stringify(generatedReport()),
+    ...audioFiles,
+  });
   try {
-    const {code, stdout, stderr} = runCli(checkDataJson, ["--render"], dir);
+    const { code, stdout, stderr } = runCli(checkDataJson, ["--render"], dir);
     assert.equal(code, 0, `expected exit 0\nstderr: ${stderr}`);
     assert.match(stdout, /render-ready/);
   } finally {
-    rmSync(dir, {recursive: true, force: true});
+    rmSync(dir, { recursive: true, force: true });
   }
 });
 
@@ -265,11 +408,11 @@ test("check-data-json --render exits 1 when a referenced audio file is missing",
     "audio/outro-ending.mp3": "mock:test-audio-sample-1.mp3",
   });
   try {
-    const {code, stderr} = runCli(checkDataJson, ["--render"], dir);
+    const { code, stderr } = runCli(checkDataJson, ["--render"], dir);
     assert.equal(code, 1);
     assert.match(stderr, /not found/);
   } finally {
-    rmSync(dir, {recursive: true, force: true});
+    rmSync(dir, { recursive: true, force: true });
   }
 });
 
@@ -277,12 +420,15 @@ test("check-data-json --render exits 1 when an overlay path escapes data-scheme/
   // "images/../../escape.png" 通过 schema 的 imagePath 正则，但 resolve 后逃出 data-scheme/
   const report = generatedReport();
   report.stories[0].scenes[0].overlayImg = "images/../../escape.png";
-  const dir = seedDataScheme({"data-generate.json": JSON.stringify(report), ...audioFiles});
+  const dir = seedDataScheme({
+    "data-generate.json": JSON.stringify(report),
+    ...audioFiles,
+  });
   try {
-    const {code, stderr} = runCli(checkDataJson, ["--render"], dir);
+    const { code, stderr } = runCli(checkDataJson, ["--render"], dir);
     assert.equal(code, 1);
     assert.match(stderr, /stay inside data-scheme/);
   } finally {
-    rmSync(dir, {recursive: true, force: true});
+    rmSync(dir, { recursive: true, force: true });
   }
 });

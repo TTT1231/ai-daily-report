@@ -184,6 +184,74 @@ test("validateReport accepts a minimal Raw report", () => {
   assert.deepEqual(errorsOf(rawReport()), []);
 });
 
+test("schema length failures do not hide independent Markdown and business errors", () => {
+  const report = rawReport();
+  report.stories[0].contentTitle = "字".repeat(31);
+  report.stories[0].tabs[0].summary = "**`Model` 已更新**。";
+  report.stories[0].tabs[1].id = report.stories[0].tabs[0].id;
+  const errors = errorsOf(report);
+  assert.ok(hasError(errors, "more than 30 characters"));
+  assert.ok(
+    hasError(errors, "bold and inline-code spans must not overlap or nest"),
+  );
+  assert.ok(hasError(errors, "duplicate id"));
+});
+
+test("malformed siblings preserve usable field checks and original array paths", () => {
+  const report = rawReport({
+    stories: [
+      null,
+      story({
+        tabs: [null, tab({ summary: "**`Model` 已更新**。" })],
+        scenes: [null, scene()],
+      }),
+      story({ id: "second", tabs: "invalid", scenes: "invalid" }),
+    ],
+  });
+  const result = validateReport(report, { checkAssets: false });
+  assert.ok(hasError(result.errors, "stories.0: must be object"));
+  assert.ok(hasError(result.errors, "stories.2.tabs: must be array"));
+  assert.ok(
+    hasError(
+      result.errors,
+      "stories[1].tabs[1].summary: has malformed Markdown",
+    ),
+  );
+  assert.equal(result.navigationStats, undefined);
+});
+
+test("invalid root and nested scalar types return schema errors without throwing", () => {
+  for (const report of [
+    null,
+    [],
+    "invalid",
+    {},
+    rawReport({ stories: "invalid" }),
+    rawReport({
+      stories: [
+        story({ tabs: [{ id: 9, title: {}, summary: [] }], scenes: [7] }),
+      ],
+    }),
+  ]) {
+    const result = validateReport(report, { checkAssets: false });
+    assert.ok(result.errors.length > 0, JSON.stringify(report));
+    assert.ok(Number.isFinite(result.totalDurationMs));
+  }
+});
+
+test("invalid timing does not manufacture downstream continuity errors or NaN totals", () => {
+  const report = generatedReport();
+  report.intro.scenes[0].timing.durationMs = "invalid";
+  const result = validateReport(report, {
+    checkAssets: false,
+    renderMode: true,
+  });
+  assert.ok(hasError(result.errors, "durationMs: must be integer"));
+  assert.ok(!hasError(result.errors, "timing.startMs: expected"));
+  assert.ok(!hasError(result.errors, "NaN"));
+  assert.equal(result.totalDurationMs, 0);
+});
+
 test("validateReport accepts a fully-assembled Generated report and reports total duration", () => {
   // Generated 带 intro/outro，必须在 renderMode 下校验（Raw 模式会判 intro/outro 非法）
   const result = validateReport(generatedReport(), {
@@ -331,10 +399,7 @@ test("news tab summary requires exactly one bold span", () => {
     ],
   });
   assert.ok(
-    hasError(
-      errorsOf(r),
-      "must use exactly one bold span for the core change",
-    ),
+    hasError(errorsOf(r), "must use exactly one bold span for the core change"),
   );
 });
 
@@ -425,7 +490,9 @@ test("tab titles must be distinct and must not copy contentTitle", () => {
 
 test("contentTitle must be short and complete instead of ellipsized", () => {
   const r = rawReport({
-    stories: [story({ contentTitle: "一条看似很长但最后被机械截断的新闻标题…" })],
+    stories: [
+      story({ contentTitle: "一条看似很长但最后被机械截断的新闻标题…" }),
+    ],
   });
   const errors = errorsOf(r);
   assert.ok(hasError(errors, "contentTitle"));
@@ -514,7 +581,16 @@ const reportWithTopTitles = (topTitles) =>
 
 test("eight short topTitle categories fail even when width is comfortable", () => {
   const result = validateReport(
-    reportWithTopTitles(["模型", "应用", "算力", "政策", "芯片", "汽车", "资本", "健康"]),
+    reportWithTopTitles([
+      "模型",
+      "应用",
+      "算力",
+      "政策",
+      "芯片",
+      "汽车",
+      "资本",
+      "健康",
+    ]),
     { checkAssets: false },
   );
   assert.ok(result.errors.some((error) => error.includes("maximum of 5")));
@@ -618,12 +694,15 @@ test("durationMs must equal audioLengthMs + tailPaddingMs", () => {
   );
 });
 
-
 test("five body categories fit alongside Intro and outro, a sixth is rejected", () => {
   const titles = ["模型", "开发", "应用", "安全", "行业"];
-  const five = validateReport(reportWithTopTitles(titles), {checkAssets: false});
+  const five = validateReport(reportWithTopTitles(titles), {
+    checkAssets: false,
+  });
   assert.deepEqual(five.errors, []);
   assert.equal(five.navigationStats.top.itemCount, 7);
-  const six = validateReport(reportWithTopTitles([...titles, "其他"]), {checkAssets: false});
+  const six = validateReport(reportWithTopTitles([...titles, "其他"]), {
+    checkAssets: false,
+  });
   assert.ok(six.errors.some((error) => error.includes("maximum of 5")));
 });

@@ -72,27 +72,42 @@ const CLAUSE_START_OFFICIAL = /(?:^|[，。！？；：、])官方(?:表示|称|
 // 「如果……将……」式假设推演是填空线索；句内跨度收窄到 24 字避免跨句误配。
 const HYPOTHETICAL_FILLER = /如果.{1,24}将/;
 
+const isRecord = (value) =>
+  value !== null && typeof value === "object" && !Array.isArray(value);
+const arrayOrEmpty = (value) => (Array.isArray(value) ? value : []);
+
 function storyTextFields(story, storyPath) {
   return [
     { path: `${storyPath}.contentTitle`, text: story.contentTitle },
     { path: `${storyPath}.introTitle`, text: story.introTitle },
-    ...(story.tabs ?? []).flatMap((tab, index) => [
-      { path: `${storyPath}.tabs[${index}].title`, text: tab.title },
-      { path: `${storyPath}.tabs[${index}].summary`, text: tab.summary },
-    ]),
-    ...(story.scenes ?? []).map((scene, index) => ({
-      path: `${storyPath}.scenes[${index}].subtitle`,
-      text: scene.subtitle,
-    })),
+    ...arrayOrEmpty(story.tabs).flatMap((tab, index) =>
+      isRecord(tab)
+        ? [
+            { path: `${storyPath}.tabs[${index}].title`, text: tab.title },
+            { path: `${storyPath}.tabs[${index}].summary`, text: tab.summary },
+          ]
+        : [],
+    ),
+    ...arrayOrEmpty(story.scenes).flatMap((scene, index) =>
+      isRecord(scene)
+        ? [
+            {
+              path: `${storyPath}.scenes[${index}].subtitle`,
+              text: scene.subtitle,
+            },
+          ]
+        : [],
+    ),
   ];
 }
 
 export function validateTone(report) {
   const errors = [];
   const warnings = [];
+  if (!isRecord(report)) return { errors, warnings };
   const entries = [
     ...(report.intro ? [{ story: report.intro, path: "intro" }] : []),
-    ...(report.stories ?? []).map((story, index) => ({
+    ...arrayOrEmpty(report.stories).map((story, index) => ({
       story,
       path: `stories[${index}]`,
     })),
@@ -100,6 +115,7 @@ export function validateTone(report) {
   ];
 
   for (const { story, path } of entries) {
+    if (!isRecord(story)) continue;
     for (const field of storyTextFields(story, path)) {
       const text = field.text;
       if (typeof text !== "string" || text.length === 0) continue;

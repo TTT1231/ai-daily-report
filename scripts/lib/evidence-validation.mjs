@@ -1,6 +1,6 @@
-import {existsSync, statSync} from "node:fs";
-import {resolve, sep} from "node:path";
-import {readImageDimensions, readImageOrientation} from "./image-dims.mjs";
+import { existsSync, statSync } from "node:fs";
+import { resolve, sep } from "node:path";
+import { readImageDimensions, readImageOrientation } from "./image-dims.mjs";
 
 // 所有生产路径都要求正文逐段有证据。Intro / Outro 不参与此检查。
 // 图像可连续跨多个口播段复用；数量限制针对不同证据，不限制讲解句数。
@@ -8,29 +8,44 @@ const minOverlayBytes = 1024;
 const minOverlayWidth = 120;
 const minOverlayHeight = 120;
 const maxEvidenceImages = 5;
+const isRecord = (value) =>
+  value !== null && typeof value === "object" && !Array.isArray(value);
 
 export function validateEvidenceCoverage(report) {
   const errors = [];
-  for (const story of report?.stories ?? []) {
-    const scenes = story.scenes ?? [];
-    const images = new Set(scenes.map((scene) => scene.overlayImg).filter(Boolean));
+  const stories = Array.isArray(report?.stories) ? report.stories : [];
+  for (const story of stories) {
+    // The report schema owns invalid shapes; keep checking usable siblings.
+    if (!isRecord(story) || !Array.isArray(story.scenes)) continue;
+    const scenes = story.scenes.filter(isRecord);
+    const images = new Set(
+      scenes
+        .map((scene) => scene.overlayImg)
+        .filter((path) => typeof path === "string" && path.trim()),
+    );
     if (images.size === 0) {
-      errors.push(`story "${story.id}": has no evidence overlay — exclude this story from production`);
+      errors.push(
+        `story "${story.id}": has no evidence overlay — exclude this story from production`,
+      );
       continue;
     }
     for (const scene of scenes) {
       if (typeof scene.overlayImg !== "string" || !scene.overlayImg.trim()) {
-        errors.push(`story ${story.id}/${scene.id}: every narration scene requires evidence; attach the corresponding source image or remove unsupported content`);
+        errors.push(
+          `story ${story.id}/${scene.id}: every narration scene requires evidence; attach the corresponding source image or remove unsupported content`,
+        );
       }
     }
     if (images.size > maxEvidenceImages) {
-      errors.push(`story "${story.id}": ${images.size} distinct evidence images exceed the maximum of ${maxEvidenceImages}`);
+      errors.push(
+        `story "${story.id}": ${images.size} distinct evidence images exceed the maximum of ${maxEvidenceImages}`,
+      );
     }
   }
   return errors;
 }
 
-export function validateReportEvidence(report, {dataDir}) {
+export function validateReportEvidence(report, { dataDir }) {
   const errors = validateEvidenceCoverage(report);
   const warnings = [];
   const stories = Array.isArray(report?.stories) ? report.stories : [];
@@ -38,9 +53,11 @@ export function validateReportEvidence(report, {dataDir}) {
   let checkedStories = 0;
 
   for (const story of stories) {
+    if (!isRecord(story)) continue;
     const scenes = Array.isArray(story?.scenes) ? story.scenes : [];
     const overlayScenes = scenes.filter(
-      (scene) => typeof scene?.overlayImg === "string" && scene.overlayImg.length > 0,
+      (scene) =>
+        typeof scene?.overlayImg === "string" && scene.overlayImg.length > 0,
     );
 
     if (overlayScenes.length === 0) continue;
@@ -80,7 +97,10 @@ export function validateReportEvidence(report, {dataDir}) {
         );
         continue;
       }
-      if (dimensions.width < minOverlayWidth || dimensions.height < minOverlayHeight) {
+      if (
+        dimensions.width < minOverlayWidth ||
+        dimensions.height < minOverlayHeight
+      ) {
         errors.push(
           `${label}: image is ${dimensions.width}x${dimensions.height}px, too small to be readable at 1920x1080`,
         );
@@ -99,6 +119,7 @@ export function validateReportEvidence(report, {dataDir}) {
     stories.every((story) => {
       const scenes = Array.isArray(story?.scenes) ? story.scenes : [];
       return (
+        isRecord(story) &&
         scenes.length === 1 &&
         typeof scenes[0]?.overlayImg === "string" &&
         scenes[0].overlayImg.length > 0
@@ -110,5 +131,11 @@ export function validateReportEvidence(report, {dataDir}) {
     );
   }
 
-  return {errors, warnings, storyCount: stories.length, checkedStories, overlayCount};
+  return {
+    errors,
+    warnings,
+    storyCount: stories.length,
+    checkedStories,
+    overlayCount,
+  };
 }

@@ -2,7 +2,10 @@ import { existsSync, readFileSync } from "node:fs";
 import { resolve, sep } from "node:path";
 import Ajv2020 from "ajv/dist/2020.js";
 import { dataDir, schemaPath } from "./paths.mjs";
-import {reportUsesEvidenceOnly, storyShowsTabCards} from "./story-presentation.mjs";
+import {
+  reportUsesEvidenceOnly,
+  storyShowsTabCards,
+} from "./story-presentation.mjs";
 import {
   asciiWidthFactor,
   maxTopCategories,
@@ -15,6 +18,9 @@ const schema = JSON.parse(readFileSync(schemaPath, "utf8"));
 const validateSchema = new Ajv2020({ allErrors: true }).compile(schema);
 const MAX_TAB_SUMMARY_VISIBLE_CHARACTERS = 110;
 
+const isRecord = (value) =>
+  value !== null && typeof value === "object" && !Array.isArray(value);
+const arrayOrEmpty = (value) => (Array.isArray(value) ? value : []);
 const isText = (value) => typeof value === "string" && value.trim().length > 0;
 const tabSummaryVisibleLength = (value) =>
   Array.from(
@@ -33,7 +39,8 @@ function tabSummaryMarkdownStats(value) {
     Array.from(content).reduce(
       (total, character) =>
         // ASCII 视觉宽度系数与渲染/导航侧同源（video-layout.json）。
-        total + (character.codePointAt(0) <= 0x7f ? asciiWidthFactor : 1) * multiplier,
+        total +
+        (character.codePointAt(0) <= 0x7f ? asciiWidthFactor : 1) * multiplier,
       0,
     );
   for (const part of parts) {
@@ -167,10 +174,12 @@ export function validateReport(
   const errors = [...structureErrors];
   const fail = (path, message) => errors.push(`${path}: ${message}`);
 
+  // Schema errors own malformed values. Continue into usable sibling fields so
+  // length/shape failures do not hide independent Markdown or business errors.
+  if (!isRecord(report)) return { errors, totalDurationMs: 0 };
   if (report.$schema !== "../config/data.schema.json") {
     fail("$schema", 'must equal "../config/data.schema.json"');
   }
-  if (structureErrors.length > 0) return { errors, totalDurationMs: 0 };
   if (renderMode && !report.intro)
     fail("intro", "is required before rendering");
   if (renderMode && !report.outro && !reportUsesEvidenceOnly(report))
@@ -186,6 +195,7 @@ export function validateReport(
   }
 
   let expectedStartMs = 0;
+  let timingContinuityKnown = true;
   const storyIds = new Map();
   const sceneIds = new Map();
   const closedTopTitleSegments = new Set();
@@ -194,24 +204,28 @@ export function validateReport(
   const timelineEntries = renderMode
     ? [
         ...(report.intro ? [{ story: report.intro, path: "intro" }] : []),
-        ...(report.stories ?? []).map((story, index) => ({
+        ...arrayOrEmpty(report.stories).map((story, index) => ({
           story,
           path: `stories[${index}]`,
         })),
         ...(report.outro ? [{ story: report.outro, path: "outro" }] : []),
       ]
-    : (report.stories ?? []).map((story, index) => ({
+    : arrayOrEmpty(report.stories).map((story, index) => ({
         story,
         path: `stories[${index}]`,
       }));
 
   for (const { story, path: storyPath } of timelineEntries) {
-    if (storyIds.has(story.id)) {
+    if (!isRecord(story)) {
+      timingContinuityKnown = false;
+      continue;
+    }
+    if (isText(story.id) && storyIds.has(story.id)) {
       fail(
         `${storyPath}.id`,
         `duplicate id "${story.id}" (first used at ${storyIds.get(story.id)})`,
       );
-    } else {
+    } else if (isText(story.id)) {
       storyIds.set(story.id, `${storyPath}.id`);
     }
     if (!renderMode && ["intro", "outro"].includes(story.id)) {
@@ -221,7 +235,7 @@ export function validateReport(
       );
     }
     if (story.activeIntro === true) activeIntroCount++;
-    if (!["intro", "outro"].includes(story.id)) {
+    if (!["intro", "outro"].includes(story.id) && isText(story.topTitle)) {
       if (story.topTitle !== previousTopTitle) {
         if (closedTopTitleSegments.has(story.topTitle)) {
           fail(
@@ -240,49 +254,66 @@ export function validateReport(
     const tabTitles = new Set();
     const tabSummaries = [];
     const isNewsStory = !["intro", "outro"].includes(story.id);
-    for (const [tabIndex, tab] of (story.tabs ?? []).entries()) {
+    for (const [tabIndex, tab] of arrayOrEmpty(story.tabs).entries()) {
+      if (!isRecord(tab)) continue;
       const tabPath = `${storyPath}.tabs[${tabIndex}]`;
-      if (tabIds.has(tab.id)) {
+      if (isText(tab.id) && tabIds.has(tab.id)) {
         fail(
           `${tabPath}.id`,
           `duplicate id "${tab.id}" (first used at ${tabIds.get(tab.id)})`,
         );
-      } else {
+      } else if (isText(tab.id)) {
         tabIds.set(tab.id, `${tabPath}.id`);
       }
-      const summaryLength = tabSummaryVisibleLength(tab.summary);
-      const markdownStats = tabSummaryMarkdownStats(tab.summary);
-      const markdownIssue = tabSummaryMarkdownIssue(tab.summary);
-      const titleKey = normalizeComparableText(tab.title);
-      const summaryKey = normalizeComparableText(tab.summary);
-      if (tabTitles.has(titleKey)) {
+      const hasSummary = typeof tab.summary === "string";
+      const summaryLength = hasSummary
+        ? tabSummaryVisibleLength(tab.summary)
+        : 0;
+      const markdownStats = hasSummary
+        ? tabSummaryMarkdownStats(tab.summary)
+        : { boldSpans: 0, visualUnits: 0 };
+      const markdownIssue = hasSummary
+        ? tabSummaryMarkdownIssue(tab.summary)
+        : "";
+      const titleKey = isText(tab.title)
+        ? normalizeComparableText(tab.title)
+        : null;
+      const summaryKey = hasSummary ? normalizeComparableText(tab.summary) : "";
+      if (titleKey !== null && tabTitles.has(titleKey)) {
         fail(`${tabPath}.title`, "must be unique within its story");
       }
-      tabTitles.add(titleKey);
+      if (titleKey !== null) tabTitles.add(titleKey);
       if (
         isNewsStory &&
+        titleKey !== null &&
+        isText(story.contentTitle) &&
         titleKey === normalizeComparableText(story.contentTitle)
       ) {
         fail(`${tabPath}.title`, "must not copy the full story contentTitle");
       }
-      if (isNewsStory && summaryLength > MAX_TAB_SUMMARY_VISIBLE_CHARACTERS) {
+      if (
+        isNewsStory &&
+        hasSummary &&
+        summaryLength > MAX_TAB_SUMMARY_VISIBLE_CHARACTERS
+      ) {
         fail(
           `${tabPath}.summary`,
           `has ${summaryLength} visible characters; maximum is ${MAX_TAB_SUMMARY_VISIBLE_CHARACTERS}`,
         );
       }
-      if (isNewsStory && markdownIssue) {
+      if (isNewsStory && hasSummary && markdownIssue) {
         fail(`${tabPath}.summary`, `has malformed Markdown: ${markdownIssue}`);
-      } else if (isNewsStory && markdownStats.boldSpans === 0) {
+      } else if (isNewsStory && hasSummary && markdownStats.boldSpans === 0) {
         fail(
           `${tabPath}.summary`,
           "must use exactly one bold span for the core change, mechanism, impact, or conclusion",
         );
-      } else if (isNewsStory && markdownStats.boldSpans > 1) {
+      } else if (isNewsStory && hasSummary && markdownStats.boldSpans > 1) {
         fail(`${tabPath}.summary`, "must use at most one bold span");
       }
       if (
         isNewsStory &&
+        hasSummary &&
         markdownStats.visualUnits > MAX_TAB_SUMMARY_VISIBLE_CHARACTERS
       ) {
         fail(
@@ -290,55 +321,91 @@ export function validateReport(
           `uses ${markdownStats.visualUnits.toFixed(1)} visual units; maximum is ${MAX_TAB_SUMMARY_VISIBLE_CHARACTERS}`,
         );
       }
-      if (isNewsStory && !hasCompleteSummaryEnding(tab.summary)) {
+      if (isNewsStory && hasSummary && !hasCompleteSummaryEnding(tab.summary)) {
         fail(`${tabPath}.summary`, "must end as a complete sentence");
       }
-      if (isNewsStory && overlapsSummary(summaryKey, tabSummaries)) {
+      if (
+        isNewsStory &&
+        hasSummary &&
+        overlapsSummary(summaryKey, tabSummaries)
+      ) {
         fail(
           `${tabPath}.summary`,
           "must not contain or duplicate another tab summary in the same story",
         );
       }
-      tabSummaries.push(summaryKey);
-      if (checkAssets && tab.icon && (!isNewsStory || storyShowsTabCards(story)))
+      if (hasSummary) tabSummaries.push(summaryKey);
+      if (
+        checkAssets &&
+        tab.icon &&
+        (!isNewsStory || storyShowsTabCards(story))
+      )
         validateAsset(tab.icon, `${tabPath}.icon`, errors);
     }
-    if (story.activeTab !== undefined && !tabIds.has(story.activeTab)) {
+    if (
+      isText(story.activeTab) &&
+      Array.isArray(story.tabs) &&
+      story.tabs.every((tab) => isRecord(tab) && isText(tab.id)) &&
+      !tabIds.has(story.activeTab)
+    ) {
       fail(`${storyPath}.activeTab`, `unknown tab id "${story.activeTab}"`);
     }
 
-    for (const [sceneIndex, scene] of (story.scenes ?? []).entries()) {
+    if (!Array.isArray(story.scenes)) timingContinuityKnown = false;
+    for (const [sceneIndex, scene] of arrayOrEmpty(story.scenes).entries()) {
+      if (!isRecord(scene)) {
+        timingContinuityKnown = false;
+        continue;
+      }
       const scenePath = `${storyPath}.scenes[${sceneIndex}]`;
-      if (sceneIds.has(scene.id)) {
+      if (isText(scene.id) && sceneIds.has(scene.id)) {
         fail(
           `${scenePath}.id`,
           `duplicate global scene id "${scene.id}" (first used at ${sceneIds.get(scene.id)})`,
         );
-      } else {
+      } else if (isText(scene.id)) {
         sceneIds.set(scene.id, `${scenePath}.id`);
       }
 
       if (renderMode && !scene.timing) {
         fail(`${scenePath}.timing`, "is required before rendering");
-      } else if (renderMode && scene.timing) {
-        if (scene.timing.startMs !== expectedStartMs) {
+        timingContinuityKnown = false;
+      } else if (renderMode && isRecord(scene.timing)) {
+        if (
+          timingContinuityKnown &&
+          Number.isInteger(scene.timing.startMs) &&
+          scene.timing.startMs >= 0 &&
+          scene.timing.startMs !== expectedStartMs
+        ) {
           fail(
             `${scenePath}.timing.startMs`,
             `expected ${expectedStartMs}, received ${scene.timing.startMs}`,
           );
         }
-        expectedStartMs += scene.timing.durationMs;
+        if (
+          Number.isInteger(scene.timing.durationMs) &&
+          scene.timing.durationMs > 0
+        ) {
+          expectedStartMs += scene.timing.durationMs;
+        } else {
+          timingContinuityKnown = false;
+        }
+      } else if (renderMode) {
+        timingContinuityKnown = false;
       }
 
-      if (scene.tts && !scene.audioSrc) {
+      if (isRecord(scene.tts) && !scene.audioSrc) {
         fail(`${scenePath}.audioSrc`, "is required when tts metadata exists");
       }
-      if (scene.tts && !scene.timing) {
+      if (isRecord(scene.tts) && !scene.timing) {
         fail(`${scenePath}.timing`, "is required when tts metadata exists");
       }
       if (
-        scene.tts &&
-        scene.timing &&
+        isRecord(scene.tts) &&
+        isRecord(scene.timing) &&
+        Number.isInteger(scene.timing.durationMs) &&
+        Number.isInteger(scene.tts.audioLengthMs) &&
+        Number.isInteger(scene.tts.tailPaddingMs) &&
         scene.timing.durationMs !==
           scene.tts.audioLengthMs + scene.tts.tailPaddingMs
       ) {
@@ -374,18 +441,33 @@ export function validateReport(
   if (activeIntroCount > 1) {
     fail("stories", "only one story may set activeIntro to true");
   }
-  const navigationLabels = reportNavigationLabels(report);
-  const categoryCount = new Set((report.stories ?? []).map((story) => story.topTitle)).size;
+  const categoryCount = new Set(
+    arrayOrEmpty(report.stories)
+      .filter((story) => isRecord(story) && isText(story.topTitle))
+      .map((story) => story.topTitle),
+  ).size;
   if (categoryCount > maxTopCategories) {
-    fail("stories.topTitle", `${categoryCount} body categories exceed the maximum of ${maxTopCategories} (Intro/outro excluded); group related stories into consecutive chapters`);
+    fail(
+      "stories.topTitle",
+      `${categoryCount} body categories exceed the maximum of ${maxTopCategories} (Intro/outro excluded); group related stories into consecutive chapters`,
+    );
   }
-  const navigationStats = {};
+  const hasNavigationLabels = (story) =>
+    isRecord(story) && isText(story.topTitle) && isText(story.bottomTitle);
+  const canCheckNavigation =
+    Array.isArray(report.stories) &&
+    report.stories.every(hasNavigationLabels) &&
+    (report.intro === undefined || hasNavigationLabels(report.intro)) &&
+    (report.outro === undefined || hasNavigationLabels(report.outro));
+  const navigationLabels = canCheckNavigation
+    ? reportNavigationLabels(report)
+    : {};
+  const navigationStats = canCheckNavigation ? {} : undefined;
   for (const [name, labels] of Object.entries(navigationLabels)) {
     const { availableWidth, requiredWidth } = navigationCapacity(labels, {
       windowed: name === "bottom",
     });
-    const fillRatio =
-      availableWidth > 0 ? requiredWidth / availableWidth : 0;
+    const fillRatio = availableWidth > 0 ? requiredWidth / availableWidth : 0;
     navigationStats[name] = {
       availableWidth,
       fillRatio,
@@ -411,5 +493,9 @@ export function validateReport(
     }
   }
 
-  return { errors, navigationStats, totalDurationMs: expectedStartMs };
+  return {
+    errors,
+    navigationStats,
+    totalDurationMs: timingContinuityKnown ? expectedStartMs : 0,
+  };
 }

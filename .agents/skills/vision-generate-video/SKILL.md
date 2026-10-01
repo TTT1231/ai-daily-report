@@ -35,6 +35,7 @@ instructions; do not rerun their sourcing, TTS, or MP4 commands when reviewing p
    inputs, story/tab scaling, and the keyword-replacement floor. Also read
    `rules/images.md` for overlay display rules and `rules/evidence-workflow.md` for the executable capture/preflight/export workflow. When anything here seems to conflict with
    those files, they win; only the direct-SVG exception below is unique to this skill.
+   Read these references once per task; recover from the fact ledger and pending review items after context compaction.
 2. Never run `bun run generate-svg`, invoke `$generate-svg`, or use a command that calls it
    indirectly. Forbidden aggregate commands include `bun run video`,
    `bun run video:auto-generate`, and `bun run video:half-auto` — besides SVG they would
@@ -69,14 +70,12 @@ instructions; do not rerun their sourcing, TTS, or MP4 commands when reviewing p
    content-and-evidence audit checkpoint, then copy
    only adopted final assets to `data-scheme/images/` and write the complete
    `data-scheme/data.json` in one edit when practical. Keep only sourced scenes; never fill a quota.
-4. Run `bun run check-data-json --strict-tone` and `bun run check-evidence --require-overlay`.
-   Fix the first error and repeat until both pass. `--strict-tone` is the supplied-source
-   tone gate: it blocks evidence-medium narration and warns on anonymous attribution and
-   editorial filler; it targets Raw only and is skipped under `--render`. Fix every occurrence
-   of one error class in a single edit instead of serial one-field patches.
-5. Run `bun run evidence:prepare-review` and record the asset and narration-mapping
-   judgements already made during sourcing and writing. Reuse unchanged judgements;
-   inspect only new or changed items, as specified in the real layer. Require
+4. Run `bun run evidence:check-raw`; repair the collected issues in one batch using the real
+   layer's validators rather than serial one-field patches or separate repeated checks.
+5. Import the real layer's fact ledger with
+   `bun run evidence:prepare-review -- --facts=<temp>/facts.json`, complete its single
+   factual-difference review, and record the asset, narration and editorial judgements.
+   Reuse unchanged judgements; inspect only new or disputed items. Require
    `bun run evidence:check-preflight` to pass; never fill approvals without actual review.
    State that TTS may use the configured paid
    API, then run `bun run tts` once. Do not use
@@ -127,7 +126,8 @@ For each tab, design one distinct semantic icon that remains legible at small si
 - Preserve a valid existing icon only when its tab meaning and theme are unchanged. Remove obsolete
   references and repair missing or invalid files directly.
 
-Do not hand this step to another SVG skill or wrapper. `bun run check-icons` is the final authority on
+Use this section for the planned visible icons; do not read another SVG skill or its reference tree
+for routine direct authoring. Do not hand this step to another SVG skill or wrapper. `bun run check-icons` is the final authority on
 the file and reference contract.
 
 ## Invocation examples

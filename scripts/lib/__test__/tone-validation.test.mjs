@@ -27,6 +27,22 @@ test("clean report produces no tone errors or warnings", () => {
   assert.deepEqual(validateTone(reportWith()), { errors: [], warnings: [] });
 });
 
+test("tone checks skip malformed shapes while preserving healthy sibling paths", () => {
+  const report = reportWith({
+    tabs: [null, { summary: "截图显示事实成立。" }],
+    scenes: [null, { subtitle: "配图展示更新。" }],
+  });
+  report.stories.unshift(null, { tabs: "invalid", scenes: "invalid" });
+  report.intro = [];
+  const { errors } = validateTone(report);
+  assert.equal(errors.length, 2);
+  assert.match(errors[0], /^stories\[2\]\.tabs\[1\]\.summary:/);
+  assert.match(errors[1], /^stories\[2\]\.scenes\[1\]\.subtitle:/);
+  for (const invalid of [null, [], "invalid", { stories: "invalid" }]) {
+    assert.deepEqual(validateTone(invalid), { errors: [], warnings: [] });
+  }
+});
+
 // ---------- 阻断：证据媒介叙述 ----------
 test("medium-reference narration in a subtitle is a blocking error with scene path", () => {
   const r = reportWith({
@@ -136,7 +152,10 @@ test("compound words containing target substrings are not flagged", () => {
 test("anonymous attribution warns without blocking", () => {
   const r = reportWith({
     scenes: [
-      { id: "scene-1", subtitle: "消息称，所有付费订阅的使用量将完整重置一次。" },
+      {
+        id: "scene-1",
+        subtitle: "消息称，所有付费订阅的使用量将完整重置一次。",
+      },
     ],
   });
   const { errors, warnings } = validateTone(r);
@@ -149,9 +168,7 @@ test("clause-start 官方表示/回应 warns, named-subject 官方表示 does no
   const anonymous = reportWith({
     scenes: [{ id: "scene-1", subtitle: "官方表示，修复将在本周完成。" }],
   });
-  assert.ok(
-    validateTone(anonymous).warnings.some((w) => w.includes("官方")),
-  );
+  assert.ok(validateTone(anonymous).warnings.some((w) => w.includes("官方")));
 
   const anonymousReply = reportWith({
     scenes: [{ id: "scene-1", subtitle: "官方回应，修复已在进行。" }],
@@ -161,11 +178,11 @@ test("clause-start 官方表示/回应 warns, named-subject 官方表示 does no
   );
 
   const named = reportWith({
-    scenes: [{ id: "scene-1", subtitle: "DeepSeek 官方表示，修复将在本周完成。" }],
+    scenes: [
+      { id: "scene-1", subtitle: "DeepSeek 官方表示，修复将在本周完成。" },
+    ],
   });
-  assert.ok(
-    !validateTone(named).warnings.some((w) => w.includes("官方")),
-  );
+  assert.ok(!validateTone(named).warnings.some((w) => w.includes("官方")));
 });
 
 // ---------- 警告：评价/建议/免责填空 ----------

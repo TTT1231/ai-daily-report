@@ -7,21 +7,27 @@ try {
   const path = resolve(dataDir, "evidence-preflight.json");
   const report = await readJson(process.argv.includes("--render") ? generatedDataPath : rawDataPath, "report");
   const previous = readEvidencePreflight(path);
+  const factsArg = process.argv.find((arg) => arg.startsWith("--facts="));
+  if (factsArg && !process.argv.includes("--prepare")) throw new Error("--facts is only accepted with --prepare.");
   if (process.argv.includes("--prepare")) {
-    const {errors, review} = buildEvidencePreflight(report, {dataDir, previous});
+    const factLedger = factsArg ? await readJson(resolve(factsArg.slice("--facts=".length)), "source facts") : undefined;
+    const {errors, review} = buildEvidencePreflight(report, {dataDir, previous, factLedger});
     if (errors.length) throw new Error(errors.join("\n"));
     writeFileSync(`${path}.tmp`, `${JSON.stringify(review, null, 2)}\n`);
     renameSync(`${path}.tmp`, path);
-    console.log(`Evidence preflight: ${review.assets.length} distinct assets, ${review.scenes.length} narration mappings.\nReview: ${path}`);
+    console.log(`Evidence preflight: ${review.assets.length} distinct assets, ${review.scenes.length} narration mappings, ${review.facts.length} source facts, ${review.editorial.length} editorial reviews.\nReview: ${path}`);
     console.log("Unchanged judgements retained. New/changed evidence is pending; no visual checks are auto-approved.");
   } else {
     if (process.argv.includes("--render")) {
       const raw = await readJson(rawDataPath, "Raw report");
-      const rawPlan = buildEvidencePreflight(raw, {dataDir});
-      const generatedPlan = buildEvidencePreflight(report, {dataDir});
+      const options = {dataDir, previous, schemaVersion: previous?.schemaVersion ?? 2};
+      const rawPlan = buildEvidencePreflight(raw, options);
+      const generatedPlan = buildEvidencePreflight(report, options);
       if (rawPlan.errors.length) throw new Error(rawPlan.errors.join("\n"));
       if (JSON.stringify(rawPlan.review.scenes.map((scene) => scene.key)) !==
-          JSON.stringify(generatedPlan.review.scenes.map((scene) => scene.key))) {
+          JSON.stringify(generatedPlan.review.scenes.map((scene) => scene.key)) ||
+          JSON.stringify(rawPlan.review.editorial?.map((item) => item.key)) !==
+          JSON.stringify(generatedPlan.review.editorial?.map((item) => item.key))) {
         throw new Error("Generated evidence differs from Raw; synchronize TTS before rendering.");
       }
     }
