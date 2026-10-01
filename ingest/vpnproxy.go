@@ -18,11 +18,15 @@ import (
 func newHTTPClient(timeout time.Duration, announceProxy, blockPrivateHosts bool) *http.Client {
 	proxyURL, proxyErr := getProxyURL()
 	transport := &http.Transport{
-		TLSClientConfig:     &tls.Config{MinVersion: tls.VersionTLS12},
-		MaxIdleConns:        20,
-		IdleConnTimeout:     30 * time.Second,
-		DisableKeepAlives:   false,
+		TLSClientConfig: &tls.Config{MinVersion: tls.VersionTLS12},
+		MaxIdleConns:    20,
+		IdleConnTimeout: 30 * time.Second,
+		DisableKeepAlives: false,
 		TLSHandshakeTimeout: 10 * time.Second,
+		// 自定义 TLSClientConfig 后 Go 不再自动协商 HTTP/2（ALPN 只报 http/1.1）。
+		// 2026-10 起 Cloudflare 对 linux.do 的 http/1.1 客户端一律发 Managed Challenge
+		// （带有效 cf_clearance 也被 403 拒绝），开启 h2 后实测同票同出口恢复 200。
+		ForceAttemptHTTP2: true,
 	}
 
 	if proxyErr != nil {
@@ -101,11 +105,15 @@ func getProxyURL() (*url.URL, error) {
 // AI 模型请求等非按源场景使用；本函数按来源显式决策。
 func newSourceHTTPClient(timeout time.Duration, source RSS2Source) (*http.Client, error) {
 	transport := &http.Transport{
-		TLSClientConfig:     &tls.Config{MinVersion: tls.VersionTLS12},
-		MaxIdleConns:        20,
-		IdleConnTimeout:     30 * time.Second,
-		DisableKeepAlives:   false,
+		TLSClientConfig: &tls.Config{MinVersion: tls.VersionTLS12},
+		MaxIdleConns:    20,
+		IdleConnTimeout: 30 * time.Second,
+		DisableKeepAlives: false,
 		TLSHandshakeTimeout: 10 * time.Second,
+		// 自定义 TLSClientConfig 后 Go 不再自动协商 HTTP/2（ALPN 只报 http/1.1）。
+		// 2026-10 起 Cloudflare 对 linux.do 的 http/1.1 客户端一律发 Managed Challenge
+		// （带有效 cf_clearance 也被 403 拒绝），开启 h2 后实测同票同出口恢复 200。
+		ForceAttemptHTTP2: true,
 	}
 	if source.Proxy {
 		proxyURL, err := getProxyURL()

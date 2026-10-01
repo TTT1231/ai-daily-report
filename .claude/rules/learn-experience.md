@@ -123,46 +123,33 @@
 
 ---
 
-## linux.do 抓取必须 cf_clearance + UA + proxy 三件套；且 clearance 会过期、强绑 UA（只换一个 → 403；"Just a moment" 假页 / 403 两种失败都见过）
+## linux.do 抓取要 cf_clearance + UA + proxy 三件套，且必须走 HTTP/2；2026-10 起 CF 对 http/1.1 客户端一律 Managed Challenge（换票无用），本机所有 curl 都不支持 h2、不能再当自检工具
 
 - **Tags**: `#runtime` `#environment` `#third-party-library` `#tricky-issue` `#ingest`
 - **Trigger Context**: 任何经 `ingest/rss2.go` 抓 linux.do 的入口——ingest 自动抓栏目 feed（`bun run rss` / `bun run video:half-auto` 抓 `https://linux.do/c/news/34.rss`），或按 `.claude/skills/ai-daily-report/rules/rss-pick-mode.md` 补选单条 topic（`.rss`）。`.env` 已配 `all_proxy` + `LINUXDO_CF_CLEARANCE` + `LINUXDO_USER_AGENT`，且「之前更新 cf_clearance 能跑通」，现在突然不行。
-- **Symptoms**: 两种失败，状态码不同，排查前先分清：
-  - **`200` + "Just a moment..." HTML**（~6.8KB）：CF 放行了连接、要求跑 JS challenge——通常是**根本没带 cookie**（如光秃 curl / 文档过时只带 proxy）。
-  - **`403` + "Just a moment..." HTML**（~7.1KB）：带了 `cf_clearance`，但 **CF 不认这张票**（过期 / 出口 IP 变 / UA 不配）。`bun run rss` 表现为 `来源 linuxdo-news 抓取失败：第 1 页: HTTP 状态码: 403`。
-  - 关键判读法：带 cookie 和不带 cookie 各 curl 一次——**两次反应完全一样（都 403）= clearance 完全不被认**（过期/IP/UA 不配）；带 cookie 能 200、不带 403 = cookie 有效。
+- **Symptoms**（2026-10-01 更新：先看 `Cf-Mitigated` 响应头分流，别急着换票）:
+  - **`403` + `Cf-Mitigated: challenge`（Managed Challenge，"Just a moment..." HTML）**：CF 在协议层直接挑战，**票根本没进评估流程**。2026-10-01 起对 ALPN 只报 http/1.1 的客户端全站触发（首页与所有 `.rss` 端点一致）。换 cf_clearance / UA / 节点**全部无效**。`bun run rss` 表现为 `来源 linuxdo-news 抓取失败：第 1 页: HTTP 状态码: 403`。
+  - **`429` + `Cf-Mitigated: challenge`**：频率闸。短时间密集探测（15+ 次）触发，冷却 1–2 分钟恢复，不是配置问题。
+  - 带票和不带票反应完全一致 = 票未被评估（协议层被挑战或票作废），换票前先确认自己走的是 h2。
 - **Root Cause**:
-  1. linux.do 全站在 Cloudflare 后，`.rss` 端点也吃 CF 防护。**仅带 `all_proxy` 不够**，CF 仍 challenge。`ingest/rss2.go:217-225` 对 `linux.do` 域名**额外**把整个 `LINUXDO_CF_CLEARANCE` 当 `Cookie` 头、把 `LINUXDO_USER_AGENT` 当 `User-Agent` 一起发——三件套（proxy + cf_clearance + 配套 UA）齐全才过。
-  2. **cf_clearance 是「带指纹的消耗品」**：CF 签发时把 {出口 IP, User-Agent, 设备指纹} 钉死在票里，之后**任一项**对不上就作废 → 403。linux.do 的票 TTL 通常只有**几小时**，过期是常态，不是 bug；「之前能跑、现在 403」多半就是过期了。
-  3. **只换 cf_clearance、不换 UA = 高频坑**：UA 强绑。用户曾把 `.env` 的 UA 留成陈旧假值 `Chrome/150.0.0.0`（2026-08 Chrome 稳定版约 140，这版本号不存在），换 clearance 时没同步换 UA → 新 clearance 配旧 UA → 403。两个值**必须来自同一次浏览器会话**。
-  4. **clash 节点漂移**：clash 是规则代理，按域名分流；若 linux.do 走 `auto` / `url-test` 节点组，浏览器取票时走节点 A、Go 请求时被分到节点 B，出口 IP 不一样 → 即使 cf_clearance + UA 都对也 403。
-  - 附带坑：`set -a; . ./.env` 整体 source 会**整文件失败**——`LINUXDO_USER_AGENT=Mozilla/5.0 (Windows NT 10.0; Win64; x64) ...` 含未转义括号 `(`，bash 把它当语法错误，连带 `$all_proxy` 也设不上（后续 curl 其实没走代理，直连撞 CF 边缘仍返回 challenge 页，易被误判「代理无效」）。
-- **Verified Solution**（实测：ingest 栏目 feed 403 → 同会话重取 cf_clearance + UA 一起换 → 200 + `<?xml`；补选 topic-2506187 / 2505577 同样一次拿到）：
-  ```bash
-  # 0) 诊断：带 vs 不带 cookie，反应是否一致（都 403 = clearance 不被认）
-  ap=$(grep '^all_proxy=' .env | cut -d= -f2-)
-  ck=$(grep '^LINUXDO_CF_CLEARANCE=' .env | cut -d= -f2-)
-  ua=$(grep '^LINUXDO_USER_AGENT=' .env | cut -d= -f2-)
-  ALL_PROXY="$ap" curl -s -o /tmp/a -w "with-cookie: HTTP %{http_code}\n" --max-time 25 \
-    -H "User-Agent: $ua" -H "Cookie: $ck" "https://linux.do/c/news/34.rss"
-  ALL_PROXY="$ap" curl -s -o /tmp/b -w "no-cookie:    HTTP %{http_code}\n" --max-time 25 \
-    -H "User-Agent: $ua" "https://linux.do/c/news/34.rss"
-  # 1) 浏览器挂 clash 访问 .rss 过 CF → F12 Cookies 复制 cf_clearance（写 cf_clearance=<值>）
-  #    → 同一浏览器 Console 跑 navigator.userAgent 复制完整串 → 两个值一起写进 .env
-  # 2) 更新后立刻自测，别拿 bun run rss 当校验器：
-  ALL_PROXY="$ap" curl -s -o /tmp/t.rss -w "HTTP %{http_code}, %{size_download} bytes\n" --max-time 25 \
-    -H "User-Agent: $ua" -H "Cookie: $ck" "https://linux.do/c/news/34.rss"
-  head -c 5 /tmp/t.rss   # 必须 '<?xml'；'<html' 就是还没好
-  ```
+  1. linux.do 全站在 Cloudflare 后，`.rss` 端点也吃 CF 防护。`ingest/rss2.go:217-225` 对 `linux.do` 域名把 `LINUXDO_CF_CLEARANCE` 当 `Cookie` 头、`LINUXDO_USER_AGENT` 当 `User-Agent` 一起发——三件套（proxy + cf_clearance + 配套 UA）齐全之外，**还必须走 HTTP/2**。
+  2. **2026-10-01 协议闸（当日 403 的真根因）**：CF 对 ALPN 只协商 http/1.1 的客户端一律 Managed Challenge。Go 规则：`http.Transport` 设了自定义 `TLSClientConfig` 且未设 `ForceAttemptHTTP2` 时**不会**自动协商 h2——生产 Transport 曾因此实际走 http/1.1，带 6 分钟新鲜票照样 403；同一 Transport 加 `ForceAttemptHTTP2: true` 后同票同出口 3/3 恢复 200。已修：`ingest/vpnproxy.go` 两处 Transport 均设 `ForceAttemptHTTP2: true`。
+  3. **cf_clearance 是「带指纹的消耗品」**：CF 签发时把 {出口 IP, User-Agent} 钉死在票里，之后**任一项**对不上就作废 → 403。票 TTL 通常只有**几小时**，过期是常态，不是 bug。
+  4. **只换 cf_clearance、不换 UA = 高频坑**：UA 强绑，两个值**必须来自同一次浏览器会话**。曾发生 `.env` 断行致 UA 空值回退默认 UA、以及留陈旧假 UA（不存在的 `Chrome/150`）两类事故。
+  5. **clash 节点漂移**：若 linux.do 走 `auto` / `url-test` 节点组，浏览器取票与 Go 请求出口 IP 不同 → 票作废。clash 是 TUN 全量接管，判断"浏览器和终端是否同出口"要在浏览器里也查一次 ipify，终端 curl 直连结果不可信。
+  - 附带坑：`set -a; . ./.env` 整体 source 会**整文件失败**——`LINUXDO_USER_AGENT=Mozilla/5.0 (Windows NT 10.0; Win64; x64) ...` 含未转义括号 `(`，bash 把它当语法错误，连带 `$all_proxy` 也设不上。
+- **Verified Solution**（实测：2026-10-01 深夜，生产 Transport 加 `ForceAttemptHTTP2: true` → 同票同代理 http/1.1 恒 403 / h2 恒 200 ×3 轮 → `bun run rss` 端到端 50 条候选恢复）：
+  1. **自检别用 curl**：本机 Git Bash curl（Schannel 构建）与 System32 curl.exe **都不支持 HTTP/2**，对 linux.do 永远 403（假阴性），其结果与生产状态无关。单点探测用与生产同路径的 `go -C ingest run . fetch`，或直接跑 `bun run rss`（失败立刻报状态码）。
+  2. 票过期时的取票流程不变：浏览器挂 clash 访问 `.rss` → F12 Application→Cookie 面板复制**活票** `cf_clearance`（勿从 Network 请求头抄，易抄到已轮换作废值）→ 同一浏览器 Console 跑 `navigator.userAgent` → 两个值一起写进 `.env`。
+  3. 若未来再现 403 + `Cf-Mitigated: challenge`：先确认没退回 http/1.1（自定义 Transport 模板复制时容易丢 `ForceAttemptHTTP2`），再查票。
   - 解析 RSS 正文+图时，Windows python 不认 Git Bash 的 `/tmp/...` 路径（FileNotFoundError）；用 `cygpath -w /tmp/x.rss` 转 Windows 路径再 `python - "$winpath"`，且 heredoc `<<'PY'` 会抢占 stdin，所以**不能** `cat file | python - <<'PY'`（会把脚本本身当数据读），要 `python - "$winpath" <<'PY'` 用 argv 传路径。
   - 提图必须看 `<img>` 的 class/尺寸：`class="site-icon"` / `width=235 height=256` 是站点 logo 弃用；`class="thumbnail"` 或正文 Markdown `![]()` 内嵌的才是内容图。只 grep cdn3 域名会把 logo 当配图。原图重写 `optimized/4X/{a}/{b}/{c}/{sha}_2_{W}x{H}.ext` → `original/4X/{a}/{b}/{c}/{sha}.ext` 恒成立。
 - **Prevention Recommendations**:
-  - rss-pick-mode.md 里「`.rss`+`all_proxy` 就够、不走 JS challenge」的结论已过时；抓 linux.do 一律带 cf_clearance + UA + proxy 三件套（与 `ingest/rss2.go` 同源），别先试光秃 curl。
-  - **cf_clearance 是消耗品**：几小时过期是常态，定期重取即可，别当成代码 bug 排查。
-  - **更新 cf_clearance 时必须同时更新 UA**，两者来自同一次浏览器会话（`navigator.userAgent`）；别留陈旧假 UA（如不存在的 `Chrome/150`）。改完先 curl 自测（看 `HTTP %{http_code}` + `head -c 5`），`200`+`<?xml` 再跑 `bun run rss`。
-  - **403 vs 200+challenge 先分清再动手**：403 = clearance 无效（过期/IP/UA 不配）；200+challenge HTML = 没带 cookie。带 vs 不带 cookie 各 curl 一次即可区分。
+  - **写 Go HTTP 客户端时**：`http.Transport` 只要设了 `TLSClientConfig` 就顺手加 `ForceAttemptHTTP2: true`，否则静默退化为 http/1.1——对 CF 站点是致命的。复制 Transport 模板时检查该字段没丢。
+  - **curl 的适用边界**：只用来测「不挑协议的站点」；对 CF + h2 闸的站点（linux.do）其 403 不含任何配置信息。曾据"curl 自检 200"流程（2026-08 可用）排查 2026-10-01 事故绕了弯路。
+  - **cf_clearance 是消耗品**：几小时过期是常态，定期重取即可，别当成代码 bug 排查；更新时必须同时更新 UA，两者来自同一次浏览器会话。
+  - **403 先分流再动手**：`Cf-Mitigated: challenge` = 协议层（查 h2）；无该头且带/不带票反应不同 = 票问题（重取票 + UA 同步）。429 = 频率（等冷却）。
   - **clash 用固定节点**访问 linux.do，别用 `auto` / `url-test` / 负载均衡组——节点漂移致出口 IP 变 → clearance 作废。
-  - 任何「`curl https://linux.do/...` 拿到 HTML」都先 `head -c 5` 判 `<?xml` vs `<html`；拿到 HTML 不代表代理生效（直连也能到 CF 边缘拿 challenge 页）。
   - 永远不要 `source` 本项目 `.env`（值未加引号、UA 含括号）；按需 `grep '^VAR=' .env | cut -d= -f2-` 抽单个值。
 
 ---
