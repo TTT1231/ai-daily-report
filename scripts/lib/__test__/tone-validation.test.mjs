@@ -27,6 +27,28 @@ test("clean report produces no tone errors or warnings", () => {
   assert.deepEqual(validateTone(reportWith()), { errors: [], warnings: [] });
 });
 
+test("news narration rejects audit prose but keeps accountable attribution", () => {
+  for (const subtitle of [
+    "微软支持页说明，从2027年1月起备份方式调整。",
+    "Anthropic 发布新模型；官方页面标注发布日期为10月7日。",
+    "DeepSeek Monitor Archive 在 Chat 存档中出现多因素验证提示。",
+    "开放平台存档也记录到 MFA 设置项更新。",
+    "当前可核实证据只确认涉及多个团队。",
+    "Cline 提供 `deepseek-v4.1-flash` 模型。",
+  ]) {
+    const result = validateTone(reportWith({scenes: [{subtitle}]}));
+    assert.equal(result.errors.length, 1, subtitle);
+  }
+  for (const subtitle of [
+    "微软计划从2027年1月起调整备份方式。",
+    "据 DeepSeek Monitor 监测，DeepSeek 聊天端出现多因素验证入口。",
+    "Business Insider 报道，亚马逊多个团队出现新一轮裁员。",
+    "Anthropic 扩大受控访问，符合条件的安全人员可以申请。",
+    "微软更新支持页面，新增个人账号备份说明。",
+    "这项早期试验仍未证明减重或健康获益。",
+  ]) assert.deepEqual(validateTone(reportWith({scenes: [{subtitle}]})), {errors: [], warnings: []}, subtitle);
+});
+
 test("tone checks skip malformed shapes while preserving healthy sibling paths", () => {
   const report = reportWith({
     tabs: [null, { summary: "截图显示事实成立。" }],

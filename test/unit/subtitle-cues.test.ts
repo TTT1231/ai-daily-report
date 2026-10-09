@@ -4,6 +4,17 @@ import {splitSubtitleCues, subtitleVisualUnits} from "../../src/AiDailyReport";
 
 const MAX_SUBTITLE_VISUAL_UNITS = 44;
 
+test("reported Mythos narration keeps every character when split into display cues", () => {
+  for (const subtitle of [
+    "Anthropic 扩大 Cyber Verification Program 的 Mythos 受控访问，合资格的网络安全专业人员可分级申请；这不是面向公众的开放发布。",
+    "Anthropic 通过网络安全验证计划，扩大 Mythos 的受控访问。符合条件的网络安全专业人员可以分级申请。",
+  ]) {
+    const cues = splitSubtitleCues(subtitle);
+    assert.equal(cues.join("").replace(/\s/g, ""), subtitle.replace(/\s/g, ""));
+    assert.ok(cues.every((cue) => subtitleVisualUnits(cue) <= MAX_SUBTITLE_VISUAL_UNITS));
+  }
+});
+
 test("subtitles display narration without editorial Markdown markers", () => {
   assert.deepEqual(splitSubtitleCues("`Gemini` 已登陆 **Windows**。"), ["Gemini 已登陆 Windows。"]);
 });

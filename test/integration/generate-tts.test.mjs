@@ -50,6 +50,21 @@ test("generate-tts --dry-run exits 0 without calling MiniMax or writing anything
 });
 
 // 非 dry-run 缺 API key：exit 2（发生在调用 MiniMax 之前，不消耗配额）
+test("disabled TTS ignores speech configuration and missing pronunciation files", () => {
+  const {dir, code, stdout} = runTtsSync([], {
+    TTS_REQUIRE: "false",
+    MINIMAX_TTS_LANGUAGE_BOOST: "invalid",
+    MINIMAX_TTS_PRONUNCIATION_FILE: "does-not-exist.json",
+  });
+  try {
+    assert.equal(code, 0);
+    assert.match(stdout, /skipping TTS/);
+    assert.ok(!existsSync(join(dir, "data-generate.json")));
+  } finally {
+    rmSync(dir, {recursive: true, force: true});
+  }
+});
+
 test("generate-tts exits 2 when MINIMAX_API_KEY is missing, before any MiniMax call", () => {
   const {dir, code, stderr} = runTtsSync([], {MINIMAX_API_KEY: ""});
   try {

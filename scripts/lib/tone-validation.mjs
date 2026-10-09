@@ -72,6 +72,16 @@ const CLAUSE_START_OFFICIAL = /(?:^|[，。！？；：、])官方(?:表示|称|
 // 「如果……将……」式假设推演是填空线索；句内跨度收窄到 24 字避免跨句误配。
 const HYPOTHETICAL_FILLER = /如果.{1,24}将/;
 
+// 仅检查口播，事实台账和编辑摘要可以保留来源说明。收窄到查证模板，
+// 不禁止“某媒体报道”“据某机构监测”及支持页面本身发生变更的新闻。
+const NARRATION_AUDIT_PATTERNS = [
+  /(?:支持页|帮助页|产品页|官方页面)(?:面)?(?:中)?(?:说明|显示|列出|标注)/u,
+  /(?:页面|网页)标注(?:的)?发布日期/u,
+  /(?:存档|快照)中(?:出现|记录到|显示)/u,
+  /(?:存档|快照)(?:也)?记录到/u,
+  /当前可核实证据|证据只确认/u,
+];
+
 const isRecord = (value) =>
   value !== null && typeof value === "object" && !Array.isArray(value);
 const arrayOrEmpty = (value) => (Array.isArray(value) ? value : []);
@@ -119,6 +129,19 @@ export function validateTone(report) {
     for (const field of storyTextFields(story, path)) {
       const text = field.text;
       if (typeof text !== "string" || text.length === 0) continue;
+
+      if (field.path.endsWith(".subtitle")) {
+        const audit = NARRATION_AUDIT_PATTERNS.find((pattern) => pattern.test(text));
+        if (audit) {
+          errors.push(`${field.path}: narrates source verification ("${text.match(audit)[0]}"); report the event directly, preserving attribution and factual limits`);
+        }
+        if (/`|\*\*|\[[^\]]+\]\(/u.test(text)) {
+          errors.push(`${field.path}: narration contains Markdown; write plain spoken text`);
+        }
+        if (/合资格|不能据此断定|数据不说明单一原因/u.test(text)) {
+          warnings.push(`${field.path}: unnatural narration or audit filler; use natural Mandarin and integrate necessary factual limits into the news`);
+        }
+      }
 
       for (const phrase of BLOCKED_MEDIUM_PHRASES) {
         if (text.includes(phrase)) {

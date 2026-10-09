@@ -1,4 +1,5 @@
 import {setTimeout as defaultSleep} from "node:timers/promises";
+import {speechOptionsForText} from "./tts-speech-settings.mjs";
 
 export function createMinimaxClient({
   apiKey,
@@ -8,6 +9,9 @@ export function createMinimaxClient({
   speed,
   vol,
   pitch,
+  languageBoost = "auto",
+  textNormalization = true,
+  pronunciationTone = [],
   requestIntervalMs = 2200,
   maxRetries = 5,
   rateLimitRetryMs = 60000,
@@ -27,6 +31,7 @@ export function createMinimaxClient({
   }
 
   return async function synthesize(text) {
+    const speech = speechOptionsForText(text, {languageBoost, textNormalization, pronunciationTone});
     for (let attempt = 0; ; attempt++) {
       await waitForRequestSlot();
 
@@ -46,13 +51,17 @@ export function createMinimaxClient({
             model,
             text,
             stream: false,
-            language_boost: "Chinese",
+            language_boost: speech.languageBoost,
             voice_setting: {
               voice_id: voiceId,
               speed,
               vol,
               pitch,
+              text_normalization: speech.textNormalization,
             },
+            ...(speech.pronunciationTone.length > 0
+              ? {pronunciation_dict: {tone: speech.pronunciationTone}}
+              : {}),
             audio_setting: {
               sample_rate: 32000,
               bitrate: 128000,

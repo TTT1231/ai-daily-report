@@ -49,6 +49,7 @@
     "rss:test": "go -C ingest test ./...",
     "tts": "node --env-file-if-exists=.env scripts/render/generate-tts.mjs",
     "tts:dry-run": "node --env-file-if-exists=.env scripts/render/generate-tts.mjs --dry-run",
+    "tts:preview": "node --env-file-if-exists=.env scripts/render/preview-tts.mjs",
     "tts:force": "node --env-file-if-exists=.env scripts/render/generate-tts.mjs --force",
     "comment:generate": "node scripts/lib/generate-comment.mjs",
     "generate-svg": "node scripts/render/generate-svg.mjs",

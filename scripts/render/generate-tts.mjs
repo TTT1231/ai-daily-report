@@ -1,4 +1,3 @@
-import {createHash} from "node:crypto";
 import {existsSync} from "node:fs";
 import {resolve} from "node:path";
 import {
@@ -12,6 +11,7 @@ import {
 } from "../lib/report-builder.mjs";
 import {createGeneratedOutputTransaction} from "../lib/generated-output.mjs";
 import {createMinimaxClient} from "../lib/minimax-tts.mjs";
+import {getSceneHash, readSpeechSettings} from "../lib/tts-speech-settings.mjs";
 import {sceneAudioFields, isReusable} from "../lib/tts-timeline.mjs";
 import {
   dataDir,
@@ -40,11 +40,13 @@ try {
 }
 
 function buildConfig() {
+  const ttsEnabled = readBooleanEnv("TTS_REQUIRE", true);
+  if (!ttsEnabled) return {ttsEnabled};
   return {
     // Master switch for the whole TTS subsystem. false => skip voice generation
     // entirely (no MiniMax, no audio, no ffmpeg quality check); every MINIMAX_* /
     // TTS_* / REQUIRE_VOICE_QUALITY_FFMPEG setting is then ignored.
-    ttsEnabled: readBooleanEnv("TTS_REQUIRE", true),
+    ttsEnabled,
     endpoint:
       process.env.MINIMAX_TTS_ENDPOINT ?? "https://api.minimaxi.com/v1/t2a_v2",
     model: process.env.MINIMAX_TTS_MODEL ?? "speech-2.8-hd",
@@ -53,6 +55,7 @@ function buildConfig() {
     speed: readNumberEnv("MINIMAX_TTS_SPEED", 1, 0.5, 2),
     vol: 1,
     pitch: 0,
+    ...readSpeechSettings(),
     tailPaddingMs: readIntegerEnv("TTS_TAIL_PADDING_MS", 250, 0),
     requestIntervalMs: readIntegerEnv("MINIMAX_TTS_REQUEST_INTERVAL_MS", 2200, 0),
     maxRetries: readIntegerEnv("MINIMAX_TTS_MAX_RETRIES", 5, 0),
@@ -93,23 +96,6 @@ function readBooleanEnv(name, fallback) {
   if (raw === "true") return true;
   if (raw === "false") return false;
   throw new Error(`${name} must be either true or false.`);
-}
-
-function getSceneHash(text) {
-  return createHash("sha256")
-    .update(
-      JSON.stringify({
-        provider: "minimax",
-        endpoint: config.endpoint,
-        model: config.model,
-        voiceId: config.voiceId,
-        speed: config.speed,
-        vol: config.vol,
-        pitch: config.pitch,
-        text,
-      }),
-    )
-    .digest("hex");
 }
 
 function createSceneCache(previousReport) {
@@ -172,7 +158,7 @@ const synthesize = createMinimaxClient({...config, apiKey});
 // 模型/音色只在 `bun run tts` / `tts:force` 直跑（isDev=false）时才需确认，那时照常打印。
 if (!isDev) {
   console.log(
-    `${dryRun ? "Planning" : "Generating"} ${scenes.length} scene voiceover(s) with ${config.model} / ${config.voiceId}.`,
+    `${dryRun ? "Planning" : "Generating"} ${scenes.length} scene voiceover(s) with ${config.model} / ${config.voiceId} / speed=${config.speed} / language=${config.languageBoost}.`,
   );
 }
 if (!dryRun && !isDev) {
@@ -212,7 +198,7 @@ let reused = 0;
 
 try {
   for (const scene of scenes) {
-    const hash = getSceneHash(scene.subtitle);
+    const hash = getSceneHash(scene.subtitle, config);
     const cachedScene = cachedScenes.get(scene.id);
     const existingAudioPath = dryRun
       ? resolve(dataDir, "audio", `${scene.id}.mp3`)
