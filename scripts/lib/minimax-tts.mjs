@@ -1,21 +1,30 @@
 import {setTimeout as defaultSleep} from "node:timers/promises";
-import {speechOptionsForText} from "./tts-speech-settings.mjs";
+import {MINIMAX_SPEECH_DEFAULTS, speechOptionsForText} from "./tts-speech-settings.mjs";
+
+// MiniMax 的接口与请求策略由客户端维护，调用方可通过参数注入测试替身。
+export const MINIMAX_TTS_DEFAULTS = Object.freeze({
+  endpoint: "https://api.minimaxi.com/v1/t2a_v2",
+  requestIntervalMs: 2200,
+  maxRetries: 5,
+  rateLimitRetryMs: 60000,
+  timeoutMs: 60000,
+});
 
 export function createMinimaxClient({
   apiKey,
-  endpoint,
+  endpoint = MINIMAX_TTS_DEFAULTS.endpoint,
   model,
   voiceId,
   speed,
   vol,
   pitch,
-  languageBoost = "auto",
-  textNormalization = true,
+  languageBoost = MINIMAX_SPEECH_DEFAULTS.languageBoost,
+  textNormalization = MINIMAX_SPEECH_DEFAULTS.textNormalization,
   pronunciationTone = [],
-  requestIntervalMs = 2200,
-  maxRetries = 5,
-  rateLimitRetryMs = 60000,
-  timeoutMs = 60000,
+  requestIntervalMs = MINIMAX_TTS_DEFAULTS.requestIntervalMs,
+  maxRetries = MINIMAX_TTS_DEFAULTS.maxRetries,
+  rateLimitRetryMs = MINIMAX_TTS_DEFAULTS.rateLimitRetryMs,
+  timeoutMs = MINIMAX_TTS_DEFAULTS.timeoutMs,
   fetch = globalThis.fetch,
   sleep = defaultSleep,
 }) {

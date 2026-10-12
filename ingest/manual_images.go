@@ -65,8 +65,7 @@ func planManualCandidates(report DataJSON, groups []NewsGroup, items []Item, max
 // downloadManualCandidateImages 在 vision-off 模式下把候选图下载到 <rootDir>/data-scheme/images/，
 // 按 scene 命名并打印文件名。供 generateDataJSON 在视觉关闭时调用。
 func downloadManualCandidateImages(client *http.Client, report DataJSON, groups []NewsGroup, items []Item, rootDir string) error {
-	maxImages := readPositiveIntEnv("CLAUDE_VISION_MAX_IMAGES_PER_SOURCE", 2)
-	plans := planManualCandidates(report, groups, items, maxImages)
+	plans := planManualCandidates(report, groups, items, visionMaxImagesPerSource)
 	if len(plans) == 0 {
 		return nil
 	}

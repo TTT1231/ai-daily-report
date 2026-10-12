@@ -3,7 +3,6 @@ package main
 import (
 	"bufio"
 	"bytes"
-	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -43,19 +42,11 @@ func loadConfig() (AppConfig, error) {
 		return AppConfig{}, err
 	}
 
-	extraBody := make(map[string]any)
-	if raw := strings.TrimSpace(os.Getenv("AI_EXTRA_BODY_JSON")); raw != "" {
-		if err := json.Unmarshal([]byte(raw), &extraBody); err != nil {
-			return AppConfig{}, fmt.Errorf("AI_EXTRA_BODY_JSON 不是有效 JSON: %w", err)
-		}
-	}
-
 	return AppConfig{
 		AI: AIConfig{
-			APIKey:    apiKey,
-			BaseURL:   baseURL,
-			Model:     model,
-			ExtraBody: extraBody,
+			APIKey:  apiKey,
+			BaseURL: baseURL,
+			Model:   model,
 		},
 		Sources:     sources,
 		Preferences: preferences,

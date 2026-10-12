@@ -4,7 +4,7 @@
   "title": "AI Daily Report Video Timeline",
   "description": "项目级固定视频时间线配置。它由人工维护，供 TTS 起始时间计算、评论时间戳生成和 Remotion 渲染共同读取，不会随单次日报生成而自动变化。把它抽成单一事实源，是为了消除此前 src/AiDailyReport.tsx（渲染侧）与 scripts/lib/report-builder.mjs（评论侧）各自硬编码同一常量导致的漂移风险——改这里即两侧同步。",
   "type": "object",
-  "required": ["$schema", "fps", "storyTransitionFrames"],
+  "required": ["$schema", "fps", "storyTransitionFrames", "ttsTailPaddingMs"],
   "additionalProperties": false,
   "properties": {
     "$schema": {
@@ -15,6 +15,11 @@
       "type": "integer",
       "const": 30,
       "description": "视频帧率，单位为帧/秒。Remotion Composition、TTS 帧换算和评论时间戳共用此值。当前固定为 30；改动前需同步 Root.tsx 中传入的 fps。"
+    },
+    "ttsTailPaddingMs": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "每段 TTS 音频结束后的留白，单位为毫秒。生成脚本将它加到音频时长上形成 Scene 时长；调整留白会重算时间线，不会使已合成音频的缓存失效。"
     },
     "storyTransitionFrames": {
       "type": "integer",

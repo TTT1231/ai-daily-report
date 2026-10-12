@@ -1,5 +1,8 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import {mkdtempSync, writeFileSync, rmSync} from "node:fs";
+import {tmpdir} from "node:os";
+import {join} from "node:path";
 import {
   readSpeechSettings,
   speechOptionsForText,
@@ -14,7 +17,7 @@ const config = {
   speed: 1,
   vol: 1,
   pitch: 0,
-  ...readSpeechSettings({}),
+  ...readSpeechSettings(),
 };
 
 test("mixed-language defaults and dictionary preserve subtitle text", async () => {
@@ -68,13 +71,19 @@ test("language, normalization, speed, voice and relevant pronunciations invalida
   );
 });
 
-test("invalid speech settings fail before requesting paid synthesis", () => {
-  assert.throws(
-    () => readSpeechSettings({ MINIMAX_TTS_LANGUAGE_BOOST: "typo" }),
-    /LANGUAGE_BOOST/,
-  );
-  assert.throws(
-    () => readSpeechSettings({ MINIMAX_TTS_TEXT_NORMALIZATION: "yes" }),
-    /TEXT_NORMALIZATION/,
-  );
+test("invalid pronunciation dictionaries fail before requesting paid synthesis", () => {
+  const dir = mkdtempSync(join(tmpdir(), "tts-pronunciation-"));
+  const dictionaryPath = join(dir, "pronunciation.json");
+  try {
+    for (const [dictionary, message] of [
+      [{}, /tone array/],
+      [{tone: ["missing replacement"]}, /original\/replacement/],
+      [{tone: ["Dogwood/one", "Dogwood/two"]}, /Duplicate TTS pronunciation/],
+    ]) {
+      writeFileSync(dictionaryPath, JSON.stringify(dictionary));
+      assert.throws(() => readSpeechSettings(dictionaryPath), message);
+    }
+  } finally {
+    rmSync(dir, {recursive: true, force: true});
+  }
 });

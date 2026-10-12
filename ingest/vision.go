@@ -28,7 +28,13 @@ var (
 // visionMinStoryScore 是参与视觉识图配图的最低 Story 分数，等于日报入选线 minimumScore（默认 7）：
 // 每个进入日报的 Story 都给它配图的机会。头部 Story 因 groups 按分数降序处理而优先消耗预算，
 // 低分 Story 仅在 maxCalls 预算有剩时才识别，总量被 maxCalls 封顶。
-const visionMinStoryScore = 7
+const (
+	visionMinStoryScore      = 7
+	visionMaxCalls           = 10
+	visionMaxImagesPerSource = 2
+	visionRequestTimeout     = 180 * time.Second
+	visionMaxBudgetUSD       = "1.00"
+)
 
 const visionJSONSchema = `{"type":"object","properties":{"relevant":{"type":"boolean"},"facts":{"type":"array","items":{"type":"string"}},"uncertain":{"type":"array","items":{"type":"string"}},"summary":{"type":"string"}},"required":["relevant","facts","uncertain","summary"],"additionalProperties":false}`
 
@@ -69,14 +75,14 @@ type VisionAnalyzer struct {
 	seenURLs     map[string]bool
 }
 
-// newVisionAnalyzer 读取一系列 CLAUDE_VISION_* 环境变量，构造带开关、调用上限与预算的图片视觉分析器。
+// newVisionAnalyzer 只从环境读取功能开关，调用上限、超时与预算由视觉模块维护。
 func newVisionAnalyzer() *VisionAnalyzer {
 	return &VisionAnalyzer{
 		enabled:      readBoolEnv("CLAUDE_VISION_ENABLED", true),
-		maxCalls:     readPositiveIntEnv("CLAUDE_VISION_MAX_CALLS", 4),
-		maxImages:    readPositiveIntEnv("CLAUDE_VISION_MAX_IMAGES_PER_SOURCE", 2),
-		timeout:      time.Duration(readPositiveIntEnv("CLAUDE_VISION_TIMEOUT_SECONDS", 180)) * time.Second,
-		maxBudgetUSD: readPositiveFloatEnv("CLAUDE_VISION_MAX_BUDGET_USD", "1.00"),
+		maxCalls:     visionMaxCalls,
+		maxImages:    visionMaxImagesPerSource,
+		timeout:      visionRequestTimeout,
+		maxBudgetUSD: visionMaxBudgetUSD,
 		seenURLs:     make(map[string]bool),
 	}
 }
@@ -417,25 +423,6 @@ func readBoolEnv(name string, fallback bool) bool {
 		return fallback
 	}
 	return parsed
-}
-
-// readPositiveIntEnv 读取正整数环境变量，缺失或非正时返回 fallback。
-func readPositiveIntEnv(name string, fallback int) int {
-	value, err := strconv.Atoi(strings.TrimSpace(os.Getenv(name)))
-	if err != nil || value <= 0 {
-		return fallback
-	}
-	return value
-}
-
-// readPositiveFloatEnv 校验环境变量是否为正数：合法时原样返回该字符串，否则返回 fallback。
-func readPositiveFloatEnv(name, fallback string) string {
-	value := strings.TrimSpace(os.Getenv(name))
-	parsed, err := strconv.ParseFloat(value, 64)
-	if err != nil || parsed <= 0 {
-		return fallback
-	}
-	return value
 }
 
 // visionForeignURLPattern 匹配事实文本里显式写出的外链（http/https/www 形态）。

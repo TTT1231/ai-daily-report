@@ -1172,6 +1172,10 @@ func TestRequestModelUsesOpenAICompatibleChatCompletions(t *testing.T) {
 		if body["model"] != "test-model" || body["temperature"] != float64(0) {
 			t.Fatalf("request body = %#v", body)
 		}
+		format, ok := body["response_format"].(map[string]any)
+		if !ok || format["type"] != "json_object" {
+			t.Fatalf("response_format = %#v, want json_object", body["response_format"])
+		}
 		writer.Header().Set("Content-Type", "application/json")
 		_, _ = writer.Write([]byte(`{"choices":[{"message":{"role":"assistant","content":"ok"}}]}`))
 	}))

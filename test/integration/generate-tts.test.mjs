@@ -5,10 +5,11 @@ import {createServer} from "node:http";
 import {mkdtempSync, mkdirSync, writeFileSync, readFileSync, rmSync, existsSync} from "node:fs";
 import {join, dirname, resolve} from "node:path";
 import {tmpdir} from "node:os";
-import {fileURLToPath} from "node:url";
+import {fileURLToPath, pathToFileURL} from "node:url";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const generateTts = resolve(__dirname, "..", "..", "scripts", "render", "generate-tts.mjs");
+const mockFetchUrl = pathToFileURL(resolve(__dirname, "..", "helpers", "mock-minimax-fetch.mjs"));
 const mockDir = resolve(__dirname, "..", "mock");
 // raw fixture 见 test/mock/raw-report.json，不硬编码
 const rawFixture = JSON.parse(readFileSync(join(mockDir, "raw-report.json"), "utf8"));
@@ -50,11 +51,10 @@ test("generate-tts --dry-run exits 0 without calling MiniMax or writing anything
 });
 
 // 非 dry-run 缺 API key：exit 2（发生在调用 MiniMax 之前，不消耗配额）
-test("disabled TTS ignores speech configuration and missing pronunciation files", () => {
+test("disabled TTS ignores voice configuration", () => {
   const {dir, code, stdout} = runTtsSync([], {
     TTS_REQUIRE: "false",
-    MINIMAX_TTS_LANGUAGE_BOOST: "invalid",
-    MINIMAX_TTS_PRONUNCIATION_FILE: "does-not-exist.json",
+    MINIMAX_TTS_SPEED: "invalid",
   });
   try {
     assert.equal(code, 0);
@@ -84,16 +84,16 @@ test("generate-tts aborts and exits non-zero when MiniMax returns a non-zero sta
   });
   await new Promise((r) => server.listen(0, "127.0.0.1", r));
   const {port} = server.address();
+  const mockImport = new URL(mockFetchUrl);
+  mockImport.searchParams.set("endpoint", `http://127.0.0.1:${port}`);
   const dir = seedTempDataScheme();
   try {
     const result = await new Promise((resolve) => {
-      const child = spawn(process.execPath, [generateTts], {
+      const child = spawn(process.execPath, ["--import", mockImport.href, generateTts], {
         env: {
           ...process.env,
           DATA_SCHEME_DIR: dir,
-          MINIMAX_TTS_ENDPOINT: `http://127.0.0.1:${port}`,
           MINIMAX_API_KEY: "test-key",
-          MINIMAX_TTS_REQUEST_INTERVAL_MS: "0",
           REQUIRE_VOICE_QUALITY_FFMPEG: "false",
           TTS_REQUIRE: "true",
         },

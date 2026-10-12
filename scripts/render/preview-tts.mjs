@@ -1,7 +1,7 @@
 import { mkdir, writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import { spawnSync } from "node:child_process";
-import { createMinimaxClient } from "../lib/minimax-tts.mjs";
+import { createMinimaxClient, MINIMAX_TTS_DEFAULTS } from "../lib/minimax-tts.mjs";
 import { readSpeechSettings } from "../lib/tts-speech-settings.mjs";
 import {
   inspectAudioQuality,
@@ -17,8 +17,7 @@ const voiceId =
 const text =
   "微软计划从2027年1月起，调整安卓版身份验证器的个人账号备份方式。Anthropic 扩大 Mythos 的受控访问，符合条件的网络安全专业人员可以分级申请。下面测试英文专名：Dogwood Local Engine。Cyber Verification Program。Haiku 5.5。API 额度为每月100美元。";
 const config = {
-  endpoint:
-    process.env.MINIMAX_TTS_ENDPOINT ?? "https://api.minimaxi.com/v1/t2a_v2",
+  endpoint: MINIMAX_TTS_DEFAULTS.endpoint,
   model: process.env.MINIMAX_TTS_MODEL ?? "speech-2.8-hd",
   voiceId,
   speed: 1,

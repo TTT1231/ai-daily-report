@@ -166,7 +166,6 @@ func TestDownloadManualCandidateImages_WritesSceneFiles(t *testing.T) {
 
 func TestDownloadManualCandidateImages_SkipsDuplicateBytesAndDecorativeSquares(t *testing.T) {
 	t.Setenv("all_proxy", "")
-	t.Setenv("CLAUDE_VISION_MAX_IMAGES_PER_SOURCE", "3")
 	large := solidPNG(t, 320, 180)
 	logo := solidPNG(t, 192, 192)
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -180,10 +179,14 @@ func TestDownloadManualCandidateImages_SkipsDuplicateBytesAndDecorativeSquares(t
 	defer srv.Close()
 
 	groups := []NewsGroup{
-		{Score: 9, Scenes: []StoryScene{{Subtitle: "这是一条用于候选图片下载测试的完整口播。", EvidenceIndexes: []int{1}}}},
+		{Score: 9, Scenes: []StoryScene{
+			{Subtitle: "这是一条用于候选图片下载测试的完整口播。", EvidenceIndexes: []int{1}},
+			{Subtitle: "这是用于测试过滤装饰图片的第二条完整口播。", EvidenceIndexes: []int{2}},
+		}},
 	}
 	items := []Item{
-		imgItem("https://src/1", `<img src="`+srv.URL+`/a.png"><img src="`+srv.URL+`/b.png"><img src="`+srv.URL+`/logo.png">`),
+		imgItem("https://src/1", `<img src="`+srv.URL+`/a.png"><img src="`+srv.URL+`/b.png">`),
+		imgItem("https://src/2", `<img src="`+srv.URL+`/logo.png">`),
 	}
 	report := buildReport(groups)
 	root := t.TempDir()

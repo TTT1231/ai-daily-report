@@ -1,5 +1,6 @@
 {
   "$schema": "./video-timeline.schema.json",
   "fps": 30,
-  "storyTransitionFrames": 18
+  "storyTransitionFrames": 18,
+  "ttsTailPaddingMs": 200
 }

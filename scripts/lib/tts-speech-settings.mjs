@@ -3,22 +3,15 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { rootDir } from "./paths.mjs";
 
+export const MINIMAX_SPEECH_DEFAULTS = Object.freeze({
+  languageBoost: "auto",
+  textNormalization: true,
+});
+
 // Centralize request-affecting settings so previews, production, and cache keys agree.
-export function readSpeechSettings(env = process.env) {
-  const languageBoost = env.MINIMAX_TTS_LANGUAGE_BOOST ?? "auto";
-  if (!["auto", "Chinese", "English"].includes(languageBoost)) {
-    throw new Error(
-      "MINIMAX_TTS_LANGUAGE_BOOST must be auto, Chinese, or English.",
-    );
-  }
-  const normalization = env.MINIMAX_TTS_TEXT_NORMALIZATION ?? "true";
-  if (!["true", "false"].includes(normalization)) {
-    throw new Error("MINIMAX_TTS_TEXT_NORMALIZATION must be true or false.");
-  }
-  const dictionaryPath = resolve(
-    rootDir,
-    env.MINIMAX_TTS_PRONUNCIATION_FILE ?? "config/tts-pronunciation.json",
-  );
+export function readSpeechSettings(
+  dictionaryPath = resolve(rootDir, "config/tts-pronunciation.json"),
+) {
   const dictionary = JSON.parse(readFileSync(dictionaryPath, "utf8"));
   if (!Array.isArray(dictionary.tone)) {
     throw new Error("TTS pronunciation dictionary must contain a tone array.");
@@ -41,16 +34,15 @@ export function readSpeechSettings(env = process.env) {
     originals.add(original);
   }
   return {
-    languageBoost,
-    textNormalization: normalization === "true",
+    ...MINIMAX_SPEECH_DEFAULTS,
     pronunciationTone: dictionary.tone,
   };
 }
 
 export function speechOptionsForText(text, config) {
   return {
-    languageBoost: config.languageBoost ?? "auto",
-    textNormalization: config.textNormalization ?? true,
+    languageBoost: config.languageBoost ?? MINIMAX_SPEECH_DEFAULTS.languageBoost,
+    textNormalization: config.textNormalization ?? MINIMAX_SPEECH_DEFAULTS.textNormalization,
     // An unrelated dictionary correction must not regenerate the whole report.
     pronunciationTone: (config.pronunciationTone ?? []).filter((entry) =>
       text.includes(entry.slice(0, entry.indexOf("/"))),

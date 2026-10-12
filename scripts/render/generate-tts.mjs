@@ -10,7 +10,7 @@ import {
   collectTimelineScenes,
 } from "../lib/report-builder.mjs";
 import {createGeneratedOutputTransaction} from "../lib/generated-output.mjs";
-import {createMinimaxClient} from "../lib/minimax-tts.mjs";
+import {createMinimaxClient, MINIMAX_TTS_DEFAULTS} from "../lib/minimax-tts.mjs";
 import {getSceneHash, readSpeechSettings} from "../lib/tts-speech-settings.mjs";
 import {sceneAudioFields, isReusable} from "../lib/tts-timeline.mjs";
 import {
@@ -18,8 +18,10 @@ import {
   generatedDataPath,
   rawDataPath,
   readJson,
+  videoTimelinePath,
 } from "../lib/paths.mjs";
 import {validateReport} from "../lib/report-validation.mjs";
+import {validateVideoTimeline} from "../lib/video-timeline-validation.mjs";
 
 import {validateReportEvidence} from "../lib/evidence-validation.mjs";
 
@@ -47,8 +49,7 @@ function buildConfig() {
     // entirely (no MiniMax, no audio, no ffmpeg quality check); every MINIMAX_* /
     // TTS_* / REQUIRE_VOICE_QUALITY_FFMPEG setting is then ignored.
     ttsEnabled,
-    endpoint:
-      process.env.MINIMAX_TTS_ENDPOINT ?? "https://api.minimaxi.com/v1/t2a_v2",
+    endpoint: MINIMAX_TTS_DEFAULTS.endpoint,
     model: process.env.MINIMAX_TTS_MODEL ?? "speech-2.8-hd",
     voiceId:
       process.env.MINIMAX_TTS_VOICE_ID ?? "Chinese (Mandarin)_Warm_Girl",
@@ -56,10 +57,7 @@ function buildConfig() {
     vol: 1,
     pitch: 0,
     ...readSpeechSettings(),
-    tailPaddingMs: readIntegerEnv("TTS_TAIL_PADDING_MS", 250, 0),
-    requestIntervalMs: readIntegerEnv("MINIMAX_TTS_REQUEST_INTERVAL_MS", 2200, 0),
-    maxRetries: readIntegerEnv("MINIMAX_TTS_MAX_RETRIES", 5, 0),
-    rateLimitRetryMs: readIntegerEnv("MINIMAX_TTS_RATE_LIMIT_RETRY_MS", 60000, 1000),
+    tailPaddingMs: readTailPaddingMs(),
     // ffmpeg-based voice-quality gate (isolated-burst / click detection). On by
     // default; set REQUIRE_VOICE_QUALITY_FFMPEG=false to skip it and the ffmpeg dependency.
     requireVoiceQualityFfmpeg: readBooleanEnv("REQUIRE_VOICE_QUALITY_FFMPEG", true),
@@ -80,14 +78,12 @@ function readNumberEnv(name, fallback, min, max) {
   return value;
 }
 
-function readIntegerEnv(name, fallback, min) {
-  const raw = process.env[name];
-  if (raw === undefined) return fallback;
-  const value = Number(raw);
-  if (!Number.isInteger(value) || value < min) {
-    throw new Error(`${name} must be an integer greater than or equal to ${min}.`);
+function readTailPaddingMs() {
+  const {errors, timeline} = validateVideoTimeline();
+  if (errors.length > 0) {
+    throw new Error(`${videoTimelinePath}: ${errors.join("; ")}`);
   }
-  return value;
+  return timeline.ttsTailPaddingMs;
 }
 
 function readBooleanEnv(name, fallback) {
@@ -163,7 +159,7 @@ if (!isDev) {
 }
 if (!dryRun && !isDev) {
   console.log(
-    `MiniMax pacing: ${config.requestIntervalMs}ms between requests, up to ${config.maxRetries} retries.`,
+    `MiniMax pacing: ${MINIMAX_TTS_DEFAULTS.requestIntervalMs}ms between requests, up to ${MINIMAX_TTS_DEFAULTS.maxRetries} retries.`,
   );
 }
 

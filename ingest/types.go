@@ -16,7 +16,7 @@ type AIConfig struct {
 	APIKey    string         // 鉴权用的 API Key（Bearer 令牌）。
 	BaseURL   string         // 模型服务地址，末尾不带斜杠。
 	Model     string         // 使用的模型名。
-	ExtraBody map[string]any // 透传到请求体的额外字段（如 temperature），不含 model/messages/stream。
+	ExtraBody map[string]any // 代码内部注入的额外请求字段（如 temperature），不读取环境变量，不含 model/messages/stream。
 }
 
 // RSS2Source 描述 RSS 2.0 来源的抓取方式，具体分页规则由来源适配器提供。

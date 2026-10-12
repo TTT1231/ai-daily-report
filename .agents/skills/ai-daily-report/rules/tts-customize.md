@@ -21,12 +21,9 @@
 MINIMAX_TTS_MODEL=speech-2.8-hd        # 模型
 MINIMAX_TTS_VOICE_ID=Chinese (Mandarin)_Warm_Girl   # 用户选定的温暖女声
 MINIMAX_TTS_SPEED=1.0                   # 新闻按正常语速合成，观众自行倍速
-MINIMAX_TTS_LANGUAGE_BOOST=auto         # 中英混读，不固定强制中文
-MINIMAX_TTS_TEXT_NORMALIZATION=true     # 中英文数字读法规范化
-MINIMAX_TTS_PRONUNCIATION_FILE=config/tts-pronunciation.json
 ```
 
-其它可调（节流 / 重试 / 尾部静音 / ffmpeg 音质检测开关）见 `.env.example` 的 MiniMax 段。想调 `vol` / `pitch` 必须改 `scripts/render/generate-tts.mjs` 的 `config`。
+接口、节流和重试策略集中在 `scripts/lib/minimax-tts.mjs` 的 `MINIMAX_TTS_DEFAULTS`；中英混读自动识别和数字规范化使用 `scripts/lib/tts-speech-settings.mjs` 的 `MINIMAX_SPEECH_DEFAULTS`，不再读取环境变量。专名发音直接修改固定的 `config/tts-pronunciation.json`；尾部留白修改 `config/video-timeline.json` 的 `ttsTailPaddingMs`（当前 200ms）。ffmpeg 音质检测开关见 `.env.example`。想调 `vol` / `pitch` 必须改 `scripts/render/generate-tts.mjs` 的 `config`。
 
 ### 情况二：换成别的 TTS 供应商（阿里、字节、OpenAI TTS 等）
 
@@ -35,10 +32,10 @@ MINIMAX_TTS_PRONUNCIATION_FILE=config/tts-pronunciation.json
 | 文件 | 改什么 |
 | --- | --- |
 | `scripts/lib/minimax-tts.mjs` | HTTP 客户端。这里发的是 MiniMax 专属请求体（`voice_setting`、`audio_setting`、`output_format: "hex"`、`base_resp.status_code`、`extra_info.audio_length`）。新供应商的请求/响应结构多半不一样，要么改这个文件，要么新写一个 `scripts/lib/<provider>-tts.mjs` 并在 `render/generate-tts.mjs` 里换 `createMinimaxClient` 的导入。 |
-| `scripts/render/generate-tts.mjs` | `config` 读取新 env（key/endpoint/model/voice/speed 等），按需替换客户端。 |
+| `scripts/render/generate-tts.mjs` | `config` 读取新 env（key/model/voice/speed 等），接口和请求策略留在供应商客户端，按需替换客户端。 |
 | `scripts/lib/tts-speech-settings.mjs` / `tts-timeline.mjs` | 更新 `getSceneHash` 的供应商和有效请求参数；写回 `scene.tts` 的供应商也要同步。 |
 | `data.schema.json` | `ttsMetadata.provider` 现在是 `const: "minimax"`，改成你的供应商名，或改成 `enum` / `type: "string"` 放开。 |
-| `.env` | 加新供应商的 key/endpoint/voice 等，替换掉 `MINIMAX_*`。 |
+| `.env` | 加新供应商的 key/model/voice/speed 等，替换掉 `MINIMAX_*`；客户端内部策略不放入环境变量。 |
 
 ## 缓存说明（为什么换供应商不用 `--force`）
 

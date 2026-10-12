@@ -188,6 +188,8 @@ func requestModel(ai AIConfig, messages []ChatMessage) (string, error) {
 		"model":    ai.Model,
 		"messages": messages,
 		"stream":   false,
+		// 采集各阶段都解析 JSON，响应格式作为客户端协议默认值维护。
+		"response_format": map[string]any{"type": "json_object"},
 	}
 	for key, value := range ai.ExtraBody {
 		if key != "model" && key != "messages" && key != "stream" {

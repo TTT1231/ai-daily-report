@@ -40,3 +40,13 @@ test("rejects additional unknown properties", () => {
     /must NOT have additional properties/,
   );
 });
+
+test("accepts zero TTS tail padding and rejects missing, negative or fractional padding", () => {
+  const timeline = clone(currentTimeline);
+  timeline.ttsTailPaddingMs = 0;
+  assert.deepEqual(validateVideoTimelineValue(timeline).errors, []);
+  for (const value of [undefined, -1, 1.5]) {
+    timeline.ttsTailPaddingMs = value;
+    assert.match(validateVideoTimelineValue(timeline).errors.join("\n"), /ttsTailPaddingMs/);
+  }
+});

@@ -12,7 +12,7 @@ import {
 } from "node:fs";
 import {join, dirname, resolve} from "node:path";
 import {tmpdir} from "node:os";
-import {fileURLToPath} from "node:url";
+import {fileURLToPath, pathToFileURL} from "node:url";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
@@ -21,7 +21,9 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 // 这是真正的 e2e：跨多个真实模块（report-builder / tts-timeline / generated-output / validateReport / Remotion），
 // 用 mock 挡住唯一的外部付费边界（MiniMax），remotion still 与实际渲染等效。
 const generateTts = resolve(__dirname, "..", "..", "scripts", "render", "generate-tts.mjs");
+const mockFetchUrl = pathToFileURL(resolve(__dirname, "..", "helpers", "mock-minimax-fetch.mjs"));
 const mockDir = resolve(__dirname, "..", "mock");
+const videoTimeline = JSON.parse(readFileSync(resolve(__dirname, "../../config/video-timeline.json"), "utf8"));
 // 用真实 mp3 的字节作 mock 音频（合法 hex），让落盘的 audio/*.mp3 是有效文件、remotion 不报缺文件
 const audioHex = readFileSync(join(mockDir, "test-audio-sample-1.mp3")).toString("hex");
 
@@ -51,6 +53,8 @@ test(
     });
     await new Promise((r) => server.listen(0, "127.0.0.1", r));
     const {port} = server.address();
+    const mockImport = new URL(mockFetchUrl);
+    mockImport.searchParams.set("endpoint", `http://127.0.0.1:${port}`);
 
     const dir = mkdtempSync(join(tmpdir(), "e2e-pipeline-"));
     try {
@@ -59,17 +63,15 @@ test(
       mkdirSync(join(dir, "images"), {recursive: true});
       writeFileSync(join(dir, "images/codex-reset.png"), readFileSync(join(mockDir, "images/codex-reset.png")));
 
-      // 2) 跑 generate-tts：DATA_SCHEME_DIR 指向临时目录，MiniMax 指向 mock，关 ffmpeg/限速。
+      // 2) 跑 generate-tts：DATA_SCHEME_DIR 指向临时目录，在 HTTP 边界注入 mock，关 ffmpeg。
       //    用 spawn（非 spawnSync）：mock server 跑在本测试进程里，spawnSync 会阻塞事件循环，
       //    导致 mock 收不到子进程的请求、fetch 挂满 60s 超时（进程内 HTTP mock + spawnSync 不兼容）。
       const tts = await new Promise((resolve) => {
-        const child = spawn(process.execPath, [generateTts], {
+        const child = spawn(process.execPath, ["--import", mockImport.href, generateTts], {
           env: {
             ...process.env,
             DATA_SCHEME_DIR: dir,
-            MINIMAX_TTS_ENDPOINT: `http://127.0.0.1:${port}`,
             MINIMAX_API_KEY: "e2e-test-key",
-            MINIMAX_TTS_REQUEST_INTERVAL_MS: "0",
             REQUIRE_VOICE_QUALITY_FFMPEG: "false",
             TTS_REQUIRE: "true",
           },
@@ -109,6 +111,8 @@ test(
         assert.ok(scene.timing && Number.isInteger(scene.timing.startMs), `${scene.id} missing timing`);
         assert.ok(scene.audioSrc, `${scene.id} missing audioSrc`);
         assert.ok(scene.tts && scene.tts.audioLengthMs === 1500, `${scene.id} tts.audioLengthMs`);
+        assert.equal(scene.tts.tailPaddingMs, videoTimeline.ttsTailPaddingMs, `${scene.id} tail padding must use timeline config`);
+        assert.equal(scene.timing.durationMs, 1500 + videoTimeline.ttsTailPaddingMs, `${scene.id} duration must include tail padding`);
       }
 
       // 4) 验收渲染：remotion still 出 intro 帧 + 一个 story 帧。

@@ -22,7 +22,7 @@ bun install
 - MiniMax TTS：`TTS_REQUIRE=true` 时配置 `MINIMAX_API_KEY`、`MINIMAX_TTS_MODEL`、`MINIMAX_TTS_VOICE_ID`、`MINIMAX_TTS_SPEED`
 - 不需要旁白：`TTS_REQUIRE=false`
 - 没有 ffmpeg 但仍需旁白：`REQUIRE_VOICE_QUALITY_FFMPEG=false`
-- 自动识图：`CLAUDE_VISION_ENABLED=true`；调用数和预算由对应 `CLAUDE_VISION_*` 变量限制
+- 自动识图：`CLAUDE_VISION_ENABLED=true`；调用数、候选图片数、超时和预算由 `ingest/vision.go` 内部默认值限制
 
 不要打印或回显 `.env` 中的密钥、Cookie。
 

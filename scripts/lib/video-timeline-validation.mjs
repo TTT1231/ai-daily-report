@@ -21,7 +21,7 @@ const formatSchemaError = (error) => {
   return `${path}: ${error.message}`;
 };
 
-// video-timeline.json 是时间线常量（fps / storyTransitionFrames）的单一事实源，
+// video-timeline.json 是时间线常量（fps / storyTransitionFrames / ttsTailPaddingMs）的单一事实源，
 // 渲染侧 TS 与生成/评论侧 JS 同源读取。校验它可在第一时间拦截非法值（如 fps
 // 被改成非 30、过渡帧为 0），避免评论与画面错位这类隐蔽 bug 流到渲染阶段。
 export function validateVideoTimeline() {
