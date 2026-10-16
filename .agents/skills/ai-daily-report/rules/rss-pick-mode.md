@@ -126,7 +126,7 @@ linux.do 是 Discourse，整站（**含 `.rss` 端点**）都在 Cloudflare 后�
 1. 解析用户粘贴的多条 RSS state 记录，提取 `hash`、`sourceId`、`title`、`link`；先按 `hash` 查 `ingest/rss-state.json`，未命中再按规范化 `link`（去参数、比 topic id）查；用 `sourceId`（或 link 域名）查 `ingest/sources.jsonc` 里对应来源的 `proxy`——查得到按配置走、查不到按「直连优先 + 代理兜底」探测（详见上方「抓取规则」）。
 2. state 命中的条目优先直接使用其 `description`（cooked HTML，通常已含正文、CDN 原图链接和外部原文链接），从 `description` 提取图片候选，不再进帖子页面或重抓 topic `.rss`；state 确实过期/缺失的条目用用户粘贴的 title/link 继续，但要说明无法从 state 反查更多上下文。
 3. 读取当前 `data-scheme/data.json`，检查是否已经包含相同 `link`、相同 topic id 或相似标题，避免重复追加。
-4. 对每条补选新闻生成一个 `DailyStory`：
+4. 先按 [`news-copy.md`](./news-copy.md) 提炼事实、写连贯口播，再为每条补选新闻整理一个 `DailyStory`：
    - `id`：优先用 Linux.do topic id，例如 `topic-2463889`；否则用标题 slug。
    - `topTitle`：按内容语义归类，例如 `行业动态`、`模型产品`、`账号风险`、`额度价格`、`AI工具`。
    - `bottomTitle`：短标签，尽量 2-6 个汉字或短英文。

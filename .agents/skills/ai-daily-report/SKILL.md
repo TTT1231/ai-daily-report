@@ -15,6 +15,7 @@ description: "Operate and troubleshoot the ai-daily-report project end to end: s
 4. 先跑最窄、最快且无外部副作用的命令。结构错误不要先跑 RSS、TTS、SVG、渲染或浏览器。
 5. 修改 `data.json` 后先跑 Raw 校验；supplied-source 用 `bun run evidence:check-raw` 汇总结构、口吻与证据文件问题，批量修复后才重建需要的派生产物。
 6. 调用付费 API 或覆盖/归档当前一期前，说明副作用；普通本地校验无需确认。
+7. 生成、修改或审查文案时先读取 [`rules/news-copy.md`](./rules/news-copy.md)，按「提炼事实 → 连贯口播 → Tabs 与证据映射 → 对照复核」写稿。口播和 Tabs 都按成品新闻组织事实，不把页面、图表、帖子的摘录笔记读给观众。
 
 ## 快速路由
 
@@ -104,6 +105,7 @@ bun run generate-svg
 
 ## 规则索引
 
+- 成品文案与主持人口吻：[`rules/news-copy.md`](./rules/news-copy.md)
 - 环境与依赖：[`rules/setup.md`](./rules/setup.md)
 - 快速排错：[`rules/troubleshooting.md`](./rules/troubleshooting.md)
 - 手动数据：[`rules/manual-mode.md`](./rules/manual-mode.md)

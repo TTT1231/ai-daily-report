@@ -49,6 +49,81 @@ test("news narration rejects audit prose but keeps accountable attribution", () 
   ]) assert.deepEqual(validateTone(reportWith({scenes: [{subtitle}]})), {errors: [], warnings: []}, subtitle);
 });
 
+test("source-reading incident phrases are caught in both narration and summaries", () => {
+  const samples = [
+    "Google 的 ERQA 机器人相关问答图表中，Gemini 4 Argon 得 87%；测试标注为 Tool off、样本量 N=400。",
+    "Google ERQA 图表中 Argon 得 87%；测试未启用工具，样本量为 400。",
+    "OpenCode Go 已列出 Gemini 4 Argon Contributor；文档提示，提示词与回答可能被用于训练未来 Google 模型。",
+    "页面说明应用仅创建者本人可见并能安装。",
+    "页面标明应用只对创建者可见、可安装，且不经过 Play 审核。",
+    "Command Code 把 DeepSeek V4.1 Flash 的活动额度提高到 100 美元，限未来三天，帖子给出的截止日是 10 月 16 日。",
+    "帖子把额度调整标为仅限接下来 3 天。",
+    "Anthropic 的基准图显示，开发环境拉取最新代码用时由 Git 的 87 秒降至新系统的 3.5 秒。",
+    "图表在 9 月 9 日记下 30,401 次合并变更。",
+    "性能图中，拉取代码用时从 87 秒降至 3.5 秒。",
+    "活动页标出 Remote，时间为 2026 年 11 月 2 日至 10 日。",
+    "该模型得分为 87%，测试标注为 Tool off、N=400。",
+  ];
+  for (const text of samples) {
+    const report = reportWith({
+      tabs: [{ summary: text }],
+      scenes: [{ subtitle: text }],
+    });
+    const original = JSON.parse(JSON.stringify(report));
+    const { errors } = validateTone(report);
+    assert.equal(errors.length, 2, text);
+    assert.match(errors[0], /^stories\[0\]\.tabs\[0\]\.summary:/);
+    assert.match(errors[1], /^stories\[0\]\.scenes\[0\]\.subtitle:/);
+    assert.deepEqual(report, original, "validation must not silently rewrite facts");
+  }
+});
+
+test("Markdown cannot hide source prose in a summary; overlapping phrases report once", () => {
+  const { errors } = validateTone(reportWith({
+    tabs: [{ summary: "页面**说明** `AI Studio` 应用只对创建者可见；截图显示安装入口。" }],
+  }));
+  assert.equal(errors.length, 1);
+  assert.match(errors[0], /页面说明/);
+});
+
+test("score-list and account wording request review without rejecting legitimate attribution", () => {
+  for (const text of [
+    "SimpleQA Verified 榜单中，Argon 为 76.0%±1.4，GPT-6 Astra 为 75.6%±1.4；误差范围重叠。",
+    "Command Code 官方账号称，DeepSeek V4.1 Flash 的活动使用额度提高至 100 美元。",
+  ]) {
+    const { errors, warnings } = validateTone(reportWith({
+      tabs: [{ summary: text }], scenes: [{ subtitle: text }],
+    }));
+    assert.deepEqual(errors, []);
+    assert.equal(warnings.length, 2, text);
+    assert.match(warnings[0], /^stories\[0\]\.tabs\[0\]\.summary:/);
+    assert.match(warnings[1], /^stories\[0\]\.scenes\[0\]\.subtitle:/);
+  }
+});
+
+test("direct news copy preserves evaluation conditions, uncertainty and actual source events", () => {
+  const samples = [
+    "在 Google 的 ERQA 评测中，Gemini 4 Argon 得分为 87%。测试未启用工具，样本量为 400。",
+    "在 SimpleQA Verified 评测中，Argon 得分为 76.0%±1.4，GPT-6 Astra 为 75.6%±1.4。两者误差区间重叠。",
+    "OpenCode Go 将 Gemini 4 Argon Contributor 加入模型目录。使用该选项时，提示词和回答可能用于训练未来的 Google 模型。",
+    "这些应用仅创建者本人可见、可安装，且不经过 Play 审核。",
+    "Command Code 将 DeepSeek V4.1 Flash 的活动额度提高至 100 美元，活动截至 10 月 16 日。",
+    "在 Anthropic 自家的测试中，新系统将开发环境拉取最新代码的用时从 Git 的 87 秒缩短到 3.5 秒。",
+    "据某机构监测，模型目录新增一个型号；是否已经开放调用尚未确认。",
+    "Anthropic 预计，小型模型可能在数月后具备自主复制能力。",
+    "自称攻击者声称使用了弱口令，丹麦管理方尚未证实这一说法。",
+    "OpenCode Go 更新了使用文档，删除了旧版模型的配置示例。",
+    "该模型在榜单中排名第二，榜单新增了三款模型。",
+    "公司官方账号被盗，随后恢复访问并删除了冒充公告。",
+    "该功能可以从图表中提取数据，识别图片中的文字。",
+  ];
+  for (const text of samples) {
+    assert.deepEqual(validateTone(reportWith({
+      tabs: [{ summary: text }], scenes: [{ subtitle: text }],
+    })), { errors: [], warnings: [] }, text);
+  }
+});
+
 test("tone checks skip malformed shapes while preserving healthy sibling paths", () => {
   const report = reportWith({
     tabs: [null, { summary: "截图显示事实成立。" }],

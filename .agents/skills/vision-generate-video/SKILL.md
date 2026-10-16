@@ -32,7 +32,8 @@ instructions; do not rerun their sourcing, TTS, or MP4 commands when reviewing p
 1. Activate `$ai-daily-report` first and follow its production and safety rules. Read its
    `rules/supplied-source-mode.md` in full — it owns input routing (RSS state first),
    source-quality and link-chasing decisions, screenshot/evidence rules, single-image
-   inputs, story/tab scaling, and the keyword-replacement floor. Also read
+   inputs, story/tab scaling, and the keyword-replacement floor. Before composing Raw,
+   read `rules/news-copy.md` and follow its fact-to-script writing sequence. Also read
    `rules/images.md` for overlay display rules and `rules/evidence-workflow.md` for the executable capture/preflight/export workflow. When anything here seems to conflict with
    those files, they win; only the direct-SVG exception below is unique to this skill.
    Read these references once per task; recover from the fact ledger and pending review items after context compaction.

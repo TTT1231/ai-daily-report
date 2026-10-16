@@ -182,6 +182,26 @@ test("check-data-json --strict-tone exits 1 on medium-reference narration with f
   }
 });
 
+test("strict tone reports source-reading prose in both summaries and subtitles without rewriting input", () => {
+  const report = rawReport();
+  report.stories[0].tabs[0].summary =
+    "页面说明这些新应用**仅创建者本人可见并能安装**，其他用户无法直接访问个人应用库。";
+  report.stories[0].scenes[0].subtitle =
+    "Anthropic 的基准图显示，开发环境拉取最新代码用时由 Git 的 87 秒降至新系统的 3.5 秒。";
+  const raw = JSON.stringify(report);
+  const dir = seedDataScheme({ "data.json": raw });
+  try {
+    const { code, stderr } = runCli(checkDataJson, ["--strict-tone"], dir);
+    assert.equal(code, 1);
+    assert.match(stderr, /stories\[0\]\.tabs\[0\]\.summary:.*页面说明/);
+    assert.match(stderr, /stories\[0\]\.scenes\[0\]\.subtitle:.*基准图显示/);
+    assert.equal(readFileSync(join(dir, "data.json"), "utf8"), raw);
+    assert.equal(runCli(checkDataJson, [], dir).code, 0);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
 test("one check reports length, Markdown, tone and missing evidence together without writing files", () => {
   const report = rawReportWithMediumNarration();
   report.stories[0].contentTitle = "字".repeat(31);

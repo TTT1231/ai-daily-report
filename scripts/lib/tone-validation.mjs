@@ -1,10 +1,10 @@
 // strict-tone 口吻闸（supplied-source 专用）：`bun run check-data-json --strict-tone`。
-// 只在显式 flag 下启用；原生 RSS 与手动流程不带 flag，不受这些规则影响
-//（`ingest/prompts.go` 仍允许原生不确定图片证据使用「据截图显示」类措辞）。
+// 只在显式 flag 下启用；原生 RSS 与手动流程不带 flag，不受这些检查影响。
+// 各生成入口仍应遵循同一成品新闻写法；此处只检测常见句式，不替代语义审稿。
 //
 // 分级原则：
-// - 阻断：仅收窄到「证据媒介叙述」模板（描述截图/图片/画面/配图，而不播报新闻事实）。
-// - 警告：匿名归因、评价/建议/免责填空——是复核线索，不是语义判决，不阻断。
+// - 阻断：明确的证据媒介/查证叙述模板，覆盖口播与卡片摘要。
+// - 警告：需看语境的榜单报分、账号归因、匿名归因、评价/建议/免责填空。
 // - 合法影响表达（可能、意味着、将影响）不在任何清单内，不得误报。
 
 const BLOCKED_MEDIUM_PHRASES = [
@@ -72,14 +72,25 @@ const CLAUSE_START_OFFICIAL = /(?:^|[，。！？；：、])官方(?:表示|称|
 // 「如果……将……」式假设推演是填空线索；句内跨度收窄到 24 字避免跨句误配。
 const HYPOTHETICAL_FILLER = /如果.{1,24}将/;
 
-// 仅检查口播，事实台账和编辑摘要可以保留来源说明。收窄到查证模板，
-// 不禁止“某媒体报道”“据某机构监测”及支持页面本身发生变更的新闻。
-const NARRATION_AUDIT_PATTERNS = [
-  /(?:支持页|帮助页|产品页|官方页面)(?:面)?(?:中)?(?:说明|显示|列出|标注)/u,
+// 口播和摘要都是成品文案，出处/核验过程留在事实台账中。
+// 不禁止“某媒体报道”“据某机构监测”或文档/榜单/账号本身发生变更的新闻。
+const SOURCE_PROSE_PATTERNS = [
+  /(?:支持页|帮助页|产品页|活动页|官方页面|页面|网页|文档)(?:中)?(?:说明|显示|列出|标注|标明|标出|写明|注明|提示|提醒)/u,
   /(?:页面|网页)标注(?:的)?发布日期/u,
   /(?:存档|快照)中(?:出现|记录到|显示)/u,
   /(?:存档|快照)(?:也)?记录到/u,
   /当前可核实证据|证据只确认/u,
+  /(?:图表|基准图|性能图|成绩图|评测图)(?:在[^，。！？；：]{1,20})?(?:显示|表明|标注|记下|记录)/u,
+  /(?:图表|基准图|性能图|成绩图|评测图)(?:中|上|里)(?:[，,：:]|\s*[^，。！？；：]{1,40}(?:得分|得|为|达到)\s*\d+(?:\.\d+)?)/u,
+  /(?:帖子|贴文|推文)(?:中)?(?:给出|写明|注明|标注|标明|提到)/u,
+  /(?:帖子|贴文|推文)把[^，。！？；：]{1,30}标为/u,
+  /测试标注(?:为)?\s*(?:Tool\s*off|N\s*[=＝])/iu,
+];
+
+// 账号发言可能就是事件，榜单也可能确实在讲排名；提示人工判断，不一刀切阻断。
+const SOURCE_PROSE_REVIEW_PATTERNS = [
+  /官方(?:账号|帐号)(?:发文)?(?:称|表示|宣布|透露)/u,
+  /榜单(?:中|上|里)[^。！？；]{0,60}?(?:得分|得|为|是)\s*\d+(?:\.\d+)?\s*[%％]/u,
 ];
 
 const isRecord = (value) =>
@@ -130,11 +141,35 @@ export function validateTone(report) {
       const text = field.text;
       if (typeof text !== "string" || text.length === 0) continue;
 
-      if (field.path.endsWith(".subtitle")) {
-        const audit = NARRATION_AUDIT_PATTERNS.find((pattern) => pattern.test(text));
-        if (audit) {
-          errors.push(`${field.path}: narrates source verification ("${text.match(audit)[0]}"); report the event directly, preserving attribution and factual limits`);
+      // 摘要可以有 Markdown；格式不能把同一来源句式藏在不同片段中。
+      const plainText = text.replace(/\*\*|`/gu, "");
+      const isCopy =
+        field.path.endsWith(".subtitle") || field.path.endsWith(".summary");
+      const audit = isCopy
+        ? SOURCE_PROSE_PATTERNS.find((pattern) => pattern.test(plainText))
+        : undefined;
+      const medium = BLOCKED_MEDIUM_PHRASES.find((phrase) =>
+        plainText.includes(phrase),
+      );
+      if (audit || medium) {
+        const phrase = audit ? plainText.match(audit)[0] : medium;
+        // 同一字段只报一次来源叙述，要求重写事实关系，不能自动删词丢掉限定。
+        errors.push(
+          `${field.path}: ${audit ? "narrates the source instead of the news" : "narrates the evidence medium"} ("${phrase}"); explain the event or evaluation directly, preserving attribution, dates and factual limits`,
+        );
+      }
+      if (isCopy) {
+        const review = SOURCE_PROSE_REVIEW_PATTERNS.find((pattern) =>
+          pattern.test(plainText),
+        );
+        if (review) {
+          warnings.push(
+            `${field.path}: possible source-led copy ("${plainText.match(review)[0]}"); review whether this is an event, evaluation or ranking; preserve accountable attribution and do not imply availability from a listing`,
+          );
         }
+      }
+
+      if (field.path.endsWith(".subtitle")) {
         if (/`|\*\*|\[[^\]]+\]\(/u.test(text)) {
           errors.push(`${field.path}: narration contains Markdown; write plain spoken text`);
         }
@@ -143,15 +178,6 @@ export function validateTone(report) {
         }
       }
 
-      for (const phrase of BLOCKED_MEDIUM_PHRASES) {
-        if (text.includes(phrase)) {
-          // 每个字段只报第一条媒介错误，同一句多个模板不重复刷屏。
-          errors.push(
-            `${field.path}: narrates the evidence medium ("${phrase}"); state the sourced fact directly without describing the image`,
-          );
-          break;
-        }
-      }
       for (const phrase of ANONYMOUS_ATTRIBUTION_PHRASES) {
         if (text.includes(phrase)) {
           warnings.push(
