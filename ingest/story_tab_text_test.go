@@ -128,44 +128,29 @@ func TestTabRejectionReasonAcceptsSeparateBoldAndCodeSpans(t *testing.T) {
 	}
 }
 
-func TestApplyStoryTabsResultsKeepsBestComponentsAcrossRepairRounds(t *testing.T) {
+func TestApplyStoryTabsResultsCommitsOnlyACompleteCoherentDraft(t *testing.T) {
 	groups := []NewsGroup{{
 		Title:         "这是一个超过三十个字符并且需要模型语义改写后才能放入视频播放区的新闻原标题",
 		SourceIndexes: []int{1},
 	}}
 	batch := []storyTabMaterial{{GroupIndex: 1, Body: "Story 1"}}
-	validTabs := []StoryTab{
-		{Title: "事件事实", Summary: "这是第一段长度足够的完整摘要，**包含明确事实和具体结果**。", EvidenceIndexes: []int{1}},
-		{Title: "用户影响", Summary: "这是第二段长度足够的完整摘要，**说明变化会怎样影响用户**。", EvidenceIndexes: []int{1}},
+	valid := fixtureCompleteStoryDraft()
+	first := valid
+	first.Scenes = nil
+	if repairs := applyStoryTabsResults(groups, batch, []StoryTabsResult{first}); len(repairs) != 1 || len(groups[0].Tabs) != 0 {
+		t.Fatalf("incomplete draft was partially committed: repairs=%#v group=%#v", repairs, groups[0])
 	}
-	validScenes := []StoryScene{{
-		Subtitle:        "这是一条长度足够的完整口播，概括新闻主体、核心事件和直接结果。",
-		EvidenceIndexes: []int{1},
-	}}
-
-	repairs := applyStoryTabsResults(groups, batch, []StoryTabsResult{{
-		GroupIndex:      1,
-		ContentTitle:    "首轮生成的完整短标题",
-		NavigationTitle: "首轮事件",
-		Tabs:            validTabs,
-	}})
-	if len(repairs) != 1 || len(groups[0].Tabs) != 2 {
-		t.Fatalf("first round did not retain valid tabs: repairs=%#v group=%#v", repairs, groups[0])
+	second := valid
+	second.Tabs = []StoryTab{{Title: "退化结果", Summary: "太短", EvidenceIndexes: []int{1}}}
+	if repairs := applyStoryTabsResults(groups, batch, []StoryTabsResult{second}); len(repairs) != 1 || storyTabsContentReady(groups[0]) {
+		t.Fatalf("different repair rounds were mixed: repairs=%#v group=%#v", repairs, groups[0])
 	}
-
-	repairs = applyStoryTabsResults(groups, batch, []StoryTabsResult{{
-		GroupIndex:      1,
-		ContentTitle:    "次轮不应覆盖的完整短标题",
-		NavigationTitle: "次轮事件",
-		Tabs: []StoryTab{{
-			Title: "退化结果", Summary: "太短", EvidenceIndexes: []int{1},
-		}},
-		Scenes: validScenes,
-	}})
-	if len(repairs) != 0 || !storyTabsContentReady(groups[0]) {
-		t.Fatalf("best components were not merged into a ready story: repairs=%#v group=%#v", repairs, groups[0])
+	valid.ContentTitle = "完整重写的新闻标题"
+	valid.NavigationTitle = "新版本"
+	if repairs := applyStoryTabsResults(groups, batch, []StoryTabsResult{valid}); len(repairs) != 0 || !storyTabsContentReady(groups[0]) {
+		t.Fatalf("complete repaired draft was not accepted: repairs=%#v group=%#v", repairs, groups[0])
 	}
-	if len(groups[0].Tabs) != 2 || len(groups[0].Scenes) != 1 {
-		t.Fatalf("unexpected retained component counts: Tabs=%d Scenes=%d", len(groups[0].Tabs), len(groups[0].Scenes))
+	if groups[0].ContentTitle != valid.ContentTitle || groups[0].NavigationTitle != valid.NavigationTitle || groups[0].NarrationReview.Takeaway != valid.NarrationReview.Takeaway {
+		t.Fatalf("committed draft contains fields from another version: %#v", groups[0])
 	}
 }

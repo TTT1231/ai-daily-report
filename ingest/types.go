@@ -89,7 +89,8 @@ type NewsGroup struct {
 	SourceIndexes           []int           `json:"source_indexes"`             // 归入本 Story 的全部候选序号（含重复来源）。
 	Highlights              []NewsHighlight `json:"highlights"`                 // 互不重复的关键要点。
 	Tabs                    []StoryTab      `json:"tabs,omitempty"`             // 后续编排出的视频 Tabs。
-	Scenes                  []StoryScene    `json:"scenes,omitempty"`           // Story 级精简口播；与 Tabs 解耦，通常 1 条、最多 maxStoryScenes 条。
+	Scenes                  []StoryScene    `json:"scenes,omitempty"`           // Story 级完整口播；段数由讲解需要决定，与 Tabs 解耦。
+	NarrationReview         NarrationReview `json:"-"`                          // 当前完整版本的核心事实与实际口播对应，不写入 Raw。
 	ImageAssets             []StoryImage    `json:"-"`                          // 已确认相关并可作为画面 overlay 的本地图片素材。
 	NavigationTitleRequired bool            `json:"-"`                          // Story Tabs 模型返回过 navigation_title 后启用严格短标签质量闸。
 }
@@ -108,7 +109,7 @@ type StoryTab struct {
 	EvidenceIndexes []int  `json:"evidence_indexes"` // 支撑该 Tab 的来源序号。
 }
 
-// StoryScene 是整条 Story 的精简口播。它总结 Story 的核心新闻，不与单个 Tab
+// StoryScene 是整条 Story 的口播分段。它讲解 Story 的核心新闻，不与单个 Tab
 // 一一对应；evidence_indexes 同时用于把相关来源图片挂到少量 Scene 上。
 type StoryScene struct {
 	Subtitle        string `json:"subtitle"`
@@ -128,9 +129,23 @@ type StoryImage struct {
 
 // StoryTabsResult 是模型针对某个 Story 返回的 Tabs 集合，GroupIndex 对应 Story 序号。
 type StoryTabsResult struct {
-	GroupIndex      int          `json:"group_index"`      // Story 序号（1 基）。
-	ContentTitle    string       `json:"content_title"`    // 播放区语义完整短标题。
-	NavigationTitle string       `json:"navigation_title"` // 底部时间线语义短标题。
-	Tabs            []StoryTab   `json:"tabs"`             // 该 Story 的 Tabs。
-	Scenes          []StoryScene `json:"scenes"`           // 该 Story 的 1-2 条精简口播，与 Tabs 数量无关。
+	GroupIndex      int             `json:"group_index"`      // Story 序号（1 基）。
+	ContentTitle    string          `json:"content_title"`    // 播放区语义完整短标题。
+	NavigationTitle string          `json:"navigation_title"` // 底部时间线语义短标题。
+	Tabs            []StoryTab      `json:"tabs"`             // 该 Story 的 Tabs。
+	Scenes          []StoryScene    `json:"scenes"`           // 完整讲述的分段，与 Tabs 数量无关。
+	NarrationReview NarrationReview `json:"narration_review"` // 同一生成调用内的编辑选择及口播对应。
+}
+
+// NarrationReview 让核心事实在同一次生成中显式对应实际口播，避免只留在标题或 Tabs。
+// 引用校验不能替代语义审稿；事实取舍与自然度仍由主持人编辑规则约束。
+type NarrationReview struct {
+	Takeaway  string              `json:"takeaway"`
+	CoreFacts []NarrationCoreFact `json:"core_facts"`
+}
+
+type NarrationCoreFact struct {
+	Fact            string `json:"fact"`
+	SpokenEvidence  string `json:"spoken_evidence"`
+	EvidenceIndexes []int  `json:"evidence_indexes"`
 }

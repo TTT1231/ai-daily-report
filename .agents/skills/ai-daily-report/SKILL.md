@@ -15,7 +15,7 @@ description: "Operate and troubleshoot the ai-daily-report project end to end: s
 4. 先跑最窄、最快且无外部副作用的命令。结构错误不要先跑 RSS、TTS、SVG、渲染或浏览器。
 5. 修改 `data.json` 后先跑 Raw 校验；supplied-source 用 `bun run evidence:check-raw` 汇总结构、口吻与证据文件问题，批量修复后才重建需要的派生产物。
 6. 调用付费 API 或覆盖/归档当前一期前，说明副作用；普通本地校验无需确认。
-7. 生成、修改或审查文案时先读取 [`rules/news-copy.md`](./rules/news-copy.md)，按「提炼事实 → 连贯口播 → Tabs 与证据映射 → 对照复核」写稿。口播和 Tabs 都按成品新闻组织事实，不把页面、图表、帖子的摘录笔记读给观众。
+7. 生成、修改或审查文案时先读取 [`rules/news-copy.md`](./rules/news-copy.md)，先确定观众最该记住什么，再写完整口播、分配主次篇幅，最后拆 Scene、组织 Tabs 和证据。核心信息不能只留在卡片；整条口播的重点与独立可懂性须记录在已有审核中，不以逐句有证据代替讲清新闻。
 
 ## 快速路由
 

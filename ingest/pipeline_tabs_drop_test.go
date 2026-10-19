@@ -72,7 +72,7 @@ func TestGenerateStoryTabsDropsStoryWithTooFewValidTabsAndKeepsGoodOne(t *testin
 		`{"title":"合格Tab二","summary":"这是合格 Story 的第二段足够长的摘要内容，说明用户影响。","kind":"impact","evidence_indexes":[2]}` +
 		`],"scenes":[{"subtitle":"合格 Story 使用一条精简口播总结核心事件和直接影响。","evidence_indexes":[2]}]}` +
 		`]`
-	server := fakeModelServer(t, tabsJSON)
+	server := fakeModelServer(t, fixtureStoryTabsJSON(t, tabsJSON))
 	defer server.Close()
 
 	ai := AIConfig{APIKey: "test-key", BaseURL: server.URL, Model: "test-model"}
@@ -113,7 +113,7 @@ func TestGenerateStoryTabsErrorsWhenAllStoriesHaveTooFewValidTabs(t *testing.T) 
 		`{"title":"无效二","summary":"这是另一段长度足够的摘要内容用于通过字数校验，并保留具体事实。","kind":"fact","evidence_indexes":[99]}` +
 		`],"scenes":[{"subtitle":"第二条测试口播有效，但对应的新闻信息卡证据无效。","evidence_indexes":[2]}]}` +
 		`]`
-	server := fakeModelServer(t, tabsJSON)
+	server := fakeModelServer(t, fixtureStoryTabsJSON(t, tabsJSON))
 	defer server.Close()
 
 	ai := AIConfig{APIKey: "test-key", BaseURL: server.URL, Model: "test-model"}
@@ -144,7 +144,7 @@ func TestGenerateStoryTabsDropsStoryWithShortSummaryTabs(t *testing.T) {
 		`{"title":"合格二","summary":"这是合格 Story 的第二段足够长的摘要内容，说明用户影响。","kind":"impact","evidence_indexes":[2]}` +
 		`],"scenes":[{"subtitle":"合格 Story 使用一条精简口播总结核心事件和直接影响。","evidence_indexes":[2]}]}` +
 		`]`
-	server := fakeModelServer(t, tabsJSON)
+	server := fakeModelServer(t, fixtureStoryTabsJSON(t, tabsJSON))
 	defer server.Close()
 
 	ai := AIConfig{APIKey: "test-key", BaseURL: server.URL, Model: "test-model"}
@@ -177,7 +177,7 @@ func TestGenerateStoryTabsSkipsOneFailedPickAndKeepsTheGoodPick(t *testing.T) {
 		if calls.Add(1) > 1 {
 			content = failedRepair
 		}
-		_ = json.NewEncoder(w).Encode(ChatResponse{Choices: []ChatChoice{{Message: ChatMessage{Role: "assistant", Content: content}}}})
+		_ = json.NewEncoder(w).Encode(ChatResponse{Choices: []ChatChoice{{Message: ChatMessage{Role: "assistant", Content: fixtureStoryTabsJSON(t, content)}}}})
 	}))
 	defer server.Close()
 
@@ -210,7 +210,7 @@ func TestGenerateStoryTabsRewritesRejectedResultsAndUsesSemanticNavigationTitle(
 		if index >= len(responses) {
 			index = len(responses) - 1
 		}
-		_ = json.NewEncoder(w).Encode(ChatResponse{Choices: []ChatChoice{{Message: ChatMessage{Role: "assistant", Content: responses[index]}}}})
+		_ = json.NewEncoder(w).Encode(ChatResponse{Choices: []ChatChoice{{Message: ChatMessage{Role: "assistant", Content: fixtureStoryTabsJSON(t, responses[index])}}}})
 	}))
 	defer server.Close()
 
@@ -248,7 +248,7 @@ func TestGenerateStoryTabsRewritesTruncatedContentTitle(t *testing.T) {
 		if index >= len(responses) {
 			index = len(responses) - 1
 		}
-		_ = json.NewEncoder(w).Encode(ChatResponse{Choices: []ChatChoice{{Message: ChatMessage{Role: "assistant", Content: responses[index]}}}})
+		_ = json.NewEncoder(w).Encode(ChatResponse{Choices: []ChatChoice{{Message: ChatMessage{Role: "assistant", Content: fixtureStoryTabsJSON(t, responses[index])}}}})
 	}))
 	defer server.Close()
 

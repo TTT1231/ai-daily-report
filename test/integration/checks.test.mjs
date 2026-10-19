@@ -86,11 +86,14 @@ test("check-data-json exits 0 on a valid raw report", () => {
   }
 });
 
-test("check-data-json exits 1 on a raw report with fewer than 2 tabs (schema rejects)", () => {
+test("check-data-json accepts a one-fact brief and rejects an empty tab list", () => {
   const bad = rawReport();
   bad.stories[0].tabs = [bad.stories[0].tabs[0]];
   const dir = seedDataScheme({ "data.json": JSON.stringify(bad) });
   try {
+    assert.equal(runCli(checkDataJson, [], dir).code, 0);
+    bad.stories[0].tabs = [];
+    writeFileSync(join(dir, "data.json"), JSON.stringify(bad));
     const { code, stderr } = runCli(checkDataJson, [], dir);
     assert.equal(code, 1);
     assert.match(stderr, /validation failed/);

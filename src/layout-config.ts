@@ -22,6 +22,14 @@ export interface TabLayout {
 }
 
 export const getTabLayout = (tabCount: number): TabLayout => {
+  if (tabCount === 1) {
+    return {
+      ...getTabLayout(2),
+      columns: 1,
+      isTwoCardLayout: false,
+      containerWidth: "50%",
+    };
+  }
   const isTwoCardLayout = tabCount === 2;
   const columns = isTwoCardLayout || tabCount === 4 ? 2 : 3;
   const rows = Math.ceil(tabCount / columns);

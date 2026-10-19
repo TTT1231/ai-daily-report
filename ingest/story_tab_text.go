@@ -8,7 +8,7 @@ import (
 )
 
 // 本文件是 story_tabs.go 的文本校验部分：负责校正模型返回的 Tab 内容、
-// 校验/降级口播字幕。它不涉及批次编排、重试或模型调用（见 story_tabs.go）。
+// 校验口播字幕。它不涉及批次编排、重试或模型调用（见 story_tabs.go）。
 
 var (
 	tabSummaryCodeCandidatePattern   = regexp.MustCompile(`(?i)(ChatGPT(?:\s+(?:Business|Plus|Pro|Team|Enterprise))?|Google Play(?: Store)?|Service Unavailable|AWS(?: Bedrock)?|Hacker News|AlphaWave Semi|Andon Labs|Cross-region inference|LinkedIn|Decoy\s+Font|AnuNeko|Patreon|Cloudflare|WordPress|wp2shell|iCloud\+|Apple\s+Music|SpaceXAI|SpaceX|xAI|Grok(?:\s+Voice(?:\s+Think\s+Fast)?(?:\s+\d+(?:\.\d+)?)?)?|HAWK|AES(?:-\d+)?|Serpent|Salsa20|SHA-1|MaaS|SaaS|GTM|Intern-S2[A-Za-z0-9.-]*|Monolith-[A-Za-z0-9.-]+|Fable\s*\d+|启元\s*T1|红烛故事|FamilyMart|Honda|ANA|Tibo|Claude(?:\s+(?:Code|Design|Fable|Mythos|Opus))?(?:\s+Preview)?(?:\s*\d+(?:\.\d+)?)?|GPT[-\s]?\d+(?:\.\d+)?(?:[-\s][A-Za-z0-9]+)*|Qwen[A-Za-z0-9.-]*|GLM[-A-Za-z0-9.]*|Gemini(?:[-\s][A-Za-z0-9.]+)*|OpenAI|Anthropic|Codex|DeepSeek|Kimi(?:\s+[A-Za-z0-9.-]+)?|Kiro|Qoder|Tabbit|Jalapeño|Broadcom|Celestica|Tomahawk|MiniMax[A-Za-z0-9.-]*|FFmpeg|CVE-\d+-\d+|PixelSmash|MagicYUV|MCP|API|VLC|Jellyfin|Kodi|Nextcloud|OBS|Slack|GitHub|Serverless|Web|Pro|PLUS)`)
@@ -102,7 +102,7 @@ func normalizeStoryTabsWithReasons(group NewsGroup, tabs []StoryTab) ([]StoryTab
 
 // tabRejectionReason 返回 Tab 内容层面的失败原因；通过校验返回空串。
 // 失败原因可被反馈给模型用于定向修正，因此只描述内容问题，不描述序号/去重等程序性校验。
-// 注意：subtitle 校验失败不在此列——原行为是退到 fallbackTabSubtitle 兜底，不丢弃 Tab。
+// Story 口播另行校验；不以卡片摘要或残余短句兜底。
 func tabRejectionReason(tab StoryTab) string {
 	visibleRunes := tabSummaryVisibleRuneCount(tab.Summary)
 	boldSpans := tabSummaryBoldSpanPattern.FindAllString(tab.Summary, -1)
@@ -182,8 +182,7 @@ func hasTruncationArtifact(value string) bool {
 }
 
 // normalizeStoryScenesWithReasons 校验 Story 级口播。Scene 总结整条新闻，与 Tab
-// 数量无关；普通 Story 一条即可，证据充分需要更多口播段时最多 maxStoryScenes 条，
-// 避免把信息卡逐张念给观众。
+// 数量无关；段数由完整讲述所需决定，不以一条为默认，不逐卡朗读。
 func normalizeStoryScenesWithReasons(group NewsGroup, scenes []StoryScene) ([]StoryScene, []string) {
 	validEvidence := make(map[int]bool, len(group.SourceIndexes))
 	for _, index := range group.SourceIndexes {

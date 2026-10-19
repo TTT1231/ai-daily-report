@@ -80,7 +80,7 @@ function validScene(overrides: Record<string, unknown> = {}) {
   };
 }
 
-test("dailyStorySchema rejects a story with fewer than 2 tabs", () => {
+test("dailyStorySchema accepts a one-fact brief without a filler tab and rejects an empty story", () => {
   const oneTabStory = {
     id: "story-1",
     topTitle: "栏目",
@@ -89,7 +89,8 @@ test("dailyStorySchema rejects a story with fewer than 2 tabs", () => {
     tabs: [validTab()],
     scenes: [validScene()],
   };
-  assert.throws(() => dailyStorySchema.parse(oneTabStory));
+  assert.doesNotThrow(() => dailyStorySchema.parse(oneTabStory));
+  assert.throws(() => dailyStorySchema.parse({...oneTabStory, tabs: []}));
 });
 
 test("dailyStorySchema requires a complete contentTitle without ellipsis", () => {

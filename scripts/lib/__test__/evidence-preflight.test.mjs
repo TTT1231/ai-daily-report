@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import {mkdtempSync, mkdirSync, writeFileSync, rmSync, copyFileSync} from "node:fs";
 import {tmpdir} from "node:os";
 import {join} from "node:path";
-import {assetChecks, buildEvidencePreflight, validateEvidencePreflight} from "../evidence-preflight.mjs";
+import {assetChecks, narrationChecks, buildEvidencePreflight, validateEvidencePreflight} from "../evidence-preflight.mjs";
 
 function fixture() {
   const dataDir = mkdtempSync(join(tmpdir(), "evidence-preflight-test-"));
@@ -37,6 +37,11 @@ const approveFixture = (review) => {
   for (const item of review.editorial ?? []) {
     item.supportsEditorial = true; item.qualifiersPreserved = true;
     item.supportNotes = "Fixture editorial matches the sourced release statements and their conditions.";
+  }
+  for (const item of review.narration ?? []) {
+    item.takeaway = "Version one is in preview on two desktop platforms next month.";
+    item.coreFactIds = [...item.factIds];
+    item.checks = Object.fromEntries(narrationChecks.map((check) => [check, true]));
   }
   return review;
 };
@@ -172,5 +177,56 @@ test("renaming identical evidence preserves review; missing/forged mappings do n
     assert.ok(f.check(previous).errors.length);
     previous.scenes = [];
     assert.ok(f.check(previous).errors.length >= 3);
+  } finally { f.close(); }
+});
+
+test("core facts left only in Tabs cannot pass a whole-story narration review", () => {
+  const f = fixture();
+  try {
+    f.report.stories[0].scenes.splice(1, 1);
+    f.factLedger.scenes.splice(1, 1);
+    const review = approveFixture(f.build());
+    assert.ok(review.editorial[0].factIds.includes("platforms"));
+    assert.match(f.check(review).errors.join("\n"), /core fact platforms is missing from narration/);
+    review.narration[0].coreFactIds = ["version", "date"];
+    assert.deepEqual(f.check(review).errors, [], "optional facts may remain in Tabs after an explicit editorial choice");
+    review.narration[0].coreFactIds = ["foreign"];
+    assert.match(f.check(review).errors.join("\n"), /unknown or foreign narration core fact/);
+  } finally { f.close(); }
+});
+
+test("sentence-level approvals alone cannot certify that a listener understands the story", () => {
+  const f = fixture();
+  try {
+    const review = approveFixture(f.build());
+    delete review.narration;
+    assert.match(f.check(review).errors.join("\n"), /whole-story narration review is missing/);
+    const next = f.build(review);
+    assert.ok(next.scenes.every((scene) => scene.supportsSubtitle === true));
+    assert.ok(next.assets.every((asset) => asset.checks.readable === true));
+    assert.ok(narrationChecks.every((key) => next.narration[0].checks[key] === null));
+    const approved = approveFixture(next);
+    approved.narration[0].takeaway = "";
+    approved.narration[0].coreFactIds = [];
+    approved.narration[0].checks.standalone = false;
+    const errors = f.check(approved).errors.join("\n");
+    assert.match(errors, /takeaway required/);
+    assert.match(errors, /coreFactIds/);
+    assert.match(errors, /standalone failed/);
+  } finally { f.close(); }
+});
+
+test("reordering valid scenes or changing the headline invalidates the complete narration judgement", () => {
+  const f = fixture();
+  try {
+    const previous = approveFixture(f.build());
+    f.report.stories[0].scenes.reverse();
+    assert.match(f.check(previous).errors.join("\n"), /whole-story narration review.*stale/);
+    const reordered = f.build(previous);
+    assert.ok(reordered.scenes.every((scene) => scene.supportsSubtitle === true));
+    assert.equal(reordered.narration[0].checks.standalone, null);
+    const approved = approveFixture(reordered);
+    f.report.stories[0].contentTitle = "A different news angle";
+    assert.match(f.check(approved).errors.join("\n"), /whole-story narration review.*stale/);
   } finally { f.close(); }
 });

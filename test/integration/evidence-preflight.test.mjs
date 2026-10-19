@@ -35,6 +35,9 @@ test("preflight CLI blocks missing/stale reviews and preserves untouched approva
     review.editorial[0].supportsEditorial = true;
     review.editorial[0].qualifiersPreserved = true;
     review.editorial[0].supportNotes = "Title matches the sourced preview release.";
+    review.narration[0].takeaway = "The fixture is available to preview users.";
+    review.narration[0].coreFactIds = ["fact"];
+    for (const check of Object.keys(review.narration[0].checks)) review.narration[0].checks[check] = true;
     writeFileSync(path, JSON.stringify(review));
     report.stories[0].scenes[0].timing = {startMs: 0, durationMs: 3000};
     saveReport();

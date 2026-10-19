@@ -164,7 +164,7 @@ func TestPicksPathEndToEnd(t *testing.T) {
 			{"title":"需求推动增长","summary":"数据中心与 AI 需求继续拉动存储芯片销售，为美光后续业绩提供增长动力。","kind":"impact","evidence_indexes":[2]}
 		],"scenes":[{"subtitle":"美光最新季度营收超出市场预期，AI 与数据中心需求推动存储芯片增长。","evidence_indexes":[2]}]}]`
 		body, _ := json.Marshal(ChatResponse{
-			Choices: []ChatChoice{{Message: ChatMessage{Role: "assistant", Content: resp}}},
+			Choices: []ChatChoice{{Message: ChatMessage{Role: "assistant", Content: fixtureStoryTabsJSON(t, resp)}}},
 		})
 		w.Header().Set("Content-Type", "application/json")
 		_, _ = w.Write(body)

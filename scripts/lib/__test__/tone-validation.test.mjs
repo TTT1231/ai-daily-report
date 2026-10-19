@@ -314,6 +314,26 @@ test("legal impact wording is never flagged", () => {
   assert.deepEqual(validateTone(r), { errors: [], warnings: [] });
 });
 
+test("audit appendices request review while direct rollout, opinions and real limits stay valid", () => {
+  for (const subtitle of [
+    "团队已增加算力，希望减少容量提示；这不是彻底解决保证。",
+    "芬克警告经济可能衰退；这是他的判断，不是预测定论。",
+    "教授谈到思考技能；这是他的观点而非因果定论。",
+  ]) {
+    const {errors, warnings} = validateTone(reportWith({scenes: [{subtitle}]}));
+    assert.deepEqual(errors, []);
+    assert.ok(warnings.some((warning) => warning.includes("audit-style appendix")), subtitle);
+  }
+  for (const subtitle of [
+    "OpenAI开始推送语音更新，API版本稍后推出。",
+    "芬克警告，若暂停建设数据中心，经济可能陷入衰退。",
+    "IDC预计，市场复苏可能要等到2028年。",
+    "OpenCode在其平台内免费提供该模型。",
+    "该模型采用自有许可，商用须遵守许可条款。",
+    "法院尚未就这些指控作出裁决。",
+  ]) assert.deepEqual(validateTone(reportWith({scenes: [{subtitle}]})), {errors: [], warnings: []}, subtitle);
+});
+
 // ---------- intro / outro 存在时同样覆盖 ----------
 test("intro and outro text fields are checked when present", () => {
   const r = reportWith();

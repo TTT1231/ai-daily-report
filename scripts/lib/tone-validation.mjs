@@ -93,6 +93,14 @@ const SOURCE_PROSE_REVIEW_PATTERNS = [
   /榜单(?:中|上|里)[^。！？；]{0,60}?(?:得分|得|为|是)\s*\d+(?:\.\d+)?\s*[%％]/u,
 ];
 
+// Review audit-style appendices without banning real uncertainty, denials or
+// source attribution. A hit requests a rewrite judgement, never an auto-delete.
+const AUDIT_APPENDIX_PATTERNS = [
+  /这(?:并)?不是(?:彻底|永久|完全)解决(?:的)?保证/u,
+  /这是[^，。！？；]{1,24}(?:判断|观点|主张)[，,](?:而非|并非|不是)/u,
+  /这是[^。！？；]{1,24}(?:观点|主张)而非[^。！？；]{1,16}(?:定论|结论)/u,
+];
+
 const isRecord = (value) =>
   value !== null && typeof value === "object" && !Array.isArray(value);
 const arrayOrEmpty = (value) => (Array.isArray(value) ? value : []);
@@ -166,6 +174,10 @@ export function validateTone(report) {
           warnings.push(
             `${field.path}: possible source-led copy ("${plainText.match(review)[0]}"); review whether this is an event, evaluation or ranking; preserve accountable attribution and do not imply availability from a listing`,
           );
+        }
+        const appendix = AUDIT_APPENDIX_PATTERNS.find((pattern) => pattern.test(plainText));
+        if (appendix) {
+          warnings.push(`${field.path}: audit-style appendix ("${plainText.match(appendix)[0]}"); integrate attribution and necessary conditions into the event, then review the complete narration`);
         }
       }
 

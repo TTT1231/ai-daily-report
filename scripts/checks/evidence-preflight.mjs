@@ -15,7 +15,7 @@ try {
     if (errors.length) throw new Error(errors.join("\n"));
     writeFileSync(`${path}.tmp`, `${JSON.stringify(review, null, 2)}\n`);
     renameSync(`${path}.tmp`, path);
-    console.log(`Evidence preflight: ${review.assets.length} distinct assets, ${review.scenes.length} narration mappings, ${review.facts.length} source facts, ${review.editorial.length} editorial reviews.\nReview: ${path}`);
+    console.log(`Evidence preflight: ${review.assets.length} distinct assets, ${review.scenes.length} narration mappings, ${review.facts.length} source facts, ${review.editorial.length} editorial reviews, ${review.narration.length} whole-story narration reviews.\nReview: ${path}`);
     console.log("Unchanged judgements retained. New/changed evidence is pending; no visual checks are auto-approved.");
   } else {
     if (process.argv.includes("--render")) {
@@ -33,7 +33,7 @@ try {
     }
     const result = validateEvidencePreflight(report, {dataDir, review: previous});
     if (result.errors.length) throw new Error(result.errors.join("\n"));
-    console.log(`Evidence preflight passed: ${result.assets} assets, ${result.scenes} explicit factual-support reviews.`);
+    console.log(`Evidence preflight passed: ${result.assets} assets, ${result.scenes} explicit factual-support reviews, ${result.narration} whole-story narration reviews.`);
   }
 } catch (error) {
   console.error(error.message);

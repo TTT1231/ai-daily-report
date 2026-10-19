@@ -99,7 +99,7 @@ export const dailyStorySchema = z
     introTitle: z.string().min(1).optional(),
     activeTab: identifierSchema.optional(),
     activeIntro: z.literal(true).optional(),
-    tabs: z.array(dailyTabSchema).min(2).max(6),
+    tabs: z.array(dailyTabSchema).min(1).max(6),
     scenes: z.array(dailySceneSchema).min(1).max(6),
     videoStartMs: z.number().nonnegative().optional(),
   })

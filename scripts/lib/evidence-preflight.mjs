@@ -3,6 +3,7 @@ import {resolve, sep} from "node:path";
 import {sha256File, sha256Text} from "./evidence-review.mjs";
 
 export const assetChecks = ["upright", "readable", "sourceIdentifiable", "unobstructed"];
+export const narrationChecks = ["explainsCore", "prioritizesKeyFacts", "standalone", "naturalSpoken"];
 const nonempty = (value) => typeof value === "string" && value.trim().length > 0;
 const sceneIdentity = (item) => `${item.storyId}/${item.sceneId}`;
 const factContent = (fact) => ({id: fact.id, storyId: fact.storyId, source: fact.source,
@@ -40,10 +41,12 @@ export function buildEvidencePreflight(report, {dataDir, previous = null, factLe
   const assets = new Map();
   const scenes = [];
   const editorial = [];
+  const narration = [];
   const ids = new Set();
   const oldAssets = new Map((previous?.assets ?? []).map((asset) => [asset.sha256, asset]));
   const oldScenes = new Map((previous?.scenes ?? []).map((scene) => [scene.key, scene]));
   const oldEditorial = new Map((previous?.editorial ?? []).map((item) => [item.key, item]));
+  const oldNarration = new Map((previous?.narration ?? []).map((item) => [item.key, item]));
   const facts = schemaVersion === 2 ? sourceFacts(report, factLedger, previous, errors) : [];
   const factById = new Map(facts.map((fact) => [fact.id, fact]));
   const mappings = factLedger === undefined ? previous?.scenes ?? [] : factLedger?.scenes;
@@ -69,6 +72,15 @@ export function buildEvidencePreflight(report, {dataDir, previous = null, factLe
       editorial.push({storyId: story.id, content, factIds, key,
         supportsEditorial: old?.supportsEditorial ?? null,
         qualifiersPreserved: old?.qualifiersPreserved ?? null, supportNotes: old?.supportNotes ?? ""});
+      // Review the complete spoken story separately from sentence-level support.
+      // Order and titles matter here; audio timing, icons and unchanged pixels do not.
+      const spokenContent = {title: story.contentTitle, introTitle: story.introTitle ?? null,
+        scenes: (story.scenes ?? []).map((scene) => ({id: scene.id, subtitle: scene.subtitle}))};
+      const narrationKey = sha256Text(JSON.stringify({storyId: story.id, content: spokenContent, factKeys: factKeys(factIds)}));
+      const previousNarration = oldNarration.get(narrationKey);
+      narration.push({storyId: story.id, content: spokenContent, factIds, key: narrationKey,
+        takeaway: previousNarration?.takeaway ?? "", coreFactIds: previousNarration?.coreFactIds ?? [],
+        checks: Object.fromEntries(narrationChecks.map((check) => [check, previousNarration?.checks?.[check] ?? null]))});
     }
     for (const scene of story.scenes ?? []) {
       const label = `${story.id}/${scene.id}`;
@@ -129,7 +141,7 @@ export function buildEvidencePreflight(report, {dataDir, previous = null, factLe
   }
   if (scenes.length === 0) errors.push("No evidence scenes to review.");
   return {errors, review: {schemaVersion, assets: [...assets.values()], scenes,
-    ...(schemaVersion === 2 ? {facts, editorial} : {})}};
+    ...(schemaVersion === 2 ? {facts, editorial, narration} : {})}};
 }
 
 export function validateEvidencePreflight(report, {dataDir, review} = {}) {
@@ -179,8 +191,31 @@ export function validateEvidencePreflight(report, {dataDir, review} = {}) {
         errors.push(`${item.storyId}: review title/introTitle/Tabs against source facts and their qualifiers`);
       }
     }
+    const narration = indexed(review?.narration, "key", "narration");
+    for (const item of current.narration) {
+      const checked = narration.get(item.key);
+      if (!checked || checked.storyId !== item.storyId || JSON.stringify(checked.content) !== JSON.stringify(item.content)) {
+        errors.push(`${item.storyId}: whole-story narration review is missing/stale; listen to the complete story without titles, Tabs or images`);
+        continue;
+      }
+      if (!nonempty(checked.takeaway)) errors.push(`${item.storyId}: narration takeaway required; state what a listener should remember`);
+      for (const check of narrationChecks) {
+        if (checked.checks?.[check] !== true) errors.push(`${item.storyId}: narration ${check} failed/pending; rewrite the complete spoken story before approval`);
+      }
+      const coreFactIds = checked.coreFactIds;
+      if (!Array.isArray(coreFactIds) || coreFactIds.length === 0 || coreFactIds.some((id) => !nonempty(id))) {
+        errors.push(`${item.storyId}: narration coreFactIds must identify the essential sourced facts, not just optional Tab details`);
+        continue;
+      }
+      if (new Set(coreFactIds).size !== coreFactIds.length) errors.push(`${item.storyId}: duplicate narration core fact reference`);
+      const spokenFacts = new Set(current.scenes.filter((scene) => scene.storyId === item.storyId).flatMap((scene) => scene.factIds));
+      for (const id of coreFactIds) {
+        if (!item.factIds.includes(id)) errors.push(`${item.storyId}: unknown or foreign narration core fact ${id}`);
+        else if (!spokenFacts.has(id)) errors.push(`${item.storyId}: core fact ${id} is missing from narration; a title or Tab cannot substitute for spoken explanation`);
+      }
+    }
   }
-  return {errors, assets: current.assets.length, scenes: current.scenes.length, editorial: current.editorial?.length ?? 0};
+  return {errors, assets: current.assets.length, scenes: current.scenes.length, editorial: current.editorial?.length ?? 0, narration: current.narration?.length ?? 0};
 }
 
 export function readEvidencePreflight(path) {

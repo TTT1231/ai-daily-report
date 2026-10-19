@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { mkdtempSync, readFileSync, existsSync, rmSync } from "node:fs";
+import { mkdtempSync, readFileSync, writeFileSync, existsSync, rmSync } from "node:fs";
 import { join, dirname, resolve } from "node:path";
 import { tmpdir } from "node:os";
 import { fileURLToPath } from "node:url";
@@ -106,6 +106,30 @@ for (const { frame, name } of REPORT_FRAMES) {
     }
   });
 }
+
+test("AiDailyReport renders a one-card brief without a filler card", () => {
+  const dir = mkdtempSync(join(tmpdir(), "remotion-single-card-"));
+  try {
+    const report = structuredClone(REPORT);
+    const story = report.stories.find(({id}) => id === "topic-2415444");
+    story.tabs = story.tabs.slice(0, 1);
+    delete story.activeTab;
+    for (const scene of story.scenes) {
+      delete scene.overlayImg;
+      delete scene.overlayImgWidth;
+      delete scene.overlayImgHeight;
+    }
+    const props = join(dir, "single-card.json");
+    const out = join(dir, "single-card.png");
+    writeFileSync(props, JSON.stringify(report));
+    const result = renderStill("AiDailyReport", frameAtStoryStart(story, 30), out, [
+      `--props=${props}`, `--public-dir=${SAMPLE_DIR}`,
+    ]);
+    assertValidFrame("one-card brief", result, out);
+  } finally {
+    rmSync(dir, {recursive: true, force: true});
+  }
+});
 
 // Root.tsx 的 Layout-Tests 四个布局预览组合：各自渲染一帧（用 defaultProps，不需 --props）。
 for (const compositionId of [

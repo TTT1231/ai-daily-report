@@ -14,12 +14,12 @@ const (
 	defaultRequestTimeout     = 200 * time.Second          // 调用 AI 模型 chat/completions 接口的默认超时。
 	defaultFeedRequestTimeout = 20 * time.Second           // 抓取 RSS 2.0 源的默认 HTTP 超时。
 	maxGroups                 = 15                         // 聚类后最多保留的 Story（视频主题）数量上限。
-	maxGroupHighlights        = 6                          // 每个 Story 最多保留的不重复要点数，对应视频的 tab 数。
+	maxGroupHighlights        = 6                          // 每个 Story 最多保留的不重复要点数，不决定 Tabs 或 Scene 数量。
 	storyTabBatchSize         = 4                          // 生成 Tabs 时每批送入模型的 Story 数量。
 	maxStoryTabSources        = 4                          // 单个 Story 最多引用的代表来源数量。
-	minStoryTabs              = 2                          // 每个 Story 至少需要的 Tab 数量，低于此值触发模型定向重写。
+	minStoryTabs              = 1                          // 简单公告允许一张有效事实卡，不为下限补免责卡。
 	maxStoryTabs              = 6                          // 每个 Story 最多允许的 Tab 数量。
-	maxStoryScenes            = 4                          // 每个 Story 最多允许的 Scene 数量；普通新闻 1 条，证据充分时才用更多。
+	maxStoryScenes            = 6                          // 与 Raw Schema 一致；段数由完整讲述所需决定。
 	minTabSummaryRunes        = 25                         // Tab 摘要（summary）的最小汉字长度，过短视为无效。
 	maxTabSummaryVisibleRunes = 110                        // Tab 摘要的纯文本上限；Markdown 视觉占用另行带权校验。
 	minSceneSubtitleRunes     = 28                         // 场景口播字幕（subtitle）的最小汉字长度。
