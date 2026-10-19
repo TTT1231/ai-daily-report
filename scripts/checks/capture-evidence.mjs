@@ -21,6 +21,12 @@ try {
   const plan = JSON.parse(readFileSync(path, "utf8"));
   const executable = browserExecutable();
   const run = async (args, input) => {
+    // Native agent-browser on Windows can consume piped eval input as an empty
+    // script. Base64 preserves the exact preparation code and its fact checks.
+    if (args[0] === "eval" && args[1] === "--stdin") {
+      args = ["eval", "-b", Buffer.from(input, "utf8").toString("base64")];
+      input = undefined;
+    }
     const result = spawnSync(executable, ["--session", option("session"), ...args], {
       input, encoding: "utf8", timeout: 35000, windowsHide: true,
     });
