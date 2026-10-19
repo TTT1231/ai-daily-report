@@ -53,12 +53,15 @@ const tone =
   strictTone && !renderMode
     ? validateTone(report)
     : { errors: [], warnings: [] };
+// Common Raw checks already include the explicit copy templates. Report each
+// failure once when strict-tone also adds supplied-source editorial checks.
+tone.errors = tone.errors.filter((error) => !errors.includes(error));
 const evidence = checkEvidence
   ? validateReportEvidence(report, { dataDir })
   : { errors: [], warnings: [] };
 
 // strict-tone 只针对 Raw：Generated 文案由 Raw 派生，重复检查只制造噪声。
-// 作用域仿照 check-evidence --require-overlay：不带 flag 的原生/手动流程完全不受影响。
+// 不带 flag 仍执行通用 Raw 文案检查；只有额外的 supplied 媒介叙述检查依赖 flag。
 if (strictTone) {
   if (renderMode) {
     console.error(
@@ -100,9 +103,9 @@ if (errorCount > 0) {
       ? `\n👉 data-generate.json 是生成的、不要手改；请先修 data-scheme/data.json，再 \`bun run tts\` 重新生成。`
       : `\n👉 请按上方错误修改 data-scheme/data.json 后重试。`,
   );
-  if (tone.errors.length > 0)
+  if (tone.errors.length > 0 || errors.some((error) => error.includes("news-copy template")))
     console.error(
-      `👉 按成品新闻重写口播和摘要：讲清主体、事件或评测结果，保留归因、日期与条件，不朗读页面、帖子或图表摘录；不要只删除命中词。`,
+      `👉 按成品新闻重写口播和摘要：用实际行为方直接讲动作、功能、规则或预测内容；只保留影响事实状态的一层归因及必要日期、条件，出处和审核说明留在台账。不要只删词或把“称”换成“表示”。`,
     );
   process.exit(1);
 }

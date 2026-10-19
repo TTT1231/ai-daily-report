@@ -2,6 +2,7 @@ import { existsSync, readFileSync } from "node:fs";
 import { resolve, sep } from "node:path";
 import Ajv2020 from "ajv/dist/2020.js";
 import { dataDir, schemaPath } from "./paths.mjs";
+import {validateNewsCopy} from "./news-copy.mjs";
 import {
   reportUsesEvidenceOnly,
   storyShowsTabCards,
@@ -171,7 +172,7 @@ export function validateReport(
   { renderMode = false, checkAssets = true } = {},
 ) {
   const structureErrors = schemaErrors(report);
-  const errors = [...structureErrors];
+  const errors = [...structureErrors, ...(!renderMode ? validateNewsCopy(report) : [])];
   const fail = (path, message) => errors.push(`${path}: ${message}`);
 
   // Schema errors own malformed values. Continue into usable sibling fields so

@@ -50,6 +50,27 @@ test("generate-tts --dry-run exits 0 without calling MiniMax or writing anything
   }
 });
 
+test("direct TTS rejects reporting scaffolding before calling MiniMax and preserves existing output", () => {
+  const dir = seedTempDataScheme();
+  try {
+    const report = JSON.parse(rawDataJson);
+    report.stories[0].scenes[0].subtitle = "Typora官方补充说明，现有V1付费用户升级至V2可免费，无需再次购买。";
+    const raw = JSON.stringify(report);
+    const previous = readFileSync(join(mockDir, "generated-report.json"), "utf8");
+    writeFileSync(join(dir, "data.json"), raw);
+    writeFileSync(join(dir, "data-generate.json"), previous);
+    const noRequests = "data:text/javascript," + encodeURIComponent("globalThis.fetch = () => {throw new Error('Unexpected TTS request before copy check');};");
+    const result = spawnSync(process.execPath, ["--import", noRequests, generateTts], {
+      env: {...process.env, DATA_SCHEME_DIR: dir, TTS_REQUIRE: "true", MINIMAX_API_KEY: "test-key"}, encoding: "utf8",
+    });
+    assert.equal(result.status, 2, result.stderr);
+    assert.match(result.stderr, /scenes\[0\]\.subtitle: news-copy template \[supplementary-preface\]/);
+    assert.doesNotMatch(result.stderr, /Unexpected TTS request/);
+    assert.equal(readFileSync(join(dir, "data.json"), "utf8"), raw);
+    assert.equal(readFileSync(join(dir, "data-generate.json"), "utf8"), previous);
+  } finally { rmSync(dir, {recursive: true, force: true}); }
+});
+
 // 非 dry-run 缺 API key：exit 2（发生在调用 MiniMax 之前，不消耗配额）
 test("disabled TTS ignores voice configuration", () => {
   const {dir, code, stdout} = runTtsSync([], {

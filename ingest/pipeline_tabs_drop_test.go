@@ -62,7 +62,7 @@ func TestGenerateStoryTabsDropsStoryWithTooFewValidTabsAndKeepsGoodOne(t *testin
 	// 两个 group 同属一个批次（storyTabBatchSize=4），一次 mock 响应覆盖。
 	tabsJSON := `[` +
 		`{"group_index":1,"navigation_title":"薄项","tabs":[` +
-		// 摘要够长（>=minTabSummaryRunes=25 字）但 evidence_indexes 全部无效 → 被丢
+		// 摘要是完整事实，但 evidence_indexes 全部无效 → 被丢
 		`{"title":"薄Tab一","summary":"这是一段长度足够的摘要内容用于通过字数校验，并保留具体事实。","kind":"fact","evidence_indexes":[99]},` +
 		`{"title":"薄Tab二","summary":"这是另一段长度足够的摘要内容用于通过字数校验，并保留具体事实。","kind":"fact","evidence_indexes":[99]}` +
 		`],"scenes":[{"subtitle":"薄 Story 的测试口播内容完整，但其 Tabs 证据故意无效。","evidence_indexes":[1]}]},` +
@@ -126,16 +126,14 @@ func TestGenerateStoryTabsErrorsWhenAllStoriesHaveTooFewValidTabs(t *testing.T) 
 	}
 }
 
-// TestGenerateStoryTabsDropsStoryWithShortSummaryTabs：覆盖「summary 过短导致 tab 被丢」的 drop 路径。
-// group 1 的两个 tab summary 都 < minTabSummaryRunes=25 字 → 被 tabRejectionReason 丢 → 0 合格。
-// 与上一组用例互补：上一个用 evidence_indexes 失效，这个用 summary 过短，确认两种 drop 触发源都被覆盖。
-func TestGenerateStoryTabsDropsStoryWithShortSummaryTabs(t *testing.T) {
+// Incomplete fragments still fail after removing the arbitrary length minimum.
+func TestGenerateStoryTabsDropsStoryWithFragmentSummaries(t *testing.T) {
 	groups := twoPrebuiltGroups()
 	items := tabsDropItems()
 
 	tabsJSON := `[` +
 		`{"group_index":1,"navigation_title":"薄项","tabs":[` +
-		// summary 过短 → tabRejectionReason 命中「summary 仅 N 字，不足 25 字下限」
+		// These are fragments, not complete brief facts.
 		`{"title":"短一","summary":"太短","kind":"fact","evidence_indexes":[1]},` +
 		`{"title":"短二","summary":"也太短","kind":"fact","evidence_indexes":[1]}` +
 		`],"scenes":[{"subtitle":"薄 Story 的测试口播内容完整，但信息卡摘要故意过短。","evidence_indexes":[1]}]},` +

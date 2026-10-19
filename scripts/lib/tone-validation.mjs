@@ -1,5 +1,7 @@
+import {validateNewsCopy} from "./news-copy.mjs";
+
 // strict-tone 口吻闸（supplied-source 专用）：`bun run check-data-json --strict-tone`。
-// 只在显式 flag 下启用；原生 RSS 与手动流程不带 flag，不受这些检查影响。
+// 此处的媒介检查只在显式 flag 下启用；明确转述模板由 Raw 通用校验一起拒收。
 // 各生成入口仍应遵循同一成品新闻写法；此处只检测常见句式，不替代语义审稿。
 //
 // 分级原则：
@@ -131,7 +133,7 @@ function storyTextFields(story, storyPath) {
 }
 
 export function validateTone(report) {
-  const errors = [];
+  const errors = validateNewsCopy(report);
   const warnings = [];
   if (!isRecord(report)) return { errors, warnings };
   const entries = [
@@ -163,7 +165,7 @@ export function validateTone(report) {
         const phrase = audit ? plainText.match(audit)[0] : medium;
         // 同一字段只报一次来源叙述，要求重写事实关系，不能自动删词丢掉限定。
         errors.push(
-          `${field.path}: ${audit ? "narrates the source instead of the news" : "narrates the evidence medium"} ("${phrase}"); explain the event or evaluation directly, preserving attribution, dates and factual limits`,
+          `${field.path}: ${audit ? "narrates the source instead of the news" : "narrates the evidence medium"} ("${phrase}"); explain the event or evaluation directly, preserving only necessary attribution, dates and factual limits`,
         );
       }
       if (isCopy) {
@@ -193,13 +195,13 @@ export function validateTone(report) {
       for (const phrase of ANONYMOUS_ATTRIBUTION_PHRASES) {
         if (text.includes(phrase)) {
           warnings.push(
-            `${field.path}: anonymous attribution ("${phrase}"); name the real subject (e.g. "DeepSeek 通知" / "彭博社报道")`,
+            `${field.path}: anonymous attribution ("${phrase}"); use the actual actor and action; name a source only when it changes the claim's factual status`,
           );
         }
       }
       if (CLAUSE_START_OFFICIAL.test(text)) {
         warnings.push(
-          `${field.path}: "官方" as clause subject is anonymous attribution; name the actual publisher`,
+          `${field.path}: "官方" as clause subject is anonymous attribution; state the product action or rule directly, naming a publisher only when necessary`,
         );
       }
       for (const phrase of EDITORIAL_FILLER_PHRASES) {

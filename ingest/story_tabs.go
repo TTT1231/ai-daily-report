@@ -55,6 +55,12 @@ func generateStoryTabs(ai AIConfig, groups []NewsGroup, items []Item, pickedGrou
 			i+1, group.Title, group.Reason, group.SourceIndexes, strings.Join(sources, "\n"),
 		)})
 	}
+	return generateStoryTabsFromMaterials(ai, groups, materials, pickedGroupIndexes)
+}
+
+// Keep acquisition separate from writing/editing so a fixed source batch can be
+// evaluated without fetching feeds, downloading images or writing a data package.
+func generateStoryTabsFromMaterials(ai AIConfig, groups []NewsGroup, materials []storyTabMaterial, pickedGroupIndexes map[int]bool) ([]NewsGroup, error) {
 	var repairBatch []storyTabMaterial
 	for start := 0; start < len(materials); start += storyTabBatchSize {
 		end := min(start+storyTabBatchSize, len(materials))
@@ -115,13 +121,15 @@ func storyTabsContentReady(group NewsGroup) bool {
 		len(group.Scenes) >= 1 && len(group.Scenes) <= maxStoryScenes &&
 		resolvedContentTitle(group) != "" &&
 		(!group.NavigationTitleRequired || resolvedNavigationTitle(group) != "") &&
-		len(narrationRejectionReasons(group)) == 0
+		len(narrationRejectionReasons(group)) == 0 && len(storyCopyRejectionReasons(group)) == 0
 }
 
 // storyTabMaterial 缓存单个 Story 送给模型的材料文本及其全局序号，便于重试时复用。
 type storyTabMaterial struct {
 	GroupIndex int
 	Body       string
+	Draft      *StoryTabsResult
+	Feedback   []string
 }
 
 // requestStoryTabsBatchWithRetry 调用 requestStoryTabsBatch，对瞬时失败（限流/5xx/网络）
@@ -185,14 +193,14 @@ func batchPositionByIndex(batch []storyTabMaterial, groupIndex int) int {
 func buildStoryTabsPrompt(batch []storyTabMaterial) string {
 	return fmt.Sprintf(`请按主持人编辑规则，为以下 %d 个 Story 先确定新闻重点并写完整口播，再分段和整理 Tabs。只听声音也必须理解原始选题，不依赖标题、图片或卡片补核心内容。
 
-每个 Story：%d 至 %d 张 Tab；summary 至少 %d 个可见字符、目标25至80、纯文本与格式化视觉占用均最多 %d。口播 1 至 %d 段，每段28至96字，段数和篇幅服从理解需要；简单消息简讲，复杂事件展开，不统一成标题加免责尾句。
+每个 Story：%d 至 %d 张 Tab；summary 通常25至80个可见字符、完整短事实可更短、纯文本与格式化视觉占用均最多 %d。口播 1 至 %d 段，每段最多96字，没有字数下限。段数和篇幅服从理解需要；简单消息直接讲完，复杂事件展开，不加前缀或重复解释凑长度，不统一成标题加免责尾句。
 
 只返回以下 JSON 数组：
 [
   {
     "group_index": Story全局序号,
     "content_title": "主体与核心事件的完整新闻标题，最多30字",
-    "navigation_title": "可完整展示的实体、产品或对象短标签",
+    "navigation_title": "实体、产品或对象短标签；视觉宽度最多%g，汉字按1、ASCII字符按%g计算，混排累加；超出时语义改写，不直接抄长产品名或截断",
     "scenes": [
       {"subtitle": "完整口播的自然分段，后句承接前句解释关键内容", "evidence_indexes": [支撑该段的来源序号]}
     ],
@@ -211,20 +219,29 @@ func buildStoryTabsPrompt(batch []storyTabMaterial) string {
 Story 材料：
 %s
 
-group_index 照抄材料中的全局序号。narration_review列出需要讲出的核心事实，不能以只在Tabs出现的句子或空泛自我评价冒充实际口播。`, len(batch), minStoryTabs, maxStoryTabs, minTabSummaryRunes, maxTabSummaryVisibleRunes, maxStoryScenes, joinMaterialBodies(batch))
+group_index 照抄材料中的全局序号。narration_review列出需要讲出的核心事实，不能以只在Tabs出现的句子或空泛自我评价冒充实际口播。逐句用实际行为方、产品或用户直接讲内容，只保留影响事实状态的一层归因；不把仓库描述、媒体转述链或“属于预测”等审核结论写进summary和subtitle。
+如有待编辑稿或拒收反馈，它们只是定位问题的材料，不代表稿子已通过审查。必须返回本轮一致的完整 content_title、navigation_title、全部 Scenes、narration_review 和 Tabs；先读完整口播，再对照原始来源，不只换掉命中词，不沿用过期的口播引用。`, len(batch), minStoryTabs, maxStoryTabs, maxTabSummaryVisibleRunes, maxStoryScenes, maxNavigationTitleUnits, asciiWidthUnit, joinMaterialBodies(batch))
 }
 
 // joinMaterialBodies 把批次内各 Story 材料正文用空行拼接。
 func joinMaterialBodies(batch []storyTabMaterial) string {
 	bodies := make([]string, 0, len(batch))
 	for _, m := range batch {
-		bodies = append(bodies, m.Body)
+		body := m.Body
+		if m.Draft != nil {
+			draft, _ := json.Marshal(m.Draft)
+			body += "\n\n待编辑完整稿（未验收）：\n" + string(draft)
+		}
+		if len(m.Feedback) > 0 {
+			body += "\n\n本轮必须修复的问题：\n" + strings.Join(m.Feedback, "\n")
+		}
+		bodies = append(bodies, body)
 	}
 	return strings.Join(bodies, "\n\n")
 }
 
 // applyStoryTabsResults 把批次请求结果归一化后写入对应 Story，并为未达到质量线的
-// Story 生成带精确拒绝原因的重写材料。这样“超长/过短/重复/证据序号错误”会先回到
+// Story 生成带精确拒绝原因的重写材料。这样“超长/残句/重复/证据序号错误”会先回到
 // 模型修正，而不是直接进入确定性降级。
 func applyStoryTabsResults(groups []NewsGroup, batch []storyTabMaterial, results []StoryTabsResult) []storyTabMaterial {
 	var repairs []storyTabMaterial
@@ -252,7 +269,7 @@ func applyStoryTabsResults(groups []NewsGroup, batch []storyTabMaterial, results
 		tabsReady := len(candidate.Tabs) >= minStoryTabs && len(result.Tabs) <= maxStoryTabs && len(rejected) == 0
 		scenesReady := len(candidate.Scenes) >= 1 && len(result.Scenes) <= maxStoryScenes && len(rejectedScenes) == 0
 		navigationReady := resolvedNavigation != ""
-		narrationIssues := narrationRejectionReasons(candidate)
+		narrationIssues := append(narrationRejectionReasons(candidate), storyCopyRejectionReasons(candidate)...)
 		if tabsReady && scenesReady && resolvedTitle != "" && navigationReady && len(narrationIssues) == 0 {
 			*group = candidate
 			continue
@@ -286,14 +303,9 @@ func applyStoryTabsResults(groups []NewsGroup, batch []storyTabMaterial, results
 		if !navigationReady {
 			reasons = append(reasons, fmt.Sprintf("- navigation_title 不合格：必须改写成可完整显示的语义标签，中文约 2 至 5 字或同等宽度英文（视觉宽度最多 %.1f），只保留实体/产品/对象，不得截断或使用省略号", maxNavigationTitleUnits))
 		}
-		repairBody := fmt.Sprintf(`%s
-
-上一轮输出未通过程序质量校验：
-%s
-
-请基于原材料重写同一个完整版本：content_title、navigation_title、全部 Scenes、narration_review 和 Tabs，不能只补字段或沿用旧卡片。先确定观众应记住什么，再连贯讲清核心事实；复杂事件按理解需要分成1至%d段，不能以标题一句加免责尾句代替讲解。content_title最多%d字，不截断或缩窄选题；summary按系统规则格式化，最多%d个可见字符与视觉单位。narration_review逐项引用本轮实际口播及其来源；来源不足时不要编造。`,
-			batch[pos].Body, strings.Join(reasons, "\n"), maxStoryScenes, maxContentTitleRunes, maxTabSummaryVisibleRunes)
-		repairs = append(repairs, storyTabMaterial{GroupIndex: batch[pos].GroupIndex, Body: repairBody})
+		draft := result
+		repairs = append(repairs, storyTabMaterial{GroupIndex: batch[pos].GroupIndex, Body: batch[pos].Body,
+			Draft: &draft, Feedback: reasons})
 	}
 	return repairs
 }

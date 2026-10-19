@@ -205,6 +205,46 @@ test("strict tone reports source-reading prose in both summaries and subtitles w
   }
 });
 
+test("ordinary Raw validation blocks reporting scaffolding and accepts direct news without rewriting its input", () => {
+  const report = rawReport();
+  report.stories[0].scenes[0].subtitle = "韩国财长预计半导体景气持续到2027年；2029年内存供需走向属于行业预测。";
+  report.stories[0].tabs[0].summary = "`Typora`称**现有V1付费用户可免费升级至V2**，无需再次购买。";
+  report.stories[1].scenes = [
+    {id: "copy-1", subtitle: "Kotaku报道，创作者称使用Claude制作了这个游戏项目，在收到律师函后停止开发。"},
+    {id: "copy-2", subtitle: "仓库将它描述为面向开放任务的递归智能体框架，并称模型权重保持不变。"},
+    {id: "copy-3", subtitle: "Typora官方补充说明，现有V1付费用户升级至V2可免费，无需再次购买。"},
+    {id: "copy-4", subtitle: "团队演示了利用AI生成游戏内容的项目；报道没有显示厂商宣布新的防作弊方案。"},
+  ];
+  const original = JSON.stringify(report);
+  const dir = seedDataScheme({"data.json": original});
+  try {
+    const failed = runCli(checkDataJson, [], dir);
+    assert.equal(failed.code, 1, failed.stderr);
+    for (const code of ["claim-classification", "attribution-stack", "source-as-actor", "supplementary-preface", "evidence-absence", "product-policy-preface"]) {
+      assert.match(failed.stderr, new RegExp(`news-copy template \\[${code}\\]`));
+    }
+    assert.equal(readFileSync(join(dir, "data.json"), "utf8"), original);
+    assert.deepEqual(readdirSync(dir), ["data.json"]);
+
+    report.stories[0].scenes[0].subtitle = "韩国财长预计，半导体景气至少持续到2027年。行业预计，2029年内存市场可能进入红海竞争。";
+    report.stories[0].tabs[0].summary = "现有`Typora V1`付费用户**可免费升级至V2**，无需再次购买软件许可证。";
+    const subtitles = [
+      "创作者介绍，自己用Claude制作了这个游戏项目，收到律师函后决定停止开发。",
+      "这是面向开放任务的递归智能体框架，递归编排时模型权重保持不变。",
+      "现有Typora V1付费用户可免费升级至V2，无需再次购买软件许可证。",
+      "这款AI游戏项目收到版权方的律师函，创作者随后决定停止继续开发。",
+    ];
+    report.stories[1].scenes.forEach((scene, index) => {scene.subtitle = subtitles[index];});
+    const revised = JSON.stringify(report);
+    writeFileSync(join(dir, "data.json"), revised);
+    const passed = runCli(checkDataJson, [], dir);
+    assert.equal(passed.code, 0, passed.stderr);
+    assert.equal(readFileSync(join(dir, "data.json"), "utf8"), revised);
+  } finally {
+    rmSync(dir, {recursive: true, force: true});
+  }
+});
+
 test("one check reports length, Markdown, tone and missing evidence together without writing files", () => {
   const report = rawReportWithMediumNarration();
   report.stories[0].contentTitle = "字".repeat(31);
@@ -308,7 +348,7 @@ test("combined checks accept a valid evidence report without preparing reviews o
   }
 });
 
-test("the same report passes without --strict-tone (native/manual mode unaffected)", () => {
+test("supplied-source medium checks still require --strict-tone", () => {
   const dir = seedDataScheme({
     "data.json": JSON.stringify(rawReportWithMediumNarration()),
   });

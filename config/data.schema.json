@@ -226,7 +226,7 @@
           "type": "string",
           "minLength": 1,
           "maxLength": 96,
-          "description": "建议 28 至 96 字的完整事实口播，也是 TTS 的输入文案；包含主体、事件及范围或结果。"
+          "description": "最多 96 字的完整事实口播，也是 TTS 的输入文案；包含主体、事件及必要条件。没有凑字数的下限，短消息直接讲完，复杂事件按理解需要分段。"
         },
         "overlayImg": {
           "$ref": "#/$defs/imagePath",

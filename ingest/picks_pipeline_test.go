@@ -154,7 +154,7 @@ func TestPicksPathEndToEnd(t *testing.T) {
 	}
 
 	// mock AI：两个 Story 都直接给足合格 Tabs 与一条整条新闻口播。
-	// summary 必须 ≥ minTabSummaryRunes(25) 汉字才能过 normalizeStoryTabs 校验。
+	// Use complete factual summaries with the same source indexes as production.
 	tabsServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		resp := `[{"group_index":1,"navigation_title":"DeepSeek","tabs":[
 			{"title":"自研芯片","summary":"DeepSeek 正在自主研发专用芯片以降低对英伟达 GPU 的依赖，这是重要的供应链自主化举措。","subtitle":"DeepSeek 正在自研 AI 芯片以减少对英伟达和华为的芯片依赖。","kind":"fact","evidence_indexes":[1]},

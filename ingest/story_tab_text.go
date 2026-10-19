@@ -20,7 +20,7 @@ var (
 	tabSummaryPlainClausePattern     = regexp.MustCompile(`[^，。；;！？!?\n]+`)
 )
 
-// normalizeStoryTabs 校正模型返回的 Tabs：丢弃标题空、摘要过短或无有效证据的项，补全 kind，去重并截断到上限。
+// normalizeStoryTabs 校正模型返回的 Tabs：丢弃缺失、残句或无有效证据的项，补全 kind，去重并截断到上限。
 func normalizeStoryTabs(group NewsGroup, tabs []StoryTab) []StoryTab {
 	normalized, _ := normalizeStoryTabsWithReasons(group, tabs)
 	return normalized
@@ -112,8 +112,8 @@ func tabRejectionReason(tab StoryTab) string {
 		return "Tab 标题为空"
 	case tabSummaryMarkdownIssue(tab.Summary) != "":
 		return "summary Markdown 不合法：" + tabSummaryMarkdownIssue(tab.Summary)
-	case visibleRunes < minTabSummaryRunes:
-		return fmt.Sprintf("summary 仅 %d 个可见字符，不足 %d 字下限", visibleRunes, minTabSummaryRunes)
+	case visibleRunes == 0:
+		return "summary 为空，必须讲出具体事实"
 	case visibleRunes > maxTabSummaryVisibleRunes:
 		return fmt.Sprintf("summary 有 %d 个可见字符，超过 %d 字上限", visibleRunes, maxTabSummaryVisibleRunes)
 	case len(boldSpans) == 0:
@@ -195,7 +195,7 @@ func normalizeStoryScenesWithReasons(group NewsGroup, scenes []StoryScene) ([]St
 	for _, scene := range scenes {
 		subtitle := normalizeSceneSubtitle(scene.Subtitle)
 		if subtitle == "" {
-			rejected = append(rejected, "subtitle 不是 28 至 96 字的完整事实口播，或包含界面提示/空信息")
+			rejected = append(rejected, "subtitle 必须是最多 96 字的完整事实口播，不能包含残句、界面提示或空信息；短消息不必凑字数")
 			continue
 		}
 		if hasTruncationArtifact(subtitle) {
@@ -239,11 +239,11 @@ func hasCompleteSummaryEnding(summary string) bool {
 }
 
 func overlapsExistingTabSummary(candidate string, existing []string) bool {
-	if utf8.RuneCountInString(candidate) < minTabSummaryRunes {
+	if utf8.RuneCountInString(candidate) < minOverlappingSummaryRunes {
 		return false
 	}
 	for _, previous := range existing {
-		if utf8.RuneCountInString(previous) < minTabSummaryRunes {
+		if utf8.RuneCountInString(previous) < minOverlappingSummaryRunes {
 			continue
 		}
 		if strings.Contains(candidate, previous) || strings.Contains(previous, candidate) {
@@ -467,7 +467,7 @@ func normalizeSceneSubtitle(value string) string {
 	if utf8.RuneCountInString(value) > maxSceneSubtitleRunes {
 		return ""
 	}
-	if utf8.RuneCountInString(value) < minSceneSubtitleRunes {
+	if !hasCompleteSummaryEnding(value) {
 		return ""
 	}
 	if startsWithIncompleteCause(value) {
